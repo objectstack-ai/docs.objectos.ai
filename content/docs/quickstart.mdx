@@ -64,7 +64,7 @@ You'll see:
   Mode:    production
   Driver:  SqlDriver(better-sqlite3)  → ~/.objectstack/data/objectstack.db
   Tenancy: single
-  Plugins: 31 loaded
+  Plugins: 32 loaded
 
   Press Ctrl+C to stop
 ```
@@ -74,14 +74,12 @@ ObjectOS is built on, not ObjectOS itself. See
 [License & Pricing](/docs/resources/license) for what the ObjectOS editions
 add on top of it.
 
-That block is transcribed from `@objectstack/cli` 17.5.0 booting an empty
+That block is transcribed from `@objectstack/cli` 17.7.0 booting an empty
 kernel. Home paths show as `~/…` — the CLI prints yours expanded. Your own boot
 also prints a `No objectstack.config.ts or artifact found` line before the
 server starts, plus startup advisories (local storage driver, dev crypto key,
 boot diagnostics) and the full list of loaded plugin names, both of which
-depend on your environment. It also logs a SQL-driver warning,
-`Paged read of 'sys_migration' is NOT deterministic`, and a `DATABASE_ERROR`
-for a missing `sys_migration` table, neither of which stops the server.
+depend on your environment.
 
 ### What's running
 
@@ -180,7 +178,7 @@ You'll see:
 
 ◆ Compile
 ────────────────────────────────────────
-  ✓ Build complete (175ms)
+  ✓ Build complete (312ms)
 
   Data: 1 Objects  3 Fields
   UI: 0 Apps
@@ -188,7 +186,7 @@ You'll see:
   Security: 0 Positions  0 Permissions
   Runtime: 0 plugins
 
-  Artifact: my-app/dist/objectstack.json (1.9 KB)
+  Artifact: my-app/dist/objectstack.json (2.2 KB)
 
   → Starting dev server (local mode)...
 🎯 Environment ID: env_local
@@ -209,26 +207,24 @@ You'll see:
       an app that gates navigation on requiredPermissions may show it an empty menu; grant
       it a permission set under Setup → Users, or sign in as an account your app seeds
 
-  Config:  objectstack.config.ts
+  Artifact: dist/objectstack.json
   Mode:    development
   Driver:  SqlDriver(better-sqlite3)  → my-app/.objectstack/data/objectstack.db
   Tenancy: single
-  Plugins: 36 loaded
+  Plugins: 38 loaded
 
   Press Ctrl+C to stop
 ```
 
 That block is transcribed from `pnpm dev` on a scaffold created by
-`@objectstack/cli` 17.5.0. Project paths show as `my-app/…` — the CLI prints
+`@objectstack/cli` 17.7.0. Project paths show as `my-app/…` — the CLI prints
 yours expanded, and the `Build complete` timing is whatever the transcribing
 machine measured, so yours will differ. Your own run also prints pnpm's script
 header above the block, per-step compile progress, startup advisories
 (configuration load, dev secret-field crypto), the full list of loaded plugin
 names, boot diagnostics, and an MCP connection trailer. A separate process
 prints that trailer, so it usually lands inside the banner, often interleaved
-line by line with it. The run also logs a SQL-driver warning,
-`Paged read of 'sys_migration' is NOT deterministic`, and a `DATABASE_ERROR`
-for a missing `sys_migration` table, neither of which stops the server.
+line by line with it.
 
 Note the dev server asks for port **3000**, the same port `os start` uses. If
 that port is taken it binds the next free one and says so:
@@ -304,15 +300,18 @@ Either path gives you these plugins automatically:
 > FLS), Audit, Sharing, Platform objects, Metadata, ObjectQL, the default
 > datasource plus the external-datasource and datasource-admin services, Queue,
 > Jobs, Cache, Settings, Email, SMS, Messaging, Storage, Analytics, external
-> validation, Marketplace, Package management, the Setup and Account apps, and
-> the Console UI.
+> validation, Marketplace, Package management, Migration recovery, the Setup and
+> Account apps, and the Console UI.
 
 Path B also loads the automation service plus the record-change, schedule,
 time-relative and inbound HTTP/webhook flow triggers, because the scaffold's
-`objectstack.config.ts` declares `requires: ['automation', 'triggers']`.
+`objectstack.config.ts` declares `requires: ['automation', 'triggers']`. It
+also opens a dedicated telemetry datasource, a second SQLite file beside the
+database, because `pnpm dev` runs in development mode.
 
 You don't import or wire any of them — the list above loads even when nothing
-declares it, and the rest activate when something declares it needs them.
+declares it, the automation service and flow triggers activate when something
+declares it needs them, and development mode adds the telemetry datasource.
 
 ## Next steps
 
