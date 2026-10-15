@@ -258,9 +258,13 @@ message:
 ```
 
 Some `/data` routes answer a flatter shape, with the message in `error`
-and `code` beside it: `{ "error": "Record not found: …", "code":
-"RECORD_NOT_FOUND" }`. Either way, branch on the code and not on the
-message.
+and `code` beside it:
+
+```json
+{ "error": "Record not found: support_ticket/01H…", "code": "RECORD_NOT_FOUND" }
+```
+
+Either way, branch on the code and not on the message.
 
 `code` is one closed SCREAMING_SNAKE vocabulary. Common codes:
 `UNAUTHENTICATED`, `PERMISSION_DENIED`, `VALIDATION_FAILED` (with a

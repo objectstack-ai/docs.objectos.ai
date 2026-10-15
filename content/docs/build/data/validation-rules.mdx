@@ -209,7 +209,8 @@ predicates and row-level security stay on the record's own fields.
 A rule sees `record` and `previous` and nothing else: it cannot ask who is
 saving. `current_user.can(...)` is answered elsewhere — see
 [CEL → Permission checks](/docs/reference/cel#permission-checks) — and in a
-validation rule it cannot be evaluated, so the rule refuses every write.
+validation rule it cannot be evaluated, so the rule refuses every write it
+runs on.
 
 ## Uniqueness: use an index, not a rule
 

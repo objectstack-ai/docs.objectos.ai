@@ -33,6 +33,25 @@ when it did). Secrets have the same one-way edge: a secret set or rotated
 on ObjectStack 17.7 or later cannot be read by a release before 17.7 (see
 [17.7](#objectstack-177) below).
 
+## On Kubernetes and air-gapped sites
+
+- **Kubernetes** — upgrading is the same change of image digest, with the
+  migration Job running to completion before the new replicas serve. See
+  [Kubernetes → Rolling upgrades change the digest](/docs/deploy/kubernetes#rolling-upgrades-change-the-digest).
+- **Air-gapped** — verify the new digest outside, transfer it in, change the
+  pinned digest, restart. Keep the previous digest: inside an air-gapped
+  network it may be the only copy you have to roll back to. See
+  [Air-gapped → Getting the image inside the network](/docs/deploy/air-gapped#getting-the-image-inside-the-network).
+
+## The app versions separately
+
+The app itself, when it is delivered as a published artifact, versions
+independently of the image — see
+[Deployment → How the app gets in](/docs/deploy#how-the-app-gets-in). Treat
+published artifacts as immutable: if you overwrite one in place, you lose the
+ability to roll back cleanly even when the database backup is perfect
+([Backup → Artifact versioning](/docs/operate/backup#artifact-versioning)).
+
 ## Version-specific steps
 
 The steps above are the same for every release. Some ObjectStack releases
@@ -46,8 +65,9 @@ Each subsection is the operator's share of that release's upgrade
 checklist and links the whole checklist; what a release changes for the app
 you run (its metadata and its code) is in the same checklist and in the
 [Changelog](/docs/resources/changelog). The `os migrate` commands are the
-ObjectStack CLI at the version the new image embeds, run against the
-deployment's database with the environment it boots with — see
+ObjectStack CLI at the version the new image embeds. They boot the app to
+read its metadata, so run them with the environment the deployment boots
+with — the same database and the same app — see
 [CLI → Database migrations](/docs/reference/cli#database-migrations--os-migrate).
 
 > **Rehearse on a copy.** The release notes mark most checklist lines
@@ -229,22 +249,3 @@ After the first boot:
   (`account_not_linked`); it no longer links to that account silently.
 
 Full checklist: [17.7.0](https://objectstack.ai/docs/releases/v17/17-7#upgrade-checklist).
-
-## On Kubernetes and air-gapped sites
-
-- **Kubernetes** — upgrading is the same change of image digest, with the
-  migration Job running to completion before the new replicas serve. See
-  [Kubernetes → Rolling upgrades change the digest](/docs/deploy/kubernetes#rolling-upgrades-change-the-digest).
-- **Air-gapped** — verify the new digest outside, transfer it in, change the
-  pinned digest, restart. Keep the previous digest: inside an air-gapped
-  network it may be the only copy you have to roll back to. See
-  [Air-gapped → Getting the image inside the network](/docs/deploy/air-gapped#getting-the-image-inside-the-network).
-
-## The app versions separately
-
-The app itself, when it is delivered as a published artifact, versions
-independently of the image — see
-[Deployment → How the app gets in](/docs/deploy#how-the-app-gets-in). Treat
-published artifacts as immutable: if you overwrite one in place, you lose the
-ability to roll back cleanly even when the database backup is perfect
-([Backup → Artifact versioning](/docs/operate/backup#artifact-versioning)).

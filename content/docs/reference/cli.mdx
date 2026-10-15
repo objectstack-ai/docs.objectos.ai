@@ -157,18 +157,19 @@ os meta delete <kind> <id>
 ## Database migrations — `os migrate`
 
 `os migrate` brings a deployment's database in line with its metadata, and
-runs the one-off data migrations a release asks for. Every subcommand reads
-its environment the way `os serve` does — the `.env` files, then variables
-exported in the shell, then `--database-url`, which wins — so it targets the
-database the deployment serves. Back the database up first. Which commands a
-given upgrade needs is on [Upgrade and Rollback](/docs/operate/upgrade#version-specific-steps).
+runs the one-off data migrations a release asks for. Every subcommand works
+on the database `--database-url` names, which defaults to `$OS_DATABASE_URL`
+and then to the project's own database — so name the deployment's database
+explicitly. Each one boots the app to read its metadata. Back the database up
+first. Which commands a given upgrade needs is on
+[Upgrade and Rollback](/docs/operate/upgrade#version-specific-steps).
 
 ### Schema
 
 | Command | What it does |
 |---|---|
 | `os migrate plan` | Shows how the database has drifted from the metadata, as safe, needs-confirm and destructive changes. Writes nothing |
-| `os migrate apply` | Applies the safe changes, after a prompt (`--yes` skips it). `--allow-destructive` also drops orphaned columns, tightens `NOT NULL` and narrows types |
+| `os migrate apply` | Applies the non-destructive changes, after a prompt (`--yes` skips it). `--allow-destructive` also drops orphaned columns, tightens `NOT NULL` and narrows types |
 | `os migrate multi-value-columns` | Moves a stale text column to JSON where a field declares `multiple: true`, the one type change `apply` never makes. A dry run until `--apply` |
 | `os migrate unmapped-columns --object NAME` | Reads the values left in a retired field's columns, keyed by record id. Read-only. Since 17.7 no runtime door returns those columns, so this is how a conversion reads them before `apply --allow-destructive` drops them |
 | `os migrate duplicates` | Reports identifiers already issued twice and the rows that block a unique index, as JSON. Read-only |
