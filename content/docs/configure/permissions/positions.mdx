@@ -56,16 +56,53 @@ Two system-managed positions are seeded in every deployment:
 | `guest` | Sessionless (anonymous) HTTP principals only |
 
 Bind a permission set to `everyone` to grant a baseline to all signed-in
-users; bind to `guest` to open something to anonymous visitors. Bindings
-are additive, and the platform refuses to bind high-privilege sets
-(View All / Modify All, delete/purge/transfer, system permissions,
-wildcards) to these anchors.
+users. Bindings are additive, and the platform refuses to bind
+high-privilege sets (View All / Modify All, delete/purge/transfer,
+system permissions, wildcards) to these anchors.
+
+**`guest` grants nothing.** Anonymous access to object data is denied
+on every HTTP surface (ObjectStack 17.0), and no binding on the `guest`
+anchor gives an anonymous caller a permission set (ObjectStack 17.6).
+Open something to anonymous visitors by declaring the
+surface instead — a
+[public form](/docs/build/interface/views#public-forms) or a share
+link — each of which authorizes only what it declares.
 
 The configured baseline permission set (`fallbackPermissionSet`, default
 `member_default`) applies through the same `everyone` binding path. Note
 that since ObjectStack 14.2 the member baseline no longer includes
 **delete** — record deletion must be granted explicitly per object
 through position-distributed permission sets.
+
+**A caller with no permission set gets the deny baseline** (ObjectStack
+17.6). A request that resolves no permission set at all — an anonymous
+request, or one naming only sets that do not exist — is refused every
+object with `403 PERMISSION_DENIED`. It is not served a field gated by
+`requiredPermissions` (or is served it masked, if the field declares a
+`maskingRule`), and cannot filter, sort, group or write on one. Signed-in
+users are unaffected as long as a baseline set is configured — the
+default, `member_default`, always resolves for them.
+
+## Deactivating a position
+
+A position's **Deactivate** action takes away everything it confers,
+immediately (ObjectStack 17.1):
+
+- it distributes none of its permission sets, and its name leaves the
+  holders' `current_user.positions`;
+- a sharing rule whose recipient is the position shares with nobody,
+  and the record shares it had already granted are revoked on the next
+  reconcile.
+
+Deactivation stops access, not addressing: an approval step with an
+approver of type `position` still routes to the holders of a
+deactivated position. A position whose `active` value is empty is
+unaffected — only an explicit deactivation counts.
+
+> Before ObjectStack 17.1 the switch was inert: a deactivated position
+> kept granting. Upgrading past it revokes that access on live data, so
+> re-activate any deactivated position that is still meant to grant
+> before you upgrade.
 
 ## Effective-dated assignments
 

@@ -80,7 +80,10 @@ endpoints do not feed that counter, a rejected API key is indistinguishable
 from a request that carried no credential at all, and both statuses are
 dominated by ordinary permission denials against users who authenticated
 perfectly well. Review sign-in activity in Setup's `Auth` audit view
-instead — see [Audit Logs](/docs/operate/audit-logs).
+instead, as a holder of `view_all_audit_log` — platform administrators hold
+it by default. Without it, sign-outs and sign-ins whose session has since
+been removed are not served; see
+[Audit Logs](/docs/operate/audit-logs#what-each-reader-is-served).
 
 For OpenTelemetry, set `OS_OBS_EXPORTER=otlp` **and** `OS_OTLP_ENDPOINT`
 (e.g. `https://<collector>/otlp`) and ObjectOS will emit traces and metrics

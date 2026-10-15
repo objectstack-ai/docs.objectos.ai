@@ -1,7 +1,7 @@
 ---
 title: Field-Level Security
 seoTitle: "Field-Level Security: Grants and API Enforcement"
-description: Hide or lock down individual fields — grant semantics, server-side enforcement, and how FLS behaves in forms, views, and the API.
+description: Hide, mask or lock down individual fields — grant semantics, server-side enforcement, and how FLS behaves in forms, views, and the API.
 ---
 
 Field-level security (FLS) controls the visibility and editability of
@@ -47,6 +47,55 @@ The two flags produce three states:
 > `security-fls-unqualified-key` lint rejects bare keys at compile
 > time, because they silently matched nothing.
 
+## Masked fields
+
+Since ObjectStack 17.1 a field can also be **masked**: served with most
+of its value replaced, so it stays recognizable without being
+disclosed. Masking is declared on the field itself, not in a permission
+set:
+
+```ts
+// Fields of an object; the object around them is omitted.
+mobile: Field.phone({
+  label: 'Mobile',
+  maskingRule: 'phone',               // served as 138****5678
+  requiredPermissions: ['view_pii'],  // holders of view_pii see the stored value
+}),
+tax_id: Field.text({
+  label: 'Tax ID',
+  maskingRule: { keepHead: 2, keepTail: 2 },  // keep two characters at each end
+}),
+```
+
+`maskingRule` takes one of five presets — `phone`, `id_card`,
+`bank_account`, `email`, `name` — or `{ keepHead, keepTail }`, the
+number of characters to keep at each end. The mask is deterministic and
+keeps the value's length.
+
+Who sees the stored value:
+
+| Caller | Sees |
+|---|---|
+| Holds **every** capability in the field's `requiredPermissions` | The stored value |
+| Anyone else, when the field declares `requiredPermissions` | The mask |
+| Everyone except system context, when the field declares no `requiredPermissions` | The mask |
+| A caller from whom a `readable: false` grant hides the field | Nothing — the field stays hidden |
+
+The capability in `requiredPermissions` is granted like any other, by a
+permission set. Masking never widens a hidden field: a `readable: false`
+grant still removes it entirely.
+
+Masking is one value on every surface — API responses, list views and
+forms, CSV and XLSX exports, and the context an AI agent reads all serve
+the same mask. Two more rules keep it from leaking:
+
+- **A masked field cannot be queried.** Filtering, sorting, grouping or
+  aggregating on it is refused, as for a hidden field — see
+  [Enforcement in the API](#enforcement-in-the-api).
+- **The mask never overwrites the value.** A write that sends the masked
+  placeholder back — a client re-submitting a whole record it read — is
+  refused with `400 VALIDATION_ERROR` instead of storing `138****5678`.
+
 ## How grants combine
 
 FLS uses **default-visible (block-list) semantics**: fields without an
@@ -56,7 +105,7 @@ Permission sets only constrain fields they explicitly enumerate.
 Field grants union **most-permissively** across a user's sets: one
 set's `readable: true` out-votes another set's `false`. Until a
 subtractive muting layer lands (reserved as ADR-0066 ⑧), a
-`{ readable: false }` rule masks the field only as long as **no other
+`{ readable: false }` rule hides the field only as long as **no other
 set the user holds** declares it `readable: true`. The practical
 consequences:
 
@@ -66,7 +115,7 @@ consequences:
 - Treat a sensitive field on a broadly-granted object as a review
   smell.
 
-Declared rules themselves are enforced fail-closed: a masked field is
+Declared rules themselves are enforced fail-closed: a hidden field is
 stripped on read and a write to a non-editable field throws.
 
 ## Enforcement in the API
@@ -76,7 +125,21 @@ regardless of how the request arrived — REST, ObjectQL, or any other
 path. There is no back door through a lower-level API.
 
 **On read** — `find` / `findOne` results have non-readable fields
-stripped from every record before the response leaves the engine.
+stripped from every record before the response leaves the engine, and
+masked fields replaced by their mask.
+
+**On query** — a field the caller cannot read, or reads only masked,
+cannot be used to select rows either, because which rows match would
+disclose its value one probe at a time. Filtering, sorting, grouping or
+aggregating on it is refused with `403 PERMISSION_DENIED`. Since
+ObjectStack 17.6 that holds at every query door, not only the data
+API's filter and sort:
+
+- a field named as the right-hand side of a comparison, in a filter or
+  an aggregation;
+- analytics queries;
+- filters and sorts over the value columns of the activity stream, the
+  [audit log](/docs/operate/audit-logs) and approval snapshots.
 
 **On write** — `insert` / `update` requests are checked **before** the
 operation reaches the driver. If the payload contains any field the
@@ -118,23 +181,26 @@ The generated forms and inline grids hide non-editable fields from the
 UI — but that is a **UX layer only**. The server-side check above is
 the source of truth, so behavior stays consistent everywhere:
 
-| Surface | Hidden field | Read-only field |
-|---|---|---|
-| Record forms / inline grids | Not rendered | Rendered without an editable control; a direct write attempt is rejected with 403 |
-| List views, related lists, exports | Column value stripped from the response | Value shown normally |
-| REST / ObjectQL | Stripped from results | Returned on read; write throws `PERMISSION_DENIED` with `forbiddenFields` |
-| MCP / AI agents | Stripped — agents [run as the calling user](/docs/configure/mcp#permission-enforcement) | Same as REST |
+| Surface | Hidden field | Masked field | Read-only field |
+|---|---|---|---|
+| Record forms / inline grids | Not rendered | Value shown masked; writing the mask back is rejected with `400 VALIDATION_ERROR` | Rendered without an editable control; a direct write attempt is rejected with 403 |
+| List views, related lists, exports | Column value stripped from the response | Masked value shown, in CSV and XLSX exports too | Value shown normally |
+| REST / ObjectQL | Stripped from results | Masked value returned | Returned on read; write throws `PERMISSION_DENIED` with `forbiddenFields` |
+| MCP / AI agents | Stripped — agents [run as the calling user](/docs/configure/mcp#permission-enforcement) | Same as REST | Same as REST |
+| Filter, sort, group, aggregate | Refused with `403 PERMISSION_DENIED` | Refused with `403 PERMISSION_DENIED` | Allowed |
 
 Because reads are stripped rather than errored, a hidden field simply
-looks absent to that user — which is the point.
+looks absent to that user — which is the point. Querying on it is the
+exception: that answers `403`, as above.
 
 ## Verifying and reviewing FLS
 
 - **Per decision, at runtime** — the
   [explain engine](/docs/configure/permissions#diagnose--audit) reports
   the FLS layer's verdict alongside every other layer, with the
-  contributing permission set named. Use it when a user reports a
-  "missing" field.
+  contributing permission set named, and reports a masked field as
+  masked rather than hidden. Use it when a user reports a "missing"
+  field.
 - **Per change, at build time** — if your app has opted into the
   access-matrix snapshot gate, `os compile` diffs the derived
   (permission set × object) capability matrix against a committed

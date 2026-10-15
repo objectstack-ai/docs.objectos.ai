@@ -104,6 +104,24 @@ To revoke a key, run the `revoke_api_key` action on the corresponding
 `sys_api_key` record (also available in Setup). Revocation takes
 effect immediately on the next request.
 
+### Keys belong to an organization (ObjectStack 17.1)
+
+A key is minted against the caller's **active organization**:
+`POST /api/v1/keys` takes no organization parameter, so there is no
+cross-organization key, and the caller's membership is re-checked at mint
+time. On a single-organization deployment that changes nothing you can see.
+Under a walled tenancy posture (`OS_TENANCY_POSTURE`, see
+[Environment Variables](/docs/reference/environment-variables#multi-organization-deployments)),
+it decides which keys still work:
+
+| Key | `group` | `isolated` |
+|---|---|---|
+| Minted on 17.1 or later, owner still a member of its organization | Works | Works |
+| Owner has since left the key's organization | Refused | Refused |
+| Minted before 17.1 — it carries no organization | Works | Refused — re-mint it |
+
+Keys minted before 17.1 are never back-filled with an organization.
+
 ## MCP clients & OAuth 2.1 (ObjectStack 13+)
 
 Any OAuth-capable MCP client — Claude.ai custom connectors, Claude
