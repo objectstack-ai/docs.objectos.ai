@@ -124,7 +124,9 @@ What moved:
   comparisons, the activity stream, the audit trail, approval snapshots
   and analytics. The audit trail and the activity stream show a
   non-system reader, administrators included, only rows about records that
-  reader can read. See [Audit Logs](/docs/operate/audit-logs).
+  reader can read; 17.7's `view_all_audit_log` capability, which platform
+  administrators hold by default, gives them the deletion and sign-out
+  trail back. See [Audit Logs](/docs/operate/audit-logs).
 - **A packaged flow wins its name** — a flow saved in the deployment under
   a packaged flow's name stops running, and the on/off toggle switches
   packaged flows only. See [Flows](/docs/build/automation/flows#visual-builder).
@@ -296,24 +298,13 @@ What moved:
   users and the CSV/XLSX export route all see the same value; a masked
   caller cannot filter, sort, group or aggregate on the field. See
   [Field-Level Security](/docs/configure/permissions/field-level-security).
-- **`sys_audit_log` can answer "who viewed this record"** — the ledger
-  covered writes only; it gains a `read` action, its writer, and a
-  `record_views` list view. Record-detail reads only, per-object opt-in
-  with no global switch, batched off the request path, and **never any
-  field values** — read auditing runs ahead of field masking, so copying
-  values in would mint a plaintext copy of exactly what field-level
-  security withholds. See [Audit Logs](/docs/operate/audit-logs).
-- **Read-only approval visibility, per object, default off** — an object
-  can be named so that a user who can read a business record may also see
-  that record's approval requests and full action history. Omitted or
-  empty leaves visibility exactly as it is; on an object you do name it is
-  not a no-op — a supervisor who holds full read but never appears in the
-  approval used to get an empty list, and now sees the request row, every
-  actor and decision, the action's comment text (意见正文), and decision
-  attachments. The tier is read-only and introduces no new permission
-  concept: the service reads the record as the caller, so ordinary CRUD
-  and record access decide. See
-  [Approvals](/docs/build/automation/approvals).
+- **Two open-runtime capabilities that ObjectOS does not expose** —
+  17.1 added record-view auditing (a `read` action in `sys_audit_log`) and
+  a read-only tier that lets a record's readers see its approval requests.
+  Each is switched on only by a constructor option — `AuditPlugin`'s
+  `readAudit`, the approval service's `recordReaderVisibleObjects` — that
+  the ObjectOS runtime does not set, so neither is available on an
+  ObjectOS deployment.
 - **All three flow doors answer one honest status table** — a refused
   dispatch stops being reported as a failed run: `404` not found, `409`
   `FLOW_DISABLED`, `422` `FLOW_NO_START_NODE`, and `400` `FLOW_FAILED`

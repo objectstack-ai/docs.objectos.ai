@@ -138,8 +138,8 @@ Full checklist: [17.3.0](https://objectstack.ai/docs/releases/v17/17-3#upgrade-c
 
 ### ObjectStack 17.4
 
-- **Walled posture: re-mint API keys that carry no organization**, or whose
-  owner has left it. They move from `200` to `401`.
+- **Under `isolated`, re-mint API keys that carry no organization.** They
+  move from `200` to `401`. Under `group` such a key still works.
 - **Expect `503` from the storage download and settings routes** while the
   authorization store is unreachable, where they used to degrade quietly.
 
