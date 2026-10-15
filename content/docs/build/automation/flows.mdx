@@ -44,7 +44,7 @@ lacks either one, because such a flow would register and never run.
 | `schedule`, time-relative *(16.0)* | A date field's proximity to today, via a daily sweep | "Remind me 60 days before the contract ends" |
 | `autolaunched` | An action button, another flow, or an API call | "Approve invoice" actions |
 | `screen` | A user, through one or more screens | Guided data entry |
-| `api` | An HTTP request | An endpoint for an external system |
+| `api` | An HTTP request, signed with the start node's `config.secret` | An endpoint for an external system |
 
 ## Record change: react to a record change
 
@@ -162,6 +162,22 @@ Backed by the `@objectstack/service-job` capability — see
 time-triggered flow has no caller to inherit an organization from;
 ObjectStack's [Flow metadata](https://docs.objectstack.ai/docs/automation/flows#the-acting-organization)
 says when its start node must declare one with `organization`.
+
+> **Scheduled work is off until the deployment turns it on.** Since
+> ObjectStack 17.5, a time-triggered flow (a `schedule` cadence, or the
+> time-relative sweep below) and a packaged `defineJob` cron job arm only
+> when the deployment sets `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` to `true`
+> (or `1`, `on`, `yes`). Unset, nothing arms, and each such flow is reported
+> as *disabled by deployment policy*, not as an error. Off is the ObjectStack
+> runtime's default; whether your ObjectOS image or its deploy-bundle
+> template sets the variable for you is not something this page can promise,
+> so set it explicitly when your app depends on scheduled flows, and confirm
+> it with `os doctor`, which prints the effective value — see
+> [Environment Variables](/docs/reference/environment-variables#runtime-services).
+> The platform's own scheduled work (approval escalation, retention, message
+> dispatch) is not affected. Under the `isolated` tenancy posture, a
+> scheduled flow that does not declare `organization` on its start node is
+> not armed even with the switch on.
 
 ## Time-relative: fire relative to a date field (16.0)
 
@@ -295,6 +311,15 @@ under the same names; only declared inputs are bound. The caller's
 identity is forwarded into the run, so the update runs under the caller's
 permissions.
 
+The route answers with an HTTP status that says what happened, so branch
+on the status rather than on a `success` flag in the body: `200` for a run
+that dispatched (completed, paused, or [refused](#ending-a-run-completed-or-refused)),
+`404` for an unknown flow, `409 FLOW_DISABLED` for a flow that is switched
+off, `422 FLOW_NO_START_NODE` for a definition with no start node, and
+`400 FLOW_FAILED` for a run that dispatched and failed. An action of type
+`flow` answers the same way — see
+[REST API → Flow status table](/docs/reference/rest-api#flow-status-table).
+
 ## Node types
 
 | Node `type` | Purpose |
@@ -314,6 +339,34 @@ permissions.
 | `screen` | Pause for a user's input |
 | `subflow` | Call another flow |
 | `approval` | Block until approvers decide (requires `@objectstack/plugin-approvals`) |
+| `end` | End the run — `completed` by default, or `refused` with a reason (below) |
+
+### Ending a run: completed or refused
+
+Since ObjectStack 17.4 an `end` node declares the run's **outcome**. A flow
+that has to say no — a duplicate, an over-limit amount — ends on a refusing
+`end` instead of failing or showing a screen that only says so:
+
+```ts
+// One flow node; the flow around it is omitted.
+{
+  id: 'refuse_duplicate',
+  type: 'end',
+  label: 'Refused: duplicate',
+  config: {
+    outcome: 'refused',  // 'completed' (the default) | 'refused'
+    message: 'Refused: {record.name} is already registered.',
+  },
+}
+```
+
+A refused run is not a failed one: nothing threw. It ends with the run
+status `refused`, the trigger route answers `200` with that status, and the
+rendered `message` comes back as `refusalMessage`, with no
+`successMessage` beside it. `message` is required when
+`outcome` is `refused`, and refused on a completed end, where nothing
+would ever show it. Reach the refusing `end` from a `decision` branch, and
+keep every write on the branches the refusal does not take.
 
 ## Conditions and branches
 
@@ -358,7 +411,11 @@ export const expenseRouting = defineFlow({
 A `decision` node branches on its out-edges. They are evaluated in the
 order `edges` lists them, the first whose `condition` holds runs, and the
 `isDefault` edge runs when none does. Without `isDefault`, an edge with no
-condition runs on every pass, beside whichever branch matched.
+condition runs on every pass, beside whichever branch matched. To run
+*every* branch whose condition holds, declare `config: { mode: 'inclusive' }`
+on the decision. First-match is the rule since ObjectStack 17.5; before it,
+every true branch ran, and a decision stored in the database (one saved
+from Studio) took the new meaning on upgrade without being rewritten.
 
 ## Error handling
 
@@ -412,6 +469,17 @@ ObjectOS ships a visual flow builder that round-trips with the
 declarative metadata — non-engineers can edit a flow, and it serializes
 back to the same shape as the TypeScript you'd hand-author. It is
 Studio's **Automations** pillar.
+
+A flow saved from Studio is stored in the deployment, beside the flows
+your installed packages ship. Two rules follow, both since ObjectStack
+17.6:
+
+- **A packaged flow wins its name.** A stored flow that shares its name
+  with a packaged flow is shadowed and does not run; the startup log warns
+  about it. To customize a packaged flow, clone it under a new name.
+- **Switch a stored flow with its `status`.** The on/off toggle switches
+  packaged flows only. A flow authored in the deployment is switched off by
+  saving it with `status: 'obsolete'`, and back on with `status: 'active'`.
 
 ## Testing flows
 

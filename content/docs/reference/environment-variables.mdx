@@ -61,8 +61,8 @@ supported combinations and the reasoning behind the refusal.
 ## Multi-organization deployments
 
 A **walled** tenancy posture puts up the per-organization isolation wall. It is
-a licensed capability, and it makes two further decisions mandatory: the
-runtime refuses to start until each is declared. Declaring either available
+a licensed capability, and it makes three further decisions mandatory: the
+runtime refuses to start until each is declared. Declaring any available
 value is accepted; not deciding is not.
 
 | Variable | Decides |
@@ -70,9 +70,12 @@ value is accepted; not deciding is not.
 | `OS_TENANCY_POSTURE` | Whether organizations are isolated from one another. The walled values are `isolated` and `group`. A walled posture **requires a license**: without one the runtime exits at startup rather than serve traffic while pretending to be isolated. |
 | `OS_AUTH_MEMBERSHIP_POLICY` | What a fresh sign-up joins. `auto` binds every new user to the deployment's default organization — right for a single-organization box, wrong where a membership *is* the tenant boundary. `invite-only` grants membership only by an explicit act: creating a workspace, accepting an invitation, an admin, or SSO provisioning. Also settable in **Setup → Authentication → Membership**; setting it here pins it and makes the Setup field read-only. |
 | `OS_AI_STUDIO_AGENTS` | Which AI agents are mounted, as a comma-separated subset of `ask` and `build`. Unset mounts **both**. `ask` reads; `build` **authors metadata** — and metadata is scoped to the deployment, not to an organization, so on a shared database one customer's `build` turn rewrites the schema every other customer runs on. The AI seat does not cover this: it is one flag for both agents. A misspelled value fails the boot rather than quietly falling back to mounting both. |
+| `OS_PLATFORM_OWNER_EMAIL` | Who the deployment's platform administrators are: one email address, or a comma-separated list. Under a walled posture it is the **only** source of platform-administrator standing — since ObjectStack 17.5 an `admin_full_access` grant no longer confers it there — and unset or blank, the runtime refuses to start. A listed account holds the standing only once its address is **verified**, so the deployment needs a way to verify it: an email transport, or a trusted federated sign-in. One unparseable entry voids the whole list. A change takes effect on restart. |
 
-A single-organization deployment sees neither of the last two checks and may
-leave both unset.
+A single-organization deployment sees none of these checks. It may leave
+the last three unset: the first account to register becomes the platform
+administrator, unless `OS_PLATFORM_OWNER_EMAIL` names one, in which case
+that verified account does.
 
 ## Multi-node
 
@@ -113,11 +116,12 @@ the older URL — actually work.
 | `OS_ENVIRONMENT_ID` | The environment id a single-environment runtime reports as its own. A completed cloud binding persists this, after which a self-hosted runtime does not need it set. |
 | `OS_TRUSTED_ORIGINS` | Additional trusted origins, comma-separated. |
 | `OS_ROOT_DOMAIN` | Root domain used to trust subdomains in platform-SSO deployments. |
-| `OS_DATABASE_DRIVER` | Overrides the driver otherwise inferred from the `OS_DATABASE_URL` scheme. Set it only when the scheme cannot be inferred; an unsupported value fails rather than falling back. |
+| `OS_DATABASE_DRIVER` | Overrides the driver otherwise inferred from the `OS_DATABASE_URL` scheme. Set it only when the scheme cannot be inferred; an unsupported value fails rather than falling back. Since ObjectStack 17.7 the in-memory engine is refused as a boot store, whether it is named here (`memory`) or by a `memory://` URL. |
 | `OS_DATABASE_AUTH_TOKEN` | Auth token for managed drivers that use one. |
 | `OS_SKIP_SCHEMA_SYNC` | Set to `1` to skip the boot-time schema sync. Use when schema is managed out of band — the shipped stack already runs migrations as a separate one-shot step before any replica starts. |
 | `OS_TELEMETRY_DB` | A dedicated datasource for lifecycle-classed system data. Set to `0` to opt out, or to a path or URL to opt in. |
 | `OS_LIFECYCLE_DISABLED` | Set to `1` to disable the lifecycle service (retention reaper, table rotation, audit archiver). Retention windows themselves are tuned through the `lifecycle.retention_overrides` setting, not through environment variables. |
+| `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` | Whether the deployment runs scheduled work that apps and packages declare: time-triggered [flows](/docs/build/automation/flows#scheduled-run-on-a-clock) (a schedule, or a time-relative sweep) and packaged `defineJob` cron jobs. Only `true`, `1`, `on` or `yes` turn it on; **unset is off**, the ObjectStack runtime's default since 17.5, in every tenancy posture. While it is off, nothing on a clock arms, and each such flow is reported as disabled by deployment policy. The platform's own scheduled work (approval escalation, retention, message dispatch) is not gated. Under `isolated`, a scheduled flow or job must also declare the organization it runs as. ⚠️ Whether your ObjectOS image or the deploy-bundle template sets this for you is not something this page can promise: set it explicitly if your app depends on scheduled flows, and read the effective value with `os doctor`. |
 | `OS_MCP_SERVER_ENABLED` | Governs the Model Context Protocol server over HTTP at `/api/v1/mcp`, and only that surface. **On by default**: set an explicit falsy value (`false`, `0`, `off`, `no`) to disable it. An authenticated principal is always required. |
 | `OS_MCP_STDIO_ENABLED` | Set to a truthy value to auto-start the long-lived **stdio** MCP transport. Off by default, and independent of the HTTP surface above. |
 | `OS_MCP_STDIO_API_KEY` | The API key that stdio transport is principal-bound to, resolved through the same authorization chain as HTTP MCP, so record- and field-level security still apply. Fails closed: with stdio enabled and no resolvable key, the transport does not start. |
@@ -135,6 +139,28 @@ nothing until you select one — **setting an endpoint alone does nothing.**
 | `OS_OBS_SERVICE_NAME` | — | The `service.name` resource attribute on emitted spans and metrics. |
 | `OS_OBS_DEPLOYMENT_ENV` | `production` | The `deployment.environment` resource attribute. |
 | `OS_OTLP_FLUSH_MS` | — | Flush interval for the OTLP exporter, in milliseconds. |
+
+## Data-contract escape hatches
+
+ObjectStack 17.0 made the platform refuse values that break their declared
+contract, where it used to warn and accept them. These variables re-open the
+old behaviour **temporarily**, for an integration you cannot fix today. Each
+takes exactly `1`; anything else leaves the strict behaviour on. The
+violation is still logged, so the drift stays visible.
+
+| Variable | Re-opens |
+|---|---|
+| `OS_ALLOW_LAX_ACTION_PARAMS` | An action call whose `params` miss a required parameter, break its `options` / `multiple` / `reference` declaration, or carry an undeclared key. Without it, such a call answers `400 VALIDATION_FAILED`. |
+| `OS_ALLOW_LAX_MEDIA_VALUES` | A malformed `file` / `image` / `avatar` / `video` / `audio` value, where those values are checked strictly. |
+| `OS_ALLOW_LAX_VALUE_SHAPES` | A malformed reference (`lookup`, `master_detail`, `user`, `tree`) or structured JSON value (`location`, `address`, …), where those values are checked strictly. |
+
+Media and value shapes are checked strictly on a database the 17.x runtime
+created. A database upgraded from an earlier major is checked strictly only
+once the matching migration has recorded its flag — see
+[CLI → Data migrations](/docs/reference/cli#data-migrations). Do
+not reach for `OS_DATA_VALUE_SHAPE_STRICT_ENABLED=1` to get there sooner: it
+turns strict checking on for every value class at once, whatever this
+deployment's data actually holds.
 
 ## Pinning a system setting
 
@@ -159,6 +185,7 @@ they can be used.
 | `OS_ARTIFACT_FILE` | `OS_ARTIFACT_URL`. Nothing in the shipped runtime reads `OS_ARTIFACT_FILE`; a deployment that sets it gets the boot it would have got with nothing set, and no error naming the mistake. A local file is `file://` on the replacement, and the replacement carries the integrity pin. |
 | `OS_ARTIFACT_PATH` | `OS_ARTIFACT_URL`. **The ObjectOS runtime image refuses a boot that carries a non-default `OS_ARTIFACT_PATH`**, naming the replacement. Two spellings for "which artifact do I boot" is one dialect too many, and the retired one never carried an integrity pin. |
 | `OS_BUSINESS_DB_URL` | `OS_DATABASE_URL`, or a datasource declared in the artifact. Nothing reads `OS_BUSINESS_DB_URL`; a deployment that sets it and nothing else has no database configured at all. |
+| `OS_LOCALIZATION_DATE_FORMAT`, `OS_LOCALIZATION_TIME_FORMAT`, `OS_LOCALIZATION_NUMBER_FORMAT`, `OS_LOCALIZATION_FIRST_DAY_OF_WEEK` | Nothing: ObjectStack 17.7 retired the settings they pinned, and dates, times, numbers and the week start now follow the language. See [Localization](/docs/configure/localization#dates-times-and-numbers-follow-the-language). |
 
 `OS_CLOUD_API_KEY` is **not** a variable a self-hosted deployment sets. It is
 the service credential the hosted cloud injects into runtimes it operates

@@ -68,7 +68,8 @@ CEL expressions evaluate in a context with these top-level variables:
 | `record` | almost always | The current record being evaluated |
 | `previous` | on update hooks / change-detection | The pre-change state of the record (or `null`) |
 | `input` | actions, flow steps | The user-supplied input payload |
-| `os.user` | always | `{ id, name, email, positions: string[], organizationId }` |
+| `current_user` | when the evaluation has an acting user — **not** in a validation rule, which sees only `record` and `previous` | `{ id, name, email, positions: string[], organizationId }`, plus [`can()`](#permission-checks) |
+| `os.user` | where `current_user` is | Another name for `current_user` — the same object |
 | `os.org` | always | Organisation / tenant context |
 | `os.env` | always | Environment variables exposed to expressions |
 
@@ -105,6 +106,27 @@ CEL also includes the native `timestamp(...)`, `duration(...)`,
 
 Native CEL string helpers (`.contains(...)`, `.startsWith(...)`,
 `.matches(...)`, `.size()`) are always available.
+
+### Permission checks
+
+Since ObjectStack 17.5, `current_user.can(object, verb)` asks whether the
+acting user holds an object permission, answered from that user's
+effective permissions:
+
+```ts
+discount: Field.percent({
+  label: 'Discount',
+  defaultValue: cel`current_user.can('crm_quote', 'edit') ? 10 : 0`,
+}),
+```
+
+`object` is an object name and `verb` one of `read`, `create`, `edit`
+(also `update`, `write`), `delete` (also `remove`), `export`, `transfer`
+and `import`. The server answers it in a select option's `visibleWhen`
+(an option the user may not pick is refused `invalid_option`), in formula
+fields and in a CEL `defaultValue`. Where an evaluation carries no
+permission data — a validation rule is one — `can()` is refused rather
+than guessed, and the expression fails.
 
 ## Examples
 

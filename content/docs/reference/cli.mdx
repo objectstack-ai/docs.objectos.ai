@@ -154,6 +154,64 @@ os meta register <file>
 os meta delete <kind> <id>
 ```
 
+## Database migrations — `os migrate`
+
+`os migrate` brings a deployment's database in line with its metadata, and
+runs the one-off data migrations a release asks for. Every subcommand reads
+its environment the way `os serve` does — the `.env` files, then variables
+exported in the shell, then `--database-url`, which wins — so it targets the
+database the deployment serves. Back the database up first. Which commands a
+given upgrade needs is on [Upgrade and Rollback](/docs/operate/upgrade#version-specific-steps).
+
+### Schema
+
+| Command | What it does |
+|---|---|
+| `os migrate plan` | Shows how the database has drifted from the metadata, as safe, needs-confirm and destructive changes. Writes nothing |
+| `os migrate apply` | Applies the safe changes, after a prompt (`--yes` skips it). `--allow-destructive` also drops orphaned columns, tightens `NOT NULL` and narrows types |
+| `os migrate multi-value-columns` | Moves a stale text column to JSON where a field declares `multiple: true`, the one type change `apply` never makes. A dry run until `--apply` |
+| `os migrate unmapped-columns --object NAME` | Reads the values left in a retired field's columns, keyed by record id. Read-only. Since 17.7 no runtime door returns those columns, so this is how a conversion reads them before `apply --allow-destructive` drops them |
+| `os migrate duplicates` | Reports identifiers already issued twice and the rows that block a unique index, as JSON. Read-only |
+
+```bash
+os migrate plan                                    # what would change; writes nothing
+os migrate apply --allow-destructive --yes         # also drop and tighten (CI / scripts)
+os migrate unmapped-columns --object contact --json > contact-unmapped.json
+```
+
+### Data migrations
+
+Each of these rewrites rows rather than schema, and is a fact about your
+database, not about the version you installed: the runtime does not run them
+for you. Unless its row says otherwise, each is a dry run until you pass
+`--apply`.
+
+| Command | What it does |
+|---|---|
+| `os migrate files-to-references` | (17.0) Converts file-field values stored inline to `sys_file` references. `--apply` records the flag that turns on strict media values for this deployment |
+| `os migrate value-shapes` | (17.0) Scans reference and structured JSON values against their contract. `--apply` records its flag once a scan finds nothing |
+| `os migrate meta --from 17` | Replays the metadata conversion chain over an app's **sources** and lists the edits it makes; `--out FILE` writes the converted stack. An authoring step: it does not touch the database |
+| `os migrate meta --stored` | The same conversion over this deployment's **stored** metadata; `--apply` rewrites the rows |
+| `os migrate account-issuer` | (17.5) Checks that the `sys_account.issuer` column can be dropped. Read-only; exits non-zero while two accounts would collide |
+| `os migrate audit-metadata-bodies` | (17.6) Rewrites the copies of metadata bodies the audit trail and activity stream hold, removing credentials and stored content hashes |
+| `os migrate summary-nulls` | Fills roll-up `count` / `sum` columns still stored as `NULL` on older parent rows |
+| `os migrate recorded-by` | Rewrites the legacy `'system'` marker in metadata history to `NULL` |
+| `os migrate resume` | Lists migration runs that were interrupted. Read-only until `--run ID`, which resumes or unwinds one |
+
+```bash
+os migrate account-issuer                          # read-only pre-flight
+os migrate audit-metadata-bodies                   # dry run: what it would rewrite
+os migrate audit-metadata-bodies --apply           # rewrite
+```
+
+### Secrets and stored files
+
+| Command | What it does |
+|---|---|
+| `os secret rewrap` | Re-seals older `sys_secret` ciphertext in the 17.7 format. A dry run until `--apply`; it must be told whether the host declares datasources in code (`--declared-datasources FILE` or `--no-declared-datasources`). ⚠️ A release before 17.7 cannot open what it writes |
+| `os secret orphans` | Reports `sys_secret` rows nothing refers to any more. Deletes only with `--delete` |
+| `os storage orphans` | Reports stored files nothing holds and no retention policy will ever reclaim. Writes nothing |
+
 ## i18n commands
 
 ```bash
@@ -226,4 +284,6 @@ os data query --help
 - **Developer building an app** → `os init` → `os dev` → `os compile`
 - **CI / release pipeline** → `os lint && os validate && os compile && os test`
 - **Production runtime** → `os serve` (typically inside the Docker image's `CMD`)
+- **Upgrading a deployment** → the `os migrate` steps the
+  [upgrade page](/docs/operate/upgrade#version-specific-steps) lists for your versions
 - **Diagnostics** → `os doctor`, `os info`, `os explain`

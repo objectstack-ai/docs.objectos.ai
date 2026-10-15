@@ -5,8 +5,9 @@ description: The HTTP surface ObjectOS exposes — generated from your metadata,
 ---
 
 Every object you declare gets a full REST endpoint set automatically.
-Every action becomes a `POST`. Every flow becomes a `POST` to
-`/flows/...`. There is no separate API layer to write or deploy.
+Every action becomes a `POST`. Every flow can be started with a `POST` to
+`/automation/:name/trigger`. There is no separate API layer to write or
+deploy.
 
 Base URL: `https://<your-host>/api/v1`.
 OpenAPI spec is live at [`/api/v1/openapi.json`](#discovery).
@@ -82,12 +83,12 @@ object's `name` (snake_case).
 
 | Path | Method | Purpose |
 |:--|:--|:--|
-| `/data/:object` | GET | List / query — pass `where`, `orderBy`, `limit`, `offset`, `cursor`, `expand`, `select` as query params |
+| `/data/:object` | GET | List / query — pass `where`, `orderBy`, `limit`, `offset`, `expand`, `select` as query params |
 | `/data/:object/query` | POST | Advanced query — full ObjectQL body with `groupBy` + `aggregations` (see [ObjectQL](./objectql)) |
 | `/data/:object/:id` | GET | Fetch one record. Supports `?select=` and `?expand=` |
 | `/data/:object` | POST | Create. Returns `201` with the new record |
-| `/data/:object/:id` | PATCH | Update. Pass `If-Match: <version>` header (or `expectedVersion` in body) for optimistic concurrency — `409 CONCURRENT_UPDATE` on conflict |
-| `/data/:object/:id` | DELETE | Delete. Same `If-Match` rule |
+| `/data/:object/:id` | PATCH | Update. Pass `If-Match: <version>` header (or `expectedVersion` in body) for optimistic concurrency — `409 CONCURRENT_UPDATE` on conflict. A record you cannot read answers `404 RECORD_NOT_FOUND`, the same as one that does not exist |
+| `/data/:object/:id` | DELETE | Delete. Same `If-Match` and `404` rules |
 | `/data/:object/import` | POST | Bulk import (CSV or JSON). Body: `{ format, csv? \| rows?, mapping?, dryRun? }`. Max 5,000 rows/request |
 | `/data/:object/export` | POST | Export records as `csv` / `xlsx` / `pdf` / `json` |
 | `/data/:object/:id/shares` | GET / POST | Per-record sharing — list grants, grant access |
@@ -103,11 +104,18 @@ Authorization: Bearer <token>
 
 ```json
 {
-  "items": [ { "id": "...", "subject": "...", "status": "open" } ],
+  "object": "support_ticket",
+  "records": [ { "id": "...", "subject": "...", "status": "open" } ],
   "total": 137,
-  "nextCursor": "eyJpZCI6IjAxSDA..."
+  "hasMore": true
 }
 ```
+
+Page with `limit` and `offset`, or, for a stable walk through a large set,
+with a `where` on your sort key (`{"created_at": {"$lt": "<last value read>"}}`)
+beside the same `orderBy`. There is no cursor paging: ObjectStack 17.0
+removed `cursor`, which no driver had ever implemented, so every page came
+back identical.
 
 ## AI — `/api/v1/ai/*`
 
@@ -137,33 +145,61 @@ Every `*.action.ts` you declare becomes an endpoint.
 
 | Path | Method | Purpose |
 |:--|:--|:--|
-| `/actions/:action` | POST | Invoke the action. Body is the action's input schema. Permissions and input validation come from the action declaration |
+| `/actions/:object/:action` | POST | Invoke an action declared on an object. Body is the action's input schema. Permissions and input validation come from the action declaration |
+| `/actions/:object/:action/:recordId` | POST | The same, on one record |
+| `/actions/:action` | POST | Invoke a global action (one bound to no object) |
 
 Each action is also exposed to the AI as a `action_<name>` tool — see
-[Actions](/docs/build/interface/actions).
+[Actions](/docs/build/interface/actions). An action of type `flow` answers
+with the [flow status table](#flow-status-table) below.
 
-## Flows — `/api/v1/flows/*`
+## Automation — `/api/v1/automation/*`
 
 | Path | Method | Purpose |
 |:--|:--|:--|
-| `/flows/:flow/start` | POST | Start a flow. Body is the flow input |
-| `/flows/:flow/runs/:runId` | GET | Status + step output of a running / completed flow |
-| `/flows/:flow/runs/:runId/cancel` | POST | Cancel an in-flight run |
+| `/automation/:name/trigger` | POST | Start a flow. Inputs go in `params`, under the names of the flow's `isInput` variables |
+| `/automation/:name/runs` | GET | List the flow's runs |
+| `/automation/:name/runs/:runId` | GET | Status and step output of one run |
+| `/automation/:name/runs/:runId/resume` | POST | Resume a paused run. The body takes only `inputs`, `variables`, `output` and `branchLabel` |
+| `/automation/:name/runs/:runId/cancel` | POST | Cancel an in-flight run. Needs platform-administrator standing; anyone else is refused `403` |
+| `/automation/:name/toggle` | POST | Switch a **packaged** flow on or off. Requires `manage_metadata`; a flow authored in the deployment is refused `409` — switch it with its own `status` instead |
+| `/automation/_status` | GET | Which flows are enabled and bound |
+
+### Flow status table
+
+The trigger route, an action of type `flow` and a declared `type: 'flow'`
+endpoint all answer the same statuses. Branch on the HTTP status, not on a
+`success` flag inside the body:
+
+| Status | Code | Means |
+|:--|:--|:--|
+| `200` | — | The run dispatched. Its `status` is `completed`, `paused` (it waits on a screen, an approval or a timer), or `refused` (it reached an `end` node with `outcome: 'refused'`; the text is in `refusalMessage`) |
+| `404` | `RESOURCE_NOT_FOUND` | No flow has that name |
+| `409` | `FLOW_DISABLED` | The flow is switched off |
+| `422` | `FLOW_NO_START_NODE` | The stored definition has no start node and cannot run |
+| `400` | `FLOW_FAILED` | The run dispatched and failed; the details carry the flow's `errorMessage` |
 
 ## Metadata — `/api/v1/meta/*`
 
-Read-only introspection into the running runtime's metadata. Useful
-for tooling and the UI.
+Introspection into the running runtime's metadata, and the door Studio
+saves through. Useful for tooling and the UI.
 
 | Path | Method | Purpose |
 |:--|:--|:--|
 | `/meta` | GET | All metadata types (`object`, `view`, `action`, `flow`, `agent`, …) |
 | `/meta/:type` | GET | List items of a type. Filter with `?package=<id>` |
-| `/meta/:type/:name` | GET | Fetch one item. `?layers=true` returns the 3-state diff view (base / package / overlay) |
+| `/meta/:type/:name` | GET | Fetch one item |
+| `/meta/:type/:name` | PUT / DELETE | Save or delete one item. Needs an authoring capability |
+| `/meta/:type/:name/layers` | GET | The item as three layers: code, overlay and effective. Replaces the deprecated `?layers=true` |
 | `/meta/:type/:name/references` | GET | Find every metadata item that references this one |
-| `/meta/:type/:name/history` | GET | Audit trail for that item |
-| `/meta/:type/:section/:name` | GET / POST | Read / upsert a sectioned metadata item |
-| `/meta/:type/:section/:name` | DELETE | Delete a sectioned item |
+| `/meta/:type/:name/history` | GET | Change history for that item. Needs an authoring capability |
+
+`/meta/:type/:name` is the only address of an item. Percent-encode a name
+that carries a slash: `GET /api/v1/meta/lead/views%2Fall_leads`. The
+sectioned `/meta/:type/:section/:name` routes were retired in ObjectStack
+17.3 and answer `404 ROUTE_NOT_FOUND`. Reading `datasource` or
+`external_catalog` metadata, and saving `datasource` metadata, needs
+`manage_platform_settings`.
 
 ## Sharing & approvals
 
@@ -176,18 +212,23 @@ for tooling and the UI.
 | `/approvals/requests/:id/approve` | POST | Decision: approve |
 | `/approvals/requests/:id/reject` | POST | Decision: reject |
 
-## Reports & search
+## Reports
 
-| Path | Method | Purpose |
-|:--|:--|:--|
-| `/reports` | GET / POST / PATCH | Report CRUD |
-| `/reports/:id/run` | POST | Execute a report — returns aggregated rows |
-| `/reports/:id/schedule` | POST | Schedule recurring delivery |
+There is no saved-report API. ObjectStack 17.5 removed `/reports`,
+`/reports/:id/run` and `/reports/:id/schedule`, which now answer `404`,
+and scheduled report delivery went with them, with no replacement. A
+report is metadata, read through `/meta/report/:name`, and its numbers
+come from analytics (`POST /analytics/query`). Analytics answers
+`403 PERMISSION_DENIED` to a caller who cannot read the object, the same
+as `/data` does.
 
 ## Public forms
 
-The only routes that are **unauthenticated**, opt-in via
-`FormView.sharing.allowAnonymous`.
+The only routes that are **unauthenticated**. A form view opts in through
+its `sharing`, and all three keys are required: `enabled: true`,
+`allowAnonymous: true`, and a `publicLink` slug. Since ObjectStack 17.7 a
+form that sets only the last two answers `404 FORM_NOT_FOUND` — see
+[Views → Public forms](/docs/build/interface/views#public-forms).
 
 | Path | Method | Auth |
 |:--|:--|:--|
@@ -202,21 +243,31 @@ The only routes that are **unauthenticated**, opt-in via
 
 ## Error envelope
 
-Every non-2xx response follows the same shape:
+A non-2xx response carries a machine-readable `code` and a human-readable
+message:
 
 ```json
 {
   "error": {
     "code": "PERMISSION_DENIED",
     "message": "Missing ai:approve on conversation 01H…",
+    "httpStatus": 403,
     "details": { "permission": "ai:approve", "subject": "01H…" }
   }
 }
 ```
 
-Common codes: `UNAUTHENTICATED`, `PERMISSION_DENIED`,
-`VALIDATION_ERROR`, `NOT_FOUND`, `CONCURRENT_UPDATE`,
-`RATE_LIMITED`, `INTERNAL`.
+Some `/data` routes answer a flatter shape, with the message in `error`
+and `code` beside it: `{ "error": "Record not found: …", "code":
+"RECORD_NOT_FOUND" }`. Either way, branch on the code and not on the
+message.
+
+`code` is one closed SCREAMING_SNAKE vocabulary. Common codes:
+`UNAUTHENTICATED`, `PERMISSION_DENIED`, `VALIDATION_FAILED` (with a
+`fields` list naming each rejected value), `RECORD_NOT_FOUND`,
+`RESOURCE_NOT_FOUND`, `CONCURRENT_UPDATE`, `RATE_LIMIT_EXCEEDED`,
+`INTERNAL_ERROR`. A code your own application throws that is not in the
+platform vocabulary arrives in `declaredCode` instead of `code`.
 
 ## Versioning
 
