@@ -43,11 +43,11 @@ the business it showed is unchanged.
 
 One definition, in three forms:
 
-| Form | Written by | What it is |
-|---|---|---|
-| **Tenant metadata** | The [AI Builder](/docs/build/ai-builder), or Studio | Live metadata in your deployment. An AI Builder change queues for a person's approval before it applies |
-| **Repository source** | Your developers and their coding agent, with the [AI skills](/docs/build/ai-skills) | `objectstack.config.ts` and its metadata files, reviewed as pull requests |
-| **Compiled artifact** | `os compile` | `objectstack.json`, what a deployment boots — see [Boot modes](/docs/architecture#boot-modes). Keep every published one ([Backup](/docs/operate/backup)) |
+| Form | What it is |
+|---|---|
+| **Tenant metadata** | What the [AI Builder](/docs/build/ai-builder) and Studio write: live metadata in your deployment. An AI Builder change queues for a person's approval before it applies |
+| **Repository source** | What your developers and their coding agent write, with the [AI skills](/docs/build/ai-skills): `objectstack.config.ts` and its metadata files, reviewed as pull requests |
+| **Compiled artifact** | What `os compile` produces: `objectstack.json`, which a deployment boots — see [Boot modes](/docs/architecture#boot-modes). Keep every published one ([Backup](/docs/operate/backup)) |
 
 Whichever form you author in, the metadata passes the same
 [validation gate](/docs/resources/glossary#validation-gate) before it runs.

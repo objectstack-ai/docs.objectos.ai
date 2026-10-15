@@ -25,15 +25,20 @@ The mental model is one definition and one runtime that runs it:
    process, talking to your database.
 
 ```text
-your ontology   objects · relations · actions · permissions · flows · agents
-      │         + its projections: views · dashboards · apps · translations
-      ▼
-ObjectOS runtime — derives the app, enforces the definition on every call
+your ontology
+  objects · relations · actions
+  permissions · flows · agents
+  + projections: views · dashboards
+    apps · translations
       │
-      ├──▶ database      the schema, on your driver
-      ├──▶ REST API      /api/v1/*
-      ├──▶ Console       /_console/
-      └──▶ MCP server    /api/v1/mcp
+      ▼
+ObjectOS runtime
+  derives the app, enforces it
+      │
+      ├──▶ database    its schema
+      ├──▶ REST API    /api/v1/*
+      ├──▶ Console     /_console/
+      └──▶ MCP server  /api/v1/mcp
 ```
 
 No code generation step, no deploy pipeline between "user described
