@@ -38,7 +38,9 @@ construction.
 Either ObjectOS edition then takes you to the same place — sign in, and:
 
 - **Talk to the AI Builder** — *"I need to track support tickets with
-  priority and assignee"* — and watch the metadata get generated. See
+  priority and assignee"* — and watch it write your
+  [ontology](/docs/ontology), the object and its fields, as a small
+  diff you approve. See
   [Build → AI Builder](/docs/build/ai-builder).
 - **Install a template** from the built-in marketplace (Todo,
   Contracts, Helpdesk, …) and have a real app in one click.
@@ -52,7 +54,7 @@ Either ObjectOS edition then takes you to the same place — sign in, and:
 |---|---|---|
 | **Retool / Appsmith** | UI builder is great, but your data sits in their cloud and their pricing scales with users | Hosted (ObjectOS Cloud) or inside your network (ObjectOS Enterprise); built on open-source ObjectStack (Apache-2.0), so the ontology is yours to export; no seat tax — AI seats only |
 | **Supabase / Firebase** | Backend-as-a-service is fast but vendor-locked; multi-tenant SaaS by design | Same DX (auto APIs, auth, storage), but the definition is yours: export it and run it on the open ObjectStack runtime, or run ObjectOS Enterprise on your own database |
-| **Salesforce / NetSuite** | Powerful platform, painful customization, eye-watering per-seat cost | Same metadata-driven model (objects, fields, roles, sharing rules), hosted or self-managed, no seat tax — viewers and non-AI users are free |
+| **Salesforce / NetSuite** | Powerful platform, painful customization, eye-watering per-seat cost | A familiar vocabulary (objects, fields, permission sets, sharing rules), but the definition is an open ontology that AI writes, agents operate, and you can export to the Apache-2.0 runtime; hosted or self-managed, no seat tax — viewers and non-AI users are free |
 | **Rolling your own (Next + Prisma + NextAuth)** | You rebuild RBAC, audit, file uploads, settings, webhooks, jobs every time | Ship the actual business logic; the platform plumbing is already there |
 
 ## What you get out of the box
@@ -62,6 +64,7 @@ Either ObjectOS edition then takes you to the same place — sign in, and:
 | **Auto REST API** | Every object you declare gets `/api/v1/data/<object>` with filter/sort/paginate |
 | **The UI** (`/_console/`) | Generated screens: browse and edit records, and **Setup** to manage users/roles/permission sets, view audit log, sessions, API keys, settings |
 | **Account** ([inside the UI](/docs/resources/glossary#surface)) | Login, register, password reset, OAuth, OIDC/SSO, passkeys, 2FA |
+| **MCP server** (`/api/v1/mcp`) | On by default: every object is a tool, and so is every action you expose to AI; an agent connects as a user, under that user's permissions — see [Connect AI Tools (MCP)](/docs/configure/mcp) |
 | **20+ plugins** | RBAC + row-level security, audit, file storage, queues, jobs, email, AI, webhooks — declarative, on demand |
 
 ## What stays yours
@@ -80,7 +83,7 @@ first-class Enterprise deployment target — see
 
 ## Find your docs
 
-This documentation serves three audiences — start at the section that
+This documentation serves four audiences — start at the section that
 matches how you use ObjectOS:
 
 | You are … | You want to … | Start here |
@@ -88,6 +91,7 @@ matches how you use ObjectOS:
 | **An everyday user** | Work in the apps: records, views, dashboards, approvals | [Use](/docs/use) |
 | **A builder** | Create apps: data models, interfaces, automation, AI agents | [Build](/docs/build) |
 | **An administrator** | Run the platform: users, permissions, settings, deployment | [Configure](/docs/configure), [Deploy](/docs/deploy), [Operate](/docs/operate/production) |
+| **An agent, or whoever connects one** | Operate the app over MCP — read and write records, run the actions exposed to AI — under a user's permissions | [Connect AI Tools (MCP)](/docs/configure/mcp) |
 
 ## Where to go next
 

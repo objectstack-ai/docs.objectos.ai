@@ -32,6 +32,29 @@ is self-managed and needs no cloud service to run — connecting it to a
 control plane is optional. The open-source ObjectStack runtime needs no
 account at all.
 
+## The ontology
+
+### What does ObjectOS mean by ontology?
+
+Your app's definition: its objects and fields, relations, actions,
+permissions, flows, and agent and tool definitions, as one typed,
+versioned body of ObjectStack metadata that the runtime runs. Views,
+dashboards, apps and translations are projections of it, not part of it.
+It is executable — validated, then run — not a knowledge ontology with
+inheritance, axioms and a reasoner. See
+[Your ontology in ObjectOS](/docs/ontology).
+
+### Is ObjectOS a semantic layer?
+
+No. A semantic layer maps systems that already exist so they can be
+queried; it describes a business but does not run it. ObjectOS runs your
+ontology: the database, REST API, UI and agent tools are derived from it.
+You can connect a database you already run as an external datasource —
+read-only by default, and early — and that system of record stays where
+it is. See [Extend Existing Systems](/docs/extend-existing-systems), and
+[How ObjectStack compares](https://objectstack.ai/docs/concepts/compare)
+for the side-by-side.
+
 ## Architecture
 
 ### Can I use Postgres / MySQL / MongoDB?
@@ -151,11 +174,14 @@ Native connectors for popular iPaaS tools are on the roadmap.
 
 ### Can AI agents call my ObjectOS?
 
-Yes, via MCP (`@objectstack/mcp`) — exposes objects (and, increasingly,
-actions) as MCP tools that Claude Desktop, IDEs, Claude Code, or any other MCP
-client can use. This is the **AI path on the free, open-source ObjectStack
-framework** (bring your own model); the in-product AI Builder / "ask your data"
-assistant is what the paid ObjectOS editions add. See [AI Service](/docs/configure/ai).
+Yes. Every ObjectOS deployment is an MCP server at `/api/v1/mcp`, on by
+default: every object is a tool, and so is every action its author
+exposed to AI (`ai.exposed`). Claude Code, Claude Desktop, IDEs or any
+other MCP client connect as a user, and every call runs as that user,
+under the same permissions and audit as a person. The open-source
+ObjectStack runtime serves the same MCP surface, with your own model;
+ObjectOS adds the in-product AI — the AI Builder and the assistants your
+users chat with. See [Connect AI Tools (MCP)](/docs/configure/mcp).
 
 ## Customization
 

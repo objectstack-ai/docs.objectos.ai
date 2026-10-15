@@ -9,8 +9,10 @@ A single canonical definition for each term used in this documentation.
 ### Action
 
 A named operation declared in metadata, invocable via REST
-(`/api/v1/data/<object>/actions/<action>`), buttons in the UI, or flow
-steps. Inherits the caller's permissions.
+(`/api/v1/actions/<object>/<action>`), buttons in the UI, and — once its
+author exposes it to AI (`ai.exposed`) — agents. Whether the caller may
+invoke it is checked as the caller; a `script` body then runs as trusted
+app code. See [Actions](/docs/build/interface/actions).
 
 ### Adapter
 
@@ -51,9 +53,14 @@ permissions, flows, and agent and tool definitions — as one executable,
 versioned whole: authored as typed ObjectStack metadata, validated rather
 than reasoned over, and run by the runtime, which derives the database,
 REST API, UI and MCP tools from it. Views, dashboards, apps and
-translations are projections of it, not part of it. It is yours on either
-ObjectOS edition: export it and run it on the open-source ObjectStack
-runtime. The full account is
+translations are [projections](#projection) of it, not part of it.
+
+It is executable, not a knowledge ontology: no object inheritance, no
+axioms, no reasoner. Nor is it a semantic layer — a read-only mapping over
+existing systems that describes a business but does not run it. It is
+yours on either ObjectOS edition: export it and run it on the open-source
+ObjectStack runtime. On this site, see
+[Your ontology in ObjectOS](/docs/ontology); the full account is
 [Business Ontology](https://objectstack.ai/docs/concepts/ontology) in the
 ObjectStack docs.
 
@@ -144,9 +151,11 @@ package registry. See [Marketplace](/docs/build/marketplace).
 
 ### MCP (Model Context Protocol)
 
-An open protocol for AI agents to discover and call tools.
-ObjectOS can expose its objects + actions as MCP via
-`@objectstack/mcp`.
+An open protocol for AI agents to discover and call tools. Every
+ObjectOS deployment is an MCP server at `/api/v1/mcp`, on by default:
+each object is a tool, and so is each action its author exposed to AI
+(`ai.exposed`). Every call runs as the caller. See
+[Connect AI Tools (MCP)](/docs/configure/mcp).
 
 ### Object
 
@@ -209,6 +218,16 @@ and distributes permission sets to everyone who holds it. See
 Old name for **Environment**. It survives in inherited configuration and
 in framework-internal identifiers; ObjectOS documentation says
 *Environment*.
+
+### Projection
+
+A view, dashboard, app or translation: metadata authored beside the
+[business ontology](#business-ontology) and checked by the same
+[validation gate](#validation-gate), but not part of the ontology. A
+projection presents the core — an object's fields on a grid, queries over
+objects on a chart, every label in a locale. Change the core and its
+projections follow; remove a projection and the business it showed is
+unchanged. See [Your ontology in ObjectOS](/docs/ontology#the-projections).
 
 ### Record Share
 
@@ -283,6 +302,18 @@ deployments](/docs/reference/environment-variables#multi-organization-deployment
 
 The condition that fires a flow — record event (`after_insert`),
 schedule (cron), or manual invocation.
+
+### Validation gate
+
+The one set of checks all metadata passes before it runs: the
+`@objectstack/spec` schemas, and the authoring rules that catch what
+type-checks but would fail silently at runtime — a bad CEL predicate, a
+reference to something that does not exist. `os validate` and
+`os compile` run it on repository source, and the runtime applies the
+same gate to every metadata write that goes live, from the AI Builder,
+Studio or the metadata API. See
+[Validating Metadata](https://objectstack.ai/docs/deployment/validating-metadata)
+in the ObjectStack docs.
 
 ### View
 

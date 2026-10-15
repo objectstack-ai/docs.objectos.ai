@@ -4,8 +4,11 @@ seoTitle: "Build Apps: AI Chat, Studio Forms, or Templates"
 description: How apps come to life in ObjectOS — by chatting with AI, by clicking through forms in Studio, or by forking a template.
 ---
 
-In ObjectOS the customer doesn't write metadata. **They describe what
-they want and the AI builds it.** Three paths exist, in order of how
+Building in ObjectOS is authoring your [ontology](/docs/ontology) — its
+core (objects and fields, relations, actions, permissions, flows, agents)
+and the projections people see it through (views, dashboards, apps).
+Most people don't write that metadata by hand: **they describe what they
+want and the AI Builder writes it.** Three paths exist, in order of how
 most people actually use the platform:
 
 | Path | Who's it for | Output |
@@ -14,9 +17,14 @@ most people actually use the platform:
 | **Click-build** (fallback) | Admins who prefer Studio's forms | The same live metadata |
 | **[Template fork](/docs/build/templates)** (dev path) | Engineers who want code under source control | A TypeScript package shipped via the marketplace |
 
-All three paths produce **the same artifact shape** — packages of
-objects, fields, views, actions, flows, permissions. The platform
-doesn't care how the metadata got there.
+All three paths author **the same ontology** — the same objects, fields,
+relations, actions, permissions and flows, with the same projections — and
+every path passes the same validation gate before anything runs: the
+`@objectstack/spec` schemas and the authoring rules `os validate` runs,
+which the runtime also applies to every metadata write from the AI
+Builder or Studio. See
+[Validating Metadata](https://objectstack.ai/docs/deployment/validating-metadata)
+in the ObjectStack docs.
 
 ## The platform vocabulary
 
@@ -27,7 +35,8 @@ Every app is composed from the same primitives. Learn these once.
 | **[Package](/docs/build/packages)** | The unit of organization — `com.acme.crm`, versioned, installable | Packages |
 | **[Data model](/docs/build/data)** | Objects + fields + relationships + state machines | Data Model |
 | **[Interface](/docs/build/interface)** | Apps, views, forms, dashboards, and pages — what your users see | Interface |
-| **[Actions](/docs/build/interface/actions)** | Named operations callable from REST, buttons, flows, or AI agents | Actions |
+| **[Actions](/docs/build/interface/actions)** | Named operations — callable from REST and from buttons, and by AI agents once you expose them; one can start a flow | Actions |
+| **[Permissions](/docs/configure/permissions)** | Who may read, create, edit and delete what — permission sets, record access, field-level security | Permissions |
 | **[Flows](/docs/build/automation/flows)** | Declarative business logic (autolaunched / scheduled / manual) | Flows |
 | **[Agents](/docs/build/agents)** | End-user AI assistants — Agent → Skill → Tool | Agents |
 | **[Marketplace](/docs/build/marketplace)** | Ready-made packages anyone can install in one click | Marketplace |

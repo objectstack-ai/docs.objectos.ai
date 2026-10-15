@@ -25,9 +25,11 @@ model as everything else. The system of record stays the system of record.
 You don't replace your business system. You put ObjectOS *next to* it and
 point it at the same database:
 
-1. **Connect** the existing database as a [datasource](/docs/configure/data-sources).
-   Credentials come from your environment. Start read-only — a `readOnly`
-   datasource, or a read-only database user — and enable writes
+1. **Connect** the existing database as an external
+   [datasource](/docs/configure/data-sources) (`schemaMode: 'external'`):
+   ObjectOS runs no DDL against it, and writes stay off until you opt in.
+   The password lives in the secrets store, never in the datasource. Connect
+   with a database user that can only read, and enable writes
    deliberately.
 2. **Model** the tables as objects — by hand, or by letting a coding
    agent scan the schema and generate source-level object files for you.
@@ -45,7 +47,7 @@ are, and the legacy application keeps writing them.
 | Concern | How ObjectOS handles it |
 |---|---|
 | "We can't move the data" | The data never moves. ObjectOS connects to your database in place. |
-| "We can't risk writes to production" | Start read-only — the `readOnly` capability, or a read-only database user — and enable writes deliberately, per object, once you trust the model. |
+| "We can't risk writes to production" | Federation is read-only by default: a write needs an opt-in on the datasource (`external.allowWrites: true`) **and** on each object (`external.writable: true`). A database user granted `SELECT` only holds on every path, inside ObjectOS or not. |
 | "Modeling every table is weeks of work" | A coding agent scans the schema and generates one object file per table — you review and refine, you don't hand-type. |
 | "AI can't be trusted with our data" | Agents run as the **signed-in user** and obey object-, record-, and field-level permissions. They never see more than the person behind them. |
 | "Our data can't leave our network" | On ObjectOS Enterprise, ObjectOS runs in your environment: business data and prompts stay inside your perimeter. |

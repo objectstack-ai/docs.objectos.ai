@@ -57,10 +57,29 @@ Common scenarios where it's a fit:
 | Standing up an internal admin for a SaaS product | One Node process, slots in next to your existing services — or a Cloud tenant with nothing to run |
 | Air-gapped or on-prem deployment for an enterprise customer | A first-class ObjectOS Enterprise target: air-gapped licenses validate offline, and the AI service can point at a local model |
 | Multi-tenant internal portal (several organizations, one deployment) | A walled tenancy posture puts up the per-organization isolation wall, enforced inside the runtime — an Enterprise capability, see [License & Pricing](/docs/resources/license). It separates the organizations' data and memberships, not their schema: they share one database and one metadata set |
-| You want your users to "vibe-code" their own extensions safely | The AI Builder + HITL approval queue + audit log are the whole point |
+| You want your users to extend their apps by describing the change, safely | The AI Builder + HITL approval queue + audit log are the whole point |
+| The long tail of departmental apps around a core ERP — vendor onboarding, inspections, internal requests | Each one is a small, typed definition that changes often, instead of a spreadsheet that gets emailed around |
+| A back office that agents operate from day one | Every deployment is an MCP server, on by default; agents act through the same permissions and audit as people |
 
 ## Don't use ObjectOS if you …
 
+- need to replace the core ERP or finance system of a large enterprise
+  → a general ledger, consolidation, tax and payroll carry regulation
+  that packaged systems already encode. Build around that core, not
+  instead of it.
+- get your value mostly from integrating many existing systems →
+  connecting a database you already run is
+  [read-only by default and early](/docs/extend-existing-systems); a
+  layer over those systems fits better.
+- need analytics over a data lake → dashboards run over the app's own
+  objects; they are not built to query a lake.
+- work in an algorithm-heavy domain, such as pricing or scheduling →
+  the ontology declares what can be done, not an optimiser. Wrap the
+  algorithm as an [action](/docs/build/interface/actions) and permissions,
+  audit and agent access apply to it like any other.
+- must run on a platform that is itself certified → ObjectOS is not;
+  certification is of a running deployment, and certifying yours is work
+  you own — see [Security & Compliance](/docs/reference/security#compliance-frameworks).
 - are building a high-traffic consumer product → use a traditional web
   framework, you'll have more control.
 - need a pixel-perfect bespoke UI for end users → the generated UI is
@@ -70,6 +89,10 @@ Common scenarios where it's a fit:
   the AI and the diff it proposes, not a canvas.
 - need real-time collaborative editing (Figma-style) → not what the
   realtime plugin solves.
+
+The reasoning behind the first five, for the open runtime ObjectOS is
+built on, is on
+[When to use ObjectStack](https://objectstack.ai/docs/concepts/when-to-use).
 
 ## Compared to what you're probably using
 
@@ -102,8 +125,8 @@ Common scenarios where it's a fit:
 
 | | Salesforce | ObjectOS |
 |---|---|---|
-| Data model | Objects + fields + relationships | Same |
-| Permissions | Profile + permission sets + sharing rules + FLS | **Same vocabulary**, declarative TypeScript |
+| Data model | Objects + fields + relationships, configured in the platform | Objects, fields and relations in one open ontology — exportable, and runnable on the Apache-2.0 ObjectStack runtime |
+| Permissions | Profile + permission sets + sharing rules + FLS | A familiar vocabulary — permission sets, positions, sharing rules, FLS — declared in the ontology and enforced on every REST call, UI click and agent tool call |
 | Per-user cost | $150-300/user/month | Viewers and non-AI users free; you pay for AI seats only |
 | Customization | Apex + Lightning + flows | TypeScript + flows |
 | Where it runs | Their cloud, period | ObjectOS Cloud, or your infrastructure (ObjectOS Enterprise) |
@@ -149,8 +172,8 @@ production today serves tens of thousands of internal users across
 multiple regions with Postgres + S3 + Redis. All of them run the same
 software.
 
-Start on [ObjectOS Cloud](https://www.objectos.ai), or boot the open
-ObjectStack runtime with `npx @objectstack/cli init my-app`, and decide in
-5 minutes. If it's not for you, you've burned 5 minutes.
+Start on [ObjectOS Cloud](https://www.objectos.ai), or scaffold a project
+on the open ObjectStack runtime with `npm create objectstack@latest my-app`,
+and decide in 5 minutes. If it's not for you, you've burned 5 minutes.
 
 [**Try the Quickstart →**](/docs/quickstart)

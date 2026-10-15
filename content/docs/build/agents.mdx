@@ -75,7 +75,7 @@ export const ticketManagement = defineSkill({
     'update_ticket',
     'close_ticket',
     'escalate_ticket',
-    'action_*',         // wildcard: pick up any future actions on the active object
+    'action_*',         // wildcard: every action the app exposes to AI (`ai.exposed`)
   ],
 });
 ```
@@ -85,19 +85,26 @@ agents.
 
 ## Tools come from your declared metadata
 
-Every `*.action.ts` you declare automatically materializes as an
-`action_<name>` tool — no separate wiring. So if you've already
-defined `escalate_ticket` as an Action on the `support_ticket` object,
-both the AI Builder and your Agents can call it. Permissions still
-apply: the agent calls the action **as the user**, so the user's
-permission set decides whether it succeeds.
+An action becomes an `action_<name>` tool **when its author exposes it
+to AI** — `ai: { exposed: true }` with an `ai.description` of at least 40
+characters — and its type runs without a UI (`script`, `flow` or `api`).
+Nothing else needs wiring: if `escalate_ticket` on the `support_ticket`
+object is exposed, both the AI Builder and your Agents can call it. An
+action left unexposed is invisible to agents and refused if called,
+whatever capabilities the caller holds.
+
+The call is checked **as the user**: the action's `requiredPermissions`
+decide whether it may fire, and it loads the record as that user. A
+`script` body then runs as trusted app code, so expose an action only
+when its body is safe to run for anyone those checks let through. See
+[Actions](/docs/build/interface/actions#permissions).
 
 You can also expose:
 
 | Tool type | Source |
 |---|---|
-| **Action** | Any `*.action.ts` in any installed package |
-| **Flow** | A `type: 'flow'` action — the agent calls the action, which starts the flow |
+| **Action** | Any action exposed to AI (`ai.exposed`), in any installed package |
+| **Flow** | An exposed `type: 'flow'` action — the agent calls the action, which starts the flow |
 | **Query** | Saved ObjectQL queries (`*.query.ts`) |
 | **Knowledge search** | The `search_knowledge` tool, over the sources the user may read |
 | **MCP method** | Anything exposed by an attached MCP server |
