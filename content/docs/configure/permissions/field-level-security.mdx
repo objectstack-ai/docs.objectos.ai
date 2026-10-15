@@ -138,8 +138,10 @@ API's filter and sort:
 - a field named as the right-hand side of a comparison, in a filter or
   an aggregation;
 - analytics queries;
-- filters and sorts over the value columns of the activity stream, the
-  [audit log](/docs/operate/audit-logs) and approval snapshots.
+- filters and sorts over the copied values in the activity stream, the
+  [audit log](/docs/operate/audit-logs) and approval snapshots — refused
+  unless the filter names one object by equality and the caller can read
+  every field of it.
 
 **On write** — `insert` / `update` requests are checked **before** the
 operation reaches the driver. If the payload contains any field the

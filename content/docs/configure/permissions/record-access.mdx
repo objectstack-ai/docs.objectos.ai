@@ -99,8 +99,8 @@ denies:
 
 - **A policy with no `check` gates writes with its `using`.** `check`
   was always documented as defaulting to `using`, but only policies that
-  declared `check` were applied to writes, so a user could insert or
-  update a row into a place they could not read back. A single-row
+  declared `check` were applied to writes, so a user could write a row
+  they could not read back. A single-row
   insert or by-id update whose result falls outside the `using` of every
   write policy that applies now answers `403 PERMISSION_DENIED`. A
   policy that meant to let writes land outside its read scope has to
