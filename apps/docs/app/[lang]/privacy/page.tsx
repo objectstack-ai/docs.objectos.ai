@@ -21,7 +21,7 @@ const content = {
   en: {
     title: 'Privacy Policy',
     description: 'What ObjectStack AI LLC collects from its public websites and hosted accounts, and the data inside a self-managed deployment that it does not collect.',
-    updated: 'Last updated: October 6, 2026',
+    updated: 'Last updated: October 16, 2026',
     body: [
       {
         heading: 'Overview',
@@ -33,7 +33,7 @@ const content = {
       },
       {
         heading: 'What we do not collect',
-        text: 'We do not collect data that lives inside a self-managed ObjectOS deployment (ObjectOS Enterprise) or inside a deployment of the open-source ObjectStack runtime, and your application records never leave the perimeter you operate. ObjectOS Self-Managed validates its license online (Enterprise air-gapped licenses are offline-validated); the open-source ObjectStack runtime has no telemetry, no license check, and no update ping.',
+        text: 'We do not collect data that lives inside a self-managed ObjectOS deployment (ObjectOS Enterprise) or inside a deployment of the open-source ObjectStack runtime, and your application records never leave the perimeter you operate. Self-managed ObjectOS validates its license online (Enterprise air-gapped licenses are offline-validated); the open-source ObjectStack runtime has no telemetry, no license check, and no update ping.',
       },
       {
         heading: 'Contact',
