@@ -149,8 +149,11 @@ Every `*.action.ts` you declare becomes an endpoint.
 | `/actions/:object/:action/:recordId` | POST | The same, on one record |
 | `/actions/:action` | POST | Invoke a global action (one bound to no object) |
 
-Each action is also exposed to the AI as a `action_<name>` tool — see
-[Actions](/docs/build/interface/actions). An action of type `flow` answers
+An action is callable by AI agents only when its author opts in:
+`ai: { exposed: true }` with an `ai.description` of at least 40 characters,
+on an action that runs without a UI (`script`, `flow` or `api`). See
+[Actions](/docs/build/interface/actions) and [MCP](/docs/configure/mcp).
+An action of type `flow` answers
 with the [flow status table](#flow-status-table) below.
 
 ## Automation — `/api/v1/automation/*`

@@ -95,12 +95,16 @@ Templates:
 | `plugin` | Plugin scaffold for distributing reusable capabilities |
 | `empty` | Manifest + tsconfig only |
 
-### `os create` — create a package, plugin, or example from template
+### `os create` — scaffold a kernel code plugin
 
 ```bash
 os create plugin my-plugin
-os create example my-example
 ```
+
+`os create plugin` writes a TypeScript package implementing the kernel's
+`Plugin` contract, which `os init` does not. `os create example` was retired
+in ObjectStack 17.4: it wrote a subset of what `os init` writes, and it now
+exits with an error that names `os init`.
 
 ## Build / validate commands
 
