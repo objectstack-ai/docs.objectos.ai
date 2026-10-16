@@ -47,15 +47,19 @@ export const approveInvoice = Action.create({
     description: 'Approve a pending invoice, recording the approver and an optional note.',
   },
 
-  // what it does — a sandboxed script body
+  // what it does — a sandboxed script body. `input` is the params bag;
+  // `ctx.record` is a read-only snapshot, so the write goes through `ctx.api`,
+  // which needs the `api.write` capability
   type: 'script',
   body: {
     language: 'js',
+    capabilities: ['api.write'],
     source: `
-      await ctx.data.update('invoice', input.id, {
+      await ctx.api.object('invoice').update({
+        id: ctx.recordId,
         status: 'approved',
         approved_by: ctx.user.id,
-        approved_at: now(),
+        approved_at: new Date().toISOString(),
         approval_note: input.note,
       });
     `,

@@ -44,13 +44,17 @@ Done. Records, views, flows, permissions — all live.
 ## Fork as a codebase (for engineers)
 
 ```bash
-pnpm dlx @objectstack/cli create my-app --template todo
+npm create objectstack@latest my-app
 cd my-app
 pnpm install
-pnpm dev          # http://localhost:4002
+pnpm dev
 ```
 
-The clone is a self-contained pnpm package — `*.object.ts`,
+The scaffolder starts every project from its `blank` template. It no
+longer fetches the content templates by name: on ObjectStack 17.7,
+`--template todo` is refused as retired.
+
+The project is a self-contained pnpm package — `*.object.ts`,
 `*.view.ts`, `*.flow.ts` files you can edit, lint, test, commit. When
 you're happy:
 
