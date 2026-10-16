@@ -264,13 +264,8 @@ export default task;
 
 Then export it from `src/objects/index.ts`. `objectstack.config.ts` loads
 each directory through that `index.ts` barrel, so a file the barrel does not
-export is never loaded:
-
-```ts
-// src/objects/index.ts
-export { default as myAppItem } from './my_app_item.object';
-export { default as task } from './task.object';
-```
+export is never loaded. Add this line below the sample object's:
+`export { default as task } from './task.object';`
 
 `npx objectstack generate object task` writes a stub of the file and the
 same barrel line for you.
