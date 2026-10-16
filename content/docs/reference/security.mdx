@@ -210,8 +210,12 @@ user prompt
 
 There are 11 first-party metadata tools
 ([see Build → AI Builder](/docs/build/ai-builder)) plus one
-`action_<name>` tool per declared action. Every tool — first-party or
-custom — has the same lifecycle.
+`action_<name>` tool per action its author
+[exposed to AI](/docs/build/interface/actions#from-an-ai-agent) —
+`ai: { exposed: true }` with an `ai.description` of at least 40
+characters, on a type that runs without a UI (`script`, `flow` or
+`api`); an unexposed action is invisible to agents and refused if
+called. Every tool — first-party or custom — has the same lifecycle.
 
 ### Permission keys
 
