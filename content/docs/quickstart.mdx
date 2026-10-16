@@ -300,8 +300,8 @@ curl -b cookies.txt http://localhost:3000/api/v1/data/my_app_task
 
 ```text
 my-app/
-├── objectstack.config.ts    # defineStack(): manifest (namespace my_app) + one key per barrel
-├── src/                     # one directory per metadata type, each an index.ts barrel
+├── objectstack.config.ts    # defineStack(): manifest + one key per barrel
+├── src/                     # one index.ts barrel per directory
 │   ├── actions/
 │   ├── apps/
 │   ├── dashboards/
