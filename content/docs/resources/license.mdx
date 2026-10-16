@@ -7,7 +7,7 @@ description: ObjectOS is a commercial product — editions, pricing, and how it 
 
 ObjectOS is the **official runtime environment for ObjectStack applications**,
 sold in two deliveries: **ObjectOS Cloud** (we operate it) and **ObjectOS
-Self-Managed** (you operate it, under a commercial license). There is **no
+Enterprise** (you operate it, under a commercial license). There is **no
 open-source edition of ObjectOS**.
 
 {/*
@@ -35,14 +35,15 @@ excellent. ObjectOS is what you buy when you want the **embedded AI** and an
 One rate card, two deliveries. The **AI seat** is the only unit of pricing in
 every edition.
 
-| | **Free** | **Team** | **Business** | **Enterprise** |
-|---|---|---|---|---|
-| Delivery | cloud | cloud | cloud **or self-managed (single-node)** | cloud **or private deployment** |
-| Price | **Free** | **$24** / AI seat / mo | **$54** / AI seat / mo · self-managed: **$540** / AI seat / yr | Custom (volume) — [contact sales](mailto:sales@objectstack.ai) |
-| In-UI AI (AI Builder + "ask your data") | taste | ✓ | ✓ | ✓ |
-| AI governance (action audit, guardrails, permission scoping) | — | — | ✓ | ✓ |
-| Clustering / HA, multi-org self-host, air-gap, SCIM | — | — | — | ✓ |
-| Support | community | standard | priority (cloud) / standard (self-managed) | SLA + dedicated |
+| | **Free** | **Team** | **Business** | **Business Self-Managed** | **Enterprise** |
+|---|---|---|---|---|---|
+| Edition | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise (single-node entry option) | ObjectOS Enterprise |
+| Delivery | cloud | cloud | cloud | **self-managed, single node** | **self-managed (private deployment)** |
+| Price | **Free** | **$24** / AI seat / mo | **$54** / AI seat / mo | **$540** / AI seat / yr | Custom (volume) — [contact sales](mailto:sales@objectstack.ai) |
+| In-UI AI (AI Builder + "ask your data") | taste | ✓ | ✓ | ✓ | ✓ |
+| AI governance (action audit, guardrails, permission scoping) | — | — | ✓ | ✓ | ✓ |
+| Clustering / HA, multi-org self-host, air-gap, SCIM | — | — | — | — | ✓ |
+| Support | community | standard | priority | standard | SLA + dedicated |
 
 Want to self-host **for free**? That's the open-source
 **ObjectStack framework** (MCP-only AI) — a different brand, not an ObjectOS
@@ -59,15 +60,19 @@ per-user seat tax (a clean contrast to the $150–300/user incumbents).
 
 ## Cloud or self-managed
 
+Self-managed ObjectOS is **ObjectOS Enterprise**, and Enterprise is
+self-managed only: Cloud tops out at Business.
+
 - **Cloud (Free / Team / Business)** — fully hosted, self-serve. The price
   includes hosting and a generous monthly AI allowance (we run the model).
-- **Business Self-Managed** — the Business plan delivered as a **single-node
-  Docker license** for **10–25 AI seats** ($540/AI seat/yr, annual): in-UI AI
-  and AI governance on your own infrastructure, **bring your own model / key**
-  (you pay your own LLM cost — no platform AI bill or metering), card-paid,
+- **Business Self-Managed** — the single-node entry option of ObjectOS
+  Enterprise: the Business plan delivered as a **single-node Docker license**
+  for **10–25 AI seats** ($540/AI seat/yr, annual): in-UI AI and AI
+  governance on your own infrastructure, **bring your own model / key** (you
+  pay your own LLM cost — no platform AI bill or metering), card-paid,
   standard support. If the license lapses, the runtime keeps running and your
   data stays intact — the paid features simply switch off (it never bricks).
-- **ObjectOS Enterprise** — full private deployment for everything beyond
+- **Enterprise** — the full private deployment, for everything beyond
   that: clustering / HA / multi-node, multi-organization self-host,
   data residency and **air-gapped** operation, SCIM and identity lifecycle,
   compliance attestations, SLA and dedicated support, and offline / invoice
@@ -84,8 +89,8 @@ Enterprise.
 | Scenario | Choose |
 |---|---|
 | You want the platform **hosted and operated for you** | ObjectOS Cloud (Free → Team → Business) |
-| You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Business Self-Managed** |
-| You need **clustering / HA**, **multi-org**, **air-gap**, **SCIM**, compliance attestations, SLAs, or offline payment | **ObjectOS Enterprise** |
+| You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Business Self-Managed**, the single-node entry option of ObjectOS Enterprise |
+| You need **clustering / HA**, **multi-org**, **air-gap**, **SCIM**, compliance attestations, SLAs, or offline payment | **ObjectOS Enterprise**, full private deployment |
 | You self-host the free ObjectStack runtime but need a **supported distribution with a commercial contract** (SLA, security-patch priority, named escalation) | **ObjectOS Runtime Subscription** — [contact sales](mailto:sales@objectstack.ai) |
 | You want **free self-hosting** and bring your own AI over MCP | **ObjectStack framework** (open source) |
 | You need **OEM / redistribution** rights under the ObjectOS or ObjectStack name | Commercial agreement — [contact sales](mailto:sales@objectstack.ai) |
@@ -139,16 +144,17 @@ your code, and you owe nothing if your product makes money.
 
 ### Can I self-host ObjectOS without paying?
 
-No — self-managed ObjectOS (Business Self-Managed or Enterprise) is
-licensed. Free self-hosting is the ObjectStack framework, which is the same
-open mechanism with MCP-only AI.
+No — self-managed ObjectOS is ObjectOS Enterprise, and both of its options
+(Business Self-Managed on a single node, or a full Enterprise deployment)
+are licensed. Free self-hosting is the ObjectStack framework, which is the
+same open mechanism with MCP-only AI.
 
 ### Does the software stop working if I don't renew?
 
 It never bricks. Business Self-Managed degrades to the free-mechanism
 behavior (paid features switch off; your data and runtime keep working).
-Enterprise keeps the **last paid version perpetually** — you lose updates,
-new AI capabilities, and support, not your system.
+A full Enterprise deployment keeps the **last paid version perpetually** —
+you lose updates, new AI capabilities, and support, not your system.
 
 ### Does ObjectOS phone home?
 
