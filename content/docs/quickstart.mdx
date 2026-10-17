@@ -232,14 +232,21 @@ that port is taken it binds the next free one and says so:
 
 ### Add your own object
 
-Edit `src/objects/task.ts`:
+Every object you add carries your project's namespace. `os init` derived it
+from the project name (`my-app` → `my_app`) and wrote it into
+`objectstack.config.ts` as `manifest.namespace`, so a task object is
+`my_app_task`. The compile refuses a bare `task` with
+`Rename it to 'my_app_task' (namespace = 'my_app')`, and states the rule:
+``Every object.name must be `${manifest.namespace}_${shortName}`.``
+
+Create `src/objects/task.object.ts`:
 
 ```ts
-// src/objects/task.ts
+// src/objects/task.object.ts
 import { ObjectSchema, Field } from '@objectstack/spec/data';
 
-export const Task = ObjectSchema.create({
-  name: 'task',
+const task = ObjectSchema.create({
+  name: 'my_app_task',
   label: 'Task',
   fields: {
     subject:   Field.text({ label: 'Subject', required: true, maxLength: 200 }),
@@ -247,30 +254,71 @@ export const Task = ObjectSchema.create({
     due:       Field.date({ label: 'Due' }),
     assignee:  Field.lookup('sys_user', { label: 'Assignee' }),
   },
+  // Org-wide default: who sees records they don't own. Required — the
+  // compile refuses an object that declares none.
+  sharingModel: 'private',
 });
+
+export default task;
 ```
 
-Save. The dev server recompiles and you immediately have:
+Then export it from `src/objects/index.ts`. `objectstack.config.ts` loads
+each directory through that `index.ts` barrel, so a file the barrel does not
+export is never loaded. Add this line below the sample object's:
+`export { default as task } from './task.object';`
 
-- **`/api/v1/data/task`** — full CRUD with filter/sort/paginate
-- **A "Task" view** — list, form, detail, all generated
-- **Permission rows in Setup** — grant read/write per role
-- **Audit log entries** — every create/update/delete recorded
+`npx objectstack generate object task` writes a stub of the file and the
+same barrel line for you.
 
-No migrations. No code generation. No restarting.
+Save. The dev server recompiles, prints
+`✚ new object(s): my_app_task — table & seeds sync on restart`, and restarts
+itself on the new build: no migration to write, no restart to run. If it
+prints only `✗ compile failed`, run `pnpm build` to see why. You now have:
+
+- **`/api/v1/data/my_app_task`** — create, read, update and delete, with
+  filter, sort and pagination ([REST API](/docs/reference/rest-api)). It
+  answers signed-in callers only, so sign in as the dev admin first (below).
+- **A generated list, form and record page** — the scaffold declares no app
+  yet, so nothing in the Console links to them; open
+  `http://localhost:3000/_console/apps/setup/my_app_task`.
+- **A Task row in the permission-set editor** — Setup → Permission Sets, open
+  a set, *Design in Studio*: create, read, edit and delete for that set.
+- **Audit log entries** — each create, update and delete, listed under
+  Setup → Audit Logs.
+
+```bash
+curl -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"email":"admin@objectos.ai","password":"admin123"}' \
+  http://localhost:3000/api/v1/auth/sign-in/email
+curl -b cookies.txt -H 'Content-Type: application/json' \
+  -d '{"subject":"Try the API"}' \
+  http://localhost:3000/api/v1/data/my_app_task
+curl -b cookies.txt http://localhost:3000/api/v1/data/my_app_task
+```
 
 ### Project layout
 
 ```text
 my-app/
-├── objectstack.config.ts    # Stack definition (manifest + objects)
-├── src/
-│   └── objects/             # Your data model — add files here
+├── objectstack.config.ts    # defineStack(): manifest + one key per barrel
+├── src/                     # one index.ts barrel per directory
+│   ├── actions/
+│   ├── apps/
+│   ├── dashboards/
+│   ├── flows/
+│   ├── objects/             # index.ts + my_app_item.object.ts, the sample object
+│   ├── picklists/
+│   ├── skills/
+│   └── views/
 ├── dist/
 │   └── objectstack.json     # Compiled artifact (regenerated on save)
+├── .objectstack/            # Local SQLite databases (pnpm dev creates them)
 ├── package.json
+├── pnpm-workspace.yaml
 └── tsconfig.json
 ```
+
+`os init` also writes a `.gitignore` and your installer's lockfile.
 
 `dist/objectstack.json` is what you ship to production — mount it on the
 runtime, the open ObjectStack image or an ObjectOS Enterprise deployment,
