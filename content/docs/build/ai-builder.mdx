@@ -56,11 +56,14 @@ namespaced and validated against `@objectstack/spec`:
 | | `modify_field` | Change label, picklist options, validation |
 | | `delete_field` | Remove a field (with safety check) |
 | **Data** | `query_data` | Read records via ObjectQL |
-| **Actions / Knowledge** | `action_<name>`, `search_knowledge` | Invoke actions, RAG over docs |
+| **Actions / Knowledge** | `action_<name>`, `search_knowledge` | Invoke the actions exposed to AI, RAG over docs |
 
-Plus action tools materialized from every declared `*.action.ts` —
-named `action_<name>` — so once an action exists in the package,
-the AI can call it like any built-in tool.
+Plus one `action_<name>` tool for each action its author **exposed to
+AI** — `ai: { exposed: true }` with an `ai.description` of at least 40
+characters, on a type that runs without a UI (`script`, `flow` or `api`).
+Once an action is exposed, the AI can call it like any built-in tool; an
+action that is not exposed never becomes one. See
+[Actions](/docs/build/interface/actions#from-an-ai-agent).
 
 See the full tool catalog at runtime: `GET /api/v1/ai/tools`.
 

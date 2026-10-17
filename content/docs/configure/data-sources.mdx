@@ -29,10 +29,14 @@ core fields:
 | `driver` | Which driver handles the connection (`postgres`, `mysql`, `sqlite`, `mongodb`, `memory`, or a plugin-contributed driver) |
 | `config` | Driver-specific connection settings (host, database, credentials, …) |
 | `pool` | Connection-pool sizing (`min`, `max`, timeouts) |
-| `readReplicas` | Optional read-only replica configs |
-| `capabilities` | Override what the driver advertises it can push down |
-| `healthCheck` | Liveness probe interval/timeout |
+| `schemaMode` | Who owns the schema: `managed` (the default) lets ObjectOS create and alter tables; `external` or `validate-only` declares a database ObjectOS does not own, where it runs no DDL |
+| `external` | The federation policy of an external datasource — its write gate and boot validation — plus `credentialsRef`, the secrets-store reference any datasource may carry |
 | `active` | Whether the connection is enabled |
+
+`readReplicas`, `capabilities` (with its `readOnly` flag), `healthCheck`
+and `retryPolicy` were removed in ObjectStack 17.0: no runtime path read
+any of them. The parse refuses each one, naming the mechanism that does
+decide the behaviour.
 
 The shipped drivers are:
 
@@ -40,7 +44,7 @@ The shipped drivers are:
 |---|---|---|
 | `@objectstack/driver-sql` | `postgres`, `mysql`, `sqlite` | PostgreSQL, MySQL, SQLite (via knex) |
 | `@objectstack/driver-mongodb` | `mongodb` | MongoDB |
-| `@objectstack/driver-memory` | `memory` | In-process (tests, demos) |
+| `@objectstack/driver-memory` | `memory` | In-process, for tests — not a boot store since ObjectStack 17.7 |
 | `@objectstack/driver-sqlite-wasm` | `sqlite` (WASM) | SQLite in WebContainers / browser |
 
 ## Declaring datasources
@@ -53,19 +57,25 @@ Define each connection with `defineDatasource()`, then list them under
 // src/datasources/business.datasource.ts
 import { defineDatasource } from '@objectstack/spec';
 
-// Connect to an EXISTING production database. The password is never inline:
-// it lives in the secrets store, and the datasource only references it.
+// Connect to an EXISTING production database that ObjectOS does not own.
+// `external` mode: ObjectOS runs no DDL here, and writes stay off until you
+// opt in. The password is never inline: it lives in the secrets store, and
+// the datasource only references it.
 export const BusinessDb = defineDatasource({
   name: 'business_primary',
   label: 'Business System (Postgres)',
   driver: 'postgres',
+  schemaMode: 'external',
   config: {
     host: 'db.internal.example.com',
     port: 5432,
     database: 'business',
-    username: 'objectos',
+    username: 'objectos_readonly', // a database user granted SELECT only
   },
-  external: { credentialsRef: 'secret:business_db/password' },
+  external: {
+    allowWrites: false, // the default: the datasource refuses writes
+    credentialsRef: 'secret:business_db/password',
+  },
   pool: { min: 1, max: 10 },
   active: true,
 });
@@ -117,7 +127,9 @@ import { ObjectSchema, Field } from '@objectstack/spec/data';
 export const Customer = ObjectSchema.create({
   name: 'biz_customer',
   label: 'Customer',
-  datasource: 'business_primary', // ← reads/writes go to the business DB
+  sharingModel: 'private',
+  datasource: 'business_primary', // ← queries go to the business DB
+  external: { remoteName: 'customers' }, // the remote TABLE name
   fields: {
     name:  Field.text({ label: 'Name', required: true }),
     email: Field.text({ label: 'Email' }),
@@ -157,6 +169,7 @@ export const AnalyticsReplica = defineDatasource({
   name: 'analytics_replica',
   label: 'Analytics replica',
   driver: 'postgres',
+  schemaMode: 'external',
   config: {
     host: 'replica.internal.example.com',
     port: 5432,
@@ -171,7 +184,7 @@ export default defineStack({
   datasourceMapping: [
     { namespace: 'biz',            datasource: 'business_primary' },
     { objectPattern: 'report_*',   datasource: 'analytics_replica' },
-    { package: 'com.example.logs', datasource: 'business_primary' },
+    { package: 'com.example.logs', datasource: 'default' },
     { default: true,               datasource: 'default' },
   ],
 });
@@ -201,38 +214,33 @@ flow:
    generate one `ObjectSchema.create` file per table, mapping SQL columns
    to `Field.*` types and foreign keys to `Field.lookup(...)`. Set each
    object's `datasource` to your connection (or rely on
-   `datasourceMapping`).
+   `datasourceMapping`), and `external.remoteName` where the table name
+   differs from the object name.
 3. **Review & refine** the generated objects — add labels, field groups,
    validations, and permissions. The output is ordinary source you own
    and commit, just like `hotcrm/src/objects/*.object.ts`.
-4. **Run.** The objects now read and write your existing tables through
-   the bound datasource.
+4. **Run.** The objects now read your existing tables through the bound
+   datasource. At boot the runtime checks each one against its table
+   (`external.validation`), and by default a mismatch fails the boot.
+   Writes stay off until both gates
+   open: `external.allowWrites: true` on the datasource **and**
+   `external.writable: true` on the object.
 
 Because the generated objects are plain source, you get full control:
 keep what fits, drop columns you don't want to expose, and layer
 ObjectOS features (history tracking, activities, sharing rules) on top of
 a database the platform never had to own.
 
-## Capability-aware query pushdown
+## Query pushdown
 
-Each datasource advertises `DatasourceCapabilities` — whether it can
-handle filters, sorting, pagination, aggregations, joins, full-text
-search, transactions, and more. ObjectQL uses this to decide what to
-**push down** to the database versus what to evaluate in memory:
+What runs in the database and what the engine evaluates is decided by
+each driver itself, not by datasource metadata. A filter on a federated
+object, such as `?tier=premium`, is pushed down to the remote query.
 
-| Capability | Effect when supported |
-|---|---|
-| `queryFilters` | `WHERE` clauses run in the database |
-| `querySorting` / `queryPagination` | `ORDER BY` / `LIMIT` run server-side |
-| `queryAggregations` | `GROUP BY` / aggregates run server-side |
-| `joins` | Related-object joins run server-side |
-| `fullTextSearch` | Search hits a native index |
-| `readOnly` | The connection rejects writes |
-
-A capable SQL datasource pushes nearly everything down; a limited or
-read-only source gets the same query results, just with more work done in
-the engine. You can override the advertised set per datasource via the
-`capabilities` field when you know better than the driver default.
+There is no `capabilities` block to tune. It was removed in ObjectStack
+17.0 because nothing read it: declaring a capability never changed which
+path ran, and its `readOnly` flag never stopped a write. For read-only
+access, see [Security notes](#security-notes).
 
 ## AI over connected data
 
@@ -257,22 +265,27 @@ configuration that backs the `default` datasource.
 
 ## Security notes
 
-- **Never inline credentials.** Pull host/user/password from environment
-  variables (or a secrets manager) as shown above.
-- **Use read-only connections** for systems you don't intend to write to
-  — set the source `readOnly` capability (or a read-only DB user) so a
-  stray write can't reach production.
+- **Never inline credentials.** Put the password in the secrets store and
+  reference it with `external.credentialsRef`, as shown above.
+- **Use a read-only database user** for systems you don't intend to write
+  to — grant it `SELECT` only. Then nothing that reaches the database
+  through that connection can write, inside ObjectOS or not. On an
+  external datasource, `external.allowWrites: false` — the default — also
+  refuses writes in ObjectOS's own query path. There is no `readOnly` key:
+  the one that existed never gated a write, and ObjectStack 17.0 removed
+  it.
 - **Scope with permissions.** Object- and field-level permissions apply
   to connected data exactly as they do to native objects.
 
 ## In-product external datasource federation
 
 The flow above — connect a database, model objects, generate them with a
-coding agent — is the general path. The **turn-key federation** flow on top
-of it, specified in
+coding agent — runs on **turn-key federation**: `schemaMode: 'external'`,
+specified in
 [ADR-0015](https://github.com/objectstack-ai/objectstack/blob/main/docs/adr/0015-external-datasource-federation.md)
 (status: *Accepted*), **ships today**: bind objects to tables ObjectOS does
-not own, with validation gates around them.
+not own, with validation gates around them. It is read-only by default and
+early: expect the read path to be the mature one.
 
 It is documented once, with the framework docs that own the surface —
 [External Datasources (Federation)](https://docs.objectstack.ai/docs/data-modeling/external-datasources).

@@ -9,7 +9,8 @@ it appears as:
 
 - a **REST endpoint** at `/api/v1/actions/<object>/<action>`
 - a **button** on the record detail page
-- an **AI tool** (`action_<name>`) for Agents and the AI Builder
+- an **AI tool** (`action_<name>`) for Agents and the AI Builder — once
+  you expose it to AI (`ai.exposed`, [below](#from-an-ai-agent))
 
 You don't repeat yourself across three surfaces. One declaration; three
 ways to call it. An action can also start a [flow](/docs/build/automation/flows)
@@ -40,15 +41,25 @@ export const approveInvoice = Action.create({
   // only show the button when the record is still pending
   visible: 'record.status == "pending"',
 
-  // what it does — a sandboxed script body
+  // expose it to agents and the AI Builder as `action_approve_invoice`
+  ai: {
+    exposed: true,
+    description: 'Approve a pending invoice, recording the approver and an optional note.',
+  },
+
+  // what it does — a sandboxed script body. `input` is the params bag;
+  // `ctx.record` is a read-only snapshot, so the write goes through `ctx.api`,
+  // which needs the `api.write` capability
   type: 'script',
   body: {
     language: 'js',
+    capabilities: ['api.write'],
     source: `
-      await ctx.data.update('invoice', input.id, {
+      await ctx.api.object('invoice').update({
+        id: ctx.recordId,
         status: 'approved',
         approved_by: ctx.user.id,
-        approved_at: now(),
+        approved_at: new Date().toISOString(),
         approval_note: input.note,
       });
     `,
@@ -60,7 +71,8 @@ After `os dev` recompiles:
 
 - `POST /api/v1/actions/invoice/approve_invoice` works
 - The Invoice record page shows an **Approve Invoice** button
-- The AI assistant can call `action_approve_invoice` if its skills allow
+- The AI assistant can call `action_approve_invoice` — it is exposed to
+  AI — if its skills allow
 
 ## Action types
 
@@ -68,7 +80,7 @@ The `type` field decides what the action does:
 
 | `type` | What runs | Use for |
 |---|---|---|
-| `script` | A `body` — an L1 formula expression or sandboxed L2 JavaScript | Most cases — server-side logic, auditable + AI-callable |
+| `script` | A `body` — an L1 formula expression or sandboxed L2 JavaScript | Most cases — server-side logic, auditable, and AI-callable once exposed |
 | `api` | An HTTP call to a `target` endpoint (`method`, `bodyExtra`) | Reusing data-API or platform endpoints |
 | `flow` | Runs the flow named in `target` | Multi-step business processes |
 | `url` | Navigates to the `target` URL | Deep links, redirect-style actions |
@@ -89,8 +101,9 @@ Action.create({
 });
 ```
 
-Types other than `script` require a `target`. Whichever type, the action
-is the same first-class citizen on every surface.
+Types other than `script` require a `target`. Whichever type, it is one
+declaration — but `url`, `modal` and `form` actions run only in the UI, so
+they never become AI tools.
 
 ## Calling an action
 
@@ -147,25 +160,40 @@ Action.create({
 
 ### From an AI Agent
 
-If `approve_invoice` is in any skill the agent has, the LLM can call
-it. Inputs come from the conversation; permissions are enforced as if
-the user invoked it directly.
+An action reaches agents only when its author exposes it to AI:
+`ai: { exposed: true }` with an `ai.description` of at least 40
+characters, as in the example above, on a type that runs without a UI
+(`script`, `flow` or `api`). Exposed, it is the `action_<name>` tool in
+ObjectOS's own agents and the AI Builder, and `run_action` for an
+[MCP client](/docs/configure/mcp). Unexposed, it is invisible to agents
+and refused if called.
+
+If `approve_invoice` is exposed and in a skill the agent has, the LLM can
+call it. Inputs come from the conversation; the same invoke-time checks
+apply as if the user had pressed the button.
 
 > *"Approve invoice INV-2042 with note 'verified by phone.'"*
 
 ## Permissions
 
-Actions run with the calling user's permissions. The platform checks:
+Who may run an action is checked as the caller, when it is invoked —
+the same way over REST, from a button, and from an agent:
 
-1. **Object permissions** — the user's [permission sets](/docs/configure/permissions/permission-sets)
-   must grant the object-level access the action needs (e.g. update).
-2. **Field permissions** — for any field the action writes, the user
-   must have write access (FLS).
-3. **UI gating** — the `visible` and `disabled` predicates (CEL,
+1. **`requiredPermissions`** — capabilities the caller's
+   [permission sets](/docs/configure/permissions/permission-sets) must
+   hold. A caller missing one gets `403`.
+2. **The subject record** — it is loaded as the caller. A record the
+   caller cannot read is answered as not found.
+3. **AI exposure** — an agent reaches only actions exposed to AI.
+4. **UI gating** — the `visible` and `disabled` predicates (CEL,
    evaluated against `record`, `os.user`, and params) control whether the
    button renders or is greyed out.
 
-Failed permission checks return `403` with a `PERMISSION_DENIED` error.
+What the action then does is trusted app code. A `script` body's reads
+and writes run with the app's authority: record access and field-level
+security do **not** bound them. A `flow` action follows the flow's
+`runAs`. So declare `requiredPermissions` for anything sensitive, and
+treat writing an action as a code-review-worthy act.
 
 ## Built-in actions
 

@@ -1,0 +1,80 @@
+---
+title: Your ontology in ObjectOS
+seoTitle: "Your Ontology in ObjectOS: Core, Projections, Where It Lives"
+description: What your ontology is on ObjectOS — the core the runtime runs, the projections authored beside it, where it lives, and what it is not.
+---
+
+**The ontology is the software.** On ObjectOS, *your ontology* is the
+definition of your business that the runtime executes: one typed,
+versioned body of ObjectStack metadata. The runtime derives the database
+schema, the REST API, the Console and the MCP tools from it, and enforces
+it on every call. This page maps the word onto this site; the full account
+is [Business Ontology](https://objectstack.ai/docs/concepts/ontology) in the
+ObjectStack docs.
+
+## The core
+
+Six kinds of thing make up the ontology itself:
+
+| Core | What it declares | On this site |
+|---|---|---|
+| **Objects and fields** | The entities of the business and their typed attributes | [Data Model](/docs/build/data), [Field Types](/docs/reference/field-types) |
+| **Relations** | Lookups and master-detail links between objects | [Relationships](/docs/build/data/relationships) |
+| **Actions** | The operations a user — or, once its author exposes it, an agent — may invoke on a record | [Actions](/docs/build/interface/actions) |
+| **Permissions** | Who may read, create, edit and delete what: permission sets, record access, field-level security | [Permissions](/docs/configure/permissions) |
+| **Flows** | The business processes: flows, record triggers, schedules, approvals, workflows | [Automation](/docs/build/automation) |
+| **Agent and tool definitions** | The AI agents the app ships with, their skills, and the tools they may call | [Agents](/docs/build/agents) |
+
+## The projections
+
+Views, dashboards, apps and translations are authored as metadata too, and
+they pass the same validation gate, but they are **projections** of the
+ontology, not part of it. Change the core and they follow; remove one and
+the business it showed is unchanged.
+
+| Projection | What it projects | On this site |
+|---|---|---|
+| **Views** | An object's fields and permissions onto a list, form, kanban or calendar | [Views](/docs/build/interface/views), [Forms](/docs/build/interface/forms) |
+| **Dashboards** | Queries over objects onto charts | [Dashboards](/docs/build/interface/dashboards) |
+| **Apps** | Objects, views and actions, grouped into a navigable product | [Apps](/docs/build/interface/apps) |
+| **Translations** | Every label, into a locale | [Localization](/docs/configure/localization) |
+
+## Where it lives on ObjectOS
+
+One definition, in three forms:
+
+| Form | What it is |
+|---|---|
+| **Tenant metadata** | What the [AI Builder](/docs/build/ai-builder) and Studio write: live metadata in your deployment. An AI Builder change queues for a person's approval before it applies |
+| **Repository source** | What your developers and their coding agent write, with the [AI skills](/docs/build/ai-skills): `objectstack.config.ts` and its metadata files, reviewed as pull requests |
+| **Compiled artifact** | What `os compile` produces: `objectstack.json`, which a deployment boots — see [Boot modes](/docs/architecture#boot-modes). Keep every published one ([Backup](/docs/operate/backup)) |
+
+Whichever form you author in, the metadata passes the same
+[validation gate](/docs/resources/glossary#validation-gate) before it runs.
+On either edition the ontology is yours: it is ordinary ObjectStack
+metadata, and you can export it and run it on the open-source ObjectStack
+runtime.
+
+## What it is not
+
+- **Not a knowledge ontology.** There is no class inheritance, no axioms
+  and no reasoner. The definition is validated, then run.
+- **Not a semantic layer over your existing systems.** A semantic layer
+  describes a business it does not run. Your ontology is the system: the
+  database, API, UI and agent tools are derived from it. Connecting a
+  database you already run is possible, read-only by default and early —
+  see [Extend Existing Systems](/docs/extend-existing-systems).
+
+## Read further
+
+This site documents the runtime; the ObjectStack site owns the concept:
+
+- [Business Ontology](https://objectstack.ai/docs/concepts/ontology) — what
+  the word means, and how the runtime executes it
+- [How ObjectStack compares](https://objectstack.ai/docs/concepts/compare) —
+  beside knowledge ontologies, semantic layers, metadata platforms and AI
+  code generation
+- [When to use ObjectStack](https://objectstack.ai/docs/concepts/when-to-use)
+  — where it fits today, and where it does not
+- [The Ontology Is the Software](https://objectstack.ai/blog/the-ontology-is-the-software)
+  — the long form

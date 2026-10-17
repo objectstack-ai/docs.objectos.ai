@@ -8,15 +8,38 @@ A practical view of what runs when you deploy ObjectOS — on your own
 machines with **ObjectOS Enterprise**, or operated for you on **ObjectOS
 Cloud** — what data leaves your network, and what doesn't.
 
-The mental model is two thin layers:
+The mental model is one definition and one runtime that runs it:
 
-1. **Metadata** — packages of objects / views / actions / flows /
-   agents. Mostly written by the [AI Builder](/docs/build/ai-builder)
-   against a sandboxed tool API; sometimes hand-edited, always
+1. **Your [ontology](/docs/ontology)** — the definition of the business:
+   objects and fields, relations, actions, permissions, flows, and agent
+   and tool definitions. Views, dashboards, apps and translations are
+   authored beside it as its projections. Mostly written by the
+   [AI Builder](/docs/build/ai-builder) against a sandboxed tool API;
+   sometimes hand-edited; always validated before it runs,
    version-controlled and audited.
-2. **A single Node.js runtime** that interprets that metadata into a
-   working application — REST API, Console UI, permissions, jobs, AI
-   tools — all in one process, talking to your database.
+2. **A single Node.js runtime** that **derives** the working application
+   from it — the database schema, the REST API, the Console UI and the MCP
+   server agents call — and **enforces** it on every call: RBAC,
+   row-level and field-level security, sharing and audit apply to a REST
+   request, a Console click and an agent's tool call alike. All in one
+   process, talking to your database.
+
+```text
+your ontology
+  objects · relations · actions
+  permissions · flows · agents
+  + projections: views · dashboards
+    apps · translations
+      │
+      ▼
+ObjectOS runtime
+  derives the app, enforces it
+      │
+      ├──▶ database    its schema
+      ├──▶ REST API    /api/v1/*
+      ├──▶ Console     /_console/
+      └──▶ MCP server  /api/v1/mcp
+```
 
 No code generation step, no deploy pipeline between "user described
 what they want" and "it's live". The runtime hot-loads the new
@@ -39,6 +62,7 @@ licensed runtime image described under [Deployment](/docs/deploy).
 │  │   ├─ Security (RBAC + row-level + field)      │  │
 │  │   ├─ ObjectQL (data engine, generates SQL)    │  │
 │  │   ├─ REST API generator                       │  │
+│  │   ├─ MCP server  (/api/v1/mcp, on by default) │  │
 │  │   └─ Capabilities loaded per artifact         │  │
 │  │      (audit, storage, jobs, queue, AI …)      │  │
 │  └───────────────────────────────────────────────┘  │
@@ -81,10 +105,16 @@ supported license and cloud-posture pairs.
 2. HTTP dispatcher                (security headers, request id)
 3. AuthPlugin     — session cookie, bearer token, or API key
 4. SecurityPlugin — RBAC + row-level + field-level checks
-5. Route handler  — generated REST, declarative action, or custom
+5. Route handler  — generated REST, MCP tool call, declarative action,
+                    or custom
 6. Data driver    — ObjectQL compiles to SQL / Mongo query
 7. Response with X-Request-Id propagated
 ```
+
+An agent's call takes the same path. An MCP client authenticates as a
+user, by OAuth or an API key, and the same permission checks bound what
+its tool calls read and write — see
+[Connect AI Tools (MCP)](/docs/configure/mcp).
 
 The app is already resolved before the first request arrives: the
 kernel is built during startup, and the process does not report itself
