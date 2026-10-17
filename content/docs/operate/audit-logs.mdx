@@ -27,15 +27,43 @@ At **Setup → Diagnostics → Audit Logs** (`sys_audit_log`). The object is
 filter, group, and inspect rows, but nothing can edit or delete them from
 Setup.
 
+### What each reader is served
+
+Every row stays stored, but since ObjectStack 17.6 a reader is served a row
+about a record only if they can read that record themselves — the same object
+permissions, sharing and row-level security that decide whether they can open
+it. That excludes:
+
+- every `delete` row, and every other row about a record that has since been
+  deleted;
+- sign-out rows, and sign-in rows whose session has since been removed;
+- rows about records the reader cannot open.
+
+Rows about no record — configuration changes, user-import runs, auth events
+that carry no session — are served under the ledger's own grant, as before.
+
+The **`view_all_audit_log`** capability lifts this narrowing (ObjectStack
+17.7): its holder is served the deletion and sign-out trail and the rows about
+records they cannot open. Platform administrators hold it by default; an
+organization administrator does not, so grant it explicitly to anyone else who
+must read the whole trail.
+
+Field-level security still applies inside every row. `old_value` and
+`new_value` serve a field only to a reader who can read it unmasked, and
+filtering, sorting or grouping on them is refused (`403`) unless the filter
+names one object by equality (`object_name`) and you can read every field of
+it.
+
 ### Preset views
 
-The list opens with tabs that filter by action category:
+The list opens with tabs that filter by action category. Every tab applies the
+rule above:
 
 | View | Shows |
 |---|---|
 | `Recent` | All events, newest first |
-| `Writes` | Create / update / delete actions |
-| `Auth` | Sign-in, sign-out, and authentication events |
+| `Writes` | Create / update / delete actions — `delete` rows only with `view_all_audit_log` |
+| `Auth` | Sign-in and sign-out events — sign-outs, and sign-ins whose session has since been removed, only with `view_all_audit_log` |
 | `Config` | Settings and configuration changes |
 
 ### Columns and fields
@@ -67,8 +95,9 @@ Each row carries the full field set:
 ### Reading a change
 
 For write actions, the interesting detail is the before/after. Open a row's
-`⋮` menu to expand `old_value` and `new_value` and see exactly what changed on
-that record. The `Object` and `Record ID` columns tell you *what* was touched;
+`⋮` menu to expand `old_value` and `new_value` and see what changed on that
+record — every field you can read in full, and nothing else. The `Object` and
+`Record ID` columns tell you *what* was touched;
 `old_value`/`new_value` tell you *how*; `actor`, `ip_address`, and `user_agent`
 tell you *who* and *from where*.
 

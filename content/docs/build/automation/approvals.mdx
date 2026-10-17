@@ -313,6 +313,17 @@ While a request is pending:
    for `per_group` — so the inbox and your own UIs render progress without
    re-implementing the tally.
 
+**Who can see a request (17.0).** A request carries a snapshot of the record,
+its whole decision history and its attachments, so only its participants
+read it: the submitter, a current approver (including the holders of a
+position the request waits on), and anyone who has already acted or
+commented on it. Platform and organization administrators see every request.
+Everyone else gets nothing, and being able to read the record does not change
+that. Filtering a request list by approver is a filter, not a grant: leaving
+it out returns only the requests you take part in, never the whole tenant.
+Inside a visible request, the snapshot drops every field the reader cannot
+read on the record — and, since 17.6, every field they read only masked.
+
 **Decisions are declared actions (16.0).** The full decision set — approve,
 reject, reassign, send-back for revision (`/revise`), request-info, remind,
 recall, resubmit — is declared as `type: 'api'` actions on

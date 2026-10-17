@@ -24,6 +24,51 @@ support:
 - phone number sign-in with SMS OTP (opt-in);
 - CLI/browser device flow.
 
+## Who may sign up (ObjectStack 17.3+)
+
+Self-registration is **closed by default**. Who may create their own
+account is one setting, **Setup → Authentication → Audience**:
+
+| Audience | Who may sign up |
+|---|---|
+| `invite_only` (default) | Only an address holding a pending invitation |
+| `email_domain` | Addresses on the domains you allow — exact match, case-insensitive; subdomains need their own entry |
+| `open` | Anyone |
+
+The audience judges every self-serve path: email/password sign-up, a
+first sign-in through a social provider, magic link, OTP and phone. A
+refused sign-up answers `403 SELF_REGISTRATION_CLOSED` (or
+`403 EMAIL_DOMAIN_NOT_ALLOWED` under `email_domain`). Two rules come with
+opening it:
+
+- `email_domain` and `open` both need a **self-registration permission
+  set** — the set each self-registrant receives (`member_default` is
+  fine; `admin_full_access` is refused).
+- Both turn email verification on: `email_domain` always, `open` unless
+  the deployment's own configuration turns it off.
+
+The **Allow self-service registration** toggle under *Email and password*
+does not override the audience: with the audience at `invite_only`,
+sign-up stays closed even while that toggle is on.
+
+Creating people yourself is never gated by the audience — invitations,
+**Create User**, bulk import and enterprise SSO work under every setting
+(see [Users](/docs/configure/users#add-people)). The very first account on
+a fresh install is exempt too.
+
+> **Upgrading from 17.2 or earlier:** an undeclared audience used to mean
+> open email/password sign-up. It now means `invite_only`, and nothing
+> fails at upgrade — a deployment that relied on open sign-up simply stops
+> accepting it. Choose `open` (with a self-registration permission set)
+> to keep it.
+
+The audience is a different decision from the **membership policy**
+(**Setup → Authentication → Membership**, or `OS_AUTH_MEMBERSHIP_POLICY`
+— see
+[Environment Variables](/docs/reference/environment-variables#multi-organization-deployments)).
+The audience decides *whether* someone may become a user at all; the
+membership policy decides *which organization* a new user joins.
+
 ## Phone sign-in & SMS (ObjectStack 14.3+)
 
 Enable phone-number authentication via the `auth.plugins.phoneNumber`
@@ -145,6 +190,8 @@ wants every project to own a completely separate login boundary.
 Before production:
 
 - confirm expired tokens return `401`;
+- confirm the sign-up audience matches who should be able to create an
+  account;
 - confirm logout revokes the active session;
 - confirm password reset revokes other sessions if required by policy;
 - confirm callback URLs match the public project domain;

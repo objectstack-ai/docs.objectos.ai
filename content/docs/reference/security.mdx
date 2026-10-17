@@ -81,11 +81,18 @@ Permission Model v2 (ObjectStack 13, ADR-0090):
 1. **Object permissions** — CRUD per object per permission set,
    distributed to users directly or through flat **positions**
 2. **Org-wide defaults** — custom objects with an owner default to a
-   `private` sharing model; anonymous data access is denied by default
+   `private` sharing model; anonymous access to object data is denied
+   unconditionally, with no switch to open it (ObjectStack 17.0).
+   Public access is declared per surface — a public form or a share
+   link — and the `guest` anchor grants nothing
 3. **Row-level security** — declarative policy expressions injected into
-   queries; not optional
-4. **Field-level security** — fields stripped from responses /
-   rejected on write (keys are object-qualified, lint-enforced)
+   queries; not optional, and a policy the runtime cannot enforce
+   denies rather than widens (ObjectStack 17.5)
+4. **Field-level security** — fields stripped from responses,
+   partially masked (`maskingRule`, ObjectStack 17.1), or rejected on
+   write (keys are object-qualified, lint-enforced). A hidden or masked
+   field cannot be filtered, sorted, grouped or aggregated on — `403` at
+   every query door since ObjectStack 17.6
 5. **Organization scoping** — multi-tenant isolation; bypass requires
    explicit `viewAllRecords`
 
@@ -203,8 +210,12 @@ user prompt
 
 There are 11 first-party metadata tools
 ([see Build → AI Builder](/docs/build/ai-builder)) plus one
-`action_<name>` tool per declared action. Every tool — first-party or
-custom — has the same lifecycle.
+`action_<name>` tool per action its author
+[exposed to AI](/docs/build/interface/actions#from-an-ai-agent) —
+`ai: { exposed: true }` with an `ai.description` of at least 40
+characters, on a type that runs without a UI (`script`, `flow` or
+`api`); an unexposed action is invisible to agents and refused if
+called. Every tool — first-party or custom — has the same lifecycle.
 
 ### Permission keys
 

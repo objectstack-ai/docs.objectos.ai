@@ -61,11 +61,12 @@ seed them in `objectstack.config.ts` for fresh environments.
 Positions model job functions ("Sales Manager", "Support Agent"). They
 are flat — hierarchy lives on the business-unit tree, so sharing rules
 and reports say things like "the record owner's unit and subordinate
-units." Two seeded audience anchors, `everyone` (all authenticated
-users) and `guest` (anonymous callers), let you bind baseline
-permission sets without custom fallback logic. Use positions to
-distribute permission sets by function; skip custom positions for flat
-teams.
+units." The seeded audience anchor `everyone` (all authenticated
+users) lets you bind baseline permission sets without custom fallback
+logic. Its counterpart `guest` (anonymous callers) grants nothing:
+anonymous visitors reach data only through a surface that declares it,
+such as a public form or a share link. Use positions to distribute
+permission sets by function; skip custom positions for flat teams.
 
 See [Positions](/docs/configure/permissions/positions).
 
@@ -138,14 +139,21 @@ Even when a user can see a record, individual fields can be:
 
 - **Hidden** — field is stripped from API and UI responses.
 - **Read-only** — field is returned but rejected on write.
+- **Masked** — field is returned with most of its value replaced
+  (`138****5678`), unless the caller holds the capabilities the field
+  requires (ObjectStack 17.1).
 
-Field security is per object + per permission set. Typical use:
+Hidden and read-only are set per object + per permission set; masking
+is declared on the field itself. Typical use:
 
 - Hide `salary` on `sys_user` from anyone outside HR.
 - Make `external_account_id` readable but not editable to support reps.
+- Show a customer's phone number as `138****5678` to everyone except
+  the team that calls customers.
 
 It's enforced in the same evaluator as object permissions, so it
-applies uniformly across REST, ObjectQL, and the UI.
+applies uniformly across REST, ObjectQL, and the UI. See
+[Field-Level Security](/docs/configure/permissions/field-level-security).
 
 ## Where to start
 

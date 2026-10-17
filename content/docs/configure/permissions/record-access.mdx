@@ -92,6 +92,34 @@ grants nothing" or "this policy is off", it is worth re-running the
 [explain engine](/docs/configure/permissions#diagnose--audit) — the
 answer may have been wider than the metadata said.
 
+## Row-level security refuses what it cannot enforce
+
+Since ObjectStack 17.5, an RLS policy narrows exactly what it says, or
+denies:
+
+- **A policy with no `check` gates writes with its `using`.** `check`
+  was always documented as defaulting to `using`, but only policies that
+  declared `check` were applied to writes, so a user could write a row
+  they could not read back. A single-row
+  insert or by-id update whose result falls outside the `using` of every
+  write policy that applies now answers `403 PERMISSION_DENIED`. A
+  policy that meant to let writes land outside its read scope has to
+  declare a `check` that admits them.
+- **A predicate it cannot enforce denies.** Comparing a field with a
+  list (`record.status != ['closed', 'archived']`), with the bare
+  `current_user` instead of `current_user.id`, or naming a field the
+  object does not declare could admit the very rows and writes it was
+  written to refuse. Such a policy now fails closed: its reads return
+  no rows and its writes answer `403`.
+- **Writes are judged on the stored row.** `check` and the
+  organization wall see the row as the engine stores it, after
+  `beforeInsert` / `beforeUpdate` hooks have run.
+
+`os validate` reports these shapes before they ship
+(`rls-predicate-unenforceable`, `rls-predicate-unknown-field`), and the
+metadata save door refuses a permission set that carries one
+(`422 INVALID_METADATA`).
+
 ## Record shares
 
 Use record shares for exceptions:

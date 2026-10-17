@@ -127,6 +127,26 @@ Then add domain-specific sets for the customer's application.
 Marking a set `isDefault` suggests it for assignment when the owning
 package is installed (this replaces the pre-13 `isProfile` flag).
 
+## Deactivating a permission set
+
+A permission set's **Deactivate** action stops it granting, immediately
+(ObjectStack 17.1). A deactivated set contributes none of its object,
+field, system or tab permissions — and none of the administrator
+standing it would otherwise confer — whether it reaches the user directly
+or through a position. A set whose `active` value is empty is
+unaffected; only an explicit deactivation counts.
+
+Two consequences:
+
+- **You cannot lock everyone out with it.** Deactivating the set that
+  makes your administrators administrators is refused by the same
+  last-administrator guard that refuses deleting it.
+- **Upgrading past 17.1 is a revocation.** Before 17.1 the switch was
+  inert, and a deactivated set kept granting. Before you upgrade, list
+  the deactivated sets and positions and re-activate any that are still
+  meant to grant — see
+  [Deactivating a position](/docs/configure/permissions/positions#deactivating-a-position).
+
 ## Delegated administration
 
 A permission set can carry an `adminScope` that turns its holders into
@@ -155,6 +175,11 @@ read a record, individual fields can be hidden or made read-only.
 |---|---|
 | **Hidden** | Field is stripped from API responses and generated views entirely |
 | **Read-only** | Field is returned but writes are rejected |
+
+A third state, **masked** (`138****5678`), is not a permission-set mode:
+it is declared on the field, and a permission set only decides who holds
+the capabilities that unmask it. See
+[Field-Level Security](/docs/configure/permissions/field-level-security#masked-fields).
 
 ### Where it's enforced
 
