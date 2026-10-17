@@ -35,7 +35,7 @@ One rate card, two deliveries — priced per **AI seat** in every edition:
 | Delivery | Plans | For |
 |:---|:---|:---|
 | **ObjectOS Cloud** (managed service) | Free · Team · Business | Organizations that want the platform operated for them — orgs, environments, deploys, billing. |
-| **ObjectOS Self-Managed** (your infrastructure) | Business Self-Managed (single-node license) · Enterprise (full private deployment) | Organizations that run the platform themselves. |
+| **ObjectOS Enterprise** (self-managed: your infrastructure) | Business Self-Managed (single-node entry option) · Enterprise (full private deployment) | Organizations that run the platform themselves. |
 
 See [License & Pricing](https://docs.objectos.ai/docs/resources/license) for
 plan details, and [docs.objectos.ai](https://docs.objectos.ai) for

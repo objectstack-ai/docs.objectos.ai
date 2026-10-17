@@ -1,7 +1,7 @@
 {
   "title": "隐私政策",
   "description": "ObjectStack AI LLC 从公开网站和托管账号收集哪些信息，以及不会收集的自管部署内部数据。",
-  "updated": "最近更新：2026 年 10 月 6 日",
+  "updated": "最近更新：2026 年 10 月 16 日",
   "body": [
     {
       "heading": "概述",
@@ -13,7 +13,7 @@
     },
     {
       "heading": "我们不会收集什么",
-      "text": "我们不会收集自管 ObjectOS 部署（ObjectOS Enterprise）内部的数据，也不会收集开源 ObjectStack 运行时部署内部的数据；你的应用数据始终留在你自己运营的边界内。ObjectOS Self-Managed 会在线校验许可证（Enterprise 隔离网络许可证为离线校验）；开源的 ObjectStack 运行时没有遥测、没有许可证校验、没有更新探活。"
+      "text": "我们不会收集自管 ObjectOS 部署（ObjectOS Enterprise）内部的数据，也不会收集开源 ObjectStack 运行时部署内部的数据；你的应用数据始终留在你自己运营的边界内。自管 ObjectOS 会在线校验许可证（Enterprise 隔离网络许可证为离线校验）；开源的 ObjectStack 运行时没有遥测、没有许可证校验、没有更新探活。"
     },
     {
       "heading": "联系方式",
