@@ -5,12 +5,14 @@ description: How ObjectOS is versioned, what changes between releases, and what'
 
 ## Versioning policy
 
-ObjectOS follows **[Semantic Versioning](https://semver.org/)**: `MAJOR.MINOR.PATCH`.
+ObjectOS versions take the **[Semantic Versioning](https://semver.org/)**
+shape, `MAJOR.MINOR.PATCH`, with one exception the table states: on the
+v17 line a minor can break.
 
 | Version bump | What it means | What to do |
 |---|---|---|
 | **Patch** (`14.7.0 → 14.7.1`) | Bug fixes, no behavior change | Roll forward, no app changes needed |
-| **Minor** (`14.6 → 14.7`) | New features, backward-compatible | Roll forward, optionally adopt new features |
+| **Minor** (`17.4 → 17.5`) | New features — and, on the v17 line, breaking corrections too. Every 17.x release note says so in the same words: a minor "by version number, not by blast radius" | Read that release's upgrade checklist and the [version-specific steps](/docs/operate/upgrade#version-specific-steps) before rolling forward |
 | **Major** (`13 → 14`) | Breaking changes documented in release notes | Read the migration guide before upgrading |
 
 All `@objectstack/*` packages release together with a synchronized
@@ -39,7 +41,7 @@ fixed calendar:
 Critical security fixes are backported to the current and previous
 major. Everything else lands on `main`. Dates attached to a specific
 major are published with that major's
-[release notes](https://docs.objectstack.ai/docs/releases).
+[release notes](https://objectstack.ai/docs/releases).
 
 ## Release notes
 
@@ -48,7 +50,7 @@ Released ObjectOS versions and their CHANGELOG entries are published at:
 - **npm**: [`@objectstack/runtime`](https://www.npmjs.com/package/@objectstack/runtime)
 - **GitHub**: [github.com/objectstack-ai/objectstack/releases](https://github.com/objectstack-ai/objectstack/releases)
 - **Source CHANGELOG**: [`CHANGELOG.md`](https://github.com/objectstack-ai/objectstack/blob/main/CHANGELOG.md)
-- **Long-form release notes**: [`RELEASE_NOTES.md`](https://github.com/objectstack-ai/objectstack/blob/main/RELEASE_NOTES.md)
+- **Long-form release notes**: one page per release, with its upgrade checklist, at [objectstack.ai/docs/releases](https://objectstack.ai/docs/releases) — for the v17 line, [v17](https://objectstack.ai/docs/releases/v17)
 
 To be notified, watch
 [github.com/objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack)
@@ -56,16 +58,209 @@ To be notified, watch
 
 ## Recent highlights
 
+Every 17.x minor below changes behavior on a running deployment. The
+operator's share of each upgrade checklist is on
+[Upgrade and Rollback → Version-specific steps](/docs/operate/upgrade#version-specific-steps).
+
+### 17.7
+
+`@objectstack` **17.7.0** (released 2026-10-06) is the current release of
+the v17 line. It takes credentials out of the copies they had been made
+into, and makes a row you cannot see answer as a row that is not there.
+Full notes:
+[objectstack.ai/docs/releases/v17/17-7](https://objectstack.ai/docs/releases/v17/17-7).
+
+> **Warning:** after upgrading, rotate every flow secret and the JWT
+> signing keys, and re-mint private share links: copies made before the
+> upgrade stay in the audit trail. A secret set on 17.7 cannot be read by
+> an earlier release, so plan rollbacks with that in mind. See
+> [Upgrade and Rollback → 17.7](/docs/operate/upgrade#objectstack-177).
+
+What moved:
+
+- **Credentials stop travelling in copies** (security) — a flow's inbound
+  `secret` and an `http` node's `signingSecret` move into a write-only
+  store, the audit trail stops recording credential fields, and credential
+  fields are masked in every write response, record event, webhook body
+  and flow trigger record.
+- **Public forms open only on an explicit switch** (breaking) — a form is
+  served anonymously only when its `sharing` sets `enabled: true` beside
+  `allowAnonymous` and `publicLink`. A form that set only the last two
+  answers `404 FORM_NOT_FOUND`. See [Views](/docs/build/interface/views#public-forms).
+- **A row you cannot read is not there** — a by-id update or delete of a
+  row the caller cannot read answers `404 RECORD_NOT_FOUND`, and an update
+  or delete by filter touches readable rows only.
+- **Reads and writes return declared fields only** — a column no metadata
+  declares, such as a retired field's leftover, is no longer returned;
+  `os migrate unmapped-columns` reads it for a conversion. See
+  [CLI](/docs/reference/cli#database-migrations--os-migrate).
+- **App code reaches stored metadata through the metadata API only** —
+  hook, action and job code no longer reads or writes `sys_metadata`
+  directly, and a flow node that writes it is refused.
+- **Dates, times and numbers follow the language** — the four format
+  settings are retired, and a settings write that names one answers
+  `400`. See [Localization](/docs/configure/localization).
+- **The in-memory engine is no longer a boot store**, and an
+  external sign-in no longer links itself to a local account whose email
+  is unverified.
+- **Console (Studio)** — five objectui pin moves; the first fixes the four
+  known console issues of 17.6.
+
+### 17.6
+
+`@objectstack` **17.6.0** (released 2026-10-02) decides access the same way
+at every door: a caller with no permission set gets nothing, and field-level
+security reaches every query. Full notes:
+[objectstack.ai/docs/releases/v17/17-6](https://objectstack.ai/docs/releases/v17/17-6).
+
+What moved:
+
+- **A caller that resolves no permission set is refused every object**
+  (breaking, security) — it used to be admitted to every object no set
+  grants. An app-declared anonymous endpoint (`authRequired: false`) can
+  no longer read or write objects, and no supported channel grants
+  anonymous callers a permission set. Public forms keep working.
+- **Field-level security reaches every query door** — cross-field
+  comparisons, the activity stream, the audit trail, approval snapshots
+  and analytics. The audit trail and the activity stream show a
+  non-system reader, administrators included, only rows about records that
+  reader can read; 17.7's `view_all_audit_log` capability, which platform
+  administrators hold by default, gives them the deletion and sign-out
+  trail back. See [Audit Logs](/docs/operate/audit-logs).
+- **A packaged flow wins its name** — a flow saved in the deployment under
+  a packaged flow's name stops running, and the on/off toggle switches
+  packaged flows only. See [Flows](/docs/build/automation/flows#visual-builder).
+- **Stored metadata bodies are redacted wherever they are copied** — run
+  `os migrate audit-metadata-bodies --apply` for the copies at rest.
+  Datasource metadata on `/api/v1/meta` needs `manage_platform_settings`.
+- **「is empty」 also matches `''` and `[]`** in sharing rules and views, on
+  text and multi-value fields.
+- **Dates follow one rule at every door** — a `datetime` names a year from
+  1000 to 9999, and an import reads date cells only in ISO 8601, the
+  export's own shape, or year-first.
+- **Shared picklists** — a new `picklist` metadata kind that fields
+  reference by name and other packages can extend.
+
+### 17.5
+
+`@objectstack` **17.5.0** (released 2026-09-29) turns several defaults to
+the safe side: scheduled work is off until a deployment asks for it, and
+row-level security, analytics and record writes refuse what they cannot
+honor. Full notes:
+[objectstack.ai/docs/releases/v17/17-5](https://objectstack.ai/docs/releases/v17/17-5).
+
+> **Warning:** a deployment that upgrades and does nothing runs no
+> scheduled flow and no packaged cron job, and a walled one has no
+> platform administrator until `OS_PLATFORM_OWNER_EMAIL` names one. See
+> [Upgrade and Rollback → 17.5](/docs/operate/upgrade#objectstack-175).
+
+What moved:
+
+- **Scheduled work is off until the deployment turns it on** (breaking) —
+  `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` gates every time-triggered flow
+  and packaged cron job. See
+  [Environment Variables](/docs/reference/environment-variables#runtime-services).
+- **Walled deployments take platform-admin standing only from
+  `OS_PLATFORM_OWNER_EMAIL`** (breaking) — an `admin_full_access` grant no
+  longer confers it.
+- **The saved-report stack is removed** (breaking) — `/api/v1/reports` and
+  scheduled report delivery, with no successor. The `report` metadata kind,
+  datasets and analytics are unchanged. See [REST API](/docs/reference/rest-api#reports).
+- **Row-level security fails closed** on a predicate it cannot enforce,
+  and a policy with no `check` now holds inserts and updates to its
+  `using`.
+- **Analytics answers only callers who may read the object** — anyone
+  else is refused `403`, as on `/data`.
+- **A decision takes its first matching branch** — `mode: 'inclusive'`
+  runs every true branch. A decision stored from Studio takes the new
+  meaning on upgrade. See [Flows](/docs/build/automation/flows#conditions-and-branches).
+- **Written values are held to their declared type** — a `date` as
+  `YYYY-MM-DD`, a `datetime` in ISO 8601, a number in its JSON spelling;
+  anything else is `400 VALIDATION_FAILED`.
+- **Validation rules can read one hop through a lookup**, and CEL gains
+  `current_user.can(object, verb)`. See
+  [Validation Rules](/docs/build/data/validation-rules#reading-a-related-record)
+  and [CEL](/docs/reference/cel#permission-checks).
+- **A view with no declared page size shows 50 rows**, not 25.
+
+### 17.4
+
+`@objectstack` **17.4.0** (released 2026-09-09) renames every duration key
+to carry its unit and closes two quiet write paths. Full notes:
+[objectstack.ai/docs/releases/v17/17-4](https://objectstack.ai/docs/releases/v17/17-4).
+
+What moved:
+
+- **A read-only field is stripped from a non-system create**, not only
+  from an update — reported in `droppedFields`. Seed one as the system.
+  See [Validation Rules](/docs/build/data/validation-rules).
+- **Every duration key carries its unit in its name** (breaking) —
+  `timeout` becomes `timeoutMs`, `refreshInterval` becomes
+  `refreshIntervalSeconds`, and so on, with no aliases: an old spelling is
+  refused at parse, naming the key.
+- **`positions` on the session is the security axis** — a Console gate
+  narrowed by a position now answers for the people who hold it.
+- **A flow can refuse with a reason** — an `end` node with
+  `outcome: 'refused'` and a per-record `message`. See
+  [Flows](/docs/build/automation/flows#ending-a-run-completed-or-refused).
+- **Analytics date ranges are a closed vocabulary** — a declared preset
+  or a `[start, end]` pair; anything else is `400`.
+- **The multi-organization runtime is open source** —
+  `@objectstack/organizations` is a published package.
+
+### 17.3
+
+`@objectstack` **17.3.0** (released 2026-09-04) is the largest release of
+the v17 line. Full notes:
+[objectstack.ai/docs/releases/v17/17-3](https://objectstack.ai/docs/releases/v17/17-3).
+
+What moved:
+
+- **Open self-registration must be declared** (breaking) — an app that
+  declares no audience posture is invite-only, and a sign-up without a
+  pending invitation is refused `403 SELF_REGISTRATION_CLOSED` (the first
+  account on a fresh install is exempt).
+- **Sharing grants are tenant-scoped** — `sys_record_share` rows written
+  before 17.3 need an operator-run backfill. See
+  [Upgrade and Rollback → 17.3](/docs/operate/upgrade#objectstack-173).
+- **An outage of the permission store fails loudly** (`503`), instead of
+  resolving as a user with no capabilities.
+- **Auto-numbers are unique per organization**, and existing duplicates
+  block the new index: run `os migrate duplicates` first.
+- **Compound metadata addressing is retired** — `/api/v1/meta/:type/:section/:name`
+  answers `404 ROUTE_NOT_FOUND`. See [REST API](/docs/reference/rest-api#metadata--apiv1meta).
+- **Switching a flow on or off requires `manage_metadata`.**
+- **SDK** — `client.projects.*` becomes `client.environments.*`, with no
+  aliases.
+
+### 17.2
+
+`@objectstack` **17.2.0** (released 2026-08-23) stops writes that declared
+a condition nobody evaluated from reading as conditional writes. Full
+notes: [objectstack.ai/docs/releases/v17/17-2](https://objectstack.ai/docs/releases/v17/17-2).
+
+What moved:
+
+- **By-id writes stop dropping predicates** (breaking) — a by-id update or
+  delete whose `where` names more than `id` is refused unless it declares
+  `multi: true`, and one whose `data.id` and `where.id` disagree answers
+  `400 UPDATE_ID_MISMATCH`.
+- **`http_request_errors_total` is retired** — a panel keyed on it reads a
+  flat zero; use `http_requests_total{status=~"5.."}`.
+- **The external-datasource routes require a capability** —
+  `manage_platform_settings` or `manage_metadata`.
+- **`os g agent` is retired** — author skills instead.
+
 ### 17.1
 
-`@objectstack` **17.1.0** (released 2026-08-20) is the current release of
+`@objectstack` **17.1.0** (released 2026-08-20) was the first minor of
 the v17 line. Where 17.0 made the *authorable surface* loud, 17.1 makes
 the runtime's answers loud: a flag that promised to revoke access now
 revokes it, a read that failed stops being served as an empty one, a flow
 that never dispatched stops being reported as a run that failed, and a
 credential that was never meant to be readable stops being served. Full
 notes:
-[docs.objectstack.ai/docs/releases/v17](https://docs.objectstack.ai/docs/releases/v17).
+[objectstack.ai/docs/releases/v17/17-1](https://objectstack.ai/docs/releases/v17/17-1).
 
 > **Warning:** 17.1.0 is a minor by version number, not by blast radius.
 > Several of its security corrections change who can read or write on an
@@ -103,24 +298,13 @@ What moved:
   users and the CSV/XLSX export route all see the same value; a masked
   caller cannot filter, sort, group or aggregate on the field. See
   [Field-Level Security](/docs/configure/permissions/field-level-security).
-- **`sys_audit_log` can answer "who viewed this record"** — the ledger
-  covered writes only; it gains a `read` action, its writer, and a
-  `record_views` list view. Record-detail reads only, per-object opt-in
-  with no global switch, batched off the request path, and **never any
-  field values** — read auditing runs ahead of field masking, so copying
-  values in would mint a plaintext copy of exactly what field-level
-  security withholds. See [Audit Logs](/docs/operate/audit-logs).
-- **Read-only approval visibility, per object, default off** — an object
-  can be named so that a user who can read a business record may also see
-  that record's approval requests and full action history. Omitted or
-  empty leaves visibility exactly as it is; on an object you do name it is
-  not a no-op — a supervisor who holds full read but never appears in the
-  approval used to get an empty list, and now sees the request row, every
-  actor and decision, the action's comment text (意见正文), and decision
-  attachments. The tier is read-only and introduces no new permission
-  concept: the service reads the record as the caller, so ordinary CRUD
-  and record access decide. See
-  [Approvals](/docs/build/automation/approvals).
+- **Two open-runtime capabilities that ObjectOS does not expose** —
+  17.1 added record-view auditing (a `read` action in `sys_audit_log`) and
+  a read-only tier that lets a record's readers see its approval requests.
+  Each is switched on only by a constructor option — `AuditPlugin`'s
+  `readAudit`, the approval service's `recordReaderVisibleObjects` — that
+  the ObjectOS runtime does not set, so neither is available on an
+  ObjectOS deployment.
 - **All three flow doors answer one honest status table** — a refused
   dispatch stops being reported as a failed run: `404` not found, `409`
   `FLOW_DISABLED`, `422` `FLOW_NO_START_NODE`, and `400` `FLOW_FAILED`
@@ -160,7 +344,7 @@ What moved:
 `@objectstack` **17.0.0** (released 2026-08-14) is a truth-telling
 release: where 16.0 made *declared metadata* honest, 17.0 does the same
 for the surfaces around it. Full notes:
-[docs.objectstack.ai/docs/releases/v17](https://docs.objectstack.ai/docs/releases/v17).
+[objectstack.ai/docs/releases/v17/17-0](https://objectstack.ai/docs/releases/v17/17-0).
 What moved:
 
 - **Node.js 22 is the floor** (breaking) — `engines.node` moves from
@@ -232,7 +416,7 @@ declared metadata honest: one blessed name for the caller's org, real
 multi-approver governance, time-relative automations that actually fire,
 and a platform-wide sweep that turns silently-ignored metadata into loud
 errors at authoring time. Full notes:
-[docs.objectstack.ai/docs/releases](https://docs.objectstack.ai/docs/releases).
+[objectstack.ai/docs/releases](https://objectstack.ai/docs/releases).
 What moved:
 
 - **`tenantId` alias removed from hook/action `ctx`** (16.0, breaking) —
@@ -304,7 +488,7 @@ The runtime boot contract is unchanged — `createStandaloneStack` takes the
 same artifact, environment, and database settings — but 13.0 and 14.0 both
 land breaking changes in the authorization vocabulary, so **review your
 permission metadata before rolling forward from ≤ 12.x**. Full notes:
-[docs.objectstack.ai/docs/releases](https://docs.objectstack.ai/docs/releases).
+[objectstack.ai/docs/releases](https://objectstack.ai/docs/releases).
 What moved in 14.x:
 
 - **ADR-0090 vocabulary convergence completed** (14.0, breaking) —
@@ -525,7 +709,8 @@ throughout. Affected:
 ## Upgrading
 
 See [Upgrade and Rollback](/docs/operate/upgrade) for the mechanical
-steps. Pre-flight:
+steps, and its [version-specific steps](/docs/operate/upgrade#version-specific-steps)
+for every release you cross. Pre-flight:
 
 1. Read the CHANGELOG entry for every minor between your current and
    target version.

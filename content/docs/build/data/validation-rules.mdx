@@ -44,7 +44,7 @@ fields: {
 | `min` / `max` | Numeric range (number, currency, percent, rating, slider…) |
 | `minLength` / `maxLength` | Character bounds on text types |
 | `format` | Built-in shape checks — `email`, `url`, `phone` field types carry theirs by default |
-| `readonly: true` | Server-enforced on update — a non-system write to the field is silently dropped (insert exempt) |
+| `readonly: true` | Server-enforced on insert and update — a non-system write to the field is dropped and reported in the response's `droppedFields`, or refused outright when the write passes the `strictReadonlyWrites` option. To seed a read-only field at create time, write as the system: a seed, a system hook, or a flow with `runAs: 'system'` |
 
 Field types also validate themselves for free: `email` checks the
 `local@domain` shape, `url` requires a protocol, `select` values must
@@ -66,7 +66,12 @@ po_number: Field.text({
 ```
 
 `visibleWhen`, `readonlyWhen`, and `requiredWhen` all take a CEL
-predicate — see [Formulas](/docs/build/data/formulas).
+predicate — see [Formulas](/docs/build/data/formulas). They read the
+record's own fields only. A `requiredWhen` or `readonlyWhen` that cannot
+be evaluated — a misspelled field, ordering over `null`, a read through a
+lookup such as `record.account.tier` — refuses the write with
+`VALIDATION_FAILED` instead of letting it through; a check that has to
+read a related record belongs in a [validation rule](#reading-a-related-record).
 
 ## Object-level validation rules
 
@@ -178,6 +183,35 @@ rule's `events` must include `insert` for the check to run.
 In update-time conditions, `previous` holds the pre-change snapshot —
 `record.stage != previous.stage` detects a change.
 
+### Reading a related record
+
+Since ObjectStack 17.5 a `script` or `cross_field` rule can read **one
+hop** through a `lookup`, `master_detail`, `user` or `tree` field:
+
+```ts
+// One validation rule, an entry of the object's `validations`
+{
+  name: 'partner_deal_cap',
+  type: 'script',
+  severity: 'error',
+  message: 'Partner deals over 10,000 need a direct contract',
+  condition: "record.account.type == 'partner' && record.amount > 10000",
+  events: ['insert', 'update'],
+}
+```
+
+The engine loads only the related fields the condition names, in one
+batched read per reference field, and reads nothing when no rule
+traverses. A second hop (`record.account.owner.email`) is refused, and so
+is comparing the reference's id while traversing it. Field-level
+predicates and row-level security stay on the record's own fields.
+
+A rule sees `record` and `previous` and nothing else: it cannot ask who is
+saving. `current_user.can(...)` is answered elsewhere — see
+[CEL → Permission checks](/docs/reference/cel#permission-checks) — and in a
+validation rule it cannot be evaluated, so the rule refuses every write it
+runs on.
+
 ## Uniqueness: use an index, not a rule
 
 There is **no** `uniqueness` validation type — on purpose. A
@@ -217,9 +251,10 @@ form and in the API error response. Make it actionable:
 Use `severity` to calibrate: `error` blocks the save, `warning` shows
 the message but lets the save through, `info` is purely informational.
 
-> **Tip:** A predicate that can't be evaluated (parse error, unbound
-> variable) is treated as a broken rule — logged and skipped rather
-> than blocking every write.
+> **Warning:** A rule whose predicate cannot be evaluated (a parse error,
+> a misspelled field, a value it cannot compare) **fails closed**: the
+> write is refused with `VALIDATION_FAILED`, never saved with the rule
+> skipped. Test a new rule against real records before you publish it.
 
 ## Best practices
 

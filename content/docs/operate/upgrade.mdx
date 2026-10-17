@@ -29,7 +29,9 @@ a checklist.
 Keep the **previous** digest: that is what a rollback is. To roll back,
 restore the previous digest and repeat step 3 — valid as long as the version
 you are leaving made no incompatible schema change (the release notes say
-when it did).
+when it did). Secrets have the same one-way edge: a secret set or rotated
+on ObjectStack 17.7 or later cannot be read by a release before 17.7 (see
+[17.7](#objectstack-177) below).
 
 ## On Kubernetes and air-gapped sites
 
@@ -49,3 +51,201 @@ independently of the image — see
 published artifacts as immutable: if you overwrite one in place, you lose the
 ability to roll back cleanly even when the database backup is perfect
 ([Backup → Artifact versioning](/docs/operate/backup#artifact-versioning)).
+
+## Version-specific steps
+
+The steps above are the same for every release. Some ObjectStack releases
+underneath ObjectOS also ask the operator to act: set a variable before the
+new image boots, run a data migration, rotate a credential. The image's
+[release manifest](/docs/deploy/docker#the-image-can-tell-you-what-it-is)
+says which ObjectStack version it embeds. Work through the subsection of
+every version you cross, oldest first, beside the steps above.
+
+Each subsection is the operator's share of that release's upgrade
+checklist and links the whole checklist; what a release changes for the app
+you run (its metadata and its code) is in the same checklist and in the
+[Changelog](/docs/resources/changelog). The `os migrate` commands are the
+ObjectStack CLI at the version the new image embeds. They boot the app to
+read its metadata, so run them with the environment the deployment boots
+with — the same database and the same app — see
+[CLI → Database migrations](/docs/reference/cli#database-migrations--os-migrate).
+
+> **Rehearse on a copy.** The release notes mark most checklist lines
+> *not exercised*: derived from the change, not from a walked upgrade. Run
+> each step against a copy of the database first, and back up before the
+> real one.
+
+### ObjectStack 17.0
+
+- **Run the two data migrations.** `os migrate files-to-references`, then
+  again with `--apply`; and `os migrate value-shapes`, then `--apply` once
+  it reports nothing. Until each has recorded its flag, a database created
+  before 17.0 keeps accepting malformed file and reference values with a
+  warning; after, it refuses them. For an integration you cannot fix in
+  time, see the [escape hatches](/docs/reference/environment-variables#data-contract-escape-hatches).
+- **Every datasource the app binds must connect.** One that cannot fails
+  the boot, and `/api/v1/ready` answers `503` while one stops answering.
+
+Full checklist: [17.0.0](https://objectstack.ai/docs/releases/v17/17-0#upgrade-checklist).
+
+### ObjectStack 17.1
+
+- **Before upgrading, list the permission sets and positions switched
+  off** (`active: false`). From 17.1 they stop granting, and a sharing rule
+  that names a deactivated position has its shares revoked. Re-activate the
+  ones still meant to grant.
+- **Re-mint API keys under `isolated`.** Keys minted before 17.1 carry no
+  organization and are refused under `OS_TENANCY_POSTURE=isolated`.
+- **Export is granted per object.** The shipped administrator permission
+  sets no longer export every object; grant `allowExport` in the app's own
+  permission set where export is intended.
+
+Full checklist: [17.1.0](https://objectstack.ai/docs/releases/v17/17-1#upgrade-checklist).
+
+### ObjectStack 17.2
+
+- **Re-point monitoring keyed on `http_request_errors_total`.** The series
+  is retired and reads a flat zero, which looks like a healthy server. Use
+  `http_requests_total{status=~"5.."}`.
+- **Grant `manage_platform_settings` or `manage_metadata`** to any
+  credential that calls the external-datasource routes; they now refuse
+  other callers `403`.
+
+Full checklist: [17.2.0](https://objectstack.ai/docs/releases/v17/17-2#upgrade-checklist).
+
+### ObjectStack 17.3
+
+- **Walled posture: set `OS_PLATFORM_OWNER_EMAIL` before the new image
+  boots**, or it refuses to start. See
+  [Environment Variables](/docs/reference/environment-variables#multi-organization-deployments).
+- **Deduplicate auto-numbers before the new unique indexes can build.** Run
+  `os migrate duplicates`, fix the duplicates it reports, then re-run
+  `os migrate plan`. Until you do, the index is not built and the
+  uniqueness is not enforced; the boot only logs it, so a clean boot is not
+  evidence that the index exists.
+- **Backfill `sys_record_share`.** Sharing grants written before 17.3 carry
+  no organization, and a tenant-scoped read stops finding them. ObjectStack
+  ships the backfill as two functions of `@objectstack/plugin-sharing` —
+  `planSysRecordShareOrganizationBackfill` (a dry run) and
+  `runSysRecordShareOrganizationBackfill` — not as an `os` command, and
+  nothing runs it at boot.
+- **Open sign-up must now be declared.** An app that declares no audience
+  posture is invite-only: a self-registration is refused
+  `403 SELF_REGISTRATION_CLOSED` unless the address holds a pending
+  invitation (the first account on a fresh install is exempt).
+
+Full checklist: [17.3.0](https://objectstack.ai/docs/releases/v17/17-3#upgrade-checklist).
+
+### ObjectStack 17.4
+
+- **Under `isolated`, re-mint API keys that carry no organization.** They
+  move from `200` to `401`. Under `group` such a key still works.
+- **Expect `503` from the storage download and settings routes** while the
+  authorization store is unreachable, where they used to degrade quietly.
+
+Full checklist: [17.4.0](https://objectstack.ai/docs/releases/v17/17-4#upgrade-checklist).
+
+### ObjectStack 17.5
+
+Before you upgrade:
+
+- **Walled posture: list every platform administrator in
+  `OS_PLATFORM_OWNER_EMAIL`** (comma-separated, verified addresses). An
+  `admin_full_access` grant stops conferring the standing, and a deployment
+  with no declaration comes up with no platform administrator.
+- **Decide about scheduled work.** Time-triggered flows and packaged cron
+  jobs stop running unless the deployment sets
+  `OS_AUTOMATION_SCHEDULED_WORK_ENABLED=true`. Under `isolated`, first give
+  each scheduled flow's start node the `organization` it runs as, and drain
+  its suspended runs. See [Flows](/docs/build/automation/flows#scheduled-run-on-a-clock).
+- **Pre-flight the account-identity change.** Run `os migrate account-issuer`
+  (read-only; it exits non-zero while two accounts would collide) and
+  resolve every collision it reports: colliding rows are never merged for
+  you.
+
+Getting onto the release:
+
+```bash
+os migrate account-issuer                     # expect: safe to drop
+os migrate plan                               # read every destructive change first
+os migrate apply --allow-destructive          # drops sys_account.issuer, after a backup
+os migrate account-issuer                     # again: expect zero collisions
+```
+
+`--allow-destructive` applies every destructive change the plan lists, not
+only this one — which is why the plan comes first.
+
+After it:
+
+- An anonymous `GET /api/v1/auth/get-session` answers `401`, no longer
+  `200` with `null`.
+- Analytics refuses `403` a caller who cannot read the object.
+- Failed notification deliveries are kept 7 days, not 90.
+
+Full checklist: [17.5.0](https://objectstack.ai/docs/releases/v17/17-5#upgrade-checklist).
+
+### ObjectStack 17.6
+
+- **Hold the upgrade if the app declares an anonymous endpoint**
+  (`authRequired: false`) that reads or writes objects. From 17.6 it is
+  refused every object, and no supported channel grants anonymous callers a
+  permission set, in 17.7 either. Public forms are a separate door and keep
+  working.
+- **Grant `manage_platform_settings`** to every user or integration that
+  reads `datasource` or `external_catalog` metadata, or saves `datasource`
+  metadata, through `/api/v1/meta`.
+- **Find stored flows that share a packaged flow's name** (the startup log
+  warns about each). From 17.6 the packaged flow wins and the stored one
+  stops running; clone the one you need under a new name.
+- **Rewrite the copies of metadata bodies at rest:**
+  `os migrate audit-metadata-bodies`, then again with `--apply`. ⚠️ On
+  17.6.0 even the dry run writes to the database — run it against a copy.
+- **Find `datetime` values before the year 1000** and rewrite them; after
+  the upgrade, any write that carries one is refused.
+
+Full checklist: [17.6.0](https://objectstack.ai/docs/releases/v17/17-6#upgrade-checklist).
+
+### ObjectStack 17.7
+
+Before you upgrade:
+
+- **Run any conversion that reads a retired field's leftover column** while
+  that field is still declared. After the upgrade no runtime door returns
+  the column; only `os migrate unmapped-columns --object NAME` reads it.
+- **Add `sharing.enabled: true` to every public form that must stay
+  public**, in the app and in stored overlays. Without it the form answers
+  `404 FORM_NOT_FOUND`.
+- **If you may need to roll back past 17.7, keep a way to set every secret
+  again.** A secret set, rotated or re-sealed on 17.7 is written in a format
+  an earlier release cannot open.
+- **Replace an in-memory boot store** (`OS_DATABASE_DRIVER=memory`, or a
+  `memory://` URL): it is refused.
+
+Getting onto the release: run `os migrate audit-metadata-bodies`, then
+again with `--apply`, to drop the stored content hashes from the audit and
+activity copies. The 17.7 dry run no longer writes. A metadata version
+token held from before the upgrade answers `409 METADATA_CONFLICT` once;
+read the item again for a fresh one.
+
+After the first boot:
+
+- **Rotate every flow secret** — an inbound hook's `secret` and an `http`
+  node's `signingSecret` — once the boot log reports it moved into
+  `sys_flow_credential`, and hand the new value to whoever signs or
+  verifies.
+- **Rotate the JWT signing keys, and revoke and re-mint the share links that
+  must stay private.** Their earlier values may have copies in the audit
+  trail, which the upgrade does not rewrite.
+- **Resume, cancel or purge flow runs paused before the upgrade.** Their
+  stored variables still hold credentials in clear.
+- **Optional, and only once you will not roll back past 17.7:**
+  `os secret rewrap`, then again with `--apply`, re-seals older secrets in
+  the new format. Nothing on the upgrade path runs it.
+- **Drop the retired Localization keys** from any client that writes
+  `/api/settings/localization`: `date_format`, `time_format`,
+  `number_format`, `first_day_of_week`. A request naming one is refused
+  `400` whole.
+- **External sign-in to an unverified local email address is refused**
+  (`account_not_linked`); it no longer links to that account silently.
+
+Full checklist: [17.7.0](https://objectstack.ai/docs/releases/v17/17-7#upgrade-checklist).

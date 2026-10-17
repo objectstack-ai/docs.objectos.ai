@@ -1,7 +1,7 @@
 ---
 title: Localization
 seoTitle: "Localization: Timezone, Language and Formats"
-description: Set the tenant-wide timezone, language, country, and date, time, and number formats that every rendered value inherits.
+description: Set the tenant-wide timezone, language, country, default currency and fiscal year start that every rendered value inherits.
 ---
 
 Localization sets the **tenant-level defaults** for how ObjectOS interprets
@@ -11,7 +11,7 @@ override their own language in their [Account](/docs/use/profile), but the
 defaults you set here apply to everyone who has not.
 
 Open **Setup → Configuration → Localization**. The page is split into two
-sections: **Region** and **Formats**.
+sections: **Region** and **Finance**.
 
 ## Region
 
@@ -34,28 +34,35 @@ the deployment reports as its home.
 message catalog and formatting rules the UI falls back to. `Default country`
 is a free-text field that expects a two-letter ISO code.
 
-## Formats
+## Finance
 
-Formats control *presentation* — how an already-resolved value is written out.
-They do not change stored data, only how it is displayed.
-
-| Setting | Default | Example |
+| Setting | Default | Drives |
 |---|---|---|
-| `Date format` | ISO | `2026-06-17` |
-| `Time format` | 24-hour | `14:30` |
-| `Number format` | comma / dot | `1,234.56` |
-| `Currency` | — | Currency symbol and placement for money fields |
+| `Default currency` | none | The ISO 4217 code a currency field uses when it does not declare its own. Leave it unset and such amounts render as plain numbers, with no guessed symbol |
+| `Fiscal year start` | `January` | The first month of the fiscal year — what "this quarter" and "this fiscal year" mean in reports |
 
-Each is a dropdown. Pick the presentation your users expect; the underlying
-timestamps and numbers are stored in a canonical form and only formatted at
-render time.
+## Dates, times and numbers follow the language
+
+There is no separate format setting. How a date, a time or a number is
+written out, and which day a week starts on, follow `Default language`
+(or the user's own language). ObjectStack 17.7 retired the four format
+settings this page used to list — `date_format`, `time_format`,
+`number_format` and `first_day_of_week` — because nothing read them. A
+value stored earlier is kept but no longer served; a
+`PUT /api/settings/localization` that names one of them is refused
+`400 UNKNOWN_KEY` for the whole request, the valid keys beside it
+included; and the `OS_LOCALIZATION_*_FORMAT` and
+`OS_LOCALIZATION_FIRST_DAY_OF_WEEK` variables are no longer read. Formats
+change only how a value is displayed: timestamps and numbers are stored
+in a canonical form either way.
 
 ## Tenant defaults vs. user overrides
 
 Everything on this page is a **tenant default**. When a user sets their own
 language in **Account**, that choice wins for that user's session and rendered
 UI; users who leave their preference unset inherit the `Default language` you
-configure here. Timezone, country, and format defaults apply tenant-wide.
+configure here. Timezone, country, currency and fiscal-year defaults apply
+tenant-wide.
 
 ## Where to go next
 
