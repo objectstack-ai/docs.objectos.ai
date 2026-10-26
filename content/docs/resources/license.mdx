@@ -36,19 +36,25 @@ mechanism.
 
 ## Editions
 
-ObjectOS Community is free and has no rate card. For the two commercial
-editions there is one rate card, two deliveries, and the **AI seat** is the
-only unit of pricing.
+ObjectOS Community is free. For the two commercial editions there is one
+rate card, two deliveries, and the **AI seat** is the only unit of pricing.
 
-| | **Free** | **Team** | **Business** | **Business Self-Managed** | **Enterprise** |
-|---|---|---|---|---|---|
-| Edition | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise (single-node entry option) | ObjectOS Enterprise |
-| Delivery | cloud | cloud | cloud | **self-managed, single node** | **self-managed (private deployment)** |
-| Price | **Free** | **$24** / AI seat / mo | **$54** / AI seat / mo | **$540** / AI seat / yr | Custom (volume) — [contact sales](mailto:sales@objectstack.ai) |
-| In-UI AI (AI Builder + "ask your data") | taste | ✓ | ✓ | ✓ | ✓ |
-| AI governance (action audit, guardrails, permission scoping) | — | — | ✓ | ✓ | ✓ |
-| Clustering / HA, multi-org self-host, air-gap, SCIM | — | — | — | — | ✓ |
-| Support | community | standard | priority | standard | SLA + dedicated |
+| | **Community** | **Free** | **Team** | **Enterprise** |
+|---|---|---|---|---|
+| Edition | ObjectOS Community | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise |
+| Delivery | **self-managed** | cloud | cloud | **self-managed (private deployment)** |
+| Price | **Free** (Apache-2.0) | **Free** | **$24** / AI seat / mo | Custom (volume) — [contact sales](mailto:sales@objectstack.ai) |
+| In-UI AI (AI Builder + "ask your data") | MCP only (bring your own model) | taste | ✓ | ✓ |
+| AI governance (action audit, guardrails, permission scoping) | — | — | — | ✓ |
+| Clustering / HA, multi-org self-host, air-gap, SCIM | — | — | — | ✓ |
+| Support | community | community | standard | SLA + dedicated |
+
+Two **contract options under ObjectOS Enterprise** sit between Team and a
+full private deployment, priced as before: **Business** (SSO and AI
+governance on ObjectOS Cloud, **$54** / AI seat / mo, or $45 / AI seat / mo
+billed annually; priority support) and **Business Self-Managed** (the
+single-node entry option, **$540** / AI seat / yr). Both are sold by contract —
+[contact sales](mailto:sales@objectstack.ai).
 
 Want to self-host **for free**? That's **ObjectOS Community** (MCP-only AI:
 bring your own model). See [ObjectOS Community](#objectos-community) below.
@@ -65,26 +71,32 @@ per-user seat tax (a clean contrast to the $150–300/user incumbents).
 
 ## Cloud or self-managed
 
-Self-managed ObjectOS is **ObjectOS Enterprise**, and Enterprise is
-self-managed only: Cloud tops out at Business.
+Self-managed ObjectOS is **ObjectOS Community** (free) or **ObjectOS
+Enterprise** (licensed). Cloud is Free and Team; everything above Team is an
+Enterprise contract.
 
-- **Cloud (Free / Team / Business)** — fully hosted, self-serve. The price
-  includes hosting and a generous monthly AI allowance (we run the model).
-- **Business Self-Managed** — the single-node entry option of ObjectOS
-  Enterprise: the Business plan delivered as a **single-node Docker license**
-  for **10–25 AI seats** ($540/AI seat/yr, annual): in-UI AI and AI
-  governance on your own infrastructure, **bring your own model / key** (you
-  pay your own LLM cost — no platform AI bill or metering), card-paid,
-  standard support. If the license lapses, the runtime keeps running and your
-  data stays intact — the paid features simply switch off (it never bricks).
-- **Enterprise** — the full private deployment, for everything beyond
-  that: clustering / HA / multi-node, multi-organization self-host,
-  data residency and **air-gapped** operation, SCIM and identity lifecycle,
-  compliance attestations, SLA and dedicated support, and offline / invoice
-  payment. Sold as an **annual license** with multi-year price-lock options;
-  on non-renewal your deployment **keeps the last paid version perpetually**
-  (you lose updates and support, never your system or data). Pricing is
-  volume-based — [contact sales](mailto:sales@objectstack.ai).
+- **Cloud (Free / Team)** — fully hosted, self-serve. The price includes
+  hosting and a generous monthly AI allowance (we run the model).
+- **Enterprise** — licensed ObjectOS, sold by contract, in three shapes:
+  - **Business** — a contract option on ObjectOS Cloud: SSO / SAML and AI
+    governance (action audit, guardrails, permission scoping) on the hosted
+    service, $54 / AI seat / mo or $45 / AI seat / mo billed annually,
+    priority support.
+  - **Business Self-Managed** — the single-node entry option: the Business
+    plan delivered as a **single-node Docker license** for **10–25 AI seats**
+    ($540/AI seat/yr, annual): in-UI AI and AI governance on your own
+    infrastructure, **bring your own model / key** (you pay your own LLM
+    cost — no platform AI bill or metering), card-paid, standard support. If
+    the license lapses, the runtime keeps running and your data stays intact —
+    the paid features simply switch off (it never bricks).
+  - **Full private deployment** — for everything beyond that: clustering /
+    HA / multi-node, multi-organization self-host, data residency and
+    **air-gapped** operation, SCIM and identity lifecycle, compliance
+    attestations, SLA and dedicated support, and offline / invoice payment.
+    Sold as an **annual license** with multi-year price-lock options; on
+    non-renewal your deployment **keeps the last paid version perpetually**
+    (you lose updates and support, never your system or data). Pricing is
+    volume-based — [contact sales](mailto:sales@objectstack.ai).
 
 There is **no per-node charge** — clustering / scale is folded into
 Enterprise.
@@ -93,8 +105,9 @@ Enterprise.
 
 | Scenario | Choose |
 |---|---|
-| You want the platform **hosted and operated for you** | ObjectOS Cloud (Free → Team → Business) |
-| You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Business Self-Managed**, the single-node entry option of ObjectOS Enterprise |
+| You want the platform **hosted and operated for you** | ObjectOS Cloud (Free → Team) |
+| You need **SSO and AI governance** on the hosted service | **Business**, a contract option of ObjectOS Enterprise on ObjectOS Cloud |
+| You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Business Self-Managed**, a contract option of ObjectOS Enterprise (single-node entry) |
 | You need **clustering / HA**, **multi-org**, **air-gap**, **SCIM**, compliance attestations, SLAs, or offline payment | **ObjectOS Enterprise**, full private deployment |
 | You self-host ObjectOS Community but need a **supported distribution with a commercial contract** (SLA, security-patch priority, named escalation) | **ObjectOS Runtime Subscription** — [contact sales](mailto:sales@objectstack.ai) |
 | You want **free self-hosting** and bring your own AI over MCP | **ObjectOS Community** (open source) |
