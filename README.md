@@ -2,53 +2,72 @@
 
 > ## Build & ask online. Keep the data you own.
 >
-> **The ontology is the software.** ObjectOS is the **commercial runtime environment for
-> [ObjectStack](https://github.com/objectstack-ai/objectstack) apps — built
-> and operated entirely in the browser**: tell the built-in AI Builder what
-> your business needs — a helpdesk, an approval flow, a CRM — and it's running
-> immediately, with a generated admin Console, REST APIs, SSO, RBAC, and audit
-> logs. No local toolchain, nothing to deploy. Run it as **ObjectOS Cloud**
-> (we operate it) or **ObjectOS Enterprise** (self-managed: your servers, your
-> database, your data — never ours).
+> **The ontology is the software.** ObjectOS is the **runtime environment for
+> [ObjectStack](https://github.com/objectstack-ai/objectstack) apps**: tell
+> the built-in AI Builder what your business needs — a helpdesk, an approval
+> flow, a CRM — and it's running immediately, with a generated admin Console,
+> REST APIs, SSO, RBAC, and audit logs. One product, three editions: run it
+> yourself for free as **ObjectOS Community** (open source), let us operate it
+> as **ObjectOS Cloud**, or license it self-managed as **ObjectOS Enterprise**
+> (your servers, your database, your data — never ours).
 
 [Website](https://www.objectos.ai) ·
 [Documentation](https://docs.objectos.ai) ·
 [License & Pricing](https://docs.objectos.ai/docs/resources/license) ·
-[ObjectStack — the open-source framework](https://github.com/objectstack-ai/objectstack)
+[ObjectStack — the open-source protocol, SDK and framework](https://github.com/objectstack-ai/objectstack)
 
-ObjectOS is a **commercial product**. This repository is its public home:
+This repository is the source of the ObjectOS product documentation,
+[docs.objectos.ai](https://docs.objectos.ai) — a sub-site of
+[www.objectos.ai](https://www.objectos.ai), the ObjectOS home (the cloud
+service included). It holds:
 
-- 📚 **Documentation** — source for [docs.objectos.ai](https://docs.objectos.ai)
-  (`content/docs/`, built by `apps/docs/`), in seven languages.
-- 🐛 **Issue tracker** — bug reports and feature requests for ObjectOS Cloud
-  and ObjectOS Enterprise.
+- 📚 **Documentation** — `content/docs/`, built by `apps/docs/`, in seven
+  languages.
 - ™️ **Trademark policy** — [TRADEMARK.md](TRADEMARK.md). The "ObjectOS" name
   and logo are trademarks and are not covered by the code license.
 
-The product source is developed privately and is not published in this
-repository. There is no open-source edition of ObjectOS.
+Product issues — for ObjectOS Community, Cloud or Enterprise — go to the one
+public issue tracker,
+[objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack/issues).
+This repository takes issues about the documentation itself.
+
+## One product, three editions
+
+| Thing | Name | Terms |
+|:---|:---|:---|
+| The protocol, SDK, CLI and framework code — the `@objectstack/*` packages, the [objectstack repository](https://github.com/objectstack-ai/objectstack) and the objectstack.ai docs | **ObjectStack** | Apache-2.0 |
+| The open-source runtime and Console that run an app — the `ghcr.io/objectstack-ai/objectstack` image and `os start`; its code stays in the objectstack repository | **ObjectOS Community** | Free, Apache-2.0 |
+| The hosted service, [cloud.objectos.ai](https://cloud.objectos.ai) — we operate it | **ObjectOS Cloud** | Free · Team |
+| The self-managed edition on your own infrastructure, under a commercial license | **ObjectOS Enterprise** | Licensed |
+
+Community has everything needed to run an app: the runtime, the Console,
+permissions and sharing, audit, MCP, and every protocol capability. Cloud and
+Enterprise add hosting and multi-environment operations, Build & Ask (the AI
+Builder), SSO, and commercial support.
 
 ## Editions
 
-One rate card, two deliveries — priced per **AI seat** in every edition:
-
-| Delivery | Plans | For |
-|:---|:---|:---|
-| **ObjectOS Cloud** (managed service) | Free · Team · Business | Organizations that want the platform operated for them — orgs, environments, deploys, billing. |
-| **ObjectOS Enterprise** (self-managed: your infrastructure) | Business Self-Managed (single-node entry option) · Enterprise (full private deployment) | Organizations that run the platform themselves. |
+- **ObjectOS Community** — open source, self-hosted, free (Apache-2.0).
+- **ObjectOS Cloud** — the managed service: Free · Team.
+- **ObjectOS Enterprise** — licensed, self-managed. Business and Business
+  Self-Managed (the single-node entry option) are contract options under it.
 
 See [License & Pricing](https://docs.objectos.ai/docs/resources/license) for
 plan details, and [docs.objectos.ai](https://docs.objectos.ai) for
 capabilities, deployment, and operations documentation.
 
-## Building and running your own apps? That's ObjectStack — and it's open source
+## Run it yourself: ObjectOS Community
 
 Everything you need to **build, run, and self-host your own applications** is
-the open-source (Apache-2.0) **[ObjectStack framework](https://github.com/objectstack-ai/objectstack)**:
+open source (Apache-2.0): the **[ObjectStack](https://github.com/objectstack-ai/objectstack)**
+protocol, SDK, CLI and framework, and the ObjectOS Community runtime built
+from them:
 
 ```
-ObjectStack  →  build & ask with Claude Code — in your repo, with your coding agent (Apache-2.0)
-ObjectOS     →  build & ask online — in the browser, on a governed platform (Cloud & Enterprise)
+ObjectStack          →  build & ask with Claude Code — in your repo, with your coding agent (Apache-2.0)
+ObjectOS Community   →  the open-source runtime + Console, self-hosted, free (Apache-2.0)
+ObjectOS Cloud       →  build & ask online — in the browser, on a governed platform we operate
+ObjectOS Enterprise  →  the same platform, licensed and self-managed on your infrastructure
 ```
 
 `os start` — or the official Docker image
@@ -58,19 +77,13 @@ audit included. No commercial license required.
 
 ## What happened to the code that used to live here?
 
-Until July 2026 this repository contained a free reference runtime
-distribution (`@objectos/server`) and a desktop build (**ObjectOS One**).
-As part of clarifying the ObjectStack / ObjectOS split:
-
-- **`@objectos/server` is superseded** by the official ObjectStack runtime
-  image (`ghcr.io/objectstack-ai/objectstack`) — the same capability,
-  maintained where the runtime itself lives.
-- **ObjectOS One is discontinued.** Demos and evaluations are served by the
-  official Docker image and ObjectOS Cloud trials.
-- **Everything already released stays licensed as released**: historical
-  source remains available under Apache-2.0 in this repository's git history
-  (archive branch: [`archive/apache-final`](https://github.com/objectstack-ai/objectos/tree/archive/apache-final)).
-  Nothing is retroactively withdrawn.
+Until July 2026 this repository shipped a free reference runtime distribution
+(`@objectos/server`) and a desktop build (ObjectOS One); `@objectos/server`
+was superseded by the official ObjectStack runtime image — today's ObjectOS
+Community — and ObjectOS One was discontinued. Everything already released
+stays licensed as released: the historical source remains available under
+Apache-2.0 in this repository's git history (archive branch:
+[`archive/apache-final`](https://github.com/objectstack-ai/docs.objectos.ai/tree/archive/apache-final)).
 
 ## Working on the docs
 

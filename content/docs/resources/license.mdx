@@ -1,14 +1,15 @@
 ---
 title: License & Pricing
-description: ObjectOS is a commercial product — editions, pricing, and how it relates to the open-source ObjectStack framework.
+description: ObjectOS is one product in three editions — Community (open source, free), Cloud and Enterprise — how each is licensed, and how they relate to the ObjectStack framework.
 ---
 
-## ObjectOS is a commercial product
+## One product, three editions
 
 ObjectOS is the **official runtime environment for ObjectStack applications**,
-sold in two deliveries: **ObjectOS Cloud** (we operate it) and **ObjectOS
-Enterprise** (you operate it, under a commercial license). There is **no
-open-source edition of ObjectOS**.
+in three editions: **ObjectOS Community** (open source, self-hosted, free),
+**ObjectOS Cloud** (we operate it) and **ObjectOS Enterprise** (you operate
+it, under a commercial license). ObjectStack is the name of the protocol,
+SDK, CLI and framework the three editions run.
 
 {/*
   Naming, decided under #79 and re-confirmed on #107: "Console UI" here and in
@@ -21,19 +22,23 @@ open-source edition of ObjectOS**.
   therefore deliberate — do not rewrite them to "the UI" or to "ObjectOS".
 */}
 
-The open-source story lives under its own brand: the
+The open-source story has two names and one license. The
 **[ObjectStack framework](https://github.com/objectstack-ai/objectstack)**
-(Apache-2.0) is everything you need to **build, run, and self-host your own
-applications** — the protocol, kernel, CLI, production runtime, Console UI,
-and the MCP server — free, with no feature gate between development and
-production. If you want free self-hosting, you want ObjectStack, and it is
-excellent. ObjectOS is what you buy when you want the **embedded AI** and an
-**officially operated / supported** platform on top of that mechanism.
+(Apache-2.0) is the protocol, kernel, SDK and CLI; **ObjectOS Community** is
+the open-source runtime and Console UI built from it — the production
+runtime image, the MCP server, permissions and sharing, audit, every
+protocol capability — everything you need to **build, run, and self-host
+your own applications**, free, with no feature gate between development and
+production. Its code lives in the same objectstack repository. ObjectOS
+Cloud and ObjectOS Enterprise are what you buy when you want the **embedded
+AI** and an **officially operated / supported** platform on top of that
+mechanism.
 
 ## Editions
 
-One rate card, two deliveries. The **AI seat** is the only unit of pricing in
-every edition.
+ObjectOS Community is free and has no rate card. For the two commercial
+editions there is one rate card, two deliveries, and the **AI seat** is the
+only unit of pricing.
 
 | | **Free** | **Team** | **Business** | **Business Self-Managed** | **Enterprise** |
 |---|---|---|---|---|---|
@@ -45,14 +50,14 @@ every edition.
 | Clustering / HA, multi-org self-host, air-gap, SCIM | — | — | — | — | ✓ |
 | Support | community | standard | priority | standard | SLA + dedicated |
 
-Want to self-host **for free**? That's the open-source
-**ObjectStack framework** (MCP-only AI) — a different brand, not an ObjectOS
-edition. See [the open-source alternative](#the-open-source-alternative) below.
+Want to self-host **for free**? That's **ObjectOS Community** (MCP-only AI:
+bring your own model). See [ObjectOS Community](#objectos-community) below.
 
 **Open mechanism, closed intelligence.** Everything you need to model data and
-run apps is open-source (ObjectStack). ObjectOS layers on the *embedded
-intelligence* — the in-product AI Builder and the "ask your data" assistant,
-governed and audited — plus operational scale and official support.
+run apps is open source (ObjectOS Community, on the ObjectStack framework).
+Cloud and Enterprise layer on the *embedded intelligence* — the in-product AI
+Builder and the "ask your data" assistant, governed and audited — plus
+operational scale and official support.
 
 **You pay only for AI seats.** The only billed seat is the **AI seat**;
 viewers, non-AI app users, and developers building over MCP are free, with no
@@ -91,13 +96,14 @@ Enterprise.
 | You want the platform **hosted and operated for you** | ObjectOS Cloud (Free → Team → Business) |
 | You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Business Self-Managed**, the single-node entry option of ObjectOS Enterprise |
 | You need **clustering / HA**, **multi-org**, **air-gap**, **SCIM**, compliance attestations, SLAs, or offline payment | **ObjectOS Enterprise**, full private deployment |
-| You self-host the free ObjectStack runtime but need a **supported distribution with a commercial contract** (SLA, security-patch priority, named escalation) | **ObjectOS Runtime Subscription** — [contact sales](mailto:sales@objectstack.ai) |
-| You want **free self-hosting** and bring your own AI over MCP | **ObjectStack framework** (open source) |
+| You self-host ObjectOS Community but need a **supported distribution with a commercial contract** (SLA, security-patch priority, named escalation) | **ObjectOS Runtime Subscription** — [contact sales](mailto:sales@objectstack.ai) |
+| You want **free self-hosting** and bring your own AI over MCP | **ObjectOS Community** (open source) |
 | You need **OEM / redistribution** rights under the ObjectOS or ObjectStack name | Commercial agreement — [contact sales](mailto:sales@objectstack.ai) |
 
-## The open-source alternative
+## ObjectOS Community
 
-The **ObjectStack framework** is licensed under the
+**ObjectOS Community** — the runtime image and the Console UI — and the
+**ObjectStack framework** it is built from are licensed under the
 [Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0):
 no copyleft, an express patent grant, free forever — no seats, no usage tier,
 no license server, no key, no telemetry. Run it on your laptop, your servers,
@@ -106,7 +112,7 @@ every case. Your AI path there is the open **MCP server**: point your own
 Claude Code (or any MCP client) at your deployment and it can query and
 operate your data with your own model.
 
-What's Apache-2.0 (in the framework repository): the runtime image, all
+What's Apache-2.0 (in the objectstack repository): the runtime image, all
 `@objectstack/*` npm packages (runtime, plugins, services, drivers, adapters,
 CLI, client SDKs), the templates repository, and the Console UI, including
 the Account app it serves. Documentation is CC-BY-4.0.
@@ -133,9 +139,12 @@ inventory.
 
 ### Is ObjectOS open source?
 
-No. ObjectOS is a commercial product with no open-source edition. The
-open-source platform it runs on is the **ObjectStack framework** (Apache-2.0)
-— build and self-host your own apps with it, free.
+**ObjectOS Community** is: the runtime and Console are Apache-2.0, free, and
+developed in the open in the
+[objectstack repository](https://github.com/objectstack-ai/objectstack),
+alongside the ObjectStack framework they are built from. **ObjectOS Cloud**
+and **ObjectOS Enterprise** are the commercial editions — the embedded AI,
+hosting and operations, SSO and support on top of that same mechanism.
 
 ### Can I use ObjectStack in a closed-source SaaS I sell to my customers?
 
@@ -144,10 +153,11 @@ your code, and you owe nothing if your product makes money.
 
 ### Can I self-host ObjectOS without paying?
 
-No — self-managed ObjectOS is ObjectOS Enterprise, and both of its options
-(Business Self-Managed on a single node, or a full Enterprise deployment)
-are licensed. Free self-hosting is the ObjectStack framework, which is the
-same open mechanism with MCP-only AI.
+Yes — that is **ObjectOS Community**: the same open mechanism, self-hosted,
+with MCP-only AI (bring your own model). The *licensed* self-managed edition
+is ObjectOS Enterprise, and both of its options (Business Self-Managed on a
+single node, or a full Enterprise deployment) add the in-product AI, AI
+governance and commercial support.
 
 ### Does the software stop working if I don't renew?
 
@@ -158,18 +168,18 @@ you lose updates, new AI capabilities, and support, not your system.
 
 ### Does ObjectOS phone home?
 
-Self-managed ObjectOS validates its license online; Enterprise air-gapped
-licenses validate offline. The open-source ObjectStack runtime has no
-telemetry, no license check, and no update ping.
+ObjectOS Enterprise validates its license online; air-gapped Enterprise
+licenses validate offline. ObjectOS Community has no telemetry, no license
+check, and no update ping.
 
-### What if I want a contractual warranty on the free runtime?
+### What if I want a contractual warranty on ObjectOS Community?
 
-That's the **ObjectOS Runtime Subscription** — a support contract on the
-open-source ObjectStack runtime (official distribution, SLA, security-patch
-priority) with zero feature difference. Contact
+That's the **ObjectOS Runtime Subscription** — a support contract on
+ObjectOS Community (official distribution, SLA, security-patch priority)
+with zero feature difference. Contact
 [sales@objectstack.ai](mailto:sales@objectstack.ai).
 
-### Will the open-source framework always be free?
+### Will ObjectOS Community and the framework always be free?
 
 Yes. Apache-2.0 grants are irrevocable, and everything already released
 stays licensed as released.

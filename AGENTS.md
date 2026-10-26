@@ -4,7 +4,7 @@ Guidance for AI agents (Claude Code, Codex, Cursor, etc.) working in this reposi
 
 ## Repository
 
-ObjectOS — the commercial runtime environment for ObjectStack applications (Cloud & Enterprise editions). This public repository is the product's front door: the marketing + docs site under `apps/docs` (content in `content/docs/`), the issue tracker, and the trademark policy. Product source is developed privately and does not live here.
+ObjectOS — the runtime environment for ObjectStack applications, one product in three editions: Community (open source; its code lives in `objectstack-ai/objectstack`), Cloud and Enterprise. This public repository is the source of the product documentation site, docs.objectos.ai (a sub-site of www.objectos.ai): the docs site under `apps/docs` (content in `content/docs/`) and the trademark policy. It is not the product's issue tracker — that is `objectstack-ai/objectstack`; this repository takes issues about the documentation only. Cloud and Enterprise source is developed privately and does not live here.
 
 ## Critical rules
 

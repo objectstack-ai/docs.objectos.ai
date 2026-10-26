@@ -1,8 +1,8 @@
 # Contributing to ObjectOS
 
-ObjectOS is a **commercial product**; its source is developed privately.
-This public repository hosts the **documentation site and issue tracker**.
-Read this before opening a PR.
+This public repository is the source of the **ObjectOS product
+documentation** ([docs.objectos.ai](https://docs.objectos.ai)), a sub-site of
+[www.objectos.ai](https://www.objectos.ai). Read this before opening a PR.
 
 ## What belongs here
 
@@ -13,13 +13,17 @@ Read this before opening a PR.
   a bad translation? Open an issue, or fix the English source and the next pass
   carries it through. See [docs/TRANSLATION.md](docs/TRANSLATION.md).
 - **Docs site** improvements (`apps/docs/` — Next.js + Fumadocs).
-- **Issues**: bug reports and feature requests for ObjectOS Cloud and
-  ObjectOS Enterprise.
+- **Issues about the documentation itself** — a wrong page, a broken link,
+  a bad translation.
 
 ## What does NOT belong here
 
-- **Product source changes** — ObjectOS itself is developed privately. Report
-  behavior as an issue instead.
+- **Product issues and product source changes** — bug reports and feature
+  requests for ObjectOS Community, Cloud or Enterprise go to the one public
+  issue tracker,
+  [`objectstack-ai/objectstack`](https://github.com/objectstack-ai/objectstack/issues),
+  where the ObjectOS Community code also lives. ObjectOS Cloud and ObjectOS
+  Enterprise source is developed privately.
 - **Framework changes** — protocol schemas, kernel internals, drivers, and
   community plugins live in
   [`objectstack-ai/objectstack`](https://github.com/objectstack-ai/objectstack)
