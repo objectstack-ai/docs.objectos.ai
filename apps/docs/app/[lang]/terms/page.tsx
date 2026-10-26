@@ -21,15 +21,15 @@ const content = {
   en: {
     title: 'Terms of Service',
     description: "How ObjectOS editions are licensed, the Apache-2.0 license of this site's content, the ObjectOS trademark, and responsibility for self-managed deployments.",
-    updated: 'Last updated: October 6, 2026',
+    updated: 'Last updated: October 26, 2026',
     body: [
       {
         heading: 'License',
-        text: 'ObjectOS is a commercial product with no open-source edition. Your use of ObjectOS is governed by the license or service agreement of the edition you use — ObjectOS Cloud or ObjectOS Enterprise. The contents of the repository behind this documentation site (the documentation and the site code) are licensed under the Apache License 2.0, and the open-source ObjectStack framework and its runtime are licensed under the Apache License 2.0 in their own repository. The "ObjectOS" name and logo are trademarks of ObjectStack AI LLC and are not granted under the Apache 2.0 license — see TRADEMARK.md in the repository.',
+        text: 'ObjectOS is one product in three editions. ObjectOS Community, the open-source runtime and Console, is licensed under the Apache License 2.0 in the objectstack-ai/objectstack repository, together with the ObjectStack framework it is built on. Your use of ObjectOS Cloud or ObjectOS Enterprise is governed by the service agreement or license of that edition. The contents of the repository behind this documentation site (the documentation and the site code) are licensed under the Apache License 2.0. The "ObjectOS" name and logo are trademarks of ObjectStack AI LLC and are not granted under the Apache 2.0 license — see TRADEMARK.md in the repository.',
       },
       {
         heading: 'Self-hosted deployments',
-        text: 'When you run ObjectOS self-managed inside your own infrastructure (ObjectOS Enterprise), you are solely responsible for the operation, security, availability, backups, and compliance of that deployment, and ObjectStack AI LLC provides no warranty for it beyond what your commercial agreement specifies. When you self-host the open-source ObjectStack runtime instead, it is licensed under the Apache License 2.0, and ObjectStack AI LLC provides no warranty beyond what that license specifies.',
+        text: 'When you run ObjectOS self-managed inside your own infrastructure (ObjectOS Enterprise), you are solely responsible for the operation, security, availability, backups, and compliance of that deployment, and ObjectStack AI LLC provides no warranty for it beyond what your commercial agreement specifies. When you self-host ObjectOS Community instead, it is licensed under the Apache License 2.0, and ObjectStack AI LLC provides no warranty beyond what that license specifies.',
       },
       {
         heading: 'Hosted services',
