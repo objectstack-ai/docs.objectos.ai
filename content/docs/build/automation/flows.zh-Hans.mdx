@@ -1,0 +1,490 @@
+---
+title: 流程与自动化
+description: 声明式的业务逻辑 —— 无论是向 AI 描述，还是用 TypeScript 编写，运行时执行的都是同一个产物。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 011506676f1192c1d884573299f8404d1cf906edfc56cb81b122979ba8410d43
+  guide_rev: 1
+  mode: auto
+---
+
+流程是你无需编写服务器就能表达业务逻辑的方式。每个流程都是由运行时执行
+的声明式元数据 —— 与对象和视图一样。这意味着流程会同时出现在 `os diff`、
+审计日志、Studio 的流程构建器和 [AI Builder](/docs/build/ai-builder) 中。
+
+大多数客户通过向 AI 提问来创建流程：
+
+> *"当一个高优先级工单在 'new' 状态停留 30 分钟时，在 Slack 上通知经理。"*
+
+AI 会按本页描述的形态生成流程元数据，所以你可以阅读和编辑它。
+
+流程是一张图：`nodes` 负责干活，`edges` 把它们连起来，`start` 节点说明
+是什么启动了这个流程。其形态是 ObjectStack 的 `FlowSchema`，完整说明见
+ObjectStack 的 [Flow metadata](https://objectstack.ai/docs/automation/flows)。
+
+在你的技术栈中启用这项能力：
+
+```ts
+export default defineStack({
+  // ...
+  requires: ['automation', 'triggers'],  // the flow engine, and the triggers that start flows
+});
+```
+
+两个令牌都是必需的。如果技术栈中有一个在记录变更、定时计划或 API 调用时
+启动的流程，而 `requires` 缺少其中任何一个，`defineStack` 会拒绝这个
+技术栈，因为这样的流程会注册成功却永远不会运行。
+
+## 流程类型 [#flow-types]
+
+| `type` | 由谁启动 | 用于 |
+|---|---|---|
+| `record_change` | 记录的插入、更新或删除，绑定在开始节点上 | "创建工单时给负责人发邮件" |
+| `schedule` | 开始节点上的 cron 计划 | "每晚 2 点标记停滞的任务" |
+| `schedule`，相对时间 *（16.0）* | 日期字段与今天的接近程度，通过每日扫描 | "在合同到期前 60 天提醒我" |
+| `autolaunched` | 动作按钮、另一个流程或 API 调用 | "批准发票"动作 |
+| `screen` | 用户，通过一个或多个屏幕 | 引导式数据录入 |
+| `api` | 一个 HTTP 请求，用开始节点的 `config.secret` 签名 | 供外部系统调用的端点 |
+
+## 记录变更：响应记录的变化 [#record-change-react-to-a-record-change]
+
+```ts
+// src/flows/ticket_assigned_email.ts
+import { defineFlow } from '@objectstack/spec';
+
+export const ticketAssignedEmail = defineFlow({
+  name: 'ticket_assigned_email',
+  label: 'Email the assignee of a new ticket',
+  type: 'record_change',
+  status: 'active',
+  nodes: [
+    {
+      id: 'start',
+      type: 'start',
+      label: 'Ticket created',
+      config: { objectName: 'support_ticket', triggerType: 'record-after-create' },
+    },
+    {
+      id: 'email_assignee',
+      type: 'notify',
+      label: 'Email the assignee',
+      config: {
+        recipients: '{record.assignee}',
+        title: 'New ticket: {record.subject}',
+        message: 'You have been assigned {record.subject}, priority {record.priority}.',
+        channels: ['email'],
+      },
+    },
+    { id: 'end', type: 'end', label: 'End' },
+  ],
+  edges: [
+    { id: 'e1', source: 'start', target: 'email_assignee' },
+    { id: 'e2', source: 'email_assignee', target: 'end' },
+  ],
+});
+```
+
+邮件通过 `notify` 节点发出；没有单独的邮件节点类型。`channels: ['email']`
+会在邮件渠道上发送通知，经由[邮件](/docs/configure/email)上配置的传输
+方式。没有 `channels` 时，通知只会进入应用内收件箱。要发送已保存的邮件
+模板而不是内联文本，就用 `template`（一个 `sys_email_template` 名称）
+代替 `title` 和 `message`。
+
+节点 `config` 中的字段值和通知文本都是模板：`{record.<field>}` 读取触发
+流程的记录，`{<variable>}` 读取流程变量，`{$User.Id}` 是当前用户，
+`{NOW()}` / `{TODAY()}` 是日期宏。条件是不带花括号的裸 CEL —— 参见
+[条件和分支](#conditions-and-branches)。
+
+开始节点的 `triggerType` 选择事件，可选的 `condition` 进一步收窄它，例如
+`condition: "record.priority == 'high'"`：
+
+| `triggerType` | 触发时机 |
+|---|---|
+| `record-after-create` | 插入之后 |
+| `record-after-update` | 更新之后 |
+| `record-after-delete` | 删除之后 |
+| `record-after-write` | 插入**或**更新之后 |
+| `record-before-create` | 插入之前 |
+| `record-before-update` | 更新之前 |
+| `record-before-delete` | 删除之前 |
+| `record-before-write` | 插入**或**更新之前 |
+
+在更新时，`previous` 保存记录原来的样子：
+`condition: 'record.stage != previous.stage'`。要在同一次写入中、保存之前
+修改待写入的记录，请使用 before 钩子而不是流程；流程用于保存带来的副作用
+—— 创建记录、发送通知、调用 HTTP、请求审批（ObjectStack 的
+[Hooks vs flows](https://objectstack.ai/docs/automation/hooks#hooks-vs-flows)）。
+
+## 定时：按时钟运行 [#scheduled-run-on-a-clock]
+
+```ts
+export const nightlyCleanup = defineFlow({
+  name: 'nightly_cleanup',
+  label: 'Mark overdue tasks',
+  type: 'schedule',
+  status: 'active',
+  runAs: 'system',  // a scheduled run has no user, so its data operations need an explicit identity
+  nodes: [
+    {
+      id: 'start',
+      type: 'start',
+      label: 'Every night at 2am',
+      config: {
+        triggerType: 'schedule',
+        schedule: { type: 'cron', expression: '0 2 * * *', timezone: 'America/New_York' },
+      },
+    },
+    {
+      id: 'mark_overdue',
+      type: 'update_record',
+      label: 'Mark open tasks past due',
+      config: {
+        objectName: 'task',
+        filter: { status: 'open', due_date: { $lt: '{TODAY()}' } },
+        fields: { status: 'overdue' },
+        multi: true,  // update every match; without it, a filter that is not a single id is refused
+      },
+    },
+    { id: 'end', type: 'end', label: 'End' },
+  ],
+  edges: [
+    { id: 'e1', source: 'start', target: 'mark_overdue' },
+    { id: 'e2', source: 'mark_overdue', target: 'end' },
+  ],
+});
+```
+
+由 `@objectstack/service-job` 能力支撑 —— 参见
+[运行时能力](/docs/reference/runtime-capabilities)。时间触发的流程没有
+调用者可以从中继承组织；ObjectStack 的
+[Flow metadata](https://objectstack.ai/docs/automation/flows#the-acting-organization)
+说明了它的开始节点何时必须用 `organization` 声明一个组织。
+
+> **定时工作在部署开启它之前是关闭的。** 从 ObjectStack 17.5 起，时间触发
+> 的流程（`schedule` 周期，或下文的相对时间扫描）以及打包的 `defineJob`
+> cron 作业，只有在部署把 `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` 设为
+> `true`（或 `1`、`on`、`yes`）时才会启用。不设置时，什么都不会启用，每个
+> 这样的流程都会被报告为*因部署策略而禁用*，而不是错误。关闭是 ObjectStack
+> 运行时的默认值；你的 ObjectOS 镜像或其部署包模板是否替你设置了这个变量，
+> 本页无法保证，所以当你的应用依赖定时流程时，请显式设置它，并用 `os doctor`
+> 确认，它会打印生效的值 —— 参见
+> [环境变量](/docs/reference/environment-variables#runtime-services)。
+> 平台自身的定时工作（审批升级、数据保留、消息分发）不受影响。在 `isolated`
+> 租户模式下，即使开关已打开，开始节点上没有声明 `organization` 的定时流程
+> 也不会被启用。
+
+## 相对时间：相对于日期字段触发（16.0） [#time-relative-fire-relative-to-a-date-field-160]
+
+"在合同到期前 60 天提醒我"过去的写法，是一个以
+`record.end_date == daysFromNow(60)` 为门槛的记录变更流程 —— 这个谓词只在
+记录*恰好发生变更*时才求值，所以无人值守时它几乎从不触发。不要这样写。
+改为声明一个**相对时间触发器**：流程的开始节点带一个 `config.timeRelative`
+描述符，运行时会按计划扫描该对象，并**对每条匹配的记录各启动一次**流程：
+
+```ts
+export const renewalReminder = defineFlow({
+  name: 'contract_renewal_reminder',
+  label: 'Contract renewal reminder',
+  type: 'schedule',
+  status: 'active',
+  runAs: 'system',  // a sweep has no user to act as
+  nodes: [
+    {
+      id: 'start',
+      type: 'start',
+      label: 'Start',
+      config: {
+        timeRelative: {
+          object: 'contracts',
+          dateField: 'end_date',
+          offsetDays: [60, 30, 7],       // T-minus thresholds
+          filter: { status: 'active' },  // AND-ed with the date window
+        },
+        // Optional sweep cadence — defaults to daily at 08:00 UTC.
+        schedule: { type: 'cron', expression: '0 8 * * *' },
+      },
+    },
+    {
+      id: 'notify_owner',
+      type: 'notify',
+      label: 'Notify Owner',
+      config: { recipients: '{record.owner}', title: 'Contract {record.name} ends on {record.end_date}' },
+    },
+    { id: 'end', type: 'end', label: 'End' },
+  ],
+  edges: [
+    { id: 'e1', source: 'start', target: 'notify_owner' },
+    { id: 'e2', source: 'notify_owner', target: 'end' },
+  ],
+});
+```
+
+| 键 | 它声明什么 |
+|---|---|
+| `object` | 扫描所查询记录的对象（机器名） |
+| `dateField` | 相对于今天求值的 `date` / `datetime` 字段（按天粒度） |
+| `offsetDays` | **偏移模式** —— 当 `dateField` 恰好等于今天加上列出的某个偏移时触发（`[60, 30, 7]`；负数表示过去，例如 `[-1]` 表示次日） |
+| `withinDays` | **范围模式** —— 只要 `dateField` 在今天的 N 天之内就每天触发：正数 = 即将到来（"即将过期"），负数 = 有界的逾期回溯，`0` = 今天到期 |
+| `filter` | 可选的 ObjectQL where 映射，与计算出的日期窗口以 AND 组合（例如 `{ status: 'active' }`） |
+| `maxRecords` | 每次扫描启动的记录数上限（默认 1000；被截断时扫描会记录日志） |
+
+`offsetDays` 和 `withinDays` 必须**恰好**设置其中一个。另外两种常见形态：
+
+```ts
+// Two variants of the start node's config.timeRelative; the rest of the flow is as above.
+
+// "Expiring soon" — fires every day a document is within 30 days of expiry.
+timeRelative: { object: 'hr_document', dateField: 'expires_on', withinDays: 30 }
+
+// Overdue sweep — fires for POs up to 14 days past due (bounded lookback).
+timeRelative: { object: 'purchase_order', dateField: 'due_date',
+                withinDays: -14, filter: { status: 'open' } }
+```
+
+每次启动都会把匹配的记录放到自动化上下文中，所以开始节点的 `condition`
+和 `{record.<field>}` 插值的工作方式与记录变更流程完全相同。发现查询以
+系统身份运行，并按记录隔离失败。`os validate` 增加了就绪检查 —— 当
+`timeRelative.object` 指定了技术栈未定义的对象，以及自动触发的流程停留在
+`draft` 状态时，它都会发出警告。
+
+> **真正的同日检查现在没问题了（#3183）。** 在 16.0 中，
+> `record.due_date == today()` 能够匹配 —— 引擎会对时间值的 `==` / `!=`
+> 比较做类型归一，所以日期字段能正确地与 `today()` 比较。真正的"今天到期"
+> 条件就用它；任何"某个日期之前 / 之后 N 天"形式的需求都用 `timeRelative`。
+
+## 手动启动：动作和 API 调用 [#started-by-hand-actions-and-api-calls]
+
+```ts
+export const approveInvoice = defineFlow({
+  name: 'approve_invoice',
+  label: 'Approve invoice',
+  type: 'autolaunched',
+  status: 'active',
+  variables: [
+    { name: 'invoice_id', type: 'text', isInput: true },
+  ],
+  nodes: [
+    { id: 'start', type: 'start', label: 'Start' },
+    {
+      id: 'approve',
+      type: 'update_record',
+      label: 'Approve the invoice',
+      config: {
+        objectName: 'invoice',
+        filter: { id: '{invoice_id}' },
+        fields: { status: 'approved', approved_by: '{$User.Id}' },
+      },
+    },
+    { id: 'end', type: 'end', label: 'End' },
+  ],
+  edges: [
+    { id: 'e1', source: 'start', target: 'approve' },
+    { id: 'e2', source: 'approve', target: 'end' },
+  ],
+});
+```
+
+用一个 `flow` 类型的[动作](/docs/build/interface/actions)把它呈现为
+Invoice 视图上的按钮，或者通过 REST 调用它：
+
+```bash
+curl -X POST https://app.example.com/api/v1/automation/approve_invoice/trigger \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"params": {"invoice_id": "inv_123"}}'
+```
+
+输入是用 `isInput: true` 声明的流程变量，以相同的名称放在 `params` 中发送；
+只有声明过的输入会被绑定。调用者的身份会被传入这次运行，所以更新以调用者
+的权限执行。
+
+该路由用 HTTP 状态码说明发生了什么，所以请根据状态码而不是响应体中的
+`success` 标志来分支：已分发的运行（完成、暂停或
+[被拒绝](#ending-a-run-completed-or-refused)）返回 `200`，未知流程返回
+`404`，已关闭的流程返回 `409 FLOW_DISABLED`，没有开始节点的定义返回
+`422 FLOW_NO_START_NODE`，已分发但失败的运行返回 `400 FLOW_FAILED`。
+`flow` 类型的动作也以同样的方式回应 —— 参见
+[REST API → 流程状态表](/docs/reference/rest-api#flow-status-table)。
+
+## 节点类型 [#node-types]
+
+| 节点 `type` | 用途 |
+|---|---|
+| `get_record` | 通过 ObjectQL 读取记录 —— 一条，或当 `limit` 大于 1 时读取一个列表 |
+| `create_record` / `update_record` / `delete_record` | 写入对象（`multi: true` 表示更新或删除所有匹配项） |
+| `notify` | 发送通知 —— 默认进入应用内收件箱，`channels: ['email']` 时发送邮件 |
+| `http` | 调用一个 HTTP 端点 |
+| `connector_action` | 在已安装的连接器（Slack ……）上运行一个动作 |
+| `script` | 调用一个已注册的函数，由 `config.function` 指定 |
+| `decision` | 按边的条件分支 |
+| `assignment` | 设置流程变量 |
+| `loop` | 对集合中的每一项运行一次循环体区域 |
+| `parallel` | 并发运行各分支区域 |
+| `try_catch` | 捕获区域内的失败，并可选择重试 |
+| `wait` | 暂停，等待计时器或具名信号 |
+| `screen` | 暂停，等待用户输入 |
+| `subflow` | 调用另一个流程 |
+| `approval` | 阻塞直到审批人做出决定（需要 `@objectstack/plugin-approvals`） |
+| `end` | 结束这次运行 —— 默认 `completed`，或带原因的 `refused`（见下文） |
+
+### 结束一次运行：完成或拒绝 [#ending-a-run-completed-or-refused]
+
+从 ObjectStack 17.4 起，`end` 节点会声明这次运行的**结果**。一个必须说
+"不"的流程 —— 重复、金额超限 —— 应该结束在一个表示拒绝的 `end` 上，而不是
+失败，或者显示一个只用来说明这件事的屏幕：
+
+```ts
+// One flow node; the flow around it is omitted.
+{
+  id: 'refuse_duplicate',
+  type: 'end',
+  label: 'Refused: duplicate',
+  config: {
+    outcome: 'refused',  // 'completed' (the default) | 'refused'
+    message: 'Refused: {record.name} is already registered.',
+  },
+}
+```
+
+被拒绝的运行不是失败的运行：没有抛出任何异常。它以运行状态 `refused`
+结束，触发路由以 `200` 和该状态回应，渲染后的 `message` 作为
+`refusalMessage` 返回，旁边没有 `successMessage`。当 `outcome` 为
+`refused` 时 `message` 是必需的；而在完成的 `end` 上它会被拒绝，因为那里
+永远不会显示它。从一个 `decision` 分支到达表示拒绝的 `end`，并把所有写入
+都放在拒绝不经过的分支上。
+
+## 条件和分支 [#conditions-and-branches]
+
+```ts
+export const expenseRouting = defineFlow({
+  name: 'expense_routing',
+  label: 'Route new expenses',
+  type: 'record_change',
+  status: 'active',
+  nodes: [
+    {
+      id: 'start',
+      type: 'start',
+      label: 'Expense submitted',
+      config: { objectName: 'expense', triggerType: 'record-after-create' },
+    },
+    { id: 'check_amount', type: 'decision', label: 'Over 10,000?' },
+    {
+      id: 'ask_approver',
+      type: 'notify',
+      label: 'Ask the approver',
+      config: { recipients: '{record.approver}', title: 'Expense over 10,000: {record.name}' },
+    },
+    {
+      id: 'auto_approve',
+      type: 'update_record',
+      label: 'Auto-approve',
+      config: { objectName: 'expense', filter: { id: '{record.id}' }, fields: { status: 'auto_approved' } },
+    },
+    { id: 'end', type: 'end', label: 'End' },
+  ],
+  edges: [
+    { id: 'e1', source: 'start', target: 'check_amount' },
+    { id: 'e_large', source: 'check_amount', target: 'ask_approver', condition: 'record.amount > 10000' },
+    { id: 'e_other', source: 'check_amount', target: 'auto_approve', isDefault: true },
+    { id: 'e2', source: 'ask_approver', target: 'end' },
+    { id: 'e3', source: 'auto_approve', target: 'end' },
+  ],
+});
+```
+
+`decision` 节点按它的出边分支。出边按 `edges` 列出的顺序求值，第一个
+`condition` 成立的边会运行；没有一个成立时运行 `isDefault` 边。没有
+`isDefault` 时，不带条件的边在每次经过时都会运行，与匹配上的分支并行。
+要运行*所有*条件成立的分支，在 decision 上声明
+`config: { mode: 'inclusive' }`。从 ObjectStack 17.5 起，规则是首个匹配；
+在此之前，每个为真的分支都会运行，而存储在数据库中的 decision（从 Studio
+保存的那种）在升级时会采用新的含义，不会被改写。
+
+## 错误处理 [#error-handling]
+
+```ts
+// Keys of a record_change flow on `invoice`. The nodes are omitted: `charge_card` is an
+// `http` node, `mark_paid` an `update_record`, and `flag_for_review` a `notify`.
+edges: [
+  { id: 'e_ok',    source: 'charge_card', target: 'mark_paid' },
+  { id: 'e_fault', source: 'charge_card', target: 'flag_for_review', type: 'fault' },
+],
+errorHandling: { strategy: 'retry', maxRetries: 3, backoffMs: 1000, backoffMultiplier: 2 },
+```
+
+两种机制都没有时，节点失败会结束这次运行。它们在两个范围内起作用：
+
+| | 范围 | 失败时 |
+|---|---|---|
+| `fault` 边 | 一个节点 | 运行从处理节点继续，并正常完成 |
+| `errorHandling: { strategy: 'retry', maxRetries }` | 整个流程 | 流程从头重新运行，最多再运行 `maxRetries` 次 |
+
+`strategy` 可以是 `'fail'`（默认）、`'retry'` 或 `'continue'`。重试会重放
+每个已经成功的节点 —— 第二封邮件、第二条新建记录 —— 所以失败是局部的时候，
+优先使用 fault 边。被 fault 边处理掉的失败不算流程失败，不会消耗重试次数，
+失败的步骤仍会保留在这次运行的轨迹中。
+
+## 公式和表达式（CEL） [#formulas-and-expressions-cel]
+
+条件 —— 开始节点的 `condition`、边的 `condition` —— 都是 **CEL**（Common
+Expression Language），Google 用于安全表达式求值的语言：
+
+```ts
+'record.amount > 10000 && record.tier == "enterprise"'
+'record.stage != previous.stage'
+'!isBlank(record.notes)'
+```
+
+`record` 和 `previous` 带有每个已声明的字段，没有值的字段读作 `null`，所以
+`has(record.notes)` 说明的是该字段已声明，而不是它有值。要检测是否有值，
+请用 `record.notes != null` 或 `isBlank(record.notes)`。
+
+CEL 是沙箱化的（没有副作用，没有 I/O），在服务器端求值，并可在流程构建器
+中审计。
+
+## 可视化构建器 [#visual-builder]
+
+ObjectOS 自带一个可视化流程构建器，它与声明式元数据双向互通 —— 非工程师
+可以编辑流程，而它序列化回去的形态与你手写的 TypeScript 相同。它就是
+Studio 的 **Automations** 支柱。
+
+从 Studio 保存的流程存储在部署中，与你已安装的包所自带的流程并列。由此
+有两条规则，均自 ObjectStack 17.6 起生效：
+
+- **打包的流程优先占有它的名称。** 与打包流程同名的存储流程会被遮蔽，
+  不会运行；启动日志会对此发出警告。要定制一个打包流程，请用新名称克隆它。
+- **用 `status` 开关存储的流程。** 开 / 关切换只作用于打包的流程。在部署中
+  编写的流程，要以 `status: 'obsolete'` 保存来关闭，以 `status: 'active'`
+  保存来重新打开。
+
+## 测试流程 [#testing-flows]
+
+```bash
+os test qa/ticket-email.test.json   # run a Quality Protocol test suite against a running server
+```
+
+`os test` 针对一个运行中的服务器运行 Quality Protocol 场景，这些场景写成
+JSON 测试套件；`--tags` 按标签选择场景。参见
+[CLI 参考](/docs/reference/cli)。
+
+## 限制和最佳实践 [#limits--best-practices]
+
+- **让 before 钩子保持小巧。** 它们会阻塞写入事务。
+- **用 `wait` 节点代替长时间运行的步骤。** 它会持久地挂起这次运行，由
+  计时器或具名信号恢复它。
+- **用 `parallel` 块处理相互独立的工作。** 它并发运行各分支，并在流程继续
+  之前把它们汇合。
+- **幂等性很重要。** 流程级的重试会重新运行已经成功的节点；外部副作用应该
+  去重（用流程运行 id 作为键）。
+- **对审计敏感的动作。** 修改权限或删除记录的流程，自身应该写日志到
+  `sys_audit_log`。
+
+## 下一步 [#where-to-go-next]
+
+- [Webhook](/docs/configure/webhooks) —— 出站通知，常由流程触发
+- [邮件](/docs/configure/email) —— `notify` 节点 `email` 渠道背后的传输方式
+- [通知](/docs/configure/notifications) —— 收件人、渠道和模板如何解析
+- [API 访问](/docs/configure/api-access) —— 从外部系统调用流程
+- [@objectstack/service-automation](https://github.com/objectstack-ai/objectstack/tree/main/packages/services/service-automation)
+  —— 执行引擎的源码

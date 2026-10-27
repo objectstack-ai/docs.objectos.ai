@@ -1,0 +1,206 @@
+---
+title: 工作流
+seoTitle: "工作流：把记录生命周期建模为状态机"
+description: 把记录的生命周期建模为状态机 —— 它可能处于的状态、状态之间允许的移动，而流程能做得更好的事一概不管。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 7ec55c7f19bcf4f40b34dc0d852ea4cf3534169ad263dbdff0f1ed34fbb0c600
+  guide_rev: 1
+  mode: auto
+---
+
+**工作流把记录的生命周期建模为一个有限状态机：记录可能处于的状态，以及状态之间允许的移动。** 你把它声明为对象上的一条 `state_machine` 验证规则，对状态字段的每一次写入都会据此检查。当核心需求是"这个对象只能在这些状态之间流转"时，就用它。
+
+没有独立的、Salesforce 风格的 Workflow Rule 编写类型。旧的"工作流"概念
+被干净地一分为二：
+
+- **`state_machine` 验证规则**，用于严格的生命周期迁移 —— 即本页。
+- **[流程](/docs/build/automation/flows)**，用于事件触发或定时的自动化，
+  包括[审批](/docs/build/automation/approvals)暂停。
+
+## 工作流与流程 [#workflows-vs-flows]
+
+| | 工作流（状态机） | 流程 |
+|---|---|---|
+| 建模 | *状态* —— 记录处于生命周期的哪个位置 | *步骤* —— 某件事发生时要做什么 |
+| 回答 | "此刻允许这次迁移吗？" | "我们对此做什么？" |
+| 形态 | 一个状态字段和一张允许移动的表 | 节点和边：触发器、动作、分支 |
+| 副作用 | 没有 —— 它只做约束 | 全部 —— 邮件、更新、HTTP、等待 |
+
+它们相互组合：状态机约束迁移；当你需要通知、更新记录或调用外部系统时，
+流程负责迁移前后的副作用。
+
+## 定义一个状态机 [#define-a-state-machine]
+
+一个支持案例必须按 `new → assigned → resolved` 流转，并带有一条升级路径。
+状态机是对象的 `validations` 之一：
+
+```ts
+import { P } from '@objectstack/spec';
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const SupportCase = ObjectSchema.create({
+  name: 'support_case',
+  label: 'Support Case',
+  fields: {
+    status: Field.select({
+      label: 'Status',
+      required: true,
+      options: [
+        { label: 'New', value: 'new', default: true },
+        { label: 'Assigned', value: 'assigned' },
+        { label: 'Escalated', value: 'escalated' },
+        { label: 'Resolved', value: 'resolved' },
+      ],
+    }),
+    resolution: Field.textarea({
+      label: 'Resolution',
+      requiredWhen: P`record.status == 'resolved'`,  // no resolved case without one
+    }),
+  },
+  validations: [
+    {
+      type: 'state_machine',
+      name: 'case_lifecycle',
+      field: 'status',
+      message: 'This status change is not allowed.',
+      initialStates: ['new'],
+      transitions: {
+        new: ['assigned'],
+        assigned: ['resolved', 'escalated'],
+        escalated: ['resolved'],
+        resolved: [],
+      },
+    },
+  ],
+});
+```
+
+把它当作一份契约来读：案例以 `new` 创建，`new` 的案例只能被指派。
+`assigned` 的案例可以被解决或升级，升级后的案例可以被解决。`resolved`
+没有列出任何状态，所以没有什么能再移动它。由于状态为 `resolved` 时
+`resolution` 是必填的，不带解决说明就把案例设为已解决的写入会被拒绝。
+
+## 结构 [#anatomy]
+
+| 键 | 它声明什么 |
+|---|---|
+| `type: 'state_machine'` | 这条验证规则是一个状态机 |
+| `name` | 规则的标识符（snake_case） |
+| `field` | 规则所管辖的状态字段 |
+| `transitions` | 每个状态 → 它可以移动到的状态的映射；在记录更新时检查 |
+| `initialStates` | 记录可以在哪些状态下被创建；在插入时检查 |
+| `message` | 被拒绝的写入所返回的错误 |
+
+这条规则还接受每条验证规则共有的键：`severity`、`events`、`active` 和
+`priority`。
+
+### 终止状态 [#final-states]
+
+列表为空的状态是终止状态：任何移出它的操作都会被拒绝。完全没有对应键的
+状态则不是终止状态。检查在那里无从判断，于是放行这次写入，所以当你的
+意思是"终止"时，请声明 `[]`。
+
+### 迁移上的条件 [#conditions-on-a-transition]
+
+`state_machine` 规则没有按迁移设置的守卫。要让某次移动带条件，就把条件
+放在平台会强制执行的地方：
+
+- **某个状态需要的值** —— 在那个字段上用 `requiredWhen`，就像上面的
+  `resolution` 那样。它会拒绝不带该值就进入该状态的写入，并且不会触碰
+  规则出现之前就已存在的行。
+- **其他任何条件** —— 在同一个 `validations` 数组中放一条并列的 `script`
+  或 `conditional` 验证规则（一个 CEL 谓词）。
+
+### 写入，而不是事件 [#writes-not-events]
+
+状态机在对状态字段的写入时检查。把 `status` 改成一个未列在其当前值下的
+值的更新会被拒绝，插入时状态不在 `initialStates` 中也会被拒绝。没有需要
+声明的具名事件：合法移动的那张表就是整个状态机。
+
+> **提示：** 让状态机保持最小 —— 只有状态以及状态之间的移动。一旦你想要
+> "然后发一封邮件"，你就已经离开了工作流的地盘：把副作用放进一个响应该
+> 迁移的[流程](/docs/build/automation/flows)。
+
+## 副作用属于流程 [#side-effects-belong-in-flows]
+
+状态机描述合法的迁移 —— 仅此而已。当一次迁移应该*做*点什么（通知销售、
+写入关闭日期、调用外部系统）时，就把状态机和一个由记录变更触发的流程
+搭配起来：
+
+```ts
+export const dealClosedWon = defineFlow({
+  name: 'deal_closed_won',
+  label: 'Deal closed won',
+  type: 'record_change',
+  status: 'active',
+  nodes: [
+    {
+      id: 'start',
+      type: 'start',
+      label: 'Stage moved to closed won',
+      config: {
+        triggerType: 'record-after-update',
+        objectName: 'opportunity',
+        condition: "record.stage == 'closed_won' && previous.stage != 'closed_won'",
+      },
+    },
+    {
+      id: 'set_closed_date',
+      type: 'update_record',
+      label: 'Set Closed Date',
+      config: {
+        objectName: 'opportunity',
+        filter: { id: '{record.id}' },
+        fields: { closed_date: '{TODAY()}' },
+      },
+    },
+    {
+      id: 'notify_sales',
+      type: 'notify',
+      label: 'Notify Sales',
+      config: { recipients: '{record.owner}', title: 'Deal won: {record.name}' },
+    },
+    { id: 'end', type: 'end', label: 'End' },
+  ],
+  edges: [
+    { id: 'e1', source: 'start', target: 'set_closed_date' },
+    { id: 'e2', source: 'set_closed_date', target: 'notify_sales' },
+    { id: 'e3', source: 'notify_sales', target: 'end' },
+  ],
+});
+```
+
+状态机保证商机是合法地*到达* `closed_won` 的；流程负责接下来发生的事。
+像上面这样的条件是 CEL 表达式 —— 参见 [CEL](/docs/reference/cel)。
+
+## 从工作流规则迁移 [#migrating-from-workflow-rules]
+
+如果你来自一个有 Workflow Rules 的平台，对应关系如下：
+
+| 旧概念 | 当前的对应物 |
+|---|---|
+| Workflow Rule | 流程 |
+| 时间触发器（"某个日期之前 / 之后 N 天"） | 相对时间触发器 —— 流程开始节点上的 `config.timeRelative`（16.0，参见[流程](/docs/build/automation/flows)） |
+| 时间触发器（固定时钟） | 定时流程 |
+| 字段更新动作 | `update_record` 节点 |
+| 邮件提醒 | `notify` 节点 |
+| HTTP 调用 | `http` 节点 |
+| Approval Process | 带一个或多个 `approval` 节点的流程 |
+
+判断方法：如果旧规则是"当 X 发生时，做 Y"，就把它建模为一个小流程。如果
+它是"在某个日期字段之前 / 之后 N 天，做 Y"，就声明一个相对时间触发器 ——
+绝不要在记录变更流程上用日期相等条件，那只会在记录恰好变更时才求值。如果
+它是"这条记录必须在受控的状态之间流转"，就声明一条 `state_machine` 验证
+规则，并用流程处理副作用。
+
+## 下一步 [#where-to-go-next]
+
+| 页面 | 为什么 |
+|---|---|
+| [流程](/docs/build/automation/flows) | 迁移前后的副作用 —— 触发器、步骤、错误处理 |
+| [审批](/docs/build/automation/approvals) | 作为流程内暂停的人工签核 |
+| [验证规则](/docs/build/data/validation-rules) | 状态机所属的规则家族 |
+| [CEL 表达式](/docs/reference/cel) | `requiredWhen`、验证规则和流程条件背后的语言 |
+| [数据建模](/docs/build/data) | 你正在约束其生命周期的对象 |
+| [自动化概览](/docs/build/automation) | 选择器：流程、工作流还是审批 |
