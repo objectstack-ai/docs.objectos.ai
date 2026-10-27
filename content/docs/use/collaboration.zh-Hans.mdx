@@ -1,0 +1,151 @@
+---
+title: 在记录上协作
+seoTitle: "记录讨论、@提及、历史、分享链接与公开表单"
+description: 与团队讨论一条记录、@提及他人、查看改了什么以及是谁改的 —— 以及分享链接和公开表单会向外部人员开放什么。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 6f006fa86f045c560def736d420ace4826af5c3751a280f581b2c7d8bbc2d102
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/records-forms.json and access-security.json):
+  records-forms.record-discussion-mentions,
+  records-forms.comment-reactions-and-edit-stamps,
+  records-forms.field-history-tracking,
+  access-security.share-link-capability-tokens,
+  access-security.share-link-landing-page,
+  access-security.share-link-combined-gates,
+  access-security.public-form-intake,
+  access-security.public-form-withdrawal-layers.
+*/}
+
+对一条记录的工作很少是一个人完成的。每个记录页都可以承载关于它的讨论、
+一条变更轨迹，以及 —— 当应用为此做了设置时 —— 一种向不登录的人展示
+记录或从他们那里收集数据的方式。
+
+## 讨论 [#the-discussion]
+
+记录页的标签页下方是它的 **Discussion**（讨论）：评论和记录的活动合在
+一个信息流里，最早的在前。（它出现在构建者开启了讨论功能的对象上。）
+
+| 你可以 | 怎么做 |
+|---|---|
+| 评论 | 在 **Write a comment…** 中输入，然后按 **Send** 或 `Ctrl+Enter`。工具栏中有粗体、斜体、列表和行内代码，还有 **Preview**（预览） |
+| 提及某人 | 输入 `@`，从建议中选择一个人（或使用 **Mention someone**） |
+| 回复 | 在评论下方回复，让一个话题保持在一起 |
+| 回应 | 给评论加一个表情回应 |
+| 编辑或删除 | 仅限你自己的评论。被编辑过的评论会标记为 **(edited)** —— 这个标记由服务器设置，所以无法隐藏 |
+| 关注记录 | 点 **Subscribe to notifications**（订阅通知），获知这条记录的更新 |
+
+评论在你发送的那一刻就会出现，然后被替换为已保存的副本，不会出现重复。
+
+### 过滤信息流 [#filtering-the-feed]
+
+信息流把评论与记录的活动混在一起。用过滤器收窄它：
+
+| 过滤器 | 显示 |
+|---|---|
+| **All Activity**（全部活动） | 所有内容 |
+| **Comments Only**（仅评论） | 评论和回复 |
+| **Field Changes**（字段变更） | 对记录字段的编辑 |
+| **Tasks Only**（仅任务） | 任务条目 |
+
+过滤结果为空，只是说明这条记录还没有那一类内容。
+
+## @提及 [#mentions]
+
+当你 `@mention` 某人时，他们的铃铛里会收到一条通知，附带评论预览和一个
+直达该记录的链接。
+
+提及永远不会超出讨论本身的范围：只有当被提及的人能读取这条记录和这条
+评论时，他们才会收到通知。提及某人**不会**授予他们访问权限。评论的作者
+不会因为自己的提及收到通知，没有被提及的人也不会。
+
+## 改了什么，是谁改的 [#what-changed-and-who-changed-it]
+
+| 位置 | 它显示什么 |
+|---|---|
+| 讨论信息流 | 对于应用构建者选择跟踪的字段，显示一行类似 **Industry: Technology → Finance** 的记录，使用你在表单中看到的标签 |
+| **History**（历史）标签页 | 记录的完整变更历史。它出现在构建者开启了历史跟踪的对象上 |
+
+对未被跟踪的字段的修改，不会在信息流中生成前后对比的记录行。
+
+## 与团队分享一条记录 [#sharing-a-record-with-your-team]
+
+记录 `⋯` 菜单中的 **Share** 会复制记录的地址（或打开设备的分享面板）。它
+不授予任何权限：打开它的人仍然需要对该记录的访问权限 —— 参见
+[权限](/docs/configure/permissions)。
+
+## 分享链接：任何拿到链接的人 [#share-links-anyone-with-the-link]
+
+对于应用构建者开启了公开分享的对象，一条记录还可以拥有**分享链接** ——
+一个把这一条记录展示给没有账户的人、或者有账户但无权访问该记录的人的
+链接。
+
+分享链接由能看到该记录的人，通过 API（`POST /api/v1/share-links`）为一条
+记录创建。每个链接都可以带有自己的限制：
+
+| 限制 | 效果 |
+|---|---|
+| **密码** | 页面会要求输入：**Password required**，输错时显示 **Wrong password.**，直到输对为止 |
+| **仅限已登录用户** | 没有会话的访问者会看到 **Sign in required**，以及一个回到同一页面的 **Sign in** 链接 |
+| **邮箱白名单** | 只有邮箱在名单中的已登录用户才能看到这条记录 |
+| **过期日期** | 链接在那一天失效 |
+| **隐藏字段** | 在对象始终对分享链接隐藏的字段之外，再从链接展示的内容中排除的字段 |
+
+打开链接的人看到的是一个应用之外的页面 —— 没有菜单，除非链接要求否则也
+不需要登录 —— 以只读方式显示记录的字段。如果有字段被隐藏，页面会显示
+**Some fields are hidden by the owner** 并列出它们。
+
+### 撤销，以及链接永远不会暴露什么 [#revoking-and-what-a-link-never-exposes]
+
+- **撤销**一个链接（`DELETE /api/v1/share-links/…`），它会立刻失效：页面
+  显示 **This link has expired or was revoked.** 超过过期日期的链接也是
+  如此。
+- **删除记录**之后，指向它的每个链接都会返回 **This link is invalid or no
+  longer available.** —— 与一个凭空编造的链接得到的答案相同，因此链接
+  永远不会证实一条记录是否存在。
+- **隐藏字段在服务器上就被移除。** 它们永远不会到达访问者的浏览器，而不
+  只是不显示在屏幕上。
+- **只有一条记录。** 链接只打开它所针对的那一条记录，永远不会打开相关
+  记录或列表的其余部分。
+- **密码留在服务器上。** 它以哈希形式存储，任何响应都不会把它带回来。
+- **不做任何缓存。** 通过链接提供的页面会告诉浏览器和代理不要保留副本，
+  所以共用电脑上的下一个人看不到受密码保护的记录。
+- **你只能看到你自己的链接。** 列出链接时返回的是你创建的链接，而不是
+  其他任何人的。
+
+如果应用构建者为该对象关闭了公开分享，它上面的每个链接都会失效，直到
+重新开启。
+
+## 公开表单：从外部收集数据 [#public-forms-collecting-data-from-outside]
+
+**公开表单**是应用构建者发布在某个链接（例如 `/forms/contact-us`）上、
+供未登录的人使用的表单 —— 联系表单、网页获客表单或支持请求。访问者填写
+表单后会看到表单的确认信息（例如一条感谢消息）；每次提交都会成为一条
+记录，你的团队可以像处理其他记录一样处理它。
+
+公开表单永远不会开放的内容：
+
+- **只有列出的字段。** 访问者只能看到和填写表单显示的字段 —— 而不是对象
+  的其余部分。
+- **不能查询。** 无论表单声明了什么，公开表单都没有会搜索你的记录的字段
+  （没有查找选择器或人员选择器）。
+- **不能伪造归属。** 访问者无法设置记录归谁所有、属于哪个组织，也无法
+  设置诸如状态之类的字段；为这些字段发送的值会被丢弃，由服务器来设置。
+
+要**关闭**一个公开表单，构建者可以取消发布它，或关闭匿名访问。之后该
+链接会像表单不存在一样作答，提交会立即停止。
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 阅读 |
+|---|---|
+| 给记录附加文件 | [文件与附件](/docs/use/files) |
+| 控制哪些通知会到达我 | [通知](/docs/use/notifications) |
+| 了解谁能看到一条记录 | [权限](/docs/configure/permissions) |
+| 构建一个公开表单 | [视图 → 公开表单](/docs/build/interface/views#public-forms) |
+| 回到导览 | [使用 ObjectOS](/docs/use) |

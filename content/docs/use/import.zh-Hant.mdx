@@ -1,0 +1,156 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 匯入資料
+seoTitle: "匯入嚮導：CSV 與 Excel 匯入、對映、撤銷"
+description: 從 CSV 或 Excel 檔案匯入記錄 —— 對映列、在儲存任何內容之前修正錯誤，並撤銷出錯的匯入。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 47a5d626f6c1bbf30e5d32d5604cf1ecf5a2d4285086b433ec1cbad75d838a2f
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/records-forms.json):
+  records-forms.import-wizard-encoding-and-hints,
+  records-forms.named-import-mapping,
+  records-forms.import-job-undo-cancel,
+  records-forms.import-transform-matrix.
+*/}
+
+當你有一份電子表格裡的記錄 —— 一份客戶名單、去年的專案 —— **匯入嚮導**
+會分三步把它們變成記錄：**Upload**（上傳）、**Mapping**（對映）、
+**Preview**（預覽）。在你最後按下 **Import** 之前，什麼都不會被儲存。
+
+## 打開向導 [#opening-the-wizard]
+
+在物件的列表中，點選列表頭部的 **Import**。在某些物件上，它位於頭部的
+`⋯` 溢位選單中。
+
+只有當該物件開放匯入、並且你被允許建立它的記錄時，你才會看到它 ——
+匯入會建立記錄，所以它需要與 **+ New** 相同的許可權。
+
+## 第 1 步 —— 上傳 [#step-1--upload]
+
+把檔案拖到嚮導上、點選 **Browse Files**（瀏覽檔案），或者貼上
+（`Ctrl/⌘+V`）直接從 Excel 或 Google Sheets 複製的行。
+
+| 檔案 | 是否支援 |
+|---|---|
+| CSV、TSV | 是 |
+| Excel `.xlsx` | 是 |
+| 舊版 Excel `.xls` | 否 —— 先開啟它並另存為 `.xlsx` |
+
+第一行必須是列標題，並且至少要有一行資料。
+
+**不確定該用哪些列？** 點選 **Download template**（下載模板），得到一個
+Excel 檔案，其中列出了你可以匯入的每一列，必填列標有 `*`，並附有填寫
+說明。
+
+> **提示：**中文版 Excel 儲存的檔案（"另存為 CSV"）通常是 GBK 編碼，而不是
+> UTF-8。你不需要轉換它們：嚮導會檢測編碼，所以中文標題和值都能完整
+> 匯入。
+
+## 第 2 步 —— 對映 [#step-2--mapping]
+
+嚮導按名稱把你的列與物件的欄位匹配起來，並說明它有多確定（**High**、
+**Medium** 或 **Low confidence**）。檢查這些匹配，修改其中錯誤的：
+
+| 選擇 | 效果 |
+|---|---|
+| 一個欄位 | 該列的值寫入那個欄位 |
+| **— Skip —**（跳過） | 忽略該列 |
+
+值看起來與欄位型別不符的列會被標記出來（例如 *Looks like Date*）。
+
+**必填欄位必須被對映。** 如果有一個沒有對映，**Next** 會保持停用，嚮導會
+列出缺少的欄位 —— 把那一列加到你的檔案裡，或者上傳一個包含它的檔案。
+
+**複用對映。** 在 **Mapping template**（對映模板）下，**Save current**
+（儲存當前）會把這套列到欄位的對映儲存在你的瀏覽器中，下次匯入相同佈局
+的檔案只需一次點選。如果你的應用構建者為這類檔案設定了**儲存的對映**，
+就選擇它：此時伺服器會重新命名列、轉換值並應用它自己的規則，列對映以只讀
+方式顯示。
+
+## 第 3 步 —— 預覽 [#step-3--preview]
+
+預覽會按匯入後的樣子顯示你的行。有問題的行會被高亮 —— 點選高亮的單元格
+即可就地修正值。點選 **Validate data**（校驗資料），在寫入任何內容之前
+讓伺服器檢查每一行；你會看到有多少行有效、哪些行有錯誤。通過校驗的行，
+就是匯入會接受的行。
+
+典型錯誤：
+
+| 訊息 | 含義 |
+|---|---|
+| *This field is required* | 一個必填值為空 |
+| *"abc" is not a valid number*（或日期、時間、真/假） | 該值無法按欄位的型別讀取 |
+| *"Gold" is not one of the allowed options* | 選項欄位收到了一個它不提供的值 |
+| *No matching record for "Acme"* | 一個指向另一條記錄的列，指定了一條不存在的記錄 |
+| *"Acme" matches more than one record* | 這個名稱不唯一 —— 使用一個唯一的值或記錄 ID |
+
+### 匯入選項 [#import-options]
+
+| 選項 | 它做什麼 |
+|---|---|
+| **When a row matches an existing record**（當某行匹配到已有記錄時） | **Always create new**（始終新建）、**Update existing (skip if no match)**（更新已有，無匹配則跳過）或 **Update if matched, else create**（匹配則更新，否則新建） |
+| **Match on**（匹配依據） | 用於查詢已有記錄的欄位 —— 郵箱、編碼、外部 ID |
+| **Keep unknown option values**（保留未知選項值） | 把欄位不提供的選項值原樣儲存，而不是拒絕該行 |
+| **Skip rows with a blank match value**（跳過匹配值為空的行） | 排除沒有可匹配內容的行 |
+| **Import in the background**（在後臺匯入） | 把匯入作為一個以後可以撤銷的任務執行 |
+
+按匹配欄位更新，能讓匯入可以安全地重複：再次運行同一個檔案，會更新它
+建立過的記錄，而不是產生重複。
+
+## 結果 [#the-result]
+
+匯入完成後，你會看到有多少記錄被**建立**、**更新**和**跳過**，以及所有
+行錯誤。**Download failed rows**（下載失敗的行）只給你那些沒成功的行，
+修好後可以再次匯入。
+
+## 後臺匯入、取消與撤銷 [#background-imports-cancel-and-undo]
+
+超過 **5,000 行**的檔案總是在後臺匯入；較小的檔案在你勾選
+**Import in the background** 時也會在後臺匯入。後臺匯入會顯示進度，你可以
+繼續工作。
+
+| 操作 | 會發生什麼 |
+|---|---|
+| **Cancel import**（取消匯入） | 停止任務。已寫入的行會保留；一行要麼完整儲存，要麼完全不儲存 —— 絕不會只寫一半。 |
+| **History**（歷史） | 列出該物件的後臺匯入，最新的在前，附帶狀態、行數和結果 |
+| **Undo import**（撤銷匯入） | 刪除匯入建立的記錄，並把它更新過的記錄恢復為之前的值。其他任何東西都不會被動到。 |
+
+如果有些行無法撤銷，嚮導會告訴你有多少 —— 再次選擇 **Undo import**，
+只重試那些行。
+
+> **提示：**第一次匯入一個大檔案？勾選 **Import in the background**。如果
+> 結果不是你預期的，一次 **Undo import** 就能把一切恢復原狀。
+
+## 面向應用構建者：儲存的對映 [#for-app-builders-saved-mappings]
+
+儲存的對映是你的包中的 `mapping` 後設資料。它把外來的標題重新命名為欄位
+（"Full Name" → `name`），設定讓重複匯入執行更新而不是產生重複的鍵，並且
+可以在匯入途中轉換值：
+
+| 轉換 | 作用 |
+|---|---|
+| `map` | 把程式碼翻譯成值（`'Webform'` → `web`）；沒有對應條目的值原樣通過 |
+| `constant` | 寫入一個固定值，忽略該列 |
+| `lookup` | 把一個名稱解析為相關記錄的 ID |
+| `split` | 把一列拆分到多個欄位 |
+| `join` | 把多列合併到一個欄位，跳過空的部分 |
+
+指定了 `javascript` 轉換的對映會在寫入任何行之前被拒絕 —— 伺服器端沒有
+可以執行它的沙箱。通過為另一種格式宣告的對映匯入檔案（用 CSV 對映匯入
+JSON）會被拒絕，並同時點名兩種格式；Excel 檔案走 CSV 對映。指定了一個
+不存在的對映的匯入會被拒絕，而不是退回到按位置匹配列。
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 閱讀 |
+|---|---|
+| 編輯匯入的記錄 | [記錄操作](/docs/use/records) |
+| 找到我剛匯入的記錄 | [搜尋](/docs/use/search) |
+| 把列表過濾到我匯入的內容 | [使用檢視](/docs/use/views) |
+| 回到導覽 | [使用 ObjectOS](/docs/use) |

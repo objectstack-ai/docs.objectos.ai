@@ -1,0 +1,126 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 搜尋
+seoTitle: "搜尋與命令面板：找到任意記錄"
+description: 輸入記錄的一部分就能找到它 —— 無論是在 ⌘K 面板、列表的搜尋框還是查詢選擇器中 —— 並跳轉到應用中的任何位置。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 78801613cbafc2e8b4473a6057341caba6dbfad1ba128189df982d69710f578b
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/search.json): search.cross-field-object-search,
+  search.field-scoped-narrowing, search.rls-both-personas,
+  search.pinyin-flag-both-sides, search.freshness-and-empty,
+  search.console-global-search, search.command-palette-navigation,
+  search.global-search-skips-unreadable.
+*/}
+
+輸入名稱、郵箱、狀態或城市的一部分，ObjectOS 就會找出包含它的記錄。
+同一套搜尋在三個地方執行：
+
+| 位置 | 搜尋什麼 |
+|---|---|
+| **全域性搜尋** —— `⌘K`（Mac）/ `Ctrl-K`（Windows/Linux），或頂欄的 **Search…** | 你能讀取的所有物件中的記錄，外加應用自己的選單 |
+| **列表搜尋** —— 檢視工具欄中的放大鏡 | 你所在列表的記錄 |
+| **查詢選擇器** —— 指向另一條記錄的欄位上的 **Select…** 框 | 你可以選擇的記錄 |
+
+三者都會把你輸入的詞傳送到伺服器，得到同樣的答案，所以在一處出現的
+記錄，在另外兩處也會出現。
+
+## 匹配是如何工作的 [#how-matching-works]
+
+| 你輸入 | 它找到 |
+|---|---|
+| 單詞的一部分 —— `retail` | 被搜尋欄位中任何位置含有 `retail` 的每條記錄：*Acme Retail*，或行業為 *Retail* 的客戶 |
+| 任意大小寫 —— `Retail`、`RETAIL` | 同樣的記錄；搜尋不區分大小寫 |
+| 多個詞 —— `retail northwind` | **每個**詞都匹配到同一條記錄某個欄位的記錄 |
+| 一個選項標籤 —— `In Progress` | 狀態（或其他選項欄位）取該選項的記錄，即使儲存的值不同 |
+
+搜尋哪些欄位，由構建應用的人按物件設定。如果他們沒有選擇，搜尋會檢視
+記錄的名稱或標題、它的文本欄位（包括郵箱、電話、URL 和長文本）以及它的
+選項欄位 —— 不包括數字、日期、是/否欄位、檔案，或指向其他記錄的連結。
+
+> **提示：**詞越多，結果越窄。`acme invoice` 找到的是 Acme 的發票，而不是
+> 所有 Acme 記錄再加上所有發票。
+
+## 你只能找到你能讀取的內容 [#you-only-find-what-you-can-read]
+
+搜尋以你的許可權執行，與開啟一個列表相同：
+
+- 你無法讀取的記錄永遠不會被返回，也不會計入總數。
+- 你無權訪問的物件會被靜默跳過 —— 你的搜尋仍會從你能讀取的物件中給出
+  答案。
+- 對你隱藏的欄位不會被搜尋，所以命中結果不會洩露其中的內容。
+
+兩個人輸入同樣的詞，可能得到不同的結果。這是正確的：每個人看到的是
+自己被允許看到的匹配。
+
+## 始終是最新的 [#always-up-to-date]
+
+沒有需要等待的索引。你剛建立的記錄立刻就能被找到；重新命名之後，新名稱
+能匹配，舊名稱不再匹配；被刪除的記錄會立即從結果中消失。
+
+沒有任何匹配時，你會看到 **No results found**（未找到結果）—— 這不是
+錯誤。試試更少或更短的詞。
+
+## 中文名稱與拼音 [#chinese-names-and-pinyin]
+
+當你的應用支援中文時，搜尋還能匹配用拼音輸入的中文名稱：完整拼寫
+（`zhangwei`）或首字母（`zw`）都能找到 **張偉**，而漢字照常按輸入匹配。
+拼音適用於記錄的名稱欄位。
+
+當應用的語言列表中包含一種中文時，拼音搜尋就會開啟。管理員可以用
+`OS_SEARCH_PINYIN_ENABLED` 設定為整個部署開啟或關閉它。
+
+## 命令面板 [#the-command-palette]
+
+按 `⌘K` / `Ctrl-K`（或點選 **Search…**）打開面板。它既是搜尋框，也是
+導航器：
+
+| 你會看到 | 它做什麼 |
+|---|---|
+| **Recently viewed**（最近檢視） | 搜尋框為空時顯示 —— 你最近開啟過的記錄，一鍵即達 |
+| 按物件名稱分組的記錄 | 至少輸入**兩個字元**；匹配項出現在 *Accounts*、*Contacts* 之類的標題下。按 **Enter** 開啟高亮的記錄 |
+| **Objects**、**Dashboards**、**Pages**、**Reports** | 當前應用選單中名稱匹配的項 —— 包括收在選單分組裡的項 |
+| **Switch App**（切換應用） | 你的其他應用；當前應用標記為 **Current** |
+| **Preferences**（偏好設定） | **Light Theme**、**Dark Theme**、**System Theme** —— 立即生效 |
+| **Open Full Search Page**（開啟完整搜尋頁） | 開啟搜尋頁（見下文） |
+
+面板只提供你本來就能到達的內容：側邊欄中對你隱藏的選單項在這裡也被
+隱藏，未啟用的應用不會出現在 **Switch App** 下。
+
+> **提示：**讓雙手留在鍵盤上 —— `⌘K`、輸入、方向鍵、**Enter**。再按一次
+> `⌘K` 會關閉面板。
+
+## 搜尋頁 [#the-search-page]
+
+**Open Full Search Page** 會把你帶到同一搜尋的整頁檢視：匹配的應用物件、
+儀表盤、頁面和報表，以及按物件分組的記錄匹配。在它的搜尋框中輸入即可
+進一步細化。
+
+## 在列表內搜尋 [#searching-inside-a-list]
+
+檢視工具欄中的放大鏡會收窄你所在的列表。它與檢視的過濾、分組和排序
+協同工作 —— 參見[使用檢視](/docs/use/views)。知道在*哪個*列表時用它；
+不知道時用 `⌘K`。
+
+## 面向應用構建者 [#for-app-builders]
+
+物件的 `searchableFields` 設定搜尋掃描哪些欄位；省略它，就會得到上文
+描述的名稱、文本和選項欄位。檢視或 API 呼叫可以把掃描收窄到其中更少的
+欄位，但永遠不能放寬 —— 請求一個不在該集合中的欄位會被拒絕，而不是被
+忽略。計算型的 `formula` 欄位不能被搜尋，因為它沒有被儲存；把值複製到
+一個儲存的文本欄位上，然後搜尋那個欄位。
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 閱讀 |
+|---|---|
+| 過濾、分組和排序一個列表 | [使用檢視](/docs/use/views) |
+| 開啟並編輯我找到的記錄 | [記錄操作](/docs/use/records) |
+| 瞭解誰能看到哪些記錄 | [許可權](/docs/configure/permissions) |
+| 回到導覽 | [使用 ObjectOS](/docs/use) |

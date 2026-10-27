@@ -1,0 +1,190 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: Agent
+seoTitle: "AI Agent：定義 Agent、Skill 和 Tool"
+description: 面向終端使用者的 AI 助手 —— Agent → Skill → Tool —— 由你的資料和動作組裝而成。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: a79f76287f957b73a7b772cee68ed44718d9d50857f83da882622e1206d1122a
+  guide_rev: 1
+  mode: auto
+---
+
+Agent 是你的**終端使用者**與之對話的 AI 助手 —— 服務檯副駕駛、銷售 BDR、
+內部 HR 問答機器人。它們構建在你已經定義好的資料和動作之上；你不需要
+編寫新程式碼，只需把現有的基本元素組合成一個角色。
+
+三層架構，與 Salesforce Agentforce、Microsoft Copilot Studio 和
+ServiceNow Now Assist 保持一致：
+
+```text
+Agent  ──→  Skill  ──→  Tool
+(persona)   (capability)  (callable function)
+```
+
+| 層級 | 它是什麼 | 示例 |
+|---|---|---|
+| **Tool** | 一個可呼叫的函式（動作、查詢、知識搜尋、MCP 方法） | `create_ticket`、`get_order_status`、`search_kb` |
+| **Skill** | 一組相關工具的具名集合，帶有共享的 LLM 指令 | `ticket_management` = 建立 + 更新 + 關閉 + 升級 |
+| **Agent** | 一個角色，帶有職責、系統提示詞和掛載的技能 | `tier1_support` = 富有同理心、會核實身份、擁有 `ticket_management` + `kb_search` |
+
+## 定義一個 Agent（一個檔案） [#define-an-agent-one-file]
+
+```ts
+// src/agents/tier1_support.agent.ts
+import { defineAgent } from '@objectstack/spec/ai';
+
+export const tier1Support = defineAgent({
+  name: 'tier1_support',
+  label: 'First Line Support',
+  role: 'Help Desk Assistant',
+  instructions: `
+    You are a friendly first-line support agent.
+    Always verify the user's identity before discussing account specifics.
+    Search the FAQ and the policy articles before you answer a how-to question.
+    Escalate to tier 2 if the issue involves billing or security.
+  `,
+  skills: ['ticket_management', 'knowledge_search'],
+  model: { provider: 'openai', model: 'gpt-4o', temperature: 0.3 },
+  memory: { longTerm: { enabled: true, maxEntries: 50 }, reflectionInterval: 10 },
+});
+```
+
+Agent 沒有 `knowledge` 塊。`search_knowledge` 工具可以讀取哪些來源，是在
+知識服務中按來源限定的；在 `instructions` 中說明 Agent 應該以哪些來源作為
+回答依據。
+
+或者在 UI 中：**Studio → Agents → New Agent**。
+
+或者 —— 這才是重點 —— 對 AI Builder 說：
+
+> *"建立一個處理工單管理並搜尋 FAQ 的一線支援 Agent。它應該在討論賬戶
+> 細節之前核實身份。"*
+
+## 定義一個 Skill [#define-a-skill]
+
+```ts
+// src/skills/ticket_management.skill.ts
+import { defineSkill } from '@objectstack/spec/ai';
+
+export const ticketManagement = defineSkill({
+  name: 'ticket_management',
+  label: 'Ticket Management',
+  instructions: `
+    Always confirm the ticket subject and priority before creating one.
+    Use 'urgent' priority sparingly — only for outages or security incidents.
+  `,
+  tools: [
+    'create_ticket',
+    'update_ticket',
+    'close_ticket',
+    'escalate_ticket',
+    'action_*',         // wildcard: every action the app exposes to AI (`ai.exposed`)
+  ],
+});
+```
+
+Skill 是**複用的正確單元**。一個技能可以在許多 Agent 之間通用。
+
+## 工具來自你宣告的後設資料 [#tools-come-from-your-declared-metadata]
+
+一個動作會成為一個 `action_<name>` 工具，條件是**它的作者把它暴露給了
+AI** —— `ai: { exposed: true }`、`ai.description` 至少 40 個字元 —— 並且
+它的型別無需 UI 即可執行（`script`、`flow` 或 `api`）。不需要任何其他連線：
+如果 `support_ticket` 物件上的 `escalate_ticket` 被暴露了，AI Builder 和你的
+Agent 都可以呼叫它。未被暴露的動作對 Agent 不可見，被呼叫時也會被拒絕，
+無論呼叫方擁有什麼能力。
+
+呼叫是**以使用者的身份**檢查的：動作的 `requiredPermissions` 決定它能否觸發，
+並且它以該使用者的身份載入記錄。隨後 `script` 的主體作為受信任的應用程式碼
+執行，所以只有當一個動作的主體對任何通過了這些檢查的人都可以安全執行
+時，才暴露它。參見[動作](/docs/build/interface/actions#permissions)。
+
+你還可以暴露：
+
+| 工具型別 | 來源 |
+|---|---|
+| **動作** | 任何已安裝包中暴露給 AI（`ai.exposed`）的任何動作 |
+| **流程** | 一個被暴露的 `type: 'flow'` 動作 —— Agent 呼叫該動作，由它啟動流程 |
+| **查詢** | 儲存的 ObjectQL 查詢（`*.query.ts`） |
+| **知識搜尋** | `search_knowledge` 工具，作用於使用者可以讀取的來源 |
+| **MCP 方法** | 掛載的 MCP 伺服器暴露的任何東西 |
+| **內建後設資料工具** | `create_object`、`add_field` …… —— 但只提供給管理員 Agent |
+
+## 環境助手模式 [#ambient-assistant-pattern]
+
+如果你想要**整個應用只有一個聊天框**（Claude Code / Agentforce 風格），
+而不是強迫使用者挑選一個 Agent，就在 App 後設資料上宣告一個 `defaultAgent`，
+並帶著應用上下文呼叫環境聊天端點：
+
+```text
+POST /api/v1/ai/chat   { context: { appName: 'crm' }, ... }
+```
+
+當 `context.appName` 解析到一個聲明瞭 `defaultAgent` 的應用時，執行時會
+自動選中那個 Agent —— 使用者永遠不需要從列表中挑選。內建的 AI 面板就是
+這樣用的。執行時會解析：
+
+1. 當前應用的**預設 Agent**（應用的 `defaultAgent`），或者使用者有權訪問的
+   第一個 Agent。
+2. **當前技能** —— 從 Skill 登錄檔中載入的該 Agent 的 `skills:` 列表，按
+   使用者的許可權集和當前的物件/記錄上下文過濾。
+
+你不需要去連線哪個 Agent 顯示在哪裡。宣告一個應用，設定它的
+`defaultAgent`，它就會出現。
+
+## 許可權 [#permissions]
+
+| 能力 | 許可權 |
+|---|---|
+| 與 Agent 對話 | `ai:chat`（以及對該 Agent 技能中工具的訪問許可權） |
+| 批准後設資料變更 | `ai:approve` |
+| 定義 / 編輯 Agent 和技能 | `ai:author`（通常是 Setup Administrator） |
+| 讀取 AI 對話（審計） | `ai:read` |
+
+對話的範圍限定在使用者本人 —— 一個使用者看不到另一個使用者的聊天記錄，除非
+他們獲得了委派授權。
+
+## 記憶與對話狀態 [#memory-and-conversation-state]
+
+Agent 的 `memory` 塊配置長期記憶：關於每個使用者的、跨會話保留的提煉筆記。
+
+| 欄位 | 它做什麼 |
+|---|---|
+| `longTerm.enabled` | 跨會話保留筆記（預設 `false`） |
+| `longTerm.maxEntries` | 每個使用者保留多少條筆記；最新的優先被回憶。`enabled` 為 true 時必填 |
+| `reflectionInterval` | 兩次反思之間經過多少次互動 —— 反思就是寫下筆記的那一步。`enabled` 為 true 時必填 |
+
+沒有短期記憶塊：單次請求的上下文視窗由 token 預算限定。筆記存放在哪裡由
+平臺決定，而不是 Agent 後設資料。
+
+即時上下文視窗的裁剪由對話的 token 預算策略決定 —— `sliding_window`
+（預設）、`fifo`、`importance`、`semantic` 或 `summary`。
+
+對話行存放在 `ai_conversations` 中。工具呼叫結果和待處理動作都會交叉引用
+回發起它們的對話，以便審計。
+
+## 可觀測性 [#observability]
+
+每次 Agent 執行都會發出：
+
+- `audit:ai:chat` 事件（每一輪）
+- `audit:ai:tool` 事件（每次工具呼叫，帶輸入和輸出）
+- `audit:ai:pending_action` 事件（當一項修改進入佇列時）
+- token 計數指標（按模型、按提供商）寫入審計日誌，用於成本分攤
+
+你可以把這些接入你常用的可觀測性技術棧 —— 參見
+[可觀測性](/docs/operate/observability)。
+
+## 多租戶說明 [#multi-tenant-note]
+
+Agent 按環境劃分。租戶 A 的 `tier1_support` Agent 永遠看不到租戶 B 的
+資料、對話或知識 —— 即使你在一個市場包中交付了同一個 Agent 定義。
+
+## 下一步 [#where-to-go-next]
+
+- [AI Builder](/docs/build/ai-builder) —— 構建期的助手
+- [IDE 技能](/docs/build/ai-skills) —— `npx skills add objectstack-ai/objectstack/skills`，讓你的 IDE Agent 正確編寫後設資料
+- [動作](/docs/build/interface/actions) —— 宣告你的 Agent 將使用的工具
+- [AI 服務](/docs/configure/ai) —— 提供商、嵌入模型、MCP 設定
+- [`@objectstack/spec/ai`](https://github.com/objectstack-ai/objectstack/tree/main/packages/spec/src/ai) —— 完整的模式

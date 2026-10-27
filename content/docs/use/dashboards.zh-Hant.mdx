@@ -1,20 +1,22 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 儀表盤
+seoTitle: "讀懂儀表盤：KPI、圖表、日期過濾"
 description: 一眼讀懂團隊的 KPI、圖表和表格 —— 兩次點選就能按日期或過濾條件收窄範圍。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 8cef60c76013059508365ddb2783b87b314a3b78e31cc9509f9a9367f90fc460
+  source_sha: 2d541eab18014e7c9f5272fff044d83422a7760bfb23362d8270006188c6f864
   guide_rev: 1
   mode: auto
 ---
 
 **儀表盤**把你的記錄變成數字和圖表：有多少任務未完成、工作的趨勢如何、誰的負荷最重。你不在這裡構建儀表盤 —— 你只負責讀；記錄變化時它們會自動更新。
 
-## 儀表盤在哪裡
+## 儀表盤在哪裡 [#where-dashboards-live]
 
 儀表盤是應用**導航側邊欄**中的選單項，通常放在 **Analytics** 之類的分組裡。點選一個，它會像普通頁面一樣開啟。
 
-## 儀表盤頭部
+## 儀表盤頭部 [#the-dashboard-header]
 
 每個儀表盤的頂部都有：
 
@@ -28,7 +30,7 @@ translation:
 
 日期範圍和過濾條件作用於**整個儀表盤**，所以每個元件回答的都是關於同一片資料切片的同一個問題 —— 你永遠不用懷疑兩張圖表統計的是不是不同的東西。
 
-## 元件型別
+## 元件型別 [#widget-types]
 
 儀表盤是由**元件**排成的網格。你會遇到三種：
 
@@ -40,7 +42,7 @@ translation:
 
 典型佈局是頂部一排指標卡（頭條），中間是圖表（資料的形態），底部是表格（憑據）。按這個順序讀下來，不到一分鐘你就掌握了全貌。
 
-## 儀表盤與檢視的區別
+## 儀表盤與檢視的區別 [#dashboards-vs-views]
 
 兩者都展示你的記錄 —— 只是高度不同：
 
@@ -49,17 +51,17 @@ translation:
 | **儀表盤** | 聚合值 —— 計數、合計、趨勢 | 你想看全域性 |
 | **檢視** | 一行行的具體記錄 | 你想逐條處理列表 —— 參見[使用檢視](/docs/use/views) |
 
-## 空狀態
+## 空狀態 [#empty-states]
 
 沒有資料可顯示的元件會直說 —— 比如一張顯示 **No rows**（無資料）的表格。這不是錯誤：在當前的日期範圍和過濾條件下，沒有記錄匹配。放寬範圍或重置一個過濾器，資料通常就回來了。
 
-## 從數字到記錄
+## 從數字到記錄 [#from-number-to-records]
 
 儀表盤彙總的是記錄，有些元件支援**下鑽**到記錄本身：凡是可點選的指標卡、圖表分段或表格行，點開就是匹配的記錄列表，讓你能對數字背後的問題直接採取行動。之後你就在一個普通列表裡了 —— 參見[使用檢視](/docs/use/views)。
 
 > **提示：**讀儀表盤是一個迴圈：發現異常數字，用過濾器收窄，下鑽到記錄，修好該修的東西。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 我想…… | 閱讀 |
 |---|---|
@@ -67,4 +69,4 @@ translation:
 | 自己動手過濾和分組列表 | [使用檢視](/docs/use/views) |
 | 處理等我審批的請求 | [審批](/docs/use/approvals) |
 | 管理我收到的通知 | [通知](/docs/use/notifications) |
-| 回到 Console 導覽 | [使用 ObjectOS](/docs/use) |
+| 回到導覽 | [使用 ObjectOS](/docs/use) |

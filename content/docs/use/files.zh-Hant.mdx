@@ -1,0 +1,111 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 檔案與附件
+seoTitle: "檔案與附件：上傳、下載、許可權"
+description: 把檔案附加到記錄上，或上傳到檔案欄位中 —— 誰能檢視、新增和刪除它們，以及被刪除的檔案會保留多久。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3bb89abc1ac77bc14428766ab10e45b3a10ceef5d201d4d588c672c0a4072b9f
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/attachments-storage.json):
+  attachments-storage.presigned-upload-roundtrip,
+  attachments-storage.download-authz-both-sides,
+  attachments-storage.read-inherits-parent-rls,
+  attachments-storage.attach-requires-parent-edit,
+  attachments-storage.sys-file-status-pipeline,
+  attachments-storage.orphan-tombstone-reap,
+  attachments-storage.inline-grid-receipt-cells,
+  attachments-storage.field-accept-maxsize-server-enforced,
+  attachments-storage.upload-limits-scope-and-ownership.
+*/}
+
+檔案通過兩種方式到達一條記錄：
+
+| 方式 | 長什麼樣 | 用來放 |
+|---|---|---|
+| **附件** | 記錄頁上的 **Attachments**（附件）標籤頁，列出任意數量的檔案 | 合同、照片、往來信函 —— 任何屬於這條記錄的東西 |
+| **檔案和圖片欄位** | 表單中的上傳控制元件，有時出現在明細表的每一行裡 | 記錄需要的某一份特定文件 —— 每條報銷明細一張收據、一張產品照片 |
+
+兩者都把檔案本身存放在儲存中，由記錄指向它，因此決定誰能開啟它的是同樣
+的規則。
+
+## 附件標籤頁 [#the-attachments-tab]
+
+構建者為其開啟了附件功能的物件，會在每個記錄頁上顯示一個
+**Attachments** 標籤頁。
+
+| 控制元件 | 它做什麼 |
+|---|---|
+| **Upload**（上傳） | 從你的電腦中選擇一個或多個檔案 |
+| 檔案列表 | 附加到這條記錄上的每個檔案 |
+| **Download**（下載） | 開啟檔案 |
+| **Delete attachment**（刪除附件） | 在你確認後，把檔案從這條記錄上移除 |
+
+沒有任何附件的記錄會顯示 **No attachments yet. Upload a file to get
+started.**
+
+## 誰能做什麼 [#who-can-do-what]
+
+附件跟隨它所屬的記錄：
+
+| 要…… | 你需要 |
+|---|---|
+| 檢視附件並下載它們 | 對該記錄的讀取許可權 |
+| 上傳附件 | 對該記錄的**編輯**許可權 —— 只能讀取是不夠的 |
+| 刪除附件 | 是上傳它的人，或者擁有對該記錄的編輯許可權 |
+
+上傳檔案的人總是可以下載和移除它。
+
+如果你無法讀取一條記錄，它的附件對你來說就不存在：它們不會出現在任何
+列表或計數中。當某個操作被拒絕時，你會看到一條直白的訊息，例如
+*You don't have access to attach files to this record.* 或
+*Only the uploader or someone who can edit this record may delete this
+attachment.*
+
+## 檔案和圖片欄位 [#file-and-image-fields]
+
+檔案或圖片欄位會在表單中顯示一個上傳控制元件。選擇一個檔案，它會立即上傳，
+然後顯示為一個帶檔名的標籤，你可以在儲存前移除它。在明細表中（比如
+發票的明細行），每一行都有自己的上傳單元格。
+
+欄位可以限制它接受哪些檔案型別，以及檔案可以有多大。儲存時伺服器會再次
+檢查這些限制 —— 違反限制的檔案會被拒絕，訊息中會點名該欄位，並且不會
+儲存任何內容。
+
+## 下載是短時有效的連結 [#downloads-are-short-lived-links]
+
+**Download** 會向伺服器請求一個只在幾分鐘內有效的連結（預設五分鐘）。
+如果你複製這個連結、稍後再開啟，它就已經過期了 —— 從記錄上重新下載即可。
+沒有該記錄訪問許可權的人根本拿不到一個可用的連結。
+
+## 大小限制 [#size-limits]
+
+單個檔案最大可以是 **100 MB**，除非你的管理員設定了不同的限制（儲存設定
+**Limits** 下的 **Max upload size (MB)**）。超過限制的檔案會在儲存任何
+內容之前被拒絕。
+
+## 被刪除的檔案會怎樣 [#what-happens-to-removed-files]
+
+刪除一個附件，會把它從**那條記錄**上移除。檔案本身會分階段清理，所以一次
+失誤不會當場銷燬資料：
+
+| 狀態 | 會發生什麼 |
+|---|---|
+| 同時附加在另一條記錄上 | 只要還有任何記錄持有它，它就會保留 |
+| 不再附加在任何地方 | 保留 **30 天**，然後回收它的儲存 |
+| 開始了但從未完成的上傳 | **7 天**後移除 |
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 閱讀 |
+|---|---|
+| 開啟並編輯檔案所屬的記錄 | [記錄操作](/docs/use/records) |
+| 與團隊討論一條記錄 | [在記錄上協作](/docs/use/collaboration) |
+| 從電子表格匯入大量記錄 | [匯入資料](/docs/use/import) |
+| 設定檔案存放在哪裡 | [儲存](/docs/configure/storage) |
+| 回到導覽 | [使用 ObjectOS](/docs/use) |
