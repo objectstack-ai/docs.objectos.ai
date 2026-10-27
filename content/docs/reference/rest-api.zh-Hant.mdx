@@ -1,0 +1,147 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: REST API
+seoTitle: "REST API：生成的端點、認證、OpenAPI"
+description: ObjectOS 根據你的後設資料生成的 HTTP 介面 —— 產品在哪裡使用它、幾個示例，以及 objectstack.ai 上的完整規範。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9fa13b663d57b4d063262824875deb8a379c76338ec7272227af4e273972d0b1
+  guide_rev: 1
+  mode: auto
+---
+
+**完整規範：**[objectstack.ai 上的 REST 和 GraphQL API](https://objectstack.ai/docs/api)。本頁是摘要：ObjectOS 在哪裡使用它，以及幾個示例。
+
+你宣告的每個物件都會得到 REST 端點，每個動作都會成為一個 `POST`，每個流程都可以
+通過 HTTP 啟動。沒有需要單獨編寫或部署的 API 層。基礎 URL 是
+`https://<your-host>/api/v1`，執行中的執行時會在 `/api/v1/openapi.json`（OpenAPI
+3.0）和 `/api/v1`（服務發現）描述自身。
+
+`/api/v1` 下的每條路由都需要一個已登入的會話或一個 bearer 令牌，除非某項宣告把它
+開放給匿名呼叫者，就像[公開表單](#public-forms)和[分享連結](#share-links)那樣。
+許可權按路由和按記錄檢查：物件級、記錄級和欄位級安全對 API 呼叫者的作用與在 UI 中
+完全相同。金鑰和令牌參見 [API 訪問](/docs/configure/api-access)。
+
+## ObjectOS 在哪裡使用它 [#where-objectos-uses-it]
+
+| 介面 | 路由 | 使用者 |
+|:--|:--|:--|
+| 資料 | `/data/:object`、`/data/:object/:id`、`/data/:object/query` | 生成的 UI、你的整合、匯入和匯出 —— 查詢使用 [ObjectQL](./objectql) |
+| 動作 | `/actions/:object/:action` | UI 中的按鈕，以及動作暴露給 AI 時的 Agent（[動作](/docs/build/interface/actions)） |
+| 自動化 | `/automation/:name/trigger`、`/automation/:name/runs` | 從另一個系統啟動流程，並讀取它的執行記錄（[流程](/docs/build/automation/flows)） |
+| 後設資料 | `/meta/:type/:name` | 通過它儲存的 Studio，以及讀取執行中後設資料的工具 |
+| AI | `/ai/chat`、`/ai/pending-actions` | [AI Builder](/docs/build/ai-builder) 及其審批佇列 |
+| 公開表單 | `/forms/:slug` | 為匿名填寫者釋出的表單檢視 |
+
+## 示例 [#examples]
+
+**列出未結工單**，最新的在前：
+
+```http
+GET /api/v1/data/support_ticket?where={"status":{"$eq":"open"}}&orderBy=-created_at&limit=20
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "object": "support_ticket",
+  "records": [ { "id": "...", "subject": "...", "status": "open" } ],
+  "total": 137,
+  "hasMore": true
+}
+```
+
+**在物件的 `enable` 塊中，把它從 API 上移除，或設為只讀**：
+
+```ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+// A read-only reference object, never writable over the API:
+ObjectSchema.create({
+  name: 'exchange_rate',
+  enable: { apiMethods: ['get', 'list'] },
+  fields: {
+    rate: Field.number({ label: 'Rate', scale: 6 }),
+    // ...more fields
+  },
+})
+
+// An internal object that the API never exposes:
+ObjectSchema.create({
+  name: 'sync_cursor',
+  enable: { apiEnabled: false },
+  fields: {
+    cursor: Field.text({ label: 'Cursor' }),
+    // ...more fields
+  },
+})
+```
+
+**按錯誤碼分支**，絕不按訊息分支：
+
+```json
+{
+  "error": {
+    "code": "PERMISSION_DENIED",
+    "message": "Missing ai:approve on conversation 01H…",
+    "httpStatus": 403,
+    "details": { "permission": "ai:approve", "subject": "01H…" }
+  }
+}
+```
+
+## 限制 API 介面 [#restricting-the-api-surface]
+
+物件的 `enable` 塊管控它生成的端點。`apiEnabled: false` 會把物件完全從 REST 介面
+中省略，所以它的路由返回 `404`。`apiMethods` 是 `get`、`list`、`create`、
+`update`、`delete` 和 `bulk` 的白名單；任何其他操作都會在 REST 層被拒絕。兩者都會
+被強制執行（ADR-0049）；更早的版本只解析它們而不應用。
+
+## 公開表單 [#public-forms]
+
+無需會話即可響應。表單檢視通過它的 `sharing` 選擇加入，三個鍵缺一不可：
+`enabled: true`、`allowAnonymous: true` 和一個 `publicLink` slug。從 ObjectStack
+17.7 起，只設置了後兩個的表單會返回 `404 FORM_NOT_FOUND` —— 參見
+[檢視 → 公開表單](/docs/build/interface/views#public-forms)。`GET /forms/:slug`
+返回表單，`POST /forms/:slug/submit` 提交它。
+
+## 分享連結 [#share-links]
+
+同樣無需會話即可響應：連結中的令牌就是授權。`GET /share-links/:token/resolve`
+返回該連結所分享的那一條記錄，不含連結隱藏的欄位。僅限已登入使用者的連結對沒有會話
+的呼叫者返回 `401 SIGN_IN_REQUIRED`，受密碼保護的連結在收到密碼之前返回
+`401 NEEDS_PASSWORD`。建立、列出和撤銷連結（`POST /share-links`、
+`GET /share-links`、`DELETE /share-links/:idOrToken`）需要會話 —— 參見
+[分享連結：任何拿到連結的人](/docs/use/collaboration#share-links-anyone-with-the-link)。
+
+## 流程狀態表 [#flow-status-table]
+
+觸發路由、`flow` 型別的動作以及宣告的 `type: 'flow'` 端點都返回相同的狀態。按 HTTP
+狀態分支，而不是按響應體中的 `success` 標誌：
+
+| 狀態 | 程式碼 | 含義 |
+|:--|:--|:--|
+| `200` | —— | 執行已派發。它的 `status` 為 `completed`、`paused`（它在等待某個螢幕、審批或計時器），或 `refused`（它到達了一個 `outcome: 'refused'` 的 `end` 節點；文本在 `refusalMessage` 中） |
+| `404` | `RESOURCE_NOT_FOUND` | 沒有這個名稱的流程 |
+| `409` | `FLOW_DISABLED` | 該流程已被關閉 |
+| `422` | `FLOW_NO_START_NODE` | 儲存的定義沒有開始節點，無法執行 |
+| `400` | `FLOW_FAILED` | 執行已派發但失敗了；詳情中帶有流程的 `errorMessage` |
+
+## 後設資料 —— `/api/v1/meta/*` [#metadata--apiv1meta]
+
+`/meta/:type/:name` 是後設資料項的唯一地址；名稱中帶斜槓時要進行百分號編碼
+（`GET /api/v1/meta/lead/views%2Fall_leads`）。分段的 `/meta/:type/:section/:name`
+路由已在 ObjectStack 17.3 中退役，返回 `404 ROUTE_NOT_FOUND`。儲存需要編寫能力，
+讀取或儲存 `datasource` 後設資料需要 `manage_platform_settings`。
+
+## 報表 [#reports]
+
+沒有已儲存報表的 API。ObjectStack 17.5 移除了 `/reports`、`/reports/:id/run` 和
+`/reports/:id/schedule`，它們現在返回 `404`。報表是後設資料，通過
+`/meta/report/:name` 讀取，它的數字來自分析（`POST /analytics/query`）。
+
+## 另請參閱 [#see-also]
+
+- [API 訪問](/docs/configure/api-access) —— 金鑰、令牌，以及誰可以呼叫什麼
+- [ObjectQL](./objectql) —— `/data/*` 接受的查詢格式
+- [安全](./security) —— 每條路由在執行之前檢查什麼

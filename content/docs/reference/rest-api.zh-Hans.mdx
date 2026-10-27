@@ -1,0 +1,146 @@
+---
+title: REST API
+seoTitle: "REST API：生成的端点、认证、OpenAPI"
+description: ObjectOS 根据你的元数据生成的 HTTP 界面 —— 产品在哪里使用它、几个示例，以及 objectstack.ai 上的完整规范。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9fa13b663d57b4d063262824875deb8a379c76338ec7272227af4e273972d0b1
+  guide_rev: 1
+  mode: auto
+---
+
+**完整规范：**[objectstack.ai 上的 REST 和 GraphQL API](https://objectstack.ai/docs/api)。本页是摘要：ObjectOS 在哪里使用它，以及几个示例。
+
+你声明的每个对象都会得到 REST 端点，每个动作都会成为一个 `POST`，每个流程都可以
+通过 HTTP 启动。没有需要单独编写或部署的 API 层。基础 URL 是
+`https://<your-host>/api/v1`，运行中的运行时会在 `/api/v1/openapi.json`（OpenAPI
+3.0）和 `/api/v1`（服务发现）描述自身。
+
+`/api/v1` 下的每条路由都需要一个已登录的会话或一个 bearer 令牌，除非某项声明把它
+开放给匿名调用者，就像[公开表单](#public-forms)和[分享链接](#share-links)那样。
+权限按路由和按记录检查：对象级、记录级和字段级安全对 API 调用者的作用与在 UI 中
+完全相同。密钥和令牌参见 [API 访问](/docs/configure/api-access)。
+
+## ObjectOS 在哪里使用它 [#where-objectos-uses-it]
+
+| 界面 | 路由 | 使用者 |
+|:--|:--|:--|
+| 数据 | `/data/:object`、`/data/:object/:id`、`/data/:object/query` | 生成的 UI、你的集成、导入和导出 —— 查询使用 [ObjectQL](./objectql) |
+| 动作 | `/actions/:object/:action` | UI 中的按钮，以及动作暴露给 AI 时的 Agent（[动作](/docs/build/interface/actions)） |
+| 自动化 | `/automation/:name/trigger`、`/automation/:name/runs` | 从另一个系统启动流程，并读取它的运行记录（[流程](/docs/build/automation/flows)） |
+| 元数据 | `/meta/:type/:name` | 通过它保存的 Studio，以及读取运行中元数据的工具 |
+| AI | `/ai/chat`、`/ai/pending-actions` | [AI Builder](/docs/build/ai-builder) 及其审批队列 |
+| 公开表单 | `/forms/:slug` | 为匿名填写者发布的表单视图 |
+
+## 示例 [#examples]
+
+**列出未结工单**，最新的在前：
+
+```http
+GET /api/v1/data/support_ticket?where={"status":{"$eq":"open"}}&orderBy=-created_at&limit=20
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "object": "support_ticket",
+  "records": [ { "id": "...", "subject": "...", "status": "open" } ],
+  "total": 137,
+  "hasMore": true
+}
+```
+
+**在对象的 `enable` 块中，把它从 API 上移除，或设为只读**：
+
+```ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+// A read-only reference object, never writable over the API:
+ObjectSchema.create({
+  name: 'exchange_rate',
+  enable: { apiMethods: ['get', 'list'] },
+  fields: {
+    rate: Field.number({ label: 'Rate', scale: 6 }),
+    // ...more fields
+  },
+})
+
+// An internal object that the API never exposes:
+ObjectSchema.create({
+  name: 'sync_cursor',
+  enable: { apiEnabled: false },
+  fields: {
+    cursor: Field.text({ label: 'Cursor' }),
+    // ...more fields
+  },
+})
+```
+
+**按错误码分支**，绝不按消息分支：
+
+```json
+{
+  "error": {
+    "code": "PERMISSION_DENIED",
+    "message": "Missing ai:approve on conversation 01H…",
+    "httpStatus": 403,
+    "details": { "permission": "ai:approve", "subject": "01H…" }
+  }
+}
+```
+
+## 限制 API 界面 [#restricting-the-api-surface]
+
+对象的 `enable` 块管控它生成的端点。`apiEnabled: false` 会把对象完全从 REST 界面
+中省略，所以它的路由返回 `404`。`apiMethods` 是 `get`、`list`、`create`、
+`update`、`delete` 和 `bulk` 的白名单；任何其他操作都会在 REST 层被拒绝。两者都会
+被强制执行（ADR-0049）；更早的版本只解析它们而不应用。
+
+## 公开表单 [#public-forms]
+
+无需会话即可响应。表单视图通过它的 `sharing` 选择加入，三个键缺一不可：
+`enabled: true`、`allowAnonymous: true` 和一个 `publicLink` slug。从 ObjectStack
+17.7 起，只设置了后两个的表单会返回 `404 FORM_NOT_FOUND` —— 参见
+[视图 → 公开表单](/docs/build/interface/views#public-forms)。`GET /forms/:slug`
+返回表单，`POST /forms/:slug/submit` 提交它。
+
+## 分享链接 [#share-links]
+
+同样无需会话即可响应：链接中的令牌就是授权。`GET /share-links/:token/resolve`
+返回该链接所分享的那一条记录，不含链接隐藏的字段。仅限已登录用户的链接对没有会话
+的调用者返回 `401 SIGN_IN_REQUIRED`，受密码保护的链接在收到密码之前返回
+`401 NEEDS_PASSWORD`。创建、列出和撤销链接（`POST /share-links`、
+`GET /share-links`、`DELETE /share-links/:idOrToken`）需要会话 —— 参见
+[分享链接：任何拿到链接的人](/docs/use/collaboration#share-links-anyone-with-the-link)。
+
+## 流程状态表 [#flow-status-table]
+
+触发路由、`flow` 类型的动作以及声明的 `type: 'flow'` 端点都返回相同的状态。按 HTTP
+状态分支，而不是按响应体中的 `success` 标志：
+
+| 状态 | 代码 | 含义 |
+|:--|:--|:--|
+| `200` | —— | 运行已派发。它的 `status` 为 `completed`、`paused`（它在等待某个屏幕、审批或计时器），或 `refused`（它到达了一个 `outcome: 'refused'` 的 `end` 节点；文本在 `refusalMessage` 中） |
+| `404` | `RESOURCE_NOT_FOUND` | 没有这个名称的流程 |
+| `409` | `FLOW_DISABLED` | 该流程已被关闭 |
+| `422` | `FLOW_NO_START_NODE` | 存储的定义没有开始节点，无法运行 |
+| `400` | `FLOW_FAILED` | 运行已派发但失败了；详情中带有流程的 `errorMessage` |
+
+## 元数据 —— `/api/v1/meta/*` [#metadata--apiv1meta]
+
+`/meta/:type/:name` 是元数据项的唯一地址；名称中带斜杠时要进行百分号编码
+（`GET /api/v1/meta/lead/views%2Fall_leads`）。分段的 `/meta/:type/:section/:name`
+路由已在 ObjectStack 17.3 中退役，返回 `404 ROUTE_NOT_FOUND`。保存需要编写能力，
+读取或保存 `datasource` 元数据需要 `manage_platform_settings`。
+
+## 报表 [#reports]
+
+没有已保存报表的 API。ObjectStack 17.5 移除了 `/reports`、`/reports/:id/run` 和
+`/reports/:id/schedule`，它们现在返回 `404`。报表是元数据，通过
+`/meta/report/:name` 读取，它的数字来自分析（`POST /analytics/query`）。
+
+## 另请参阅 [#see-also]
+
+- [API 访问](/docs/configure/api-access) —— 密钥、令牌，以及谁可以调用什么
+- [ObjectQL](./objectql) —— `/data/*` 接受的查询格式
+- [安全](./security) —— 每条路由在运行之前检查什么

@@ -1,0 +1,80 @@
+---
+title: 支持
+seoTitle: "支持：获取帮助、报告缺陷、响应时间"
+description: 去哪里获取帮助、如何报告缺陷，以及响应预期。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: c91dd5746f73af07b73d9af2e79272ab63df7883b882a67dfcc6329bbc1ffc1a
+  guide_rev: 1
+  mode: auto
+---
+
+## 什么事去哪里 [#where-to-go-for-what]
+
+| 如果你…… | 去 |
+|---|---|
+| 有一个"怎么做"的问题 | [GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) —— 唯一的公开问题跟踪器，适用于每个 ObjectOS 版本 |
+| 发现了一个缺陷 | [GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) —— 请附上版本、复现步骤、期望结果与实际结果 |
+| 发现了这些文档中的错误 | [docs.objectos.ai issues](https://github.com/objectstack-ai/docs.objectos.ai/issues) —— 本站自己的仓库只接受文档问题 |
+| 发现了一个安全漏洞 | **security@objectstack.ai** —— **不要**提交公开 issue |
+| 需要商业支持 / SLA | **sales@objectstack.ai** |
+| 想和用户及维护者交流 | [Discord](https://discord.gg/objectstack)（社区运营） |
+| 想关注版本发布 | [发布说明](/docs/resources/changelog#release-notes) —— 每个版本发布的地方；要接收通知，请 watch [github.com/objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack) → Releases |
+| 想付费实现某个功能 | **sales@objectstack.ai** —— 参见[商业支持与服务](#commercial-support--services) |
+
+## 提交一份好的缺陷报告 [#filing-a-good-bug-report]
+
+30 秒版本：
+
+```text
+ObjectOS version:           14.7.0 (or sha-abc123)
+Node version:               22.4.0
+Install method:             docker / npm -g / source
+Database:                   postgres 16 / sqlite / turso / mongo
+Repro steps:                1. ...  2. ...  3. ...
+Expected:                   ...
+Actual:                     ...
+Logs:                       (sanitized, last 30 lines)
+```
+
+对于配置问题，请附上 `os doctor` 的输出 —— 它自己就能诊断出 80% 的错误配置。
+
+## 响应预期 [#response-expectations]
+
+| 渠道 | 尽力而为的响应时间 |
+|---|---|
+| 安全邮件 | 1 个工作日 |
+| GitHub Issues —— 缺陷，带复现 | 3 个工作日内分诊，在下一个发布周期修复 |
+| GitHub Issues —— 功能请求 | 7 个工作日内分诊 |
+| 商业支持 | 按你的支持合同 |
+
+这些是尽力而为的目标，而不是 SLA。商业支持合同带有正式的 SLA。
+
+## 商业支持与服务 [#commercial-support--services]
+
+ObjectStack 团队提供：
+
+- **ObjectOS Runtime Subscription** —— 针对免费自托管运行时 ObjectOS Community 的
+  支持合同：响应时间 SLA、指定的升级处理人、安全补丁优先（与开源版本没有功能差异）。
+- **托管服务** —— ObjectOS Cloud，由我们为你运行。
+- **架构评审** —— 部署前的合理性检查。
+- 按你的规格构建的**自定义插件 / 能力**。
+- **OEM 再分发** —— 把 ObjectOS 嵌入你的产品。
+
+联系 **sales@objectstack.ai**。
+
+## 回馈贡献 [#contributing-back]
+
+底层的 ObjectStack 框架采用 Apache-2.0 许可，接受贡献：
+
+- [CONTRIBUTING.md](https://github.com/objectstack-ai/objectstack/blob/main/CONTRIBUTING.md)
+- [行为准则](https://github.com/objectstack-ai/objectstack/blob/main/CODE_OF_CONDUCT.md)
+- 尽早提交草稿 PR —— 我们宁愿评审一份草图，也不愿看到重复劳动。
+
+## 状态与事件 [#status--incidents]
+
+托管服务（ObjectOS Cloud、包注册表）：
+[status.objectstack.ai](https://status.objectstack.ai)。
+
+对于你自托管的 ObjectOS 部署，状态由你负责 —— 把它接入你常规的监控（参见
+[可观测性](/docs/operate/observability)）。
