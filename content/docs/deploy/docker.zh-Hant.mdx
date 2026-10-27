@@ -1,0 +1,381 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: Docker
+seoTitle: "Docker：執行 ObjectOS Community 和 Enterprise"
+description: 用 Docker 執行 ObjectOS —— 固定映象、設定三個必需的變數、用 Compose 加上 PostgreSQL、接好探針和代理、升級與回滾。企業版映象還增加了私有映象倉庫、校驗和許可證。
+editions: [community, enterprise]
+translation:
+  source_sha: 7fb88e85e29666d6c9ec80215a289bfa2bbe75dc1a35ab842ddd53f33bf4ea72
+  guide_rev: 1
+  mode: auto
+---
+
+Docker 是在你自己的伺服器上執行 ObjectOS 的標準方式。兩個自管理版本的步驟相同：
+一個被精確固定的映象，配置在執行時注入，資料庫放在容器之外。本頁以開放的
+**Community** 映象 `ghcr.io/objectstack-ai/objectstack` 逐步講解；末尾的
+[企業版額外提供](#enterprise-adds)一節說明在需許可證的映象上有什麼不同。
+
+## 固定映象 [#pin-the-image]
+
+Community 映象隨每個 ObjectStack 版本釋出。它的標籤與映象內 ObjectStack CLI 的
+版本一致：版本 `X.Y.Z` 以 `X.Y.Z` 推送，並把 `latest`、`X.Y` 和 `X` 移到它上面。
+滾動標籤會隨每次釋出而移動，所以對 `latest` 做一次例行的 `docker compose pull`，
+就可能在沒有任何部署事件的情況下替換你正在執行的版本。
+
+確切的標籤固定的是版本，而不是位元組。維護者可以重新構建一個已經發布的版本，例如
+為了納入 `node:22-slim` 基礎映象中的安全補丁，而重新構建會把同一個 `X.Y.Z` 標籤
+再次推送到一個新映象上。映象內的 ObjectStack CLI 仍是同一個版本；基礎映象，以及
+它按版本範圍安裝的資料庫驅動，則會重新解析。
+[釋出工作流](https://github.com/objectstack-ai/objectstack/blob/main/.github/workflows/docker-publish.yml)
+聲明瞭這種重新構建。只有**摘要**永遠指向同樣的位元組。
+
+**在生產環境中執行確切的版本**，與構建你的應用的 CLI 版本相同；凡是你需要每臺
+主機、每次重啟都運行同樣位元組的地方，還要固定它的摘要。從映象倉庫讀取摘要：
+
+```bash
+docker buildx imagetools inspect ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+固定第一行 `Digest:`，也就是 `Name:` 下面那一行。它指向整個映象，包括兩種架構；
+`Manifests:` 下列出的摘要各自只指向一個平臺。按這個摘要引用映象，並在旁邊保留
+版本號，因為摘要本身並不說明它是哪個版本：
+
+```bash
+# ObjectStack X.Y.Z
+ghcr.io/objectstack-ai/objectstack@sha256:<64 hex characters>
+```
+
+把上一個版本及其摘要記下來：那就是回滾。映象釋出了 `linux/amd64` 和 `linux/arm64` 兩種架構，以非 root
+使用者執行，監聽 **8080** 埠，並自帶健康檢查。它包含 PostgreSQL（`pg`）和 MySQL
+（`mysql2`）驅動。
+
+## 你要設定的三個值 [#the-three-values-you-set]
+
+其他一切都有可用的預設值。這三個沒有：
+
+| 變數 | 缺少它會怎樣 |
+|---|---|
+| `OS_DATABASE_URL` | 資料會落到執行時主目錄下的一個 SQLite 檔案中 —— 在一臺持久的主機上沒問題，但會隨容器的檔案系統一起丟失。生產環境使用 `postgres://…`。 |
+| `OS_AUTH_SECRET` | `/api/v1/auth/*` 下的登入端點會被**跳過**，伺服器在沒有認證的情況下執行。 |
+| `OS_SECRET_KEY` | 執行時會為儲存的金鑰自行生成一個加密金鑰，並把它儲存在自己的檔案系統上。在容器中，這個金鑰會隨容器一起消失，用它加密的每個金鑰都會變得無法讀取。 |
+
+兩個金鑰只生成一次，並儲存在你的金鑰管理器中：
+
+```bash
+OS_AUTH_SECRET=$(openssl rand -hex 32)
+OS_SECRET_KEY=$(openssl rand -hex 32)
+```
+
+**絕不要把任何一個金鑰烘焙進映象。**在執行時從編排器的金鑰儲存中傳入。把
+`OS_SECRET_KEY` 與資料庫一起備份：恢復時沒有帶上金鑰的資料庫無法解密它自己的
+金鑰 —— 參見[備份](/docs/operate/backup)。完整列表見
+[環境變數](/docs/reference/environment-variables)。
+
+## 執行它 [#run-it]
+
+映象不帶任何應用。把 `os build` 編譯出的 `objectstack.json` 交給它，有三種方式。
+
+**掛載產物。**完全不用構建映象 —— 映象會在 `/srv/app/objectstack.json` 查詢應用：
+
+```bash
+docker run -p 8080:8080 \
+  -v "$PWD/dist/objectstack.json:/srv/app/objectstack.json:ro" \
+  -e OS_DATABASE_URL="postgres://objectos:secret@db-host:5432/objectos" \
+  -e OS_AUTH_SECRET \
+  -e OS_SECRET_KEY \
+  ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+**按 URL 指定產物。**`OS_ARTIFACT_URL` 指向一個已釋出的產物，所以一個固定的映象
+加上一個變數就是一個執行中的應用，而升級應用就是修改這個變數再重啟：
+
+```bash
+docker run -p 8080:8080 \
+  -e OS_ARTIFACT_URL="https://releases.example.com/crm-2.2.2.json#sha256=<64 hex characters>" \
+  -e OS_DATABASE_URL -e OS_AUTH_SECRET -e OS_SECRET_KEY \
+  ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+可選的 `#sha256=` 片段會固定產物的位元組，執行時會據此約束啟動：
+
+| 情況 | 執行時的行為 |
+|---|---|
+| 沒有固定值 | 不做校驗直接啟動。如果無法獲取產物，啟動會**失敗**，以便編排器重試 —— 沒有可以回落的快取副本。 |
+| 有固定值，位元組匹配 | 啟動，並保留已校驗的副本。 |
+| 有固定值，位元組不同 | **拒絕啟動**，並點名期望的摘要和實際的摘要。 |
+| 有固定值，主機不可達 | 只有當快取副本仍與固定值匹配時才從它啟動，並以一條警告說明這一點。 |
+
+`file:///…` 也可以用於掛載的檔案。把產物釋出為不可變的、以版本命名的物件，並只給
+你的釋出流水線寫入許可權 —— 正是這一點讓回滾應用與升級應用成為同一種操作。
+
+**把產物複製進你自己的映象。**每個版本一個自包含的映象。專案腳手架
+（`npm create objectstack`）會為你寫一個這種形態的 Dockerfile：
+
+```dockerfile title="Dockerfile"
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* package-lock.json* ./
+RUN if [ -f pnpm-lock.yaml ]; then corepack pnpm@10 install --frozen-lockfile; \
+    else npm ci; fi
+COPY . .
+RUN npx os build              # → dist/objectstack.json
+
+FROM ghcr.io/objectstack-ai/objectstack:X.Y.Z
+COPY --from=build --chown=node:node /app/dist/objectstack.json /srv/app/objectstack.json
+```
+
+## 用 Compose 加上 PostgreSQL [#compose-with-postgresql]
+
+一個單主機的生產技術棧：上面的映象，旁邊是它的資料庫。
+
+```yaml title="docker-compose.yml"
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      OS_DATABASE_URL: postgres://objectos:${POSTGRES_PASSWORD}@db:5432/objectos
+      OS_AUTH_SECRET: ${OS_AUTH_SECRET}
+      OS_SECRET_KEY: ${OS_SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: objectos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: objectos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U objectos -d objectos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+```
+
+```bash
+# .env beside docker-compose.yml — never committed
+POSTGRES_PASSWORD=…
+OS_AUTH_SECRET=…
+OS_SECRET_KEY=…
+
+docker compose up -d
+curl -fsS http://localhost:8080/api/v1/health
+```
+
+當你遷移到託管的 PostgreSQL 時，把 `OS_DATABASE_URL` 指向它，並移除 `db` 服務。
+模式會在執行時啟動時更新到最新：安全的變更會自行執行，而破壞性的變更會**拒絕
+啟動**並點名每一項變更，直到你用 `os migrate apply --allow-destructive` 有意識地
+應用它（[CLI](/docs/reference/cli#database-migrations--os-migrate)）。
+
+## 健康檢查 [#health-checks]
+
+兩個端點，它們不能互換：
+
+| 端點 | 回答什麼 | 接到 |
+|---|---|---|
+| `/api/v1/health` | 程序已啟動並在提供 HTTP 服務。它從不訪問資料庫。 | 存活探針 |
+| `/api/v1/ready` | 執行時已啟動**且其資料驅動有響應**。只要有一個驅動沒有響應，就返回 `503` 並點名失敗的驅動。 | 就緒探針，以及你的負載均衡器 |
+
+如果接反了，後果很糟。把存活探針接到 `/api/v1/ready`，會在資料庫故障期間重啟每個
+副本 —— 而重啟解決不了這個問題 —— 還會把配置故障變成一個掩蓋它的重啟迴圈。應該
+做出反應的是就緒探針：資料庫不可用時，它把副本從輪轉中移出，資料庫恢復後再把它
+放回來，不需要重啟。應用所繫結的資料來源也必須在啟動時連上，否則啟動會直接失敗：
+一個無法訪問的資料庫就是一次失敗的部署，而不是一個先啟動、然後在每個請求上都
+報錯的容器。
+
+## 反向代理和 TLS [#reverse-proxy-and-tls]
+
+在執行時前面終止 TLS —— Caddy、nginx、Traefik 或你的雲負載均衡器 —— 並讓三個值
+與公網地址保持一致：
+
+```bash
+OS_AUTH_URL=https://app.example.com          # sign-in callbacks and cookie origin
+OS_TRUSTED_ORIGINS=https://app.example.com   # sign-in callback and CSRF allow-list
+OS_PORT=8080                                 # the proxy's upstream port
+```
+
+```text title="Caddyfile"
+app.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+埠或源對不上是自託管時的經典故障：應用在執行，但登入會被彈回，瀏覽器會阻止
+API 呼叫。只要 Console 和 API 共享同一個公網源，CORS 就不需要任何配置。從**另一個**
+源提供的前端要顯式列在 `OS_CORS_ORIGIN` 中 —— 在開啟憑據時，`*` 會在啟動時被
+拒絕。只有在確認 TLS 正常後才開啟 HSTS；其餘內容見
+[生產就緒](/docs/operate/production)。
+
+## 首次啟動：第一個管理員 [#first-boot-the-first-administrator]
+
+在一個全新的資料庫上，開啟部署的地址並**註冊 —— 第一個賬戶會成為管理員。**在首次
+部署後立即完成這一步，再分享地址。生產伺服器不會預置任何預設憑據：你可能在
+`os dev` 中見過的 `admin@objectos.ai` 賬戶只存在於開發資料庫中。
+
+如果要改為在配置中指定管理員，就把 `OS_PLATFORM_OWNER_EMAIL` 設為一個地址或一個
+逗號分隔的列表；列出的每個賬戶在其郵箱地址驗證後即擁有該身份。多組織姿態要求設定
+它 —— 參見[環境變數](/docs/reference/environment-variables#multi-organization-deployments)。
+
+一個預置了人員記錄、卻沒有登入賬戶的應用會關上這扇門：第一個賬戶的規則計算的是
+人員，而不是登入。啟動日誌會說明這一點 —— 參見
+[故障排查](/docs/operate/troubleshooting#nobody-can-sign-in)。
+
+## 多節點 [#multi-node]
+
+ObjectOS Community 執行**一個副本**。協調 —— 鎖、佇列、排程 —— 是程序內的，所以
+第二個副本無法共享它。在沒有許可證的情況下宣告多個副本（`OS_CLUSTER_REPLICAS`
+大於 1）會**拒絕啟動**，而不是用按程序的鎖執行它們。叢集與高可用是企業版能力 ——
+參見下文的[多節點](#multi-node-on-enterprise)。
+
+## 升級與回滾 [#upgrade-and-rollback]
+
+1. 閱讀你所跨越的每個 ObjectStack 版本的釋出說明，以及它們要求運維人員執行的
+   [特定版本步驟](/docs/operate/upgrade#version-specific-steps)。
+2. **備份資料庫。**模式遷移只能向前：回滾映象並不會回滾模式。
+3. 把映象改為新的確切版本，如果你固定了摘要，就改為它的摘要，然後重啟。模式會在
+   啟動時、執行時報告就緒之前更新到最新。
+4. 確認 `/api/v1/ready` 返回 200。
+5. 要回滾，就恢復上一個標籤或摘要並重復第 3 步 —— 只要你要離開的版本沒有做不相容的
+   模式變更，這就是有效的。
+
+應用單獨進行版本管理：修改 `OS_ARTIFACT_URL` 或你掛載的產物，就能在不動映象的
+情況下升級它。
+
+## 企業版額外提供 [#enterprise-adds]
+
+需許可證的企業版映象以同樣的方式執行，並增加了私有映象倉庫、供應鏈校驗、許可證和
+多節點；它的釋出說明會點名要固定的摘要。你的版本會附帶一個**部署包**，其中包含一個 Compose 技術棧、
+每種部署形態一個環境模板，以及一份帶有適用於你的確切版本的命令的 README。本節是
+該部署包所配置內容的決策地圖。
+
+### 你會得到什麼 [#what-you-are-given]
+
+你的許可證附帶私有執行時映象的**映象倉庫憑據**。登入需要一個具有包**讀取**許可權的
+令牌；沒有公開的企業版映象，也不能從原始碼構建：映象由我們的釋出流水線從不分發的
+原始碼產出，所以 `docker build` 對它來說不是一條存在的路徑。
+
+**受支援的架構：僅 `linux/amd64`。**這是一項宣告，而不是遺漏：構建會拒絕為我們未
+宣告的架構產出映象。Apple Silicon 和 Graviton 主機會在模擬下執行它，這用來看一看
+沒問題，用於生產則是錯的。
+
+### 按摘要固定映象 [#pin-the-image-by-digest]
+
+你在生產環境中執行的映象引用是一個**摘要**，而不是標籤：
+
+```
+OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters>
+```
+
+標籤是人類可讀的名稱，可以被重新指向不同的位元組。摘要是按內容定址的：同一個摘要
+永遠是同一個映象，在每臺主機上、永遠如此。使用標籤的話，事後就無法證明出問題時
+實際執行的是什麼。你的釋出說明會給出摘要；原樣貼上即可。也要保留**上一個**摘要。
+
+### 映象可以告訴你它是什麼 [#the-image-can-tell-you-what-it-is]
+
+映象帶有兩個不同的版本號，不應混為一談：ObjectOS 的**產品版本**，以及其中內嵌的
+**ObjectStack 執行時的兼容範圍**，後者按自己的節奏變化。兩者 —— 連同構建映象所用
+的原始碼修訂版本 —— 都記錄在映象本身中，作為 OCI 標籤和一份機器可讀的釋出清單。你
+永遠不必來問我們你拿到的是哪個構建。
+
+這份清單也是附在支援請求中最有用的東西：它足以重現你的確切映象。
+
+### 在生產之前校驗映象 [#verify-the-image-before-production]
+
+映象是**經過簽名的**（無金鑰簽名，通過我們釋出流水線的 OIDC 身份），並附帶一份
+**SBOM** 和**構建溯源**。在生產上線之前校驗一次 —— 三項檢查回答三個不同的問題：
+
+| 檢查 | 它回答的問題 |
+|---|---|
+| 簽名 | 這個摘要是由 ObjectOS 釋出流水線產出的，而不是別人？ |
+| SBOM | 這個映象裡有什麼？ |
+| 溯源 | 這個映象是如何、從哪些原始碼構建出來的？ |
+
+部署包的 README 中有校驗命令，以及要核對的身份和簽發者，與你的版本相匹配。
+
+### 許可證 [#license]
+
+**許可證是正常路徑的一部分。**企業版映象在沒有許可證時的行為，取決於你要求它成為
+什麼：
+
+- **單組織，無許可證** —— 部署以 ObjectOS Community 執行：開放的 MCP 伺服器，
+  自帶你自己的 AI。什麼都不會變磚。
+- **單組織，有許可證** —— 產品內 AI 會在你自己的基礎設施上解鎖：AI Builder 和
+  "問你的資料"。
+- **多組織（隔離牆式租戶姿態），無許可證** —— 執行時會**在啟動時退出**，並點名
+  許可證。組織之間的隔離是一項需許可證的能力，一個要求隔離的部署絕不能假裝擁有
+  隔離來提供服務。
+
+同一條線上還有第二個約束，而它正是讓人意外的那個：**許可證有模式，而模式與你的
+雲端姿態耦合。**普通許可證針對控制平面線上校驗；物理隔離許可證在本地校驗，完全
+不需要網路。把普通許可證與"沒有控制平面"搭配不是一種降級狀態，而是一種不可能的
+狀態 —— 它會**在啟動時被拒絕**，並點名兩項設定，而不是之後才以一條關於許可證的
+誤導性抱怨失敗。[物理隔離](/docs/deploy/air-gapped)給出了受支援組合的完整矩陣。
+
+### 隔離牆式部署必須再宣告兩項決策 [#a-walled-deployment-must-declare-two-more-decisions]
+
+在多組織姿態下，有兩項設定沒有安全的預設值，所以執行時會**拒絕啟動，直到你做出
+決定** —— 宣告任何一個可用的值都會被接受；不做決定則不行：
+
+| 決策 | 為什麼不能有預設值 |
+|---|---|
+| **新註冊的使用者加入什麼** | 在成員資格*就是*租戶邊界的地方，它只能通過顯式的行為授予 —— 邀請、管理員、SSO 開通。自動加入會把一個陌生人放進一個現有的組織。 |
+| **掛載哪些 AI Agent** | "ask" Agent 只讀；"build" Agent **編寫後設資料** —— 而後設資料的作用域是部署，而不是組織。在共享資料庫上，一個客戶的一次 build 對話就會改寫其他所有客戶執行所依賴的模式。 |
+
+單組織部署不會看到這兩項檢查。
+
+### 出廠技術棧 [#the-shipped-stack]
+
+部署包中的 Compose 技術棧按部署必須遵循的順序編排，值得了解這個順序，因為任何
+其他編排器都必須重現它：
+
+1. 資料庫變為健康狀態。
+2. 一個**一次性遷移**把模式執行到完成 —— 在任何應用副本啟動之前，所以併發的
+   副本永遠不會相互對抗地執行模式變更。
+3. 應用副本啟動。映象自帶健康檢查。
+4. 反向代理只有在某個副本真正有響應時才開始轉發 —— 而不僅僅是被創建出來。
+
+在生產環境中，把部署指向你**託管的** PostgreSQL（如果做叢集，還有 Redis），並移除
+捆綁的資料庫服務。把你的域名交給代理，即可獲得自動 HTTPS。執行時容器以非 root
+使用者執行，並把執行時狀態儲存在一個宣告的捲上。
+
+### 企業版上的多節點 [#multi-node-on-enterprise]
+
+擴充套件到一個副本以上，會改變哪些是必需的：
+
+- 開啟**叢集驅動**（以 Redis 為後端），並且
+- **共享的加密金鑰成為必需。**沒有叢集驅動時，執行時會自行生成並持久儲存它自己的
+  金鑰。跨副本時這些金鑰會悄悄地互不相同 —— 所以**執行時會拒絕啟動**，而不是讓
+  它們分叉。生成一個金鑰，並給每個副本相同的值。
+- **認證金鑰也必須在每個副本上完全相同。**修改它會使所有現有會話失效，並讓簽名
+  金鑰成為孤兒；環境模板說明了輪換時附帶的那一次性清理步驟。
+- `OS_CLUSTER_REPLICAS` 設定捆綁的技術棧啟動多少個應用副本。
+
+### 按摘要升級 [#upgrade-by-digest]
+
+上面的升級步驟同樣適用，只是用摘要代替標籤：
+
+1. 從釋出說明中取得**新的摘要**，並在上線之前閱讀映象的釋出清單：確認產品主版本
+   線是你所在的那一條，並檢查內嵌執行時的兼容範圍是否移動了。執行時主版本的移動
+   意味著底層有破壞性變更 —— 先閱讀那個版本的釋出說明。
+2. 備份資料庫。
+3. 修改映象摘要並重啟技術棧。遷移會在新副本接收流量之前執行到完成。
+4. 確認就緒端點返回 200，且副本報告為健康。
+5. 要回滾，就恢復上一個摘要並重復第 3 步 —— 只要你要離開的版本沒有做不相容的
+   模式變更，這就是有效的（釋出說明會說明何時做了這樣的變更）。
+
+## 下一步 [#next]
+
+- [Kubernetes](/docs/deploy/kubernetes) —— 同一個映象，執行在編排器上。
+- [生產就緒](/docs/operate/production) —— 上線前的檢查清單。
+- [可觀測性](/docs/operate/observability) —— 日誌、指標、審計。
+- [物理隔離](/docs/deploy/air-gapped) —— 面向斷網站點的企業版許可證模式。

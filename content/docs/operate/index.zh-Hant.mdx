@@ -1,0 +1,46 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 運維
+seoTitle: "運維：生產就緒、備份、升級"
+description: 讓執行中的 ObjectOS 部署保持健康 —— 生產就緒、可觀測性、審計軌跡、備份、升級和恢復。
+editions: [community, enterprise]
+translation:
+  source_sha: a17ed607565693a65e32a25c8fe8db345aa917afac9348647fecca7a35e9c8f7
+  guide_rev: 1
+  mode: auto
+---
+
+本節講的是讓 ObjectOS **在生產環境中保持健康**。[配置](/docs/configure)涵蓋的是
+設定階段的管理 —— 使用者、訪問、登入、整合 —— 而*運維*涵蓋的是上線後的日常工作：
+加固部署、監視它、證明發生了什麼，以及在出問題時恢復。
+
+這裡的每一頁都適用於兩個自管理版本，ObjectOS Community 和 ObjectOS Enterprise：
+它們運行同一個執行時，所以運維方式也相同。當需許可證的企業版映象能做得更多時 ——
+其釋出說明中點名的摘要、許可證金鑰、多個副本 —— 頁面會以**企業版額外提供**一節結尾。在
+ObjectOS Cloud 上，由我們為你運維部署。
+
+## 運維頁面 [#operations-pages]
+
+| 頁面 | 用於 |
+|---|---|
+| [生產就緒](/docs/operate/production) | 在上線前後加固部署 |
+| [可觀測性](/docs/operate/observability) | 接好日誌、請求 id、指標和錯誤 |
+| [審計日誌](/docs/operate/audit-logs) | 閱讀不可變的審計軌跡和診斷日誌 |
+| [備份](/docs/operate/backup) | 規劃備份和災難恢復 |
+| [升級](/docs/operate/upgrade) | 安全地升級或回滾 |
+| [故障排查](/docs/operate/troubleshooting) | 診斷出故障的部署 |
+
+## 配置與運維 [#configure-vs-operate]
+
+設定階段的管理 —— 新增使用者、授予訪問、接好郵件、儲存和整合 —— 位於
+[配置](/docs/configure)之下。等部署上線、你需要觀察、審計、備份或升級它時，再回到
+這裡。
+
+## 下一步 [#where-to-go-next]
+
+| 任務 | 頁面 |
+|---|---|
+| 上線前檢查清單 | [生產就緒](/docs/operate/production) |
+| 追蹤一次變更或一次登入 | [審計日誌](/docs/operate/audit-logs) |
+| 設定監控 | [可觀測性](/docs/operate/observability) |
+| 設定階段的管理 | [配置](/docs/configure) |

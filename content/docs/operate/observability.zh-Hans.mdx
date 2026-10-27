@@ -1,0 +1,117 @@
+---
+title: 可观测性
+seoTitle: "可观测性：日志、请求 ID、指标、错误"
+description: 日志、请求 id、指标、错误、会话和审计日志。
+editions: [community, enterprise]
+translation:
+  source_sha: 6260a1763af40fdb7320387d9d4a60879fc6f529e51b110ee98e9a10dff64f6e
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 的运维既需要基础设施信号，也需要应用信号。框架提供请求 id、指标、错误
+上报器和审计原语；由部署决定把它们导出到哪里。
+
+## 请求身份 [#request-identity]
+
+每个生产部署都应传递或生成一个请求 id：
+
+```text
+X-Request-Id
+```
+
+用它来关联：
+
+- 入口日志；
+- ObjectOS 日志；
+- 数据库慢查询；
+- 错误报告；
+- 客户支持工单。
+
+## 指标和错误 [#metrics-and-errors]
+
+运行时在进程内保存指标和错误报告，只有在你选择了导出器时才会导出它们。至少要
+跟踪：
+
+| 信号 | 原因 |
+|---|---|
+| 按路由/状态统计的请求数 | 发现错误激增 |
+| 请求耗时 | 发现延迟回退 |
+| 5xx 错误 | 对运行时故障告警 |
+| 就绪状态转换 | 进程只有在其内核构建完成后才报告就绪，并且当某个数据驱动停止时，`/api/v1/ready` 返回 503 |
+
+请求数和耗时以 `http_requests_total` 和 `http_request_duration_ms` 发出，带有方法、
+路由模式和状态标签，覆盖每一个入站请求 —— 包括登录和 REST 数据 API。
+
+### 用 OpenTelemetry 导出 [#export-with-opentelemetry]
+
+指标通过 **OTLP** 离开运行时。设置 `OS_OBS_EXPORTER=otlp` **和**
+`OS_OTLP_ENDPOINT`（例如 `https://<collector>/otlp`）。导出器默认为 `noop`（零
+运行时开销），所以导出需要主动开启 —— 只设置端点而不设置 `OS_OBS_EXPORTER=otlp`
+不会发出任何东西，而只设置 `otlp` 却没有端点会发出警告并回落到 `noop`。本地调试时
+使用 `OS_OBS_EXPORTER=console` 或 `json`，用 `OS_OBS_DEPLOYMENT_ENV` 给部署打标签
+（默认为 `production`）。其余变量列在
+[环境变量](/docs/reference/environment-variables#observability)中。
+
+运行时本身不提供抓取端点。要使用 Prometheus，就把导出器指向一个 OpenTelemetry
+Collector，让 Collector 把指标暴露给 Prometheus —— 或者把它们发送到任何接受 OTLP
+的后端，例如 Grafana Cloud 或 Datadog。
+
+一条入门告警，假设你的管道保留了运行时的指标名称：
+
+```yaml
+groups:
+  - name: objectos
+    rules:
+      - alert: ObjectOS5xxSpike
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m])) > 0.02
+        for: 5m
+        annotations:
+          summary: "ObjectOS 5xx rate above 2% for 5 minutes"
+```
+
+对 `http_requests_total{status=~"5.."}` 告警，而不是对 `http_request_errors_total`：
+那个序列已在 ObjectStack 17.2 中退役，读数恒为零，看起来就像一个健康的服务器。
+
+冷启动不在这个列表上。内核只在启动时构建一次，进程在那之后才报告
+[就绪](/docs/deploy/docker#health-checks) —— 没有稳态的缓存未命中信号可以告警，
+所以改为对就绪状态告警。
+
+认证失败也不在上面。运行时的指标注册表覆盖 HTTP、存储、缓存、后台作业和包注册表；
+其中没有一项会统计被拒绝的凭据，所以没有可以告警的序列。从 `http_requests_total`
+中统计 401/403 也不能替代它：被拒绝的 API 密钥与一个根本没有携带凭据的请求无法
+区分，而且这两种状态码中占绝大多数的，是针对已经正常认证的用户的普通权限拒绝。
+请改为以 `view_all_audit_log` 持有者的身份，在 Setup 的 `Auth` 审计视图中审查登录
+活动 —— 平台管理员默认持有它。没有它的话，登出以及其会话此后已被移除的登录都不会
+显示；参见[审计日志](/docs/operate/audit-logs#what-each-reader-is-served)。
+
+## 审计日志 [#audit-logs]
+
+启用审计能力后，ObjectOS 会把审计记录写入 `sys_audit_log`。
+
+审计日志用于：
+
+- 权限敏感的变更；
+- 设置变更；
+- 用户/会话调查；
+- 集成活动；
+- 访问被拒绝的分析。
+
+对于受监管的环境，请在数据库或存储层把审计表设为只追加，并定义保留策略。
+
+完整的字段参考、预设视图以及同类的诊断日志，参见
+[审计日志](/docs/operate/audit-logs)。
+
+## Setup 诊断 [#setup-diagnostics]
+
+Setup 提供以下运维界面：
+
+- 会话；
+- 审计日志；
+- 通知；
+- 启用 webhook 时的 Webhook 投递记录；
+- 系统和安全概览仪表盘。
+
+这些界面面向运维人员和支持工程师，而不仅仅是开发者。

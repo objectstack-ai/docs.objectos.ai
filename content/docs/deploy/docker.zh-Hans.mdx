@@ -1,0 +1,380 @@
+---
+title: Docker
+seoTitle: "Docker：运行 ObjectOS Community 和 Enterprise"
+description: 用 Docker 运行 ObjectOS —— 固定镜像、设置三个必需的变量、用 Compose 加上 PostgreSQL、接好探针和代理、升级与回滚。企业版镜像还增加了私有镜像仓库、校验和许可证。
+editions: [community, enterprise]
+translation:
+  source_sha: 7fb88e85e29666d6c9ec80215a289bfa2bbe75dc1a35ab842ddd53f33bf4ea72
+  guide_rev: 1
+  mode: auto
+---
+
+Docker 是在你自己的服务器上运行 ObjectOS 的标准方式。两个自管理版本的步骤相同：
+一个被精确固定的镜像，配置在运行时注入，数据库放在容器之外。本页以开放的
+**Community** 镜像 `ghcr.io/objectstack-ai/objectstack` 逐步讲解；末尾的
+[企业版额外提供](#enterprise-adds)一节说明在需许可证的镜像上有什么不同。
+
+## 固定镜像 [#pin-the-image]
+
+Community 镜像随每个 ObjectStack 版本发布。它的标签与镜像内 ObjectStack CLI 的
+版本一致：版本 `X.Y.Z` 以 `X.Y.Z` 推送，并把 `latest`、`X.Y` 和 `X` 移到它上面。
+滚动标签会随每次发布而移动，所以对 `latest` 做一次例行的 `docker compose pull`，
+就可能在没有任何部署事件的情况下替换你正在运行的版本。
+
+确切的标签固定的是版本，而不是字节。维护者可以重新构建一个已经发布的版本，例如
+为了纳入 `node:22-slim` 基础镜像中的安全补丁，而重新构建会把同一个 `X.Y.Z` 标签
+再次推送到一个新镜像上。镜像内的 ObjectStack CLI 仍是同一个版本；基础镜像，以及
+它按版本范围安装的数据库驱动，则会重新解析。
+[发布工作流](https://github.com/objectstack-ai/objectstack/blob/main/.github/workflows/docker-publish.yml)
+声明了这种重新构建。只有**摘要**永远指向同样的字节。
+
+**在生产环境中运行确切的版本**，与构建你的应用的 CLI 版本相同；凡是你需要每台
+主机、每次重启都运行同样字节的地方，还要固定它的摘要。从镜像仓库读取摘要：
+
+```bash
+docker buildx imagetools inspect ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+固定第一行 `Digest:`，也就是 `Name:` 下面那一行。它指向整个镜像，包括两种架构；
+`Manifests:` 下列出的摘要各自只指向一个平台。按这个摘要引用镜像，并在旁边保留
+版本号，因为摘要本身并不说明它是哪个版本：
+
+```bash
+# ObjectStack X.Y.Z
+ghcr.io/objectstack-ai/objectstack@sha256:<64 hex characters>
+```
+
+把上一个版本及其摘要记下来：那就是回滚。镜像发布了 `linux/amd64` 和 `linux/arm64` 两种架构，以非 root
+用户运行，监听 **8080** 端口，并自带健康检查。它包含 PostgreSQL（`pg`）和 MySQL
+（`mysql2`）驱动。
+
+## 你要设置的三个值 [#the-three-values-you-set]
+
+其他一切都有可用的默认值。这三个没有：
+
+| 变量 | 缺少它会怎样 |
+|---|---|
+| `OS_DATABASE_URL` | 数据会落到运行时主目录下的一个 SQLite 文件中 —— 在一台持久的主机上没问题，但会随容器的文件系统一起丢失。生产环境使用 `postgres://…`。 |
+| `OS_AUTH_SECRET` | `/api/v1/auth/*` 下的登录端点会被**跳过**，服务器在没有认证的情况下运行。 |
+| `OS_SECRET_KEY` | 运行时会为存储的密钥自行生成一个加密密钥，并把它保存在自己的文件系统上。在容器中，这个密钥会随容器一起消失，用它加密的每个密钥都会变得无法读取。 |
+
+两个密钥只生成一次，并保存在你的密钥管理器中：
+
+```bash
+OS_AUTH_SECRET=$(openssl rand -hex 32)
+OS_SECRET_KEY=$(openssl rand -hex 32)
+```
+
+**绝不要把任何一个密钥烘焙进镜像。**在运行时从编排器的密钥存储中传入。把
+`OS_SECRET_KEY` 与数据库一起备份：恢复时没有带上密钥的数据库无法解密它自己的
+密钥 —— 参见[备份](/docs/operate/backup)。完整列表见
+[环境变量](/docs/reference/environment-variables)。
+
+## 运行它 [#run-it]
+
+镜像不带任何应用。把 `os build` 编译出的 `objectstack.json` 交给它，有三种方式。
+
+**挂载产物。**完全不用构建镜像 —— 镜像会在 `/srv/app/objectstack.json` 查找应用：
+
+```bash
+docker run -p 8080:8080 \
+  -v "$PWD/dist/objectstack.json:/srv/app/objectstack.json:ro" \
+  -e OS_DATABASE_URL="postgres://objectos:secret@db-host:5432/objectos" \
+  -e OS_AUTH_SECRET \
+  -e OS_SECRET_KEY \
+  ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+**按 URL 指定产物。**`OS_ARTIFACT_URL` 指向一个已发布的产物，所以一个固定的镜像
+加上一个变量就是一个运行中的应用，而升级应用就是修改这个变量再重启：
+
+```bash
+docker run -p 8080:8080 \
+  -e OS_ARTIFACT_URL="https://releases.example.com/crm-2.2.2.json#sha256=<64 hex characters>" \
+  -e OS_DATABASE_URL -e OS_AUTH_SECRET -e OS_SECRET_KEY \
+  ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+可选的 `#sha256=` 片段会固定产物的字节，运行时会据此约束启动：
+
+| 情况 | 运行时的行为 |
+|---|---|
+| 没有固定值 | 不做校验直接启动。如果无法获取产物，启动会**失败**，以便编排器重试 —— 没有可以回落的缓存副本。 |
+| 有固定值，字节匹配 | 启动，并保留已校验的副本。 |
+| 有固定值，字节不同 | **拒绝启动**，并点名期望的摘要和实际的摘要。 |
+| 有固定值，主机不可达 | 只有当缓存副本仍与固定值匹配时才从它启动，并以一条警告说明这一点。 |
+
+`file:///…` 也可以用于挂载的文件。把产物发布为不可变的、以版本命名的对象，并只给
+你的发布流水线写入权限 —— 正是这一点让回滚应用与升级应用成为同一种操作。
+
+**把产物复制进你自己的镜像。**每个版本一个自包含的镜像。项目脚手架
+（`npm create objectstack`）会为你写一个这种形态的 Dockerfile：
+
+```dockerfile title="Dockerfile"
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* package-lock.json* ./
+RUN if [ -f pnpm-lock.yaml ]; then corepack pnpm@10 install --frozen-lockfile; \
+    else npm ci; fi
+COPY . .
+RUN npx os build              # → dist/objectstack.json
+
+FROM ghcr.io/objectstack-ai/objectstack:X.Y.Z
+COPY --from=build --chown=node:node /app/dist/objectstack.json /srv/app/objectstack.json
+```
+
+## 用 Compose 加上 PostgreSQL [#compose-with-postgresql]
+
+一个单主机的生产技术栈：上面的镜像，旁边是它的数据库。
+
+```yaml title="docker-compose.yml"
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      OS_DATABASE_URL: postgres://objectos:${POSTGRES_PASSWORD}@db:5432/objectos
+      OS_AUTH_SECRET: ${OS_AUTH_SECRET}
+      OS_SECRET_KEY: ${OS_SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: objectos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: objectos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U objectos -d objectos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+```
+
+```bash
+# .env beside docker-compose.yml — never committed
+POSTGRES_PASSWORD=…
+OS_AUTH_SECRET=…
+OS_SECRET_KEY=…
+
+docker compose up -d
+curl -fsS http://localhost:8080/api/v1/health
+```
+
+当你迁移到托管的 PostgreSQL 时，把 `OS_DATABASE_URL` 指向它，并移除 `db` 服务。
+模式会在运行时启动时更新到最新：安全的变更会自行运行，而破坏性的变更会**拒绝
+启动**并点名每一项变更，直到你用 `os migrate apply --allow-destructive` 有意识地
+应用它（[CLI](/docs/reference/cli#database-migrations--os-migrate)）。
+
+## 健康检查 [#health-checks]
+
+两个端点，它们不能互换：
+
+| 端点 | 回答什么 | 接到 |
+|---|---|---|
+| `/api/v1/health` | 进程已启动并在提供 HTTP 服务。它从不访问数据库。 | 存活探针 |
+| `/api/v1/ready` | 运行时已启动**且其数据驱动有响应**。只要有一个驱动没有响应，就返回 `503` 并点名失败的驱动。 | 就绪探针，以及你的负载均衡器 |
+
+如果接反了，后果很糟。把存活探针接到 `/api/v1/ready`，会在数据库故障期间重启每个
+副本 —— 而重启解决不了这个问题 —— 还会把配置故障变成一个掩盖它的重启循环。应该
+做出反应的是就绪探针：数据库不可用时，它把副本从轮转中移出，数据库恢复后再把它
+放回来，不需要重启。应用所绑定的数据源也必须在启动时连上，否则启动会直接失败：
+一个无法访问的数据库就是一次失败的部署，而不是一个先启动、然后在每个请求上都
+报错的容器。
+
+## 反向代理和 TLS [#reverse-proxy-and-tls]
+
+在运行时前面终止 TLS —— Caddy、nginx、Traefik 或你的云负载均衡器 —— 并让三个值
+与公网地址保持一致：
+
+```bash
+OS_AUTH_URL=https://app.example.com          # sign-in callbacks and cookie origin
+OS_TRUSTED_ORIGINS=https://app.example.com   # sign-in callback and CSRF allow-list
+OS_PORT=8080                                 # the proxy's upstream port
+```
+
+```text title="Caddyfile"
+app.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+端口或源对不上是自托管时的经典故障：应用在运行，但登录会被弹回，浏览器会阻止
+API 调用。只要 Console 和 API 共享同一个公网源，CORS 就不需要任何配置。从**另一个**
+源提供的前端要显式列在 `OS_CORS_ORIGIN` 中 —— 在开启凭据时，`*` 会在启动时被
+拒绝。只有在确认 TLS 正常后才开启 HSTS；其余内容见
+[生产就绪](/docs/operate/production)。
+
+## 首次启动：第一个管理员 [#first-boot-the-first-administrator]
+
+在一个全新的数据库上，打开部署的地址并**注册 —— 第一个账户会成为管理员。**在首次
+部署后立即完成这一步，再分享地址。生产服务器不会预置任何默认凭据：你可能在
+`os dev` 中见过的 `admin@objectos.ai` 账户只存在于开发数据库中。
+
+如果要改为在配置中指定管理员，就把 `OS_PLATFORM_OWNER_EMAIL` 设为一个地址或一个
+逗号分隔的列表；列出的每个账户在其邮箱地址验证后即拥有该身份。多组织姿态要求设置
+它 —— 参见[环境变量](/docs/reference/environment-variables#multi-organization-deployments)。
+
+一个预置了人员记录、却没有登录账户的应用会关上这扇门：第一个账户的规则计算的是
+人员，而不是登录。启动日志会说明这一点 —— 参见
+[故障排查](/docs/operate/troubleshooting#nobody-can-sign-in)。
+
+## 多节点 [#multi-node]
+
+ObjectOS Community 运行**一个副本**。协调 —— 锁、队列、调度 —— 是进程内的，所以
+第二个副本无法共享它。在没有许可证的情况下声明多个副本（`OS_CLUSTER_REPLICAS`
+大于 1）会**拒绝启动**，而不是用按进程的锁运行它们。集群与高可用是企业版能力 ——
+参见下文的[多节点](#multi-node-on-enterprise)。
+
+## 升级与回滚 [#upgrade-and-rollback]
+
+1. 阅读你所跨越的每个 ObjectStack 版本的发布说明，以及它们要求运维人员执行的
+   [特定版本步骤](/docs/operate/upgrade#version-specific-steps)。
+2. **备份数据库。**模式迁移只能向前：回滚镜像并不会回滚模式。
+3. 把镜像改为新的确切版本，如果你固定了摘要，就改为它的摘要，然后重启。模式会在
+   启动时、运行时报告就绪之前更新到最新。
+4. 确认 `/api/v1/ready` 返回 200。
+5. 要回滚，就恢复上一个标签或摘要并重复第 3 步 —— 只要你要离开的版本没有做不兼容的
+   模式变更，这就是有效的。
+
+应用单独进行版本管理：修改 `OS_ARTIFACT_URL` 或你挂载的产物，就能在不动镜像的
+情况下升级它。
+
+## 企业版额外提供 [#enterprise-adds]
+
+需许可证的企业版镜像以同样的方式运行，并增加了私有镜像仓库、供应链校验、许可证和
+多节点；它的发布说明会点名要固定的摘要。你的版本会附带一个**部署包**，其中包含一个 Compose 技术栈、
+每种部署形态一个环境模板，以及一份带有适用于你的确切版本的命令的 README。本节是
+该部署包所配置内容的决策地图。
+
+### 你会得到什么 [#what-you-are-given]
+
+你的许可证附带私有运行时镜像的**镜像仓库凭据**。登录需要一个具有包**读取**权限的
+令牌；没有公开的企业版镜像，也不能从源码构建：镜像由我们的发布流水线从不分发的
+源码产出，所以 `docker build` 对它来说不是一条存在的路径。
+
+**受支持的架构：仅 `linux/amd64`。**这是一项声明，而不是遗漏：构建会拒绝为我们未
+声明的架构产出镜像。Apple Silicon 和 Graviton 主机会在模拟下运行它，这用来看一看
+没问题，用于生产则是错的。
+
+### 按摘要固定镜像 [#pin-the-image-by-digest]
+
+你在生产环境中运行的镜像引用是一个**摘要**，而不是标签：
+
+```
+OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters>
+```
+
+标签是人类可读的名称，可以被重新指向不同的字节。摘要是按内容寻址的：同一个摘要
+永远是同一个镜像，在每台主机上、永远如此。使用标签的话，事后就无法证明出问题时
+实际运行的是什么。你的发布说明会给出摘要；原样粘贴即可。也要保留**上一个**摘要。
+
+### 镜像可以告诉你它是什么 [#the-image-can-tell-you-what-it-is]
+
+镜像带有两个不同的版本号，不应混为一谈：ObjectOS 的**产品版本**，以及其中内嵌的
+**ObjectStack 运行时的兼容范围**，后者按自己的节奏变化。两者 —— 连同构建镜像所用
+的源码修订版本 —— 都记录在镜像本身中，作为 OCI 标签和一份机器可读的发布清单。你
+永远不必来问我们你拿到的是哪个构建。
+
+这份清单也是附在支持请求中最有用的东西：它足以重现你的确切镜像。
+
+### 在生产之前校验镜像 [#verify-the-image-before-production]
+
+镜像是**经过签名的**（无密钥签名，通过我们发布流水线的 OIDC 身份），并附带一份
+**SBOM** 和**构建溯源**。在生产上线之前校验一次 —— 三项检查回答三个不同的问题：
+
+| 检查 | 它回答的问题 |
+|---|---|
+| 签名 | 这个摘要是由 ObjectOS 发布流水线产出的，而不是别人？ |
+| SBOM | 这个镜像里有什么？ |
+| 溯源 | 这个镜像是如何、从哪些源码构建出来的？ |
+
+部署包的 README 中有校验命令，以及要核对的身份和签发者，与你的版本相匹配。
+
+### 许可证 [#license]
+
+**许可证是正常路径的一部分。**企业版镜像在没有许可证时的行为，取决于你要求它成为
+什么：
+
+- **单组织，无许可证** —— 部署以 ObjectOS Community 运行：开放的 MCP 服务器，
+  自带你自己的 AI。什么都不会变砖。
+- **单组织，有许可证** —— 产品内 AI 会在你自己的基础设施上解锁：AI Builder 和
+  "问你的数据"。
+- **多组织（隔离墙式租户姿态），无许可证** —— 运行时会**在启动时退出**，并点名
+  许可证。组织之间的隔离是一项需许可证的能力，一个要求隔离的部署绝不能假装拥有
+  隔离来提供服务。
+
+同一条线上还有第二个约束，而它正是让人意外的那个：**许可证有模式，而模式与你的
+云端姿态耦合。**普通许可证针对控制平面在线校验；物理隔离许可证在本地校验，完全
+不需要网络。把普通许可证与"没有控制平面"搭配不是一种降级状态，而是一种不可能的
+状态 —— 它会**在启动时被拒绝**，并点名两项设置，而不是之后才以一条关于许可证的
+误导性抱怨失败。[物理隔离](/docs/deploy/air-gapped)给出了受支持组合的完整矩阵。
+
+### 隔离墙式部署必须再声明两项决策 [#a-walled-deployment-must-declare-two-more-decisions]
+
+在多组织姿态下，有两项设置没有安全的默认值，所以运行时会**拒绝启动，直到你做出
+决定** —— 声明任何一个可用的值都会被接受；不做决定则不行：
+
+| 决策 | 为什么不能有默认值 |
+|---|---|
+| **新注册的用户加入什么** | 在成员资格*就是*租户边界的地方，它只能通过显式的行为授予 —— 邀请、管理员、SSO 开通。自动加入会把一个陌生人放进一个现有的组织。 |
+| **挂载哪些 AI Agent** | "ask" Agent 只读；"build" Agent **编写元数据** —— 而元数据的作用域是部署，而不是组织。在共享数据库上，一个客户的一次 build 对话就会改写其他所有客户运行所依赖的模式。 |
+
+单组织部署不会看到这两项检查。
+
+### 出厂技术栈 [#the-shipped-stack]
+
+部署包中的 Compose 技术栈按部署必须遵循的顺序编排，值得了解这个顺序，因为任何
+其他编排器都必须重现它：
+
+1. 数据库变为健康状态。
+2. 一个**一次性迁移**把模式运行到完成 —— 在任何应用副本启动之前，所以并发的
+   副本永远不会相互对抗地执行模式变更。
+3. 应用副本启动。镜像自带健康检查。
+4. 反向代理只有在某个副本真正有响应时才开始转发 —— 而不仅仅是被创建出来。
+
+在生产环境中，把部署指向你**托管的** PostgreSQL（如果做集群，还有 Redis），并移除
+捆绑的数据库服务。把你的域名交给代理，即可获得自动 HTTPS。运行时容器以非 root
+用户运行，并把运行时状态保存在一个声明的卷上。
+
+### 企业版上的多节点 [#multi-node-on-enterprise]
+
+扩展到一个副本以上，会改变哪些是必需的：
+
+- 开启**集群驱动**（以 Redis 为后端），并且
+- **共享的加密密钥成为必需。**没有集群驱动时，运行时会自行生成并持久保存它自己的
+  密钥。跨副本时这些密钥会悄悄地互不相同 —— 所以**运行时会拒绝启动**，而不是让
+  它们分叉。生成一个密钥，并给每个副本相同的值。
+- **认证密钥也必须在每个副本上完全相同。**修改它会使所有现有会话失效，并让签名
+  密钥成为孤儿；环境模板说明了轮换时附带的那一次性清理步骤。
+- `OS_CLUSTER_REPLICAS` 设置捆绑的技术栈启动多少个应用副本。
+
+### 按摘要升级 [#upgrade-by-digest]
+
+上面的升级步骤同样适用，只是用摘要代替标签：
+
+1. 从发布说明中取得**新的摘要**，并在上线之前阅读镜像的发布清单：确认产品主版本
+   线是你所在的那一条，并检查内嵌运行时的兼容范围是否移动了。运行时主版本的移动
+   意味着底层有破坏性变更 —— 先阅读那个版本的发布说明。
+2. 备份数据库。
+3. 修改镜像摘要并重启技术栈。迁移会在新副本接收流量之前运行到完成。
+4. 确认就绪端点返回 200，且副本报告为健康。
+5. 要回滚，就恢复上一个摘要并重复第 3 步 —— 只要你要离开的版本没有做不兼容的
+   模式变更，这就是有效的（发布说明会说明何时做了这样的变更）。
+
+## 下一步 [#next]
+
+- [Kubernetes](/docs/deploy/kubernetes) —— 同一个镜像，运行在编排器上。
+- [生产就绪](/docs/operate/production) —— 上线前的检查清单。
+- [可观测性](/docs/operate/observability) —— 日志、指标、审计。
+- [物理隔离](/docs/deploy/air-gapped) —— 面向断网站点的企业版许可证模式。

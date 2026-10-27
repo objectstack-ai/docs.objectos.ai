@@ -1,0 +1,118 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 可觀測性
+seoTitle: "可觀測性：日誌、請求 ID、指標、錯誤"
+description: 日誌、請求 id、指標、錯誤、會話和審計日誌。
+editions: [community, enterprise]
+translation:
+  source_sha: 6260a1763af40fdb7320387d9d4a60879fc6f529e51b110ee98e9a10dff64f6e
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 的運維既需要基礎設施訊號，也需要應用訊號。框架提供請求 id、指標、錯誤
+上報器和審計原語；由部署決定把它們匯出到哪裡。
+
+## 請求身份 [#request-identity]
+
+每個生產部署都應傳遞或生成一個請求 id：
+
+```text
+X-Request-Id
+```
+
+用它來關聯：
+
+- 入口日誌；
+- ObjectOS 日誌；
+- 資料庫慢查詢；
+- 錯誤報告；
+- 客戶支援工單。
+
+## 指標和錯誤 [#metrics-and-errors]
+
+執行時在程序內儲存指標和錯誤報告，只有在你選擇了匯出器時才會匯出它們。至少要
+跟蹤：
+
+| 訊號 | 原因 |
+|---|---|
+| 按路由/狀態統計的請求數 | 發現錯誤激增 |
+| 請求耗時 | 發現延遲迴退 |
+| 5xx 錯誤 | 對執行時故障告警 |
+| 就緒狀態轉換 | 程序只有在其核心構建完成後才報告就緒，並且當某個資料驅動停止時，`/api/v1/ready` 返回 503 |
+
+請求數和耗時以 `http_requests_total` 和 `http_request_duration_ms` 發出，帶有方法、
+路由模式和狀態標籤，覆蓋每一個入站請求 —— 包括登入和 REST 資料 API。
+
+### 用 OpenTelemetry 匯出 [#export-with-opentelemetry]
+
+指標通過 **OTLP** 離開執行時。設定 `OS_OBS_EXPORTER=otlp` **和**
+`OS_OTLP_ENDPOINT`（例如 `https://<collector>/otlp`）。匯出器預設為 `noop`（零
+執行時開銷），所以匯出需要主動開啟 —— 只設置端點而不設定 `OS_OBS_EXPORTER=otlp`
+不會發出任何東西，而只設置 `otlp` 卻沒有端點會發出警告並回落到 `noop`。本地除錯時
+使用 `OS_OBS_EXPORTER=console` 或 `json`，用 `OS_OBS_DEPLOYMENT_ENV` 給部署打標籤
+（預設為 `production`）。其餘變數列在
+[環境變數](/docs/reference/environment-variables#observability)中。
+
+執行時本身不提供抓取端點。要使用 Prometheus，就把匯出器指向一個 OpenTelemetry
+Collector，讓 Collector 把指標暴露給 Prometheus —— 或者把它們傳送到任何接受 OTLP
+的後端，例如 Grafana Cloud 或 Datadog。
+
+一條入門告警，假設你的管道保留了執行時的指標名稱：
+
+```yaml
+groups:
+  - name: objectos
+    rules:
+      - alert: ObjectOS5xxSpike
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m])) > 0.02
+        for: 5m
+        annotations:
+          summary: "ObjectOS 5xx rate above 2% for 5 minutes"
+```
+
+對 `http_requests_total{status=~"5.."}` 告警，而不是對 `http_request_errors_total`：
+那個序列已在 ObjectStack 17.2 中退役，讀數恆為零，看起來就像一個健康的伺服器。
+
+冷啟動不在這個列表上。核心只在啟動時構建一次，程序在那之後才報告
+[就緒](/docs/deploy/docker#health-checks) —— 沒有穩態的快取未命中訊號可以告警，
+所以改為對就緒狀態告警。
+
+認證失敗也不在上面。執行時的指標註冊表覆蓋 HTTP、儲存、快取、後臺作業和包登錄檔；
+其中沒有一項會統計被拒絕的憑據，所以沒有可以告警的序列。從 `http_requests_total`
+中統計 401/403 也不能替代它：被拒絕的 API 金鑰與一個根本沒有攜帶憑據的請求無法
+區分，而且這兩種狀態碼中佔絕大多數的，是針對已經正常認證的使用者的普通許可權拒絕。
+請改為以 `view_all_audit_log` 持有者的身份，在 Setup 的 `Auth` 審計檢視中審查登入
+活動 —— 平臺管理員預設持有它。沒有它的話，登出以及其會話此後已被移除的登入都不會
+顯示；參見[審計日誌](/docs/operate/audit-logs#what-each-reader-is-served)。
+
+## 審計日誌 [#audit-logs]
+
+啟用審計能力後，ObjectOS 會把審計記錄寫入 `sys_audit_log`。
+
+審計日誌用於：
+
+- 許可權敏感的變更；
+- 設定變更；
+- 使用者/會話調查；
+- 整合活動；
+- 訪問被拒絕的分析。
+
+對於受監管的環境，請在資料庫或儲存層把審計表設為只追加，並定義保留策略。
+
+完整的欄位參考、預設檢視以及同類的診斷日誌，參見
+[審計日誌](/docs/operate/audit-logs)。
+
+## Setup 診斷 [#setup-diagnostics]
+
+Setup 提供以下運維介面：
+
+- 會話；
+- 審計日誌；
+- 通知；
+- 啟用 webhook 時的 Webhook 投遞記錄；
+- 系統和安全概覽儀表盤。
+
+這些介面面向運維人員和支援工程師，而不僅僅是開發者。
