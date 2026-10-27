@@ -1,0 +1,185 @@
+---
+title: 架构
+seoTitle: "架构：运行什么，数据在哪里"
+description: 你实际在运行的是什么 —— 写给正在评估是否引入它的工程师。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9292459ed8a30885f3b5c660fb772187d5d1edb8ead66c12839ab7900dcbef3f
+  guide_rev: 1
+  mode: auto
+---
+
+从实用角度看部署 ObjectOS 时运行了什么 —— 无论是用 **ObjectOS
+Enterprise** 在你自己的机器上，还是由 **ObjectOS Cloud** 为你运维 ——
+哪些数据会离开你的网络，哪些不会。
+
+心智模型是一份定义，加上一个运行它的运行时：
+
+1. **你的[本体](/docs/ontology)** —— 对业务的定义：对象和字段、关系、
+   动作、权限、流程，以及 Agent 与工具定义。视图、仪表盘、应用和翻译
+   作为它的投影在它旁边编写。大部分由
+   [AI Builder](/docs/build/ai-builder) 通过沙箱化的工具 API 编写；
+   有时手工编辑；运行前总会经过校验，并受版本控制和审计。
+2. **一个单独的 Node.js 运行时**，从它**派生**出可工作的应用 —— 数据库
+   模式、REST API、Console UI 以及 Agent 调用的 MCP 服务器 —— 并在每次
+   调用时**强制执行**它：RBAC、行级和字段级安全、共享和审计，对 REST
+   请求、Console 点击和 Agent 的工具调用一视同仁。全部在一个进程中，
+   与你的数据库通信。
+
+```text
+your ontology
+  objects · relations · actions
+  permissions · flows · agents
+  + projections: views · dashboards
+    apps · translations
+      │
+      ▼
+ObjectOS runtime
+  derives the app, enforces it
+      │
+      ├──▶ database    its schema
+      ├──▶ REST API    /api/v1/*
+      ├──▶ Console     /_console/
+      └──▶ MCP server  /api/v1/mcp
+```
+
+在"用户描述了他们想要什么"和"它已上线"之间，没有代码生成步骤，也没有
+部署流水线。运行时会在人工审批（HITL）通过后热加载新的元数据。
+
+## 你部署的是什么 [#what-you-deploy]
+
+一个 Node.js 进程，服务一个应用。仅此而已。在 ObjectOS Community 上，
+你用开源镜像自己运行这个进程（`os start`）；在 ObjectOS Cloud 上，我们
+为你运行它；在 ObjectOS Enterprise 上，你用[部署](/docs/deploy)中描述的、
+获得许可的 Enterprise 镜像来部署它。
+
+```text
+┌─────────────────────────────────────────────────────┐
+│                  ObjectOS process                   │
+│  ┌───────────────────────────────────────────────┐  │
+│  │   HTTP dispatcher  (/ · /api · /_console …)   │  │
+│  ├───────────────────────────────────────────────┤  │
+│  │   ObjectKernel — this deployment's app        │  │
+│  │   ├─ Auth (Better Auth)                       │  │
+│  │   ├─ Security (RBAC + row-level + field)      │  │
+│  │   ├─ ObjectQL (data engine, generates SQL)    │  │
+│  │   ├─ REST API generator                       │  │
+│  │   ├─ MCP server  (/api/v1/mcp, on by default) │  │
+│  │   └─ Capabilities loaded per artifact         │  │
+│  │      (audit, storage, jobs, queue, AI …)      │  │
+│  └───────────────────────────────────────────────┘  │
+└──────────┬──────────────────────────────────────────┘
+           │
+           ▼
+   Your business database
+   (Postgres / MySQL / SQLite / Turso / MongoDB)
+```
+
+它的复杂度相当于一个静态链接的二进制文件。不需要 sidecar，不需要
+Kafka，也不需要单独的缓存层。等你需要时再加上它们；不必在第一天就为
+它们付费。
+
+**一个部署服务一个应用。** 用哪个应用是部署级别的决定 —— 参见
+[启动模式](#boot-modes) —— 而且对该部署服务的每个人都是同一个应用，
+包括多个组织共享的隔墙式部署。你通过运行更多相同进程的同构副本来扩展
+部署，而不是把更多应用塞进一个部署；参见 [Docker](/docs/deploy/docker)。
+
+## 你的数据存放在哪里 [#where-your-data-lives]
+
+在 **ObjectOS Enterprise** 上 —— 也就是下面这张表所描述的自管理版本 ——
+下列任何内容都不会离开你的网络。在 **ObjectOS Cloud** 上，同样的进程
+改为运行在我们的基础设施中；无论哪个版本，本体本身都归你：导出它并在
+开源的 ObjectStack 运行时上运行。[数据驻留](/docs/reference/security#data-residency)
+列出了每一类数据、它存放在哪里，以及它是否会离开你的网络。
+
+自管理的 ObjectOS 会在线校验许可证；Enterprise 物理隔离许可证则离线
+校验。因此，一个完全无法访问互联网的部署也能继续运行 —— 受支持的许可证
+与云连接姿态组合见[物理隔离](/docs/deploy/air-gapped)。
+
+## 一个请求是如何被处理的 [#how-a-request-is-served]
+
+```text
+1. Ingress / TLS termination      (your load balancer)
+2. HTTP dispatcher                (security headers, request id)
+3. AuthPlugin     — session cookie, bearer token, or API key
+4. SecurityPlugin — RBAC + row-level + field-level checks
+5. Route handler  — generated REST, MCP tool call, declarative action,
+                    or custom
+6. Data driver    — ObjectQL compiles to SQL / Mongo query
+7. Response with X-Request-Id propagated
+```
+
+Agent 的调用走的是同一条路径。MCP 客户端以某个用户的身份通过 OAuth 或
+API 密钥进行认证，同样的权限检查约束着它的工具调用能读写什么 —— 参见
+[连接 AI 工具（MCP）](/docs/configure/mcp)。
+
+在第一个请求到达之前，应用就已经确定了：内核在启动期间构建，进程在
+构建完成之前不会报告自己已[就绪](/docs/deploy/docker)。因此一个被处理的
+请求中没有任何步骤去决定它属于*哪个*应用，也没有需要读者规划的按应用
+预热 —— 一个请求的开销就是认证、权限检查，以及一次编译好的查询。
+
+## 三个层次（只在你需要集成时才重要） [#the-three-layers-only-matters-if-youre-integrating]
+
+大多数客户只运行 **ObjectOS**。如果你想知道产物从哪里来，另外两层是：
+
+| 层次 | 它是什么 | 运行在哪里 |
+|---|---|---|
+| **框架**（`@objectstack/*`） | 开源的内核、ObjectQL、插件、驱动 | npm —— 在构建时引入 |
+| **控制平面**（可选） | 发布编译好的 `objectstack.json` 产物；你可以使用托管的 ObjectOS Cloud、自己运行一个，或者完全不用 | 你的 CI、我们的云，或者你的笔记本 |
+| **ObjectOS** | 构建在框架之上的商业运行时环境 | **ObjectOS Cloud**（由我们运维）或**你的基础设施**（ObjectOS Enterprise） |
+
+如果你只交付一个应用，就不需要控制平面 —— 在你的 CI 中把
+`objectstack.config.ts → dist/objectstack.json` 编译好，然后把 JSON 放进
+镜像里交付。如果你发布供多个部署安装的应用，控制平面就是这个目录所在
+的地方。
+
+## 启动模式 [#boot-modes]
+
+正在运行的应用从哪里来是一个决定，由部署来声明。随附的默认模式无需任何
+配置；其他每种模式都通过指定一个已发布的产物来选择，
+[环境变量](/docs/reference/environment-variables)参考中列出了每种模式的
+确切约定。
+
+| 模式 | 何时使用 | 应用如何到达 |
+|---|---|---|
+| **配置编写（Config-authored）** | 随附的形态。单个应用、评估、物理隔离，以及大多数生产部署 | 运行时启动镜像中编写的元数据，以及安装到其中的任何内容 |
+| **产物锁定（Artifact-pinned）** | 应用按自己的节奏发布，与运行时镜像分开 | 用一个变量通过 URL 指定一个已发布的产物，可选附带完整性锁定。升级应用就是修改这个变量并重启 |
+| **组合（Composed）** | 多个组织位于隔离墙之后，共享一个数据库，运行一个已发布的应用 —— 托管的单应用 SaaS 形态 | 同样的产物引用，从部署自身的配置中读取，以便企业插件与它一同加载。仅限物理隔离许可证，否则会[在启动时被拒绝](/docs/deploy/air-gapped) |
+
+部署是否还与**控制平面**通信是另一个独立的决定，由云连接姿态变量决定 ——
+一个已连接的部署可以是上述任意一种模式。自管理运行时用部署**绑定**到
+控制平面时签发的令牌向控制平面认证，而不是用粘贴进文件的密钥；把错误的
+许可证模式与错误的云连接姿态搭配在一起，会[在启动时被拒绝](/docs/deploy/air-gapped)。
+
+## 性能特征 [#performance-characteristics]
+
+**本页不公布任何延迟或内存数据。** 你运行的是一个按摘要锁定的镜像，
+针对*你的*数据库服务*你的*应用，唯一值得用来规划部署规模的数字，是你在
+这个环境上测得的数字。本页能给你的是形状 —— 每项开销来自哪里，以及应该
+如何测量它。
+
+| 特征 | 它来自哪里，以及如何测量 |
+|---|---|
+| **启动** | 进程启动，为本部署的应用构建内核，然后才报告就绪。把它测量为在你自己的镜像和产物上，`/api/v1/ready` 返回 200 所需的时间；应用越大、加载的能力越多，它要做的事就越多。 |
+| **请求延迟** | 认证、权限检查，以及一次由 ObjectQL 编译的查询。没有任何按请求的步骤去决定服务哪个应用，所以通常变化的是数据库往返这一部分；用你自己的百分位、针对你自己的数据量来测量。 |
+| **内存** | 本部署元数据的一份常驻副本，加上应用加载的能力 —— 它们是可选插件，所以加载得越少的部署占用越少 —— 再加上你的并发中正在处理的内容。在你自己的负载下测量容器的 RSS，而不是在空闲时。 |
+| **扩展到多个进程** | 同一进程的副本，每个都服务同一个应用。超过一个副本后，集群驱动和相同的共享密钥就不再是可选的了 —— 参见 [Docker](/docs/deploy/docker)。 |
+
+## 为什么是这种形状 [#why-this-shape]
+
+- **一个 Node 进程，没有 sidecar** → 装得进一个 `docker run`，装得进一个
+  systemd 单元，装得进一个长期运行的容器或虚拟机。
+- **每个部署一个应用** → 元数据在启动时解析一次，而不是每个请求都解析，
+  所以没有需要调对的缓存大小；当多个组织共享一个部署时，它们共享这个
+  部署的应用，它们之间的隔离墙在运行时内部强制执行。
+- **在声明的元数据之上生成 API** → 你的 CI 中没有代码生成步骤，也没有
+  需要发布的客户端 SDK；API 从设计上就与你的数据模型一致。
+- **所有能力都是可选插件** → 镜像大小随你实际使用的内容伸缩。
+
+## 下一步去哪里 [#where-to-go-next]
+
+- [生产就绪](/docs/operate/production) —— 在把它暴露给真实流量之前的
+  检查清单。
+- [运行时配置](/docs/configure/runtime) —— 连接数据库、缓存和密钥。
+- [运行时能力](/docs/reference/runtime-capabilities) —— 有哪些可选包，
+  以及它们启用了什么。

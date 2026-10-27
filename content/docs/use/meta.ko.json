@@ -1,4 +1,16 @@
 {
   "title": "사용",
-  "pages": ["index", "records", "views", "dashboards", "approvals", "notifications", "profile"]
+  "pages": [
+    "index",
+    "records",
+    "views",
+    "search",
+    "import",
+    "files",
+    "collaboration",
+    "dashboards",
+    "approvals",
+    "notifications",
+    "profile"
+  ]
 }

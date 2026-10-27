@@ -1,11 +1,5 @@
 {
   "title": "リソース",
   "defaultOpen": false,
-  "pages": [
-    "glossary",
-    "faq",
-    "changelog",
-    "license",
-    "support"
-  ]
+  "pages": ["glossary", "faq", "changelog", "support"]
 }

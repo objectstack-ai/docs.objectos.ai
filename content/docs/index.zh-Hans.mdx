@@ -1,0 +1,119 @@
+---
+title: 简介
+seoTitle: "文档：开始、构建、部署、运维"
+description: "ObjectOS 是构建在 ObjectStack 之上的商业运行时环境，可托管（ObjectOS Cloud）或自管理（ObjectOS Enterprise）。本体归你所有。"
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 0347fa621f4342212be72ecb78497ccea72ca3490d850f45dc5b91549d81cf22
+  guide_rev: 1
+  mode: auto
+---
+
+本体就是软件。一个可执行的业务本体：AI 编写它，运行时运行它，Agent
+操作它，你拥有它。想要同样的闭环，托管在浏览器里、什么都不用安装？
+那就是 ObjectOS —— 构建在 ObjectStack 之上的商业运行时环境。ObjectOS
+既可以托管运行在浏览器中、无需任何安装（ObjectOS Cloud），也可以自管理
+运行在你自己的基础设施上（ObjectOS Enterprise）；无论哪个版本，你都可以
+导出你的本体，并在开源的 ObjectStack 运行时上运行它。
+
+向内置的 [AI Builder](/docs/build/ai-builder) 描述业务需要什么 —— 一个
+服务台、一条审批流程、一个 CRM —— 或者安装一个模板，它写出的本体会立即
+上线：REST API、生成的界面、身份认证、RBAC、审计日志、文件存储、后台
+任务、Webhook，并且每个对象都会作为 MCP 工具暴露给你的 Agent 调用。每次
+变更都是一个小而可读的 diff，由人批准后才会运行。
+
+开源（Apache-2.0）的
+[ObjectStack](https://github.com/objectstack-ai/objectstack) 技术栈 ——
+协议、内核、CLI 和生产级运行时 —— 负责执行本体，也是 ObjectOS 的构建
+基础。你在 ObjectOS 上构建的一切都是普通的 ObjectStack 元数据，因此从
+设计上就能迁移到那个运行时。
+
+## 开始 [#start]
+
+| 你想要 …… | 这样做 |
+|---|---|
+| 用 ObjectOS，什么都不装 | **ObjectOS Cloud**，为你托管 —— Free 套餐就足够构建你的第一个应用。参见[在 ObjectOS Cloud 上开始](/docs/start/cloud) |
+| 在你自己的基础设施上运行 ObjectOS，获得授权许可 | **ObjectOS Enterprise**，从单节点的 Business Self-Managed 选项起步，在你的服务器上运行获得许可的 Enterprise 镜像 —— 参见[在 ObjectOS Enterprise 上开始](/docs/start/enterprise) |
+| 在你自己的机器上免费运行 ObjectOS | **ObjectOS Community**，开源运行时：`npm i -g @objectstack/cli && os start` 会用 SQLite 数据库、零配置启动它 —— 参见[在本地运行 ObjectOS Community](/docs/start/community) |
+
+之后，ObjectOS Cloud 和 ObjectOS Enterprise 会把你带到同一个地方 —— 登录，然后：
+
+- **与 AI Builder 对话** —— *"我需要跟踪带优先级和负责人的支持工单"* ——
+  看着它编写你的[本体](/docs/ontology)，也就是对象及其字段，作为一个
+  由你批准的小 diff。参见
+  [构建 → AI Builder](/docs/build/ai-builder)。
+- **从内置市场安装一个模板**（Todo、Contracts、Helpdesk ……），一键
+  得到一个真正的应用。
+- **Fork 一个[模板](/docs/build/templates)**，如果你想把 TypeScript
+  源码掌握在自己手中 —— 同样的元数据，在你的仓库里由你的编码 Agent
+  编写。
+
+## 为什么选 ObjectOS 而不是 …… [#why-objectos-instead-of-]
+
+| 你正在用 | 痛点 | ObjectOS 给你什么 |
+|---|---|---|
+| **Retool / Appsmith** | UI 构建器很好，但你的数据放在他们的云里，价格随用户数增长 | 托管（ObjectOS Cloud）或在你的网络内（ObjectOS Enterprise）；构建在开源的 ObjectStack（Apache-2.0）之上，所以本体由你导出；没有按席位收的税 —— 只收 AI 席位 |
+| **Supabase / Firebase** | 后端即服务很快，但被厂商锁定；天生就是多租户 SaaS | 同样的开发体验（自动 API、认证、存储），但定义归你：导出它并在开源的 ObjectStack 运行时上运行，或在你自己的数据库上运行 ObjectOS Enterprise |
+| **Salesforce / NetSuite** | 平台强大，定制痛苦，按席位的费用高得吓人 | 熟悉的词汇（对象、字段、权限集、共享规则），但定义是一个开放的本体：AI 编写，Agent 操作，你可以把它导出到 Apache-2.0 运行时；托管或自管理，没有席位税 —— 只读用户和非 AI 用户免费 |
+| **自己从头搭（Next + Prisma + NextAuth）** | 每次都要重做 RBAC、审计、文件上传、设置、Webhook、任务 | 只交付真正的业务逻辑；平台的基础设施已经在那里了 |
+
+## 开箱即得 [#what-you-get-out-of-the-box]
+
+| 能力面 | 它是什么 |
+|---|---|
+| **自动 REST API** | 你声明的每个对象都会得到 `/api/v1/data/<object>`，支持过滤、排序、分页 |
+| **UI**（`/_console/`） | 生成的界面：浏览和编辑记录，以及用于管理用户/角色/权限集、查看审计日志、会话、API 密钥和设置的 **Setup** |
+| **账户**（[在 UI 内](/docs/resources/glossary#surface)） | 登录、注册、重置密码、OAuth、OIDC/SSO、通行密钥、双因素认证 |
+| **MCP 服务器**（`/api/v1/mcp`） | 默认开启：每个对象都是一个工具，你暴露给 AI 的每个动作也是；Agent 以某个用户的身份连接，受该用户权限约束 —— 参见[连接 AI 工具（MCP）](/docs/configure/mcp) |
+| **20+ 个插件** | RBAC + 行级安全、审计、文件存储、队列、任务、邮件、AI、Webhook —— 声明式，按需启用 |
+
+## 什么始终归你 [#what-stays-yours]
+
+无论哪个版本，本体都归你：你的对象、字段、关系、动作、权限、流程和
+Agent 定义都是普通的 ObjectStack 元数据，你可以导出它们并在开源的
+ObjectStack 运行时上运行。在 **ObjectOS Enterprise** 上，其他一切也都
+留在你这里：[数据驻留](/docs/reference/security#data-residency) 列出了
+每一类数据、它存放在哪里，以及它是否会离开你的网络。
+
+自管理的 ObjectOS 会在线校验许可证；Enterprise 物理隔离许可证则离线
+校验。因此，一个无法访问互联网的网络是 Enterprise 的一等部署目标 ——
+参见[物理隔离](/docs/deploy/air-gapped)。
+
+## 找到你的文档 [#find-your-docs]
+
+这份文档面向四类读者 —— 从与你使用 ObjectOS 的方式相匹配的部分开始：
+
+| 你是 …… | 你想要 …… | 从这里开始 |
+|---|---|---|
+| **日常用户** | 在应用里工作：记录、视图、仪表盘、审批 | [使用](/docs/use) |
+| **构建者** | 创建应用：数据模型、界面、自动化、AI Agent | [构建](/docs/build) |
+| **管理员** | 运行平台：用户、权限、设置、部署 | [配置](/docs/configure)、[部署](/docs/deploy)、[运维](/docs/operate/production) |
+| **Agent，或连接 Agent 的人** | 通过 MCP 操作应用 —— 读写记录、运行暴露给 AI 的动作 —— 受某个用户的权限约束 | [连接 AI 工具（MCP）](/docs/configure/mcp) |
+
+## 下一步去哪里 [#where-to-go-next]
+
+| 如果你想 …… | 阅读 |
+|---|---|
+| 什么都不安装就开始 | [在 ObjectOS Cloud 上开始](/docs/start/cloud) |
+| 看它真正跑起来 | [在本地运行 ObjectOS Community](/docs/start/community) |
+| 比较每个版本包含什么 | [版本对比](/docs/editions/compare) |
+| 了解盒子里有什么 | [架构](/docs/architecture) |
+| 在 Docker 中运行 | [Docker](/docs/deploy/docker) |
+| 部署到 Kubernetes | [Kubernetes](/docs/deploy/kubernetes) |
+| 连接到 Postgres / 你的数据库 | [运行时配置](/docs/configure/runtime) |
+| 设置 SSO | [身份认证](/docs/configure/authentication) |
+| 锁定谁能看到什么 | [权限](/docs/configure/permissions) |
+| 从另一个服务调用它 | [API 访问](/docs/configure/api-access) |
+| 把事件发送到其他系统 | [Webhook](/docs/configure/webhooks) |
+| 上生产 | [生产就绪](/docs/operate/production) |
+
+## 许可与定价 [#license--pricing]
+
+ObjectOS 是**一个产品、三个版本**。**ObjectOS Community** —— 开源的
+运行时和 Console，构建在 Apache-2.0 的
+**[ObjectStack 框架](https://github.com/objectstack-ai/objectstack)**
+之上 —— 可以免费用于商业产品、嵌入和自托管，没有按席位的费用，也没有
+许可证服务器。**ObjectOS Cloud** 和 **ObjectOS Enterprise** 增加了嵌入
+UI 的 AI、治理和官方运维，**只按 AI 席位定价**（只读用户和非 AI 用户
+免费）—— 没有"起价 5 万美元/年"这回事。
+参见[许可与定价](/docs/editions/license)。

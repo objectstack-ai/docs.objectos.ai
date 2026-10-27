@@ -1,0 +1,120 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 簡介
+seoTitle: "文件：開始、構建、部署、運維"
+description: "ObjectOS 是構建在 ObjectStack 之上的商業執行時環境，可託管（ObjectOS Cloud）或自管理（ObjectOS Enterprise）。本體歸你所有。"
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 0347fa621f4342212be72ecb78497ccea72ca3490d850f45dc5b91549d81cf22
+  guide_rev: 1
+  mode: auto
+---
+
+本體就是軟體。一個可執行的業務本體：AI 編寫它，執行時執行它，Agent
+操作它，你擁有它。想要同樣的閉環，託管在瀏覽器裡、什麼都不用安裝？
+那就是 ObjectOS —— 構建在 ObjectStack 之上的商業執行時環境。ObjectOS
+既可以託管執行在瀏覽器中、無需任何安裝（ObjectOS Cloud），也可以自管理
+執行在你自己的基礎設施上（ObjectOS Enterprise）；無論哪個版本，你都可以
+匯出你的本體，並在開源的 ObjectStack 執行時上執行它。
+
+向內建的 [AI Builder](/docs/build/ai-builder) 描述業務需要什麼 —— 一個
+服務檯、一條審批流程、一個 CRM —— 或者安裝一個模板，它寫出的本體會立即
+上線：REST API、生成的介面、身份認證、RBAC、審計日誌、檔案儲存、後臺
+任務、Webhook，並且每個物件都會作為 MCP 工具暴露給你的 Agent 呼叫。每次
+變更都是一個小而可讀的 diff，由人批准後才會執行。
+
+開源（Apache-2.0）的
+[ObjectStack](https://github.com/objectstack-ai/objectstack) 技術棧 ——
+協議、核心、CLI 和生產級執行時 —— 負責執行本體，也是 ObjectOS 的構建
+基礎。你在 ObjectOS 上構建的一切都是普通的 ObjectStack 後設資料，因此從
+設計上就能遷移到那個執行時。
+
+## 開始 [#start]
+
+| 你想要 …… | 這樣做 |
+|---|---|
+| 用 ObjectOS，什麼都不裝 | **ObjectOS Cloud**，為你託管 —— Free 套餐就足夠構建你的第一個應用。參見[在 ObjectOS Cloud 上開始](/docs/start/cloud) |
+| 在你自己的基礎設施上執行 ObjectOS，獲得授權許可 | **ObjectOS Enterprise**，從單節點的 Business Self-Managed 選項起步，在你的伺服器上執行獲得許可的 Enterprise 映象 —— 參見[在 ObjectOS Enterprise 上開始](/docs/start/enterprise) |
+| 在你自己的機器上免費執行 ObjectOS | **ObjectOS Community**，開源執行時：`npm i -g @objectstack/cli && os start` 會用 SQLite 資料庫、零配置啟動它 —— 參見[在本地執行 ObjectOS Community](/docs/start/community) |
+
+之後，ObjectOS Cloud 和 ObjectOS Enterprise 會把你帶到同一個地方 —— 登入，然後：
+
+- **與 AI Builder 對話** —— *"我需要跟蹤帶優先順序和負責人的支援工單"* ——
+  看著它編寫你的[本體](/docs/ontology)，也就是物件及其欄位，作為一個
+  由你批准的小 diff。參見
+  [構建 → AI Builder](/docs/build/ai-builder)。
+- **從內建市場安裝一個模板**（Todo、Contracts、Helpdesk ……），一鍵
+  得到一個真正的應用。
+- **Fork 一個[模板](/docs/build/templates)**，如果你想把 TypeScript
+  原始碼掌握在自己手中 —— 同樣的後設資料，在你的倉庫裡由你的編碼 Agent
+  編寫。
+
+## 為什麼選 ObjectOS 而不是 …… [#why-objectos-instead-of-]
+
+| 你正在用 | 痛點 | ObjectOS 給你什麼 |
+|---|---|---|
+| **Retool / Appsmith** | UI 構建器很好，但你的資料放在他們的雲裡，價格隨使用者數增長 | 託管（ObjectOS Cloud）或在你的網路內（ObjectOS Enterprise）；構建在開源的 ObjectStack（Apache-2.0）之上，所以本體由你匯出；沒有按席位收的稅 —— 只收 AI 席位 |
+| **Supabase / Firebase** | 後端即服務很快，但被廠商鎖定；天生就是多租戶 SaaS | 同樣的開發體驗（自動 API、認證、儲存），但定義歸你：匯出它並在開源的 ObjectStack 執行時上執行，或在你自己的資料庫上執行 ObjectOS Enterprise |
+| **Salesforce / NetSuite** | 平臺強大，定製痛苦，按席位的費用高得嚇人 | 熟悉的詞彙（物件、欄位、許可權集、共享規則），但定義是一個開放的本體：AI 編寫，Agent 操作，你可以把它匯出到 Apache-2.0 執行時；託管或自管理，沒有席位稅 —— 只讀使用者和非 AI 使用者免費 |
+| **自己從頭搭（Next + Prisma + NextAuth）** | 每次都要重做 RBAC、審計、檔案上傳、設定、Webhook、任務 | 只交付真正的業務邏輯；平臺的基礎設施已經在那裡了 |
+
+## 開箱即得 [#what-you-get-out-of-the-box]
+
+| 能力面 | 它是什麼 |
+|---|---|
+| **自動 REST API** | 你宣告的每個物件都會得到 `/api/v1/data/<object>`，支援過濾、排序、分頁 |
+| **UI**（`/_console/`） | 生成的介面：瀏覽和編輯記錄，以及用於管理使用者/角色/許可權集、檢視審計日誌、會話、API 金鑰和設定的 **Setup** |
+| **賬戶**（[在 UI 內](/docs/resources/glossary#surface)） | 登入、註冊、重置密碼、OAuth、OIDC/SSO、通行金鑰、雙因素認證 |
+| **MCP 伺服器**（`/api/v1/mcp`） | 預設開啟：每個物件都是一個工具，你暴露給 AI 的每個動作也是；Agent 以某個使用者的身份連線，受該使用者許可權約束 —— 參見[連線 AI 工具（MCP）](/docs/configure/mcp) |
+| **20+ 個外掛** | RBAC + 行級安全、審計、檔案儲存、佇列、任務、郵件、AI、Webhook —— 宣告式，按需啟用 |
+
+## 什麼始終歸你 [#what-stays-yours]
+
+無論哪個版本，本體都歸你：你的物件、欄位、關係、動作、許可權、流程和
+Agent 定義都是普通的 ObjectStack 後設資料，你可以匯出它們並在開源的
+ObjectStack 執行時上執行。在 **ObjectOS Enterprise** 上，其他一切也都
+留在你這裡：[資料駐留](/docs/reference/security#data-residency) 列出了
+每一類資料、它存放在哪裡，以及它是否會離開你的網路。
+
+自管理的 ObjectOS 會線上校驗許可證；Enterprise 物理隔離許可證則離線
+校驗。因此，一個無法訪問網際網路的網路是 Enterprise 的一等部署目標 ——
+參見[物理隔離](/docs/deploy/air-gapped)。
+
+## 找到你的文件 [#find-your-docs]
+
+這份文件面向四類讀者 —— 從與你使用 ObjectOS 的方式相匹配的部分開始：
+
+| 你是 …… | 你想要 …… | 從這裡開始 |
+|---|---|---|
+| **日常使用者** | 在應用裡工作：記錄、檢視、儀表盤、審批 | [使用](/docs/use) |
+| **構建者** | 建立應用：資料模型、介面、自動化、AI Agent | [構建](/docs/build) |
+| **管理員** | 執行平臺：使用者、許可權、設定、部署 | [配置](/docs/configure)、[部署](/docs/deploy)、[運維](/docs/operate/production) |
+| **Agent，或連線 Agent 的人** | 通過 MCP 操作應用 —— 讀寫記錄、執行暴露給 AI 的動作 —— 受某個使用者的許可權約束 | [連線 AI 工具（MCP）](/docs/configure/mcp) |
+
+## 下一步去哪裡 [#where-to-go-next]
+
+| 如果你想 …… | 閱讀 |
+|---|---|
+| 什麼都不安裝就開始 | [在 ObjectOS Cloud 上開始](/docs/start/cloud) |
+| 看它真正跑起來 | [在本地執行 ObjectOS Community](/docs/start/community) |
+| 比較每個版本包含什麼 | [版本對比](/docs/editions/compare) |
+| 瞭解盒子裡有什麼 | [架構](/docs/architecture) |
+| 在 Docker 中執行 | [Docker](/docs/deploy/docker) |
+| 部署到 Kubernetes | [Kubernetes](/docs/deploy/kubernetes) |
+| 連線到 Postgres / 你的資料庫 | [執行時配置](/docs/configure/runtime) |
+| 設定 SSO | [身份認證](/docs/configure/authentication) |
+| 鎖定誰能看到什麼 | [許可權](/docs/configure/permissions) |
+| 從另一個服務呼叫它 | [API 訪問](/docs/configure/api-access) |
+| 把事件傳送到其他系統 | [Webhook](/docs/configure/webhooks) |
+| 上生產 | [生產就緒](/docs/operate/production) |
+
+## 許可與定價 [#license--pricing]
+
+ObjectOS 是**一個產品、三個版本**。**ObjectOS Community** —— 開源的
+執行時和 Console，構建在 Apache-2.0 的
+**[ObjectStack 框架](https://github.com/objectstack-ai/objectstack)**
+之上 —— 可以免費用於商業產品、嵌入和自託管，沒有按席位的費用，也沒有
+許可證伺服器。**ObjectOS Cloud** 和 **ObjectOS Enterprise** 增加了嵌入
+UI 的 AI、治理和官方運維，**只按 AI 席位定價**（只讀使用者和非 AI 使用者
+免費）—— 沒有"起價 5 萬美元/年"這回事。
+參見[許可與定價](/docs/editions/license)。

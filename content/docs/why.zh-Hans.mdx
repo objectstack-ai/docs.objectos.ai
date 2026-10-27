@@ -1,0 +1,170 @@
+---
+title: 为什么选择 ObjectOS
+seoTitle: "为什么选择 ObjectOS：何时该用，何时不该用"
+description: 坦诚的介绍 —— 什么时候你应该用它，什么时候不应该，以及它的不同之处。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 5f5a99346059a4eebaab08952d7d63a45e80b1fef6b6aaf390b849f7de2d5808
+  guide_rev: 1
+  mode: auto
+---
+
+这一页存在的目的，是让你不必在其他每篇文档的字里行间去揣摩
+ObjectOS 是否适合你。
+
+## 这个赌注的形状 [#the-shape-of-the-bet]
+
+**本体就是软件。** 一个可执行的业务本体。AI 编写它，运行时运行它，
+Agent 操作它，你拥有它。四个承诺 —— ObjectOS 会在三种形态下兑现它们：
+托管在浏览器里、无需任何安装（**ObjectOS Cloud**），自管理在你自己的
+基础设施上（**ObjectOS Enterprise**），或者在你自己的机器上免费运行
+（**ObjectOS Community**，开源运行时）：
+
+- **可执行。** 你的对象、字段、关系、动作、权限、流程和 Agent 定义是
+  一份有类型、有版本的定义，由运行时直接运行。REST 端点、生成的界面、
+  RBAC、审计日志和 MCP 工具都从它派生 —— 没有代码生成步骤，在"描述出来"
+  和"上线"之间也没有部署流水线。
+- **AI 可编写。** 你不需要一个文件一个文件地手写这份定义。向内置的
+  [AI Builder](/docs/build/ai-builder) 描述业务需要什么；它调用一小组
+  经过审计的工具，每次变更都排队等待人工批准，结果是一个你真正读得懂
+  的小 diff。
+- **Agent 可操作。** 每个对象和每个暴露出来的动作同时也是一个 MCP 工具，
+  因此 Agent 在与人相同的权限、行级安全和审计之下操作正在运行的应用 ——
+  绝不是裸 SQL，也绝不是抓取 UI。
+- **你拥有它。** 本体是普通的
+  [ObjectStack](https://github.com/objectstack-ai/objectstack) 元数据，
+  Apache-2.0 许可，无论哪个版本，你都可以导出它并在那个开源运行时上
+  运行。ObjectOS Enterprise 还会把运行时和数据库留在你的基础设施上。
+
+这就是全部的介绍。本页其余部分讲的是它适合谁、不适合谁。
+
+## 如果你 …… 就用 ObjectOS [#use-objectos-if-you-]
+
+- 需要一个内部工具、管理后台或后台办公应用，**并且**
+- 希望使用它的人（或代表他们行事的 AI Agent）能够*扩展*它，而不必
+  提交工单，**并且**
+- 希望由别人为你托管和运维（ObjectOS Cloud）—— 或者必须在你自己的
+  边界内运行它（ObjectOS Enterprise），**并且**
+- 不想第十次重做认证 + RBAC + 审计 + 文件上传 + 任务 + Webhook。
+
+适合它的常见场景：
+
+| 场景 | 为什么行得通 |
+|---|---|
+| 因为安全评审提出了数据主权问题，要替换一个 Retool / Appsmith 应用 | ObjectOS Enterprise 运行在你的 VPC 中；数据从不离开 |
+| 为受监管的企业构建合规 / 风险 / 供应商管理工具 | 审计日志、RBAC、字段安全、行级隔离都是一等能力 —— 而且每次由 AI 驱动的变更本身就是一条审计记录 |
+| 为一个 SaaS 产品搭建内部管理后台 | 一个 Node 进程，能嵌在你现有的服务旁边 —— 或者用一个什么都不用运行的 Cloud 租户 |
+| 为企业客户做物理隔离或本地部署 | ObjectOS Enterprise 的一等目标：物理隔离许可证离线校验，AI 服务可以指向本地模型 |
+| 多租户内部门户（多个组织，一套部署） | 一种隔墙式的租户姿态会建起按组织隔离的墙，在运行时内部强制执行 —— 这是一项 Enterprise 能力，参见[许可与定价](/docs/editions/license)。它隔离的是各组织的数据和成员关系，而不是它们的模式：它们共享一个数据库和一套元数据 |
+| 你希望用户通过描述变更来安全地扩展他们的应用 | AI Builder + 人工审批（HITL）队列 + 审计日志，正是重点所在 |
+| 围绕核心 ERP 的大量部门级应用 —— 供应商入驻、巡检、内部申请 | 每一个都是一份经常变化的、小而有类型的定义，而不是一张被邮件传来传去的电子表格 |
+| 从第一天起就由 Agent 操作的后台办公 | 每个部署都是一个默认开启的 MCP 服务器；Agent 与人一样经过同样的权限和审计来行事 |
+
+## 如果你 …… 就不要用 ObjectOS [#dont-use-objectos-if-you-]
+
+- 需要替换大型企业的核心 ERP 或财务系统
+  → 总账、合并报表、税务和薪资承载着法规要求，而成熟的套装系统早已
+  把它们编码进去了。围绕这个核心去构建，而不是取代它。
+- 价值主要来自集成大量现有系统 →
+  连接一个你已经在运行的数据库
+  [默认是只读的，而且还处于早期阶段](/docs/build/extend-existing-systems)；
+  架在这些系统之上的一层更合适。
+- 需要对数据湖做分析 → 仪表盘运行在应用自己的对象之上；它们不是为
+  查询数据湖而构建的。
+- 在一个算法密集的领域工作，比如定价或排程 →
+  本体声明的是能做什么，而不是一个优化器。把算法包装成一个
+  [动作](/docs/build/interface/actions)，权限、审计和 Agent 访问就会像对
+  其他动作一样作用于它。
+- 必须运行在一个本身经过认证的平台上 → ObjectOS 不是；
+  认证针对的是一个正在运行的部署，而认证你的部署是你自己的工作 ——
+  参见[安全与合规](/docs/reference/security#compliance-frameworks)。
+- 在构建一个高流量的消费级产品 → 用传统的 Web 框架，你会有更多掌控。
+- 需要为终端用户提供像素级完美的定制 UI → 生成的 UI 面向管理/内部
+  使用；通过 REST 把它和你自己的前端配合起来。
+- 想要一个给非工程师用的拖拽画布 → 用 Retool、Bubble 或 Airtable。
+  ObjectOS 从本体生成 UI；构建者是 AI 和它提出的 diff，而不是画布。
+- 需要实时协同编辑（Figma 那样）→ 这不是 realtime 插件解决的问题。
+
+前五条背后的理由（针对 ObjectOS 所构建于其上的开源运行时）见
+[何时使用 ObjectStack](https://objectstack.ai/docs/concepts/when-to-use)。
+
+## 与你可能正在用的东西相比 [#compared-to-what-youre-probably-using]
+
+### 对比 Retool / Appsmith / 自建内部工具 [#vs-retool--appsmith--internal]
+
+| | Retool | ObjectOS |
+|---|---|---|
+| 数据位置 | 他们的云（更高档位可自托管） | ObjectOS Cloud，或在 ObjectOS Enterprise 上位于你的网络中 |
+| UI 构建器 | 拖拽式，非常精致 | 元数据驱动，自动生成；定制性较低 |
+| 定价 | 按用户，增长起来很痛 | 只收 AI 席位；只读用户免费。免费自托管就是开源的 ObjectStack 运行时 |
+| 流程 / 触发器 | 他们的流程引擎 | 声明式流程 + 插件 |
+| 后端逻辑 | 局限于他们的查询编辑器 | 完整的 TypeScript，完整的 Node 生态 |
+| 最适合 | 在现有 API 之上快速做仪表盘 | 定义归你所有的应用 |
+
+### 对比 Supabase / Firebase [#vs-supabase--firebase]
+
+| | Supabase | ObjectOS |
+|---|---|---|
+| 搭建时间 | 约 30 秒 | 约 30 秒 |
+| 数据库 | Postgres，他们的（可自托管） | ObjectOS Cloud 上为托管数据库；ObjectOS Enterprise 上为任意 Postgres / MySQL / SQLite / Turso / Mongo，**你自己的** |
+| 认证 | 内置 | 内置 |
+| 生成的 API | PostgREST | 由 ObjectQL 生成的 REST |
+| 管理 UI | Console（基础） | Setup + 账户 |
+| RBAC | 通过 Postgres RLS 实现行级 | RBAC + 行级 + 字段级，声明式 |
+| 审计日志 | 自己做 | 一等能力 |
+| 厂商锁定 | 他们的认证 + 他们的存储 + 他们的实时服务 | 本体可导出到开源的 ObjectStack 运行时；每一层都是插件 |
+| 最适合 | 想要 BaaS 的新应用 | 需要拥有自己定义的应用 —— 在 Enterprise 上还包括自己的运行时 |
+
+### 对比 Salesforce / NetSuite / ServiceNow [#vs-salesforce--netsuite--servicenow]
+
+| | Salesforce | ObjectOS |
+|---|---|---|
+| 数据模型 | 对象 + 字段 + 关系，在平台中配置 | 对象、字段和关系在一个开放的本体中 —— 可导出，并可在 Apache-2.0 的 ObjectStack 运行时上运行 |
+| 权限 | Profile + 权限集 + 共享规则 + FLS | 熟悉的词汇 —— 权限集、岗位、共享规则、FLS —— 在本体中声明，并在每次 REST 调用、UI 点击和 Agent 工具调用时强制执行 |
+| 每用户成本 | 每用户每月 150–300 美元 | 只读用户和非 AI 用户免费；你只为 AI 席位付费 |
+| 定制 | Apex + Lightning + 流程 | TypeScript + 流程 |
+| 运行在哪里 | 他们的云，仅此而已 | ObjectOS Cloud，或你的基础设施（ObjectOS Enterprise） |
+| 到"它归我们了"所需时间 | 几个月的顾问工作 | 一个下午 |
+| 最适合 | 愿意为生态付费的销售驱动型公司 | 想要这个模型、但不想交这笔税的团队 |
+
+### 对比自己从头搭（Next.js + Prisma + NextAuth） [#vs-rolling-your-own-nextjs--prisma--nextauth]
+
+| | 自己做 | ObjectOS |
+|---|---|---|
+| 第一个 REST 端点 | 几个小时 | 60 秒 |
+| 认证（邮箱 + OAuth + OIDC + 通行密钥 + 双因素） | 几周 | 已包含 |
+| 每个对象的管理 UI | 逐个对象构建 | 自动生成 |
+| 审计日志 | 自己做 | 插件，声明式 |
+| 带权限的 S3 文件上传 | 自己做 | 插件 |
+| 后台任务 + 重试 + 死信队列 | 自己做 | 插件 |
+| 多租户 | 自己做（而且你会做错两次） | 内置 |
+| 最适合 | 有定制体验的面向公众的应用 | 速度优先的内部工具 |
+
+## 坦诚的取舍 [#the-honest-tradeoffs]
+
+- **UI 自由度不如 Retool。** UI 由你的元数据生成。你可以把它和自定义
+  前端配合使用（REST API 与 UI 用的是同一个），但如果你需要手工打造的、
+  像素级完美的 UI，就自己构建它，把 ObjectOS 当作后端。
+- **TypeScript 优先。** 非工程师不会直接在仓库里编写对象。Salesforce
+  管理员习惯在 UI 构建器里点来点去；在这里，靠的是 AI Builder 的 diff
+  或 `git`。
+- **比 Salesforce 年轻。** Salesforce 有 25 年记录在案的边界情况。我们
+  只有几百个。协议是稳定的；生态在成长。
+- **开源基础，三个版本。** 底层的 ObjectStack 技术栈是 Apache-2.0 ——
+  可以用在商业产品里、嵌入、私下修改，没有 copyleft 的意外。
+  **ObjectOS Community** 是由它构建的开源运行时和 Console，在同样的许可
+  下免费；**ObjectOS Cloud** 和 **ObjectOS Enterprise** 是商业版本，增加了
+  托管与运维、AI Builder、SSO 和支持。
+
+## 现实检验 [#reality-check]
+
+最小的 ObjectOS 是 ObjectOS Cloud 上的一个 Free 租户；最小的自管理
+ObjectOS 是一个带 SQLite 的单节点容器。目前生产环境中最大的一个，在
+多个区域用 Postgres + S3 + Redis 服务数万名内部用户。它们运行的都是
+同一套软件。
+
+在 [ObjectOS Cloud](https://www.objectos.ai) 上开始，或者用
+`npm create objectstack@latest my-app` 在 ObjectOS Community 上搭建一个
+项目，5 分钟内做出决定。如果它不适合你，你只花了 5 分钟。
+
+[**在本地运行 ObjectOS Community →**](/docs/start/community)

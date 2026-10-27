@@ -1,0 +1,79 @@
+---
+title: ObjectOS 中你的本体
+seoTitle: "ObjectOS 中你的本体：核心、投影、存放位置"
+description: 在 ObjectOS 上你的本体是什么 —— 运行时运行的核心、在它旁边编写的投影、它存放在哪里，以及它不是什么。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 89b7e2e2e35db3cfc1e321a759eade603c86bbf958670a2c0abd7952bb51a8ab
+  guide_rev: 1
+  mode: auto
+---
+
+**本体就是软件。** 在 ObjectOS 上，*你的本体*就是运行时所执行的、对你
+业务的定义：一份有类型、有版本的 ObjectStack 元数据。运行时从它派生出
+数据库模式、REST API、Console 和 MCP 工具，并在每次调用时强制执行它。
+本页把这个词对应到本站的内容上；完整的阐述见 ObjectStack 文档中的
+[业务本体](https://objectstack.ai/docs/concepts/ontology)。
+
+## 核心 [#the-core]
+
+本体本身由六类东西组成：
+
+| 核心 | 它声明什么 | 在本站 |
+|---|---|---|
+| **对象和字段** | 业务中的实体及其有类型的属性 | [数据模型](/docs/build/data)、[字段类型](/docs/reference/field-types) |
+| **关系** | 对象之间的查找（lookup）和主从（master-detail）链接 | [关系](/docs/build/data/relationships) |
+| **动作** | 用户 —— 或者在作者将其暴露之后，Agent —— 可以对一条记录调用的操作 | [动作](/docs/build/interface/actions) |
+| **权限** | 谁可以读取、创建、编辑和删除什么：权限集、记录访问、字段级安全 | [权限](/docs/configure/permissions) |
+| **流程** | 业务过程：流程、记录触发器、计划任务、审批、工作流 | [自动化](/docs/build/automation) |
+| **Agent 与工具定义** | 应用自带的 AI Agent、它们的技能，以及它们可以调用的工具 | [Agent](/docs/build/agents) |
+
+## 投影 [#the-projections]
+
+视图、仪表盘、应用和翻译同样以元数据的形式编写，也会通过同样的校验
+关口，但它们是本体的**投影**，而不是本体的一部分。修改核心，它们会随之
+变化；删除其中一个，它所展示的业务不会改变。
+
+| 投影 | 它投影的是什么 | 在本站 |
+|---|---|---|
+| **视图** | 把一个对象的字段和权限投影到列表、表单、看板或日历上 | [视图](/docs/build/interface/views)、[表单](/docs/build/interface/forms) |
+| **仪表盘** | 把对象上的查询投影到图表上 | [仪表盘](/docs/build/interface/dashboards) |
+| **应用** | 对象、视图和动作，组合成一个可导航的产品 | [应用](/docs/build/interface/apps) |
+| **翻译** | 每一个标签，投影到一种语言 | [本地化](/docs/configure/localization) |
+
+## 它在 ObjectOS 上存放在哪里 [#where-it-lives-on-objectos]
+
+一份定义，三种形态：
+
+| 形态 | 它是什么 |
+|---|---|
+| **租户元数据** | [AI Builder](/docs/build/ai-builder) 和 Studio 写入的内容：你部署中的实时元数据。AI Builder 的变更在生效前会排队等待人工批准 |
+| **仓库源码** | 你的开发者及其编码 Agent 借助 [AI 技能](/docs/build/ai-skills)编写的内容：`objectstack.config.ts` 及其元数据文件，以拉取请求的形式评审 |
+| **编译产物** | `os compile` 产出的内容：`objectstack.json`，部署用它来启动 —— 参见[启动模式](/docs/architecture#boot-modes)。保留每一个发布过的产物（[备份](/docs/operate/backup)） |
+
+无论你用哪种形态编写，元数据在运行之前都会通过同一道
+[校验关口](/docs/resources/glossary#validation-gate)。
+无论哪个版本，本体都归你：它是普通的 ObjectStack 元数据，你可以导出它
+并在开源的 ObjectStack 运行时上运行。
+
+## 它不是什么 [#what-it-is-not]
+
+- **不是知识本体。** 没有类继承，没有公理，也没有推理机。定义经过校验，
+  然后运行。
+- **不是架在你现有系统之上的语义层。** 语义层描述的是一个它并不运行的
+  业务。你的本体就是系统本身：数据库、API、UI 和 Agent 工具都从它派生。
+  连接一个你已经在运行的数据库是可能的，默认只读，而且还处于早期阶段 ——
+  参见[扩展现有系统](/docs/build/extend-existing-systems)。
+
+## 延伸阅读 [#read-further]
+
+本站记录的是运行时；概念归 ObjectStack 站点所有：
+
+- [业务本体](https://objectstack.ai/docs/concepts/ontology) —— 这个词
+  是什么意思，以及运行时如何执行它
+- [ObjectStack 与其他方案的比较](https://objectstack.ai/docs/concepts/compare) ——
+  与知识本体、语义层、元数据平台和 AI 代码生成放在一起比较
+- [何时使用 ObjectStack](https://objectstack.ai/docs/concepts/when-to-use)
+  —— 它今天适合哪里，不适合哪里
+- [本体就是软件](https://objectstack.ai/blog/the-ontology-is-the-software)
+  —— 长文版本

@@ -1,0 +1,80 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: ObjectOS 中你的本體
+seoTitle: "ObjectOS 中你的本體：核心、投影、存放位置"
+description: 在 ObjectOS 上你的本體是什麼 —— 執行時執行的核心、在它旁邊編寫的投影、它存放在哪裡，以及它不是什麼。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 89b7e2e2e35db3cfc1e321a759eade603c86bbf958670a2c0abd7952bb51a8ab
+  guide_rev: 1
+  mode: auto
+---
+
+**本體就是軟體。** 在 ObjectOS 上，*你的本體*就是執行時所執行的、對你
+業務的定義：一份有型別、有版本的 ObjectStack 後設資料。執行時從它派生出
+資料庫模式、REST API、Console 和 MCP 工具，並在每次呼叫時強制執行它。
+本頁把這個詞對應到本站的內容上；完整的闡述見 ObjectStack 文件中的
+[業務本體](https://objectstack.ai/docs/concepts/ontology)。
+
+## 核心 [#the-core]
+
+本體本身由六類東西組成：
+
+| 核心 | 它宣告什麼 | 在本站 |
+|---|---|---|
+| **物件和欄位** | 業務中的實體及其有型別的屬性 | [資料模型](/docs/build/data)、[欄位型別](/docs/reference/field-types) |
+| **關係** | 物件之間的查詢（lookup）和主從（master-detail）連結 | [關係](/docs/build/data/relationships) |
+| **動作** | 使用者 —— 或者在作者將其暴露之後，Agent —— 可以對一條記錄呼叫的操作 | [動作](/docs/build/interface/actions) |
+| **許可權** | 誰可以讀取、建立、編輯和刪除什麼：許可權集、記錄訪問、欄位級安全 | [許可權](/docs/configure/permissions) |
+| **流程** | 業務過程：流程、記錄觸發器、計劃任務、審批、工作流 | [自動化](/docs/build/automation) |
+| **Agent 與工具定義** | 應用自帶的 AI Agent、它們的技能，以及它們可以呼叫的工具 | [Agent](/docs/build/agents) |
+
+## 投影 [#the-projections]
+
+檢視、儀表盤、應用和翻譯同樣以後設資料的形式編寫，也會通過同樣的校驗
+關口，但它們是本體的**投影**，而不是本體的一部分。修改核心，它們會隨之
+變化；刪除其中一個，它所展示的業務不會改變。
+
+| 投影 | 它投影的是什麼 | 在本站 |
+|---|---|---|
+| **檢視** | 把一個物件的欄位和許可權投影到列表、表單、看板或日曆上 | [檢視](/docs/build/interface/views)、[表單](/docs/build/interface/forms) |
+| **儀表盤** | 把物件上的查詢投影到圖表上 | [儀表盤](/docs/build/interface/dashboards) |
+| **應用** | 物件、檢視和動作，組合成一個可導航的產品 | [應用](/docs/build/interface/apps) |
+| **翻譯** | 每一個標籤，投影到一種語言 | [本地化](/docs/configure/localization) |
+
+## 它在 ObjectOS 上存放在哪裡 [#where-it-lives-on-objectos]
+
+一份定義，三種形態：
+
+| 形態 | 它是什麼 |
+|---|---|
+| **租戶後設資料** | [AI Builder](/docs/build/ai-builder) 和 Studio 寫入的內容：你部署中的即時後設資料。AI Builder 的變更在生效前會排隊等待人工批准 |
+| **倉庫原始碼** | 你的開發者及其編碼 Agent 藉助 [AI 技能](/docs/build/ai-skills)編寫的內容：`objectstack.config.ts` 及其後設資料檔案，以拉取請求的形式評審 |
+| **編譯產物** | `os compile` 產出的內容：`objectstack.json`，部署用它來啟動 —— 參見[啟動模式](/docs/architecture#boot-modes)。保留每一個釋出過的產物（[備份](/docs/operate/backup)） |
+
+無論你用哪種形態編寫，後設資料在執行之前都會通過同一道
+[校驗關口](/docs/resources/glossary#validation-gate)。
+無論哪個版本，本體都歸你：它是普通的 ObjectStack 後設資料，你可以匯出它
+並在開源的 ObjectStack 執行時上執行。
+
+## 它不是什麼 [#what-it-is-not]
+
+- **不是知識本體。** 沒有類繼承，沒有公理，也沒有推理機。定義經過校驗，
+  然後執行。
+- **不是架在你現有系統之上的語義層。** 語義層描述的是一個它並不執行的
+  業務。你的本體就是系統本身：資料庫、API、UI 和 Agent 工具都從它派生。
+  連線一個你已經在執行的資料庫是可能的，預設只讀，而且還處於早期階段 ——
+  參見[擴充套件現有系統](/docs/build/extend-existing-systems)。
+
+## 延伸閱讀 [#read-further]
+
+本站記錄的是執行時；概念歸 ObjectStack 站點所有：
+
+- [業務本體](https://objectstack.ai/docs/concepts/ontology) —— 這個詞
+  是什麼意思，以及執行時如何執行它
+- [ObjectStack 與其他方案的比較](https://objectstack.ai/docs/concepts/compare) ——
+  與知識本體、語義層、後設資料平臺和 AI 程式碼生成放在一起比較
+- [何時使用 ObjectStack](https://objectstack.ai/docs/concepts/when-to-use)
+  —— 它今天適合哪裡，不適合哪裡
+- [本體就是軟體](https://objectstack.ai/blog/the-ontology-is-the-software)
+  —— 長文版本
