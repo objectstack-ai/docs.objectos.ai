@@ -105,7 +105,7 @@ node .github/scripts/check-translations.mjs --worklist  # what the next pass wil
 
 From `apps/docs/`:
 - `npm run dev` — dev server on http://localhost:3000
-- `npm run type-check` — `next typegen && fumadocs-mdx && tsc --noEmit`. ⛔ Keep this order (#311): `next typegen` can exit mid-way through the un-awaited `.source/*` rewrite that `createMDX()` in `next.config.mjs` starts, leaving a truncated `.source/server.ts` that `tsc` rejects (TS2306), so the awaited `fumadocs-mdx` CLI goes after it as the last writer.
+- `npm run type-check` — `next typegen && fumadocs-mdx && tsc --noEmit && node scripts/check-frontmatter.mjs`; `check-frontmatter.mjs` runs last and fails any English page without a valid `editions:` key. ⛔ Keep this order (#311): `next typegen` can exit mid-way through the un-awaited `.source/*` rewrite that `createMDX()` in `next.config.mjs` starts, leaving a truncated `.source/server.ts` that `tsc` rejects (TS2306), so the awaited `fumadocs-mdx` CLI goes after it as the last writer.
 - `npm run build` — production build
 
 ## Turbo caching and content changes
