@@ -1,6 +1,7 @@
 ---
 title: Extend Existing Systems
 description: Federate a database you already run into ObjectOS as an external datasource — read-only by default, and early — and model its tables as objects, no migration.
+editions: [community, cloud, enterprise]
 ---
 
 Most teams evaluating ObjectOS already have a system of record — a CRM, an
@@ -88,7 +89,7 @@ Once the tables are modeled as objects bound to your existing database:
 
 Federation is early. Expect the read path to be the mature one, and check
 [Data Sources](/docs/configure/data-sources) and the framework's own
-[External Datasources](https://docs.objectstack.ai/docs/data-modeling/external-datasources)
+[External Datasources](https://objectstack.ai/docs/data-modeling/external-datasources)
 guide for what each datasource protocol supports today. If what you need
 is a semantic layer that *describes* many systems without running any of
 them, that is a different kind of product.
@@ -98,4 +99,4 @@ them, that is a different kind of product.
 - [Data Sources](/docs/configure/data-sources) — connect a database, bind objects, route queries
 - [AI Agents](/docs/build/agents) — declarative agents over your objects
 - [Permissions](/docs/configure/permissions) — the model AI inherits
-- [Quickstart](/docs/quickstart) — stand up the open runtime in minutes
+- [Run ObjectOS Community locally](/docs/start/community) — stand up the open runtime in minutes

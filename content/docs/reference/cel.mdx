@@ -1,132 +1,29 @@
 ---
 title: CEL Expressions
 seoTitle: "CEL Expressions: Formulas, Predicates, Templates"
-description: The expression language used for formulas, predicates, schedules, and templated strings — surfaced via five tagged templates.
+description: The expression language behind formula fields, validation rules, visibility, sharing and flow conditions — where ObjectOS uses it, a few examples, and the full language on objectstack.ai.
+editions: [community, cloud, enterprise]
 ---
 
-ObjectOS uses [CEL](https://github.com/google/cel-spec) (Common
-Expression Language) for every place where you need a small, safe,
-sandboxed expression: formula fields, validation rules, visibility
-predicates, sharing conditions, flow conditions, schedules, and templated
-strings.
+**Full specification:** [Expressions (CEL) on objectstack.ai](https://objectstack.ai/docs/data-modeling/formulas). This page is the summary: where ObjectOS uses it, and a few examples.
 
-Authoring is done through **five tagged templates** imported from
-`@objectstack/spec`. They all produce a small JSON object the runtime
-parses:
+ObjectOS uses [CEL](https://github.com/google/cel-spec) (Common Expression
+Language) wherever a definition needs a small, safe expression: it has no side
+effects and no I/O, and it is evaluated on the server. An expression sees the
+record being evaluated as `record` (and its previous state as `previous`), and
+— where there is an acting user — that user as `current_user`.
 
-{/* doc-sample: skip — a type signature, not a value */}
-```ts
-{ dialect: 'cel' | 'template' | 'cron', source: string }
-```
+## Where ObjectOS uses it
 
-Schema source:
-[`packages/spec/src/shared/expression.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/shared/expression.zod.ts).
-
-## The five tagged templates
-
-| Template | Dialect | Use it for | Example |
-|:--|:--|:--|:--|
-| `` F`...` `` | `cel` | **Formula fields** — derived values stored alongside the record | `` F`record.amount * 0.1` `` |
-| `` P`...` `` | `cel` | **Predicates** — booleans for validation / sharing / visibility / conditions | `` P`record.status == "open"` `` |
-| `` cel`...` `` | `cel` | **General CEL** — when neither F nor P fits (e.g. a parameter value) | `` cel`now() + duration("P30D")` `` |
-| `` tmpl`...` `` | `template` | **String templates** with `{{var}}` interpolation | `` tmpl`Order from {{record.customer.name}}` `` |
-| `` cron`...` `` | `cron` | **Schedules** — standard 5-field cron syntax | `` cron`0 9 * * 1-5` `` |
-
-There is no functional difference between `F`, `P`, and `cel` at
-evaluation time — they all run CEL. The split exists so that schemas
-(and AI agents) know what role the expression plays and the editor can
-type-check (formulas must return a value, predicates must return a
-bool).
-
-### Import
-
-```ts
-import { F, P, cel, tmpl, cron } from '@objectstack/spec'
-```
-
-## Where each one is used
-
-| Field on a spec | Tag | Example location |
-|:--|:--|:--|
-| A formula field's `expression` | `F` | `*.object.ts` formula fields |
-| A field's `requiredWhen` / `visibleWhen` / `readonlyWhen` | `P` | object fields |
-| A `script` validation rule's `condition` | `P` | object `validations` |
-| `SharingRule.condition` | `P` | sharing rules |
-| A list view's `conditionalFormatting[].condition` | `P` | views |
-| A start node's `config.condition`, an edge's `condition` | `P` | flows |
-| An action's `visible` / `disabled` | `P` | actions |
-| A schedule's `expression` | `cron` | scheduled flows and jobs |
-| An object's `titleFormat` (deprecated) and AI prompt templates | `tmpl` | objects, AI models |
-| A field's `defaultValue` | `cel` | object fields |
-
-## Variable scope
-
-CEL expressions evaluate in a context with these top-level variables:
-
-| Variable | Available when | Contents |
-|:--|:--|:--|
-| `record` | almost always | The current record being evaluated |
-| `previous` | on update hooks / change-detection | The pre-change state of the record (or `null`) |
-| `input` | actions, flow steps | The user-supplied input payload |
-| `current_user` | when the evaluation has an acting user — **not** in a validation rule, which sees only `record` and `previous` | `{ id, name, email, positions: string[], organizationId }`, plus [`can()`](#permission-checks) |
-| `os.user` | where `current_user` is | Another name for `current_user` — the same object |
-| `os.org` | always | Organisation / tenant context |
-| `os.env` | always | Environment variables exposed to expressions |
-
-> Legacy `OLD` / `NEW` variables were removed in M9.5. Use `previous`
-> and `record`.
-
-## Standard library
-
-Registered in
-[`packages/formula/src/stdlib.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/formula/src/stdlib.ts).
-The most-used built-ins:
-
-### Time
-
-| Function | Returns | Notes |
-|:--|:--|:--|
-| `now()` | `Timestamp` | Pinned to the evaluation context — stable within one query |
-| `today()` | `Timestamp` | Start of UTC day |
-| `daysFromNow(int)` | `Timestamp` | Future date |
-| `daysAgo(int)` | `Timestamp` | Past date |
-
-CEL also includes the native `timestamp(...)`, `duration(...)`,
-`date.getDayOfWeek()`, etc. — see the
-[CEL spec](https://github.com/google/cel-spec/blob/master/doc/langdef.md#standard-definitions).
-
-### Utility
-
-| Function | Purpose |
+| Where | What the expression decides |
 |:--|:--|
-| `isBlank(x)` | `true` if `null`, `undefined`, `""`, or empty list |
-| `coalesce(a, b)` | First non-null |
-| `trim(s)` | Strip whitespace |
-| `joinNonEmpty(list, sep)` | Concatenate non-empty entries |
-
-Native CEL string helpers (`.contains(...)`, `.startsWith(...)`,
-`.matches(...)`, `.size()`) are always available.
-
-### Permission checks
-
-Since ObjectStack 17.5, `current_user.can(object, verb)` asks whether the
-acting user holds an object permission, answered from that user's
-effective permissions:
-
-```ts
-discount: Field.percent({
-  label: 'Discount',
-  defaultValue: cel`current_user.can('crm_quote', 'edit') ? 10 : 0`,
-}),
-```
-
-`object` is an object name and `verb` one of `read`, `create`, `edit`
-(also `update`, `write`), `delete` (also `remove`), `export`, `transfer`
-and `import`. The server answers it in a select option's `visibleWhen`
-(an option the user may not pick is refused `invalid_option`), in formula
-fields and in a CEL `defaultValue`. Where an evaluation carries no
-permission data — a validation rule is one — `can()` is refused rather
-than guessed, and the expression fails.
+| A formula field | The field's value, derived from the record |
+| A field's `requiredWhen`, `visibleWhen`, `readonlyWhen` | Whether the field is required, shown or editable on this record |
+| A validation rule | Whether a write is refused ([Validation Rules](/docs/build/data/validation-rules)) |
+| A sharing rule | Which records a group of users is granted ([Record Access](/docs/configure/permissions/record-access)) |
+| An action's `visible` / `disabled` | Whether the button is offered |
+| A flow's start condition and its branches | Whether a flow runs, and which way it goes ([Flows](/docs/build/automation/flows)) |
+| A field's `defaultValue` | The value a new record starts with |
 
 ## Examples
 
@@ -173,47 +70,34 @@ config: {
 }
 ```
 
-**Schedule** — weekday 9am:
+## Permission checks
+
+Since ObjectStack 17.5, `current_user.can(object, verb)` asks whether the
+acting user holds an object permission, answered from that user's effective
+permissions:
 
 ```ts
-// The `config` of a `start` node; the rest of the flow is omitted (see Flows).
-config: {
-  triggerType: 'schedule',
-  schedule: { type: 'cron', expression: cron`0 9 * * 1-5` },
-}
+discount: Field.percent({
+  label: 'Discount',
+  defaultValue: cel`current_user.can('crm_quote', 'edit') ? 10 : 0`,
+}),
 ```
 
-**Notification text** is not a `tmpl` slot. A `notify` node's `title` and
-`message` are plain strings with `{record.field}` placeholders:
+The server answers it in a select option's `visibleWhen` (an option the user
+may not pick is refused `invalid_option`), in formula fields and in a CEL
+`defaultValue`. Where an evaluation carries no permission data — a validation
+rule is one — `can()` is refused rather than guessed, and the expression fails.
 
-```ts
-// The `config` of a `notify` node; the node around it is omitted.
-config: {
-  recipients: '{record.owner}',
-  title: '[{record.priority}] {record.subject}',
-}
-```
+## When an expression is wrong
 
-## Errors
-
-Expressions are compiled at load time. Failures show up as
-`VALIDATION_ERROR` with the source location:
-
-```json
-{ "code": "VALIDATION_ERROR", "message": "CEL: unknown field 'amout' on Record", "details": { "field": "subtotal", "expression": "record.amout * 0.1" } }
-```
-
-Invalid expressions **do not fail silently**. A malformed or unknown-field
-expression fails `os compile` with the located message above (including a
-did-you-mean hint for a misspelled field). At runtime, a bad expression
-**throws** an attributed error rather than silently evaluating to `null` or
-`false`, so the failure is visible in logs and the audit trail instead of
-quietly corrupting a formula value or a guard decision.
+It does not fail silently. A malformed expression, or one naming a field the
+object does not have, fails `os compile` with the location and a did-you-mean
+hint. At runtime a bad expression throws an attributed error rather than
+evaluating to `null` or `false`, so the failure shows in logs and the audit
+trail instead of quietly corrupting a formula value or a guard decision.
 
 ## See also
 
-- [Field types](./field-types) — formula fields and `requiredWhen`
-- [Build → Data model](/docs/build/data) — validations and predicates
-- [Build → Flows](/docs/build/automation/flows) — conditions and schedules
-- [`@objectstack/spec/shared/expression.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/shared/expression.zod.ts) — schema
-- [`@objectstack/formula/stdlib.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/formula/src/stdlib.ts) — built-ins
+- [Formulas](/docs/build/data/formulas) — formula fields in an app
+- [Validation Rules](/docs/build/data/validation-rules) — predicates that refuse a write
+- [Field Types](./field-types) — the formula field and conditional properties

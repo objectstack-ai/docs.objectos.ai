@@ -2,6 +2,7 @@
 title: Why ObjectOS
 seoTitle: "Why ObjectOS: When to Use It and When Not To"
 description: The honest pitch — when you should use it, when you shouldn't, and what makes it different.
+editions: [community, cloud, enterprise]
 ---
 
 This page exists so you don't have to read between the lines of every
@@ -57,7 +58,7 @@ Common scenarios where it's a fit:
 | Building a compliance / risk / vendor management tool for a regulated business | Audit log, RBAC, field security, row-level isolation are first-class — and every AI-driven change is itself an audit entry |
 | Standing up an internal admin for a SaaS product | One Node process, slots in next to your existing services — or a Cloud tenant with nothing to run |
 | Air-gapped or on-prem deployment for an enterprise customer | A first-class ObjectOS Enterprise target: air-gapped licenses validate offline, and the AI service can point at a local model |
-| Multi-tenant internal portal (several organizations, one deployment) | A walled tenancy posture puts up the per-organization isolation wall, enforced inside the runtime — an Enterprise capability, see [License & Pricing](/docs/resources/license). It separates the organizations' data and memberships, not their schema: they share one database and one metadata set |
+| Multi-tenant internal portal (several organizations, one deployment) | A walled tenancy posture puts up the per-organization isolation wall, enforced inside the runtime — an Enterprise capability, see [License & Pricing](/docs/editions/license). It separates the organizations' data and memberships, not their schema: they share one database and one metadata set |
 | You want your users to extend their apps by describing the change, safely | The AI Builder + HITL approval queue + audit log are the whole point |
 | The long tail of departmental apps around a core ERP — vendor onboarding, inspections, internal requests | Each one is a small, typed definition that changes often, instead of a spreadsheet that gets emailed around |
 | A back office that agents operate from day one | Every deployment is an MCP server, on by default; agents act through the same permissions and audit as people |
@@ -70,7 +71,7 @@ Common scenarios where it's a fit:
   instead of it.
 - get your value mostly from integrating many existing systems →
   connecting a database you already run is
-  [read-only by default and early](/docs/extend-existing-systems); a
+  [read-only by default and early](/docs/build/extend-existing-systems); a
   layer over those systems fits better.
 - need analytics over a data lake → dashboards run over the app's own
   objects; they are not built to query a lake.
@@ -178,4 +179,4 @@ Start on [ObjectOS Cloud](https://www.objectos.ai), or scaffold a project
 on ObjectOS Community with `npm create objectstack@latest my-app`,
 and decide in 5 minutes. If it's not for you, you've burned 5 minutes.
 
-[**Try the Quickstart →**](/docs/quickstart)
+[**Run ObjectOS Community locally →**](/docs/start/community)

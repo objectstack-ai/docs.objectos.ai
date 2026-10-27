@@ -86,6 +86,12 @@ const en = {
    */
   notTranslated: 'This page is not yet translated; showing English.',
   /** The sidebar footer's links to `/privacy` and `/terms`, and their nav's name. */
+  /**
+   * The label before a page's edition badges, and the name of their list
+   * (`components/editions.tsx`). The edition names themselves are product
+   * nouns and are not in this table.
+   */
+  editionsLabel: 'Available in',
   legalNav: 'Legal',
   privacy: 'Privacy',
   terms: 'Terms',

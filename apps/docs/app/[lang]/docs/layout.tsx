@@ -7,6 +7,8 @@ import { baseOptions } from '@/lib/layout.shared';
 import { i18n } from '@/lib/i18n';
 import { translatedLocales } from '@/lib/seo';
 import { uiText } from '@/lib/ui-text';
+import { EditionMark } from '@/components/editions';
+import { type Edition, isEveryEdition } from '@/lib/editions';
 
 /**
  * A page-tree name or description in the language it is really written in.
@@ -75,8 +77,6 @@ function markNode(node: PageTree.Node, lang: string): PageTree.Node {
   };
 }
 
-const markedTrees = new Map<string, PageTree.Root>();
-
 /**
  * `lang`'s page tree with every English entry marked `lang="en"` (#305).
  *
@@ -94,16 +94,110 @@ const markedTrees = new Map<string, PageTree.Root>();
  * are wrapped: `url`, `$id` and `$ref` stay as they were, so active-item
  * matching and every lookup by node are untouched. An English route returns
  * the tree it was given.
- *
- * Memoized per locale: the tree and the content are fixed for the life of the
- * build, and the layout renders once per page.
  */
 function treeWithLanguages(lang: string): PageTree.Root {
   const tree = source.pageTree[lang];
   if (lang === i18n.defaultLanguage || !tree) return tree;
+  return { ...tree, children: tree.children.map((node) => markNode(node, lang)) };
+}
+
+/**
+ * The `editions:` of the page a tree entry names, read from the English page
+ * whatever `lang` is: the set is a fact about the page, and a translation is
+ * not required to repeat it (`source.config.ts`).
+ */
+function editionsOf(node: PageTree.Item, lang: string): Edition[] | undefined {
+  const page = source.getNodePage(node, lang);
+  return page && source.getPage(page.slugs, i18n.defaultLanguage)?.data.editions;
+}
+
+function sameEditions(a: readonly Edition[], b: readonly Edition[]): boolean {
+  return a.length === b.length && a.every((edition) => b.includes(edition));
+}
+
+/** Every page entry under `folder`, its index page included, at any depth. */
+function pagesUnder(folder: PageTree.Folder): PageTree.Item[] {
+  return [
+    ...(folder.index ? [folder.index] : []),
+    ...folder.children.flatMap((child) => {
+      if (child.type === 'page') return [child];
+      return child.type === 'folder' ? pagesUnder(child) : [];
+    }),
+  ];
+}
+
+/** The edition set every page under `folder` shares, or `undefined` when they differ. */
+function sharedEditions(folder: PageTree.Folder, lang: string): Edition[] | undefined {
+  const sets = pagesUnder(folder).map((page) => editionsOf(page, lang));
+  const [first] = sets;
+  if (!first || sets.some((set) => !set || !sameEditions(set, first))) return undefined;
+  return first;
+}
+
+function withEditionMark(name: ReactNode, editions: readonly Edition[], label: string): ReactNode {
+  return (
+    <>
+      {name}
+      <EditionMark editions={editions} label={label} />
+    </>
+  );
+}
+
+function markEditionsItem(
+  node: PageTree.Item,
+  lang: string,
+  label: string,
+  scope: readonly Edition[] | undefined,
+): PageTree.Item {
+  const editions = editionsOf(node, lang);
+  if (!editions || isEveryEdition(editions) || (scope && sameEditions(editions, scope))) return node;
+  return { ...node, name: withEditionMark(node.name, editions, label) };
+}
+
+/**
+ * Marks an entry that is not for every edition with the editions it is for.
+ *
+ * A group whose pages all share one set — Deploy and Operate are Community and
+ * Enterprise throughout — carries the mark once, on the group, and its pages
+ * carry none: seven identical marks down one group say less than one. A
+ * page whose set differs from its group's, or whose group is mixed, is marked
+ * on its own. `scope` is the set the nearest marked-or-uniform ancestor
+ * already stated.
+ */
+function markEditions(
+  node: PageTree.Node,
+  lang: string,
+  label: string,
+  scope?: readonly Edition[],
+): PageTree.Node {
+  if (node.type === 'page') return markEditionsItem(node, lang, label, scope);
+  if (node.type !== 'folder') return node;
+  const shared = sharedEditions(node, lang);
+  const mark = shared && !isEveryEdition(shared) && !(scope && sameEditions(shared, scope));
+  const inner = shared ?? scope;
+  return {
+    ...node,
+    ...(mark ? { name: withEditionMark(node.name, shared, label) } : {}),
+    ...(node.index ? { index: markEditionsItem(node.index, lang, label, inner) } : {}),
+    children: node.children.map((child) => markEditions(child, lang, label, inner)),
+  };
+}
+
+const markedTrees = new Map<string, PageTree.Root>();
+
+/**
+ * The tree this layout hands to `DocsLayout`: `lang`'s tree with its English
+ * entries marked (`treeWithLanguages`) and its edition marks added.
+ *
+ * Memoized per locale: the tree and the content are fixed for the life of the
+ * build, and the layout renders once per page.
+ */
+function docsTree(lang: string): PageTree.Root {
   let marked = markedTrees.get(lang);
   if (!marked) {
-    marked = { ...tree, children: tree.children.map((node) => markNode(node, lang)) };
+    const tree = treeWithLanguages(lang);
+    const label = uiText(lang).editionsLabel;
+    marked = { ...tree, children: tree.children.map((node) => markEditions(node, lang, label)) };
     markedTrees.set(lang, marked);
   }
   return marked;
@@ -149,7 +243,7 @@ export default async function Layout({
 
   return (
     <DocsLayout
-      tree={treeWithLanguages(lang)}
+      tree={docsTree(lang)}
       {...baseOptions(lang)}
       sidebar={{ footer: <LegalLinks lang={lang} /> }}
       i18n

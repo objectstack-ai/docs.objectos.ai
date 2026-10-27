@@ -29,12 +29,18 @@ const config = {
     ],
   },
   async redirects() {
+    // Pages that moved, each answered with a permanent redirect in every locale.
     // Build section restructure: pages moved into data/, interface/, automation/ subgroups.
     const moved = [
       ['/docs/build/data-model', '/docs/build/data'],
       ['/docs/build/views', '/docs/build/interface/views'],
       ['/docs/build/actions', '/docs/build/interface/actions'],
       ['/docs/build/flows', '/docs/build/automation/flows'],
+      // Edition layer: Quickstart became the Community path of Start, License &
+      // Pricing moved into Editions, and Extend Existing Systems into Build.
+      ['/docs/quickstart', '/docs/start/community'],
+      ['/docs/resources/license', '/docs/editions/license'],
+      ['/docs/extend-existing-systems', '/docs/build/extend-existing-systems'],
     ];
     return moved.flatMap(([source, destination]) => [
       { source, destination, permanent: true },

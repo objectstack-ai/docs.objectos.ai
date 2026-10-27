@@ -1,6 +1,7 @@
 ---
 title: Flows & Automation
 description: Declarative business logic — described to AI or written in TypeScript, the runtime executes the same artifact either way.
+editions: [community, cloud, enterprise]
 ---
 
 Flows are how you express business logic without writing a server.
@@ -20,7 +21,7 @@ can read and edit it.
 A flow is a graph: `nodes` do the work, `edges` connect them, and the
 `start` node says what launches the flow. The shape is ObjectStack's
 `FlowSchema`, documented in full in ObjectStack's
-[Flow metadata](https://docs.objectstack.ai/docs/automation/flows).
+[Flow metadata](https://objectstack.ai/docs/automation/flows).
 
 Enable the capability in your stack:
 
@@ -116,7 +117,7 @@ On an update, `previous` holds the record as it was:
 record within the same write, before it is saved, use a before hook
 rather than a flow; flows are for the side effects of a save — creating
 records, notifying, calling HTTP, requesting approval (ObjectStack's
-[Hooks vs flows](https://docs.objectstack.ai/docs/automation/hooks#hooks-vs-flows)).
+[Hooks vs flows](https://objectstack.ai/docs/automation/hooks#hooks-vs-flows)).
 
 ## Scheduled: run on a clock
 
@@ -160,7 +161,7 @@ export const nightlyCleanup = defineFlow({
 Backed by the `@objectstack/service-job` capability — see
 [Runtime Capabilities](/docs/reference/runtime-capabilities). A
 time-triggered flow has no caller to inherit an organization from;
-ObjectStack's [Flow metadata](https://docs.objectstack.ai/docs/automation/flows#the-acting-organization)
+ObjectStack's [Flow metadata](https://objectstack.ai/docs/automation/flows#the-acting-organization)
 says when its start node must declare one with `organization`.
 
 > **Scheduled work is off until the deployment turns it on.** Since

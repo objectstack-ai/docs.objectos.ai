@@ -46,6 +46,23 @@
   overscroll-behavior-x: contain;
 }
 
+/*
+ * The sidebar's edition mark (`components/editions.tsx`).
+ *
+ * It rides on the page-tree entry's name, which the breadcrumb and the
+ * previous/next footer also render. It belongs to the navigation only, so it
+ * is drawn inside the desktop sidebar and the mobile drawer and nowhere else;
+ * `display: none` also takes its screen-reader text out of the other two.
+ */
+.edition-mark {
+  display: none;
+}
+
+#nd-sidebar .edition-mark,
+#nd-sidebar-mobile .edition-mark {
+  display: inline-flex;
+}
+
 .docs-table::-webkit-scrollbar {
   height: 6px;
 }

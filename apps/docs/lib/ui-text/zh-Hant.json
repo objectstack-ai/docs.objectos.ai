@@ -25,6 +25,7 @@
   "openInClaude": "在 Claude 中開啟",
   "pageActionsOpenInLLMPrompt": "請閱讀 {url}，我想就其中的內容提問。",
   "notTranslated": "本頁尚未翻譯，以下顯示英文原文。",
+  "editionsLabel": "適用版本",
   "legalNav": "法律資訊",
   "privacy": "隱私",
   "terms": "條款",

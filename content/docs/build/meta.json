@@ -11,6 +11,7 @@
     "agents",
     "packages",
     "templates",
-    "marketplace"
+    "marketplace",
+    "extend-existing-systems"
   ]
 }

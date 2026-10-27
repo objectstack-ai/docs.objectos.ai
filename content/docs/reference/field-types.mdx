@@ -1,87 +1,43 @@
 ---
 title: Field Types
-seoTitle: "Field Types: All 48 Built-in Types and Options"
-description: Every field type you can declare on an object — what it stores, what options it accepts, how it surfaces in REST, the UI, and the AI Builder.
+seoTitle: "Field Types: What Each Field Stores and Shows"
+description: What a field type decides in ObjectOS — the column, the API, the form widget and what the AI Builder asks for — with a few examples and the full catalogue on objectstack.ai.
+editions: [community, cloud, enterprise]
 ---
 
-48 built-in field types, grouped by family. The full Zod schema is in
-[`packages/spec/src/data/field.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/data/field.zod.ts) — this page is a working summary.
+**Full specification:** [Field types on objectstack.ai](https://objectstack.ai/docs/data-modeling/field-types). This page is the summary: where ObjectOS uses it, and a few examples.
 
-## Core properties (every field)
+A field's type decides what it stores and how every surface treats it. There
+are 48 built-in types — text, numbers, dates, choices, relations, computed
+values, media, structured data and richer inputs such as addresses, ratings
+and signatures — and every object also carries system fields (`id`,
+`created_at`, `updated_at`, `created_by`, `updated_by`) you do not declare.
 
-| Property | Type | Default | Purpose |
-|:--|:--|:--|:--|
-| `name` | string (snake_case) | — | Machine identifier — REST path segment, SQL column |
-| `label` | string | — | Display label in the UI |
-| `type` | FieldType | — | See type tables below |
-| `required` | boolean | `false` | NOT NULL constraint |
-| `unique` | boolean | `false` | Unique index |
-| `searchable` | boolean | `false` | Indexed for `/api/v1/search` |
-| `multiple` | boolean | `false` | Store an array of values |
-| `defaultValue` | unknown | — | Initial value (literal or CEL) |
-| `hidden` | boolean | `false` | Hide from default views |
-| `readonly` | boolean | `false` | Disable in forms |
-| `system` | boolean | `false` | Auto-injected (id, created_at, …) |
-| `externalId` | boolean | `false` | Eligible for upsert via external key |
-| `inlineHelpText` | string | — | Tooltip / helper text |
-| `requiredWhen` | `P` predicate | — | Required when CEL is true |
-| `trackHistory` | boolean | `false` | Render value changes as human-readable entries on the record activity timeline (ADR-0052) |
+## Where ObjectOS uses it
 
-> Removed in 16.0: `columnName` (the physical column is always the field name;
-> external/federated objects map columns via `external.columnMap`) and the
-> field-level `index` boolean (declare indexes in the object's `indexes[]` array).
+One field definition drives all of these:
 
-## Text family
+```
+*.object.ts (field spec)
+   │
+   ├─► Postgres / MySQL / SQLite column + index + constraint
+   ├─► REST: validated on POST/PATCH, exposed on GET
+   ├─► UI: form widget + list column
+   ├─► AI Builder: tool argument schema (so the AI knows what to ask)
+   └─► Audit: change-tracked if `trackHistory: true`
+```
 
-| Type | Use for | Key options |
-|:--|:--|:--|
-| `text` | short strings | `maxLength`, `minLength` |
-| `textarea` | multi-line | `maxLength` |
-| `email` | email | format-validated; lowercased |
-| `url` | URL | format-validated |
-| `phone` | phone | E.164 |
-| `password` | one-way secrets | hashed by the auth subsystem; never returned by GET |
-| `secret` | reversible secrets (API keys, tokens, DB passwords) | encrypted at rest via the crypto provider, stored as an opaque ref, masked on read. Fail-closed — with no provider configured, writes throw rather than persist cleartext |
-| `markdown` | markdown body | rendered in preview |
-| `html` | sanitised HTML | DOMPurify on write |
-| `richtext` | WYSIWYG | rich-text editor + serialised JSON |
+- **The database** gets a column, its index and its constraints.
+- **The REST API** validates the field on every write and returns it on read
+  ([REST API](./rest-api)).
+- **The UI** picks the form widget and the list column from the type.
+- **The AI Builder** knows what to ask for, because the type is the argument
+  schema of its tools.
+- **Audit** records the field's changes when `trackHistory` is on.
 
-## Numbers
+## Examples
 
-| Type | Use for | Key options |
-|:--|:--|:--|
-| `number` | floats | `min`, `max`, `precision`, `scale` |
-| `currency` | money | `currencyConfig: { precision, currencyMode: 'fixed' \| 'dynamic', defaultCurrency }` |
-| `percent` | 0–100 % | `min`, `max`, `scale` |
-
-> `integer` and `decimal` aren't separate types — use `number` with
-> `scale: 0` for integer, `precision`+`scale` for fixed decimal.
-
-## Date / time
-
-| Type | Stores | Notes |
-|:--|:--|:--|
-| `date` | calendar date | no timezone |
-| `datetime` | instant | UTC |
-| `time` | wall-clock time | no date |
-
-## Logic
-
-| Type | Notes |
-|:--|:--|
-| `boolean` | Checkbox |
-| `toggle` | Same as boolean, switch UI |
-
-## Selection
-
-| Type | Notes |
-|:--|:--|
-| `select` | Single choice — options declared inline or referenced from a picklist |
-| `multiselect` | Many choices, stored as an array |
-| `radio` | UI alias for `select` with radio rendering |
-| `checkboxes` | UI alias for `multiselect` with checkbox rendering |
-
-Options shape:
+**A choice** — a `select` field's options:
 
 ```ts
 // Keys of a `select` field; its other keys are omitted.
@@ -92,15 +48,8 @@ options: [
 ]
 ```
 
-## Relations
-
-| Type | Cardinality | Semantics |
-|:--|:--|:--|
-| `lookup` | many-to-one | Loose reference; deleting the parent doesn't delete the child by default |
-| `master_detail` | many-to-one, cascading | Child cannot exist without parent; permissions inherit from parent |
-| `tree` | self-reference | Hierarchical (parent_id on the same object) |
-
-Common options:
+**A relation** — a lookup to an account, with the picker narrowed to active
+ones:
 
 ```ts
 // One field.
@@ -114,19 +63,7 @@ Common options:
 }
 ```
 
-> The old string-array `referenceFilters` was removed in 16.0 — the record picker
-> only honours the structured `lookupFilters` form. Supported `operator` values:
-> `eq`, `ne`, `gt`, `lt`, `gte`, `lte`, `contains`, `in`, `notIn`.
-
-## Computed
-
-| Type | What it does | Key option |
-|:--|:--|:--|
-| `formula` | Derived value, evaluated on read or recalc | `expression: F\`record.qty * record.unit_price\`` — see [CEL](./cel) |
-| `summary` | Roll-up over a child relation | `summaryOperations: { object, field, function, filter? }` (`count` \| `sum` \| `avg` \| `min` \| `max`; optional `filter` — a query-`where` condition, e.g. `{ status: 'received' }` — aggregates only matching child rows, 16.0+) |
-| `autonumber` | Auto-incrementing display number | `format` (e.g. `TKT-{0000}`), `startAt` |
-
-Formula example:
+**A computed value** — a formula field, written in [CEL](./cel):
 
 ```ts
 // One field.
@@ -137,15 +74,7 @@ Formula example:
 }
 ```
 
-## Media
-
-| Type | Use for | Key option |
-|:--|:--|:--|
-| `image` | image attachments | `multiple` / `accept` / `maxSize` (see below) |
-| `file` | any file | same |
-| `avatar` | profile pictures | square crop, sensible defaults |
-| `video` | video uploads | duration + thumbnail capture |
-| `audio` | audio | waveform preview |
+**An attachment** — files, checked on the server:
 
 ```ts
 // One field.
@@ -157,85 +86,25 @@ Formula example:
 }
 ```
 
-### What a media field stores
+## Media
 
 A media field stores an **opaque `sys_file` id** — not a URL, and not an
-inline metadata blob. The `{ url, name, size, mimeType, … }` object you
-see when you read a record is the **expanded (read) form**, derived by
-the platform from the owning `sys_file` record; `url` comes from the
-`/files/:fileId` resolver rather than from anything stored on your row.
+inline metadata blob. The `{ url, name, size, mimeType, … }` object you see
+when you read a record is the expanded form, derived from the owning `sys_file`
+record; `url` comes from the `/files/:fileId` resolver.
 
-This is what makes the constraints real. Because the platform owns the
-bytes, `accept` and `maxSize` are not just hints handed to the browser's
-file picker — the server re-checks a record write against them
-authoritatively, so a caller that talks to the API directly cannot
-bypass them. It is also what lets a download carry the real filename and
-content type, and read authorization be delegated to the owning object
-instead of handed out as an unguessable URL.
-
-Existing deployments convert with `os migrate files-to-references`. See
-[Storage](/docs/configure/storage) for where the bytes actually live and
-the [17.0 release notes](https://docs.objectstack.ai/docs/releases/v17)
-for the migration's self-check and per-deployment flag.
-
-> The nested `fileAttachmentConfig` object was removed in 16.0 — it was never
-> read by the runtime. Use the flat `multiple` / `accept` / `maxSize` properties.
-> Storage is configured per deployment (see Configure → Storage), not per field.
-
-## Structured
-
-| Type | Stores | Notes |
-|:--|:--|:--|
-| `json` | arbitrary JSON | Stored as JSONB on Postgres |
-| `composite` | sub-record with named fields | Inline struct, not a separate table |
-| `repeater` | array of composite values | One-to-many without a child object |
-
-## Enhanced UI
-
-| Type | Notes |
-|:--|:--|
-| `location` | lat/long + accuracy |
-| `address` | street / city / region / postal / country |
-| `code` | source-code field — `language`, `theme`, `lineNumbers` |
-| `color` | `colorFormat: 'hex' \| 'rgb' \| 'rgba' \| 'hsl'`, `presetColors[]` |
-| `rating` | 1–N stars — `max`, `icon` |
-| `slider` | bounded number with slider UI |
-| `signature` | drawn signature, stored as image |
-| `qrcode` | renders the value as a QR or barcode (EAN / UPC / Code128) |
-| `progress` | derived percent rendered as a bar |
-| `tags` | free-form tag array with autocomplete |
-| `vector` | embedding column — flat `dimensions` (e.g. `1536` for OpenAI embeddings). The nested `vectorConfig` (`distanceMetric`/`indexed`/`indexType`) was removed in 16.0 — it was never read |
-
-## System fields (auto-injected on every object)
-
-| Field | Type | Notes |
-|:--|:--|:--|
-| `id` | text (ULID) | primary key |
-| `created_at` | datetime | UTC insert time |
-| `updated_at` | datetime | UTC last-write time |
-| `created_by` | lookup → `user` | who inserted |
-| `updated_by` | lookup → `user` | who last wrote |
-| `version` | integer | optimistic-concurrency token |
-
-You don't declare these — opt out per object with
-`ObjectSpec.systemFields: false` (rarely a good idea).
-
-## How fields flow through the stack
-
-```
-*.object.ts (field spec)
-   │
-   ├─► Postgres / MySQL / SQLite column + index + constraint
-   ├─► REST: validated on POST/PATCH, exposed on GET
-   ├─► UI: form widget + list column
-   ├─► AI Builder: tool argument schema (so the AI knows what to ask)
-   └─► Audit: change-tracked if `trackHistory: true`
-```
+Because the platform owns the bytes, `accept` and `maxSize` are not just hints
+for the browser's file picker: the server re-checks every record write against
+them, so a caller that talks to the API directly cannot bypass them. A download
+carries the real filename and content type, and read access is delegated to
+the owning object. Existing deployments convert with
+`os migrate files-to-references`; see [Storage](/docs/configure/storage) for
+where the bytes live and the
+[17.0 release notes](https://objectstack.ai/docs/releases/v17) for the
+migration.
 
 ## See also
 
 - [Build → Data model](/docs/build/data) — composing fields into objects
-- [CEL](./cel) — `expression`, `requiredWhen`, validations
+- [Relationships](/docs/build/data/relationships) — lookups and master-detail
 - [ObjectQL](./objectql) — querying these fields
-- [REST API](./rest-api) — endpoints that produce / consume them
-- [`@objectstack/spec/data/field.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/data/field.zod.ts) — authoritative schema

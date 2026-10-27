@@ -1,0 +1,87 @@
+---
+title: Compare Editions
+seoTitle: "Compare ObjectOS Editions: Community, Free, Team, Enterprise"
+description: What each ObjectOS edition and plan includes, row by row — Community, Cloud Free, Cloud Team and Enterprise — and where each difference is enforced.
+editions: [community, cloud, enterprise]
+---
+
+ObjectOS is one product in three editions. **ObjectOS Community** is the
+open-source runtime you run yourself. **ObjectOS Cloud** is the same product
+hosted for you, on the **Free** and **Team** plans. **ObjectOS Enterprise** is
+the licensed product you run on your own infrastructure; **Business** and
+**Business Self-Managed** are contract options under it. Prices and contracts
+are on [License & Pricing](/docs/editions/license); this page is what each one
+does differently.
+
+Every page in these docs carries a row of edition badges under its title,
+naming the editions it applies to. The sidebar marks the pages and groups that
+are not for every edition with the same icons.
+
+## The matrix
+
+| | **Community** | **Cloud Free** | **Cloud Team** | **Enterprise** |
+|---|---|---|---|---|
+| Delivery | Self-managed | Hosted | Hosted | Self-managed |
+| Price | Free (Apache-2.0) | Free | $24 / AI seat / month | By contract |
+| File storage | Your own ([Storage](/docs/configure/storage)) | 1 GB | 20 GB | Your own ([Storage](/docs/configure/storage)) |
+| Development environment | n/d | — (production only) | n/d | n/d |
+| MCP requests | Set by your deployment | 20 / minute, 1,000 / day | n/d | Set by your deployment |
+| Custom domain | Your own host | — | ✓ | Your own host |
+| Record- and field-level security | ✓ | — | n/d | ✓ |
+| In-UI AI (AI Builder, "ask your data") | MCP only — bring your own model | Taste | ✓ | ✓ |
+| AI governance (action audit, guardrails, permission scoping) | — | — | — | ✓ |
+| Single sign-on with your identity provider | ✓ ([Authentication](/docs/configure/authentication)) | — | — | ✓ |
+| SCIM | — | — | — | ✓ |
+| Clustering / high availability | — | — | — | ✓ |
+| Several organizations on one deployment | — | — | — | ✓ |
+| Air-gapped operation | — | — | — | ✓ |
+| Support | Community | Community | Standard | SLA + dedicated |
+
+**n/d** — not yet documented here. These cells are being confirmed against the
+product and will be filled in; until then, ask
+[sales@objectstack.ai](mailto:sales@objectstack.ai).
+
+On ObjectOS Cloud, single sign-on and AI governance come with **Business**, a
+contract option of ObjectOS Enterprise on the hosted service. On a self-managed
+deployment, Community and Enterprise run the same runtime: everything in the
+Community column is in the Enterprise column too.
+
+## Where each difference is enforced
+
+The matrix lists only differences the product enforces. These are the ones
+these docs already describe in detail:
+
+- **The license decides what a self-managed deployment is.** Without one, a
+  single-organization deployment runs with Community behaviour — the open MCP
+  server, bring your own AI. With one, the AI Builder and "ask your data" are
+  unlocked on your own infrastructure. See [AI Service](/docs/configure/ai).
+- **Several organizations on one deployment requires a license.** A
+  multi-organization posture without one is refused at startup, and the runtime
+  does not serve traffic. See [Runtime Configuration](/docs/configure/runtime)
+  and [Troubleshooting](/docs/operate/troubleshooting).
+- **Air-gapped operation is a license mode.** An ordinary license is validated
+  online against a control plane; an air-gap license is verified locally, and
+  the deployment must also declare no control plane. The combinations that
+  cannot work are refused at startup. See
+  [Air-gapped Deployment](/docs/deploy/air-gapped).
+- **A lapsed license never stops the runtime.** Business Self-Managed switches
+  its paid features off and keeps your data and runtime working; a full
+  Enterprise deployment keeps the last paid version. See
+  [License & Pricing](/docs/editions/license#faq).
+
+## Which edition is this page for?
+
+| Badge | Means |
+|---|---|
+| Community | True when you run ObjectOS Community yourself |
+| Cloud | True on ObjectOS Cloud, on the Free and Team plans |
+| Enterprise | True on a licensed, self-managed ObjectOS Enterprise deployment |
+
+Deploy and Operate are for the two self-managed editions, Community and
+Enterprise: on ObjectOS Cloud we run the deployment for you.
+
+## Next
+
+- [Start](/docs/start/cloud) — the three ways in: Cloud, Community or Enterprise.
+- [License & Pricing](/docs/editions/license) — prices, contracts and the open-source license.
+- [Public Preview](/docs/editions/public-preview) — what ObjectOS Cloud's current stage means for your data and integrations.

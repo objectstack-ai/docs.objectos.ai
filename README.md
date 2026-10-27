@@ -13,7 +13,7 @@
 
 [Website](https://www.objectos.ai) ·
 [Documentation](https://docs.objectos.ai) ·
-[License & Pricing](https://docs.objectos.ai/docs/resources/license) ·
+[License & Pricing](https://docs.objectos.ai/docs/editions/license) ·
 [ObjectStack — the open-source protocol, SDK and framework](https://github.com/objectstack-ai/objectstack)
 
 This repository is the source of the ObjectOS product documentation,
@@ -52,7 +52,7 @@ Builder), SSO, and commercial support.
 - **ObjectOS Enterprise** — licensed, self-managed. Business and Business
   Self-Managed (the single-node entry option) are contract options under it.
 
-See [License & Pricing](https://docs.objectos.ai/docs/resources/license) for
+See [License & Pricing](https://docs.objectos.ai/docs/editions/license) for
 plan details, and [docs.objectos.ai](https://docs.objectos.ai) for
 capabilities, deployment, and operations documentation.
 
