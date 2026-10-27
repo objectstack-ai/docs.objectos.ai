@@ -1,79 +1,132 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 記錄訪問
-description: 控制使用者可以看到或修改哪些記錄。
+seoTitle: "記錄訪問：共享模型、規則和共享"
+description: 在物件許可權允許之後，控制使用者能看到或修改哪些記錄 —— 共享模型預設值、租戶隔離、共享規則、記錄共享。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 17abeb2628a200cbbc2bf0a1297c94858fc37405d52019fe2adc6c58c6af5d7a
+  source_sha: 7b46161549b128c59dc28ff67e96983da80e27b14b32166a87dd0fe2b00e1789
   guide_rev: 1
   mode: auto
 ---
 
-記錄訪問控制物件許可權允許某操作之後，使用者可以看到或修改的具體行。
+記錄訪問控制的是：在物件許可權允許某項操作之後，使用者能看到或修改哪些行。
 
-## 機制
+## 機制 [#mechanisms]
 
 | 機制 | 用途 |
 |---|---|
-| 行級安全 | 強制租戶或組織隔離 |
-| 共享規則 | 按宣告式條件授予訪問 |
-| 記錄共享 | 授予某使用者、崗位或"單元及下級單元"對特定記錄的訪問 |
-| 所有權/層級 | 通過所有者和業務單元樹授予訪問 |
+| 行級安全 | 強制執行租戶或組織隔離 |
+| 共享規則 | 基於宣告式條件授予訪問 |
+| 記錄共享 | 向特定使用者、團隊、崗位、業務單元，或某個單元及其下級授予訪問 |
+| 所有權 / 層級 | 通過負責人和業務單元樹授予訪問 |
 
-## 共享模型預設值
+## 共享模型預設值 [#sharing-model-defaults]
 
-每個物件都宣告（或繼承）一個 `sharingModel`，用於設定組織級預設值：`private`、`public_read`、`public_read_write` 或 `controlled_by_parent`。
+每個物件都會宣告（或繼承）一個 `sharingModel`，它設定組織範圍的預設值：
+`private`、`public_read`、`public_read_write` 或 `controlled_by_parent`。
 
-自 ObjectStack 13 起，帶有所有者欄位但未宣告 `sharingModel` 的自定義物件預設使用**私有**模型——記錄僅對其所有者（和管理員）可見，直到共享規則、記錄共享或更寬的預設值將其開放。需要開放行為時請顯式宣告：
+從 ObjectStack 13 起，帶有負責人欄位且沒有宣告 `sharingModel` 的自定義物件預設
+為**私有** —— 記錄只對其負責人（以及管理員）可見，直到某條共享規則、記錄共享或
+更寬的預設值把它們開放出來。顯式宣告模型即可恢復開放的行為：
 
 ```ts
-defineObject({
+ObjectSchema.create({
   name: 'crm_lead',
   sharingModel: 'public_read_write',
-  // …
+  fields: {
+    company: Field.text({ label: 'Company' }),
+    // …
+  },
 });
 ```
 
-13 之前的別名 `read`、`read_write`、`full` 已被移除；`os compile` 會通過 `security-owd-unset` 與 `security-owd-alias` 校驗規則標記未設定或使用別名的模型。
+13 之前的別名 `read`、`read_write` 和 `full` 已被移除；`os compile` 會通過
+`security-owd-unset` 和 `security-owd-alias` lint 標出未設定或使用別名的模型。
 
-## 預設租戶隔離
+## 預設的租戶隔離 [#default-tenant-isolation]
 
-security 外掛通過當前使用者的上下文強制租戶隔離。對標準平臺物件，預設規則保護那些不帶常規組織欄位的全域性表。
+安全外掛通過當前使用者的上下文強制執行租戶隔離。對於標準的平臺物件，預設規則會
+保護那些不帶常規組織欄位的全域性表。
 
-客戶的現實期望是：
+客戶在實踐中的預期是：
 
 ```text
 Users only see records that belong to their organization or records
 explicitly shared with them.
 ```
 
-## 共享規則
+## 共享規則 [#sharing-rules]
 
-把共享規則用於可複用的業務策略：
+用共享規則表達可重複的業務策略：
 
-- 所有大區經理可以讀取本區的 account；
-- 支援經理可以檢視升級的 case；
+- 所有區域經理都可以讀取其所在區域的客戶；
+- 支援經理可以看到已升級的案例；
 - 財務可以讀取已批准的發票；
-- 審計員可以讀取標記為審計審查的記錄。
+- 審計人員可以讀取標記為待審計的記錄。
 
-## 記錄共享
+一條規則是基於欄位值的 CEL `condition`，在編寫時編譯成行過濾條件；匹配的記錄會
+為解析出的接收方（某個使用者、團隊、崗位、業務單元，或某個單元及其下級）生成
+`sys_record_share` 授權。`criteria` 規則是唯一可編寫的形式。
 
-把記錄共享用於例外情況：
+### 兩個開關都失敗即關閉 [#both-switches-fail-closed]
 
-- 把一個 opportunity 共享給某專家；
-- 在升級期間臨時授予訪問；
-- 把某條記錄的訪問授予一個外部整合。
+兩件讀者理所當然會假定、卻直到 ObjectStack 17.0 才成立的事：
 
-## 排查可見性
+- **沒有條件的共享規則什麼都不共享。** 過去，一條儲存時沒有條件謂詞的規則會被
+  求值為*該物件的每一條記錄* —— 即空過濾條件 —— 所以經由某個未校驗的寫入路徑
+  產生的一個拼寫錯誤，就會悄悄地開放整張表。現在，寫入一個匹配全部的條件會被
+  拒絕，求值器也會把空條件視為**什麼都不**匹配。
+- **`enabled: false` 的 RLS 策略就是停用的。** 過去，被關閉的策略仍會繼續貢獻
+  它的 OR 分支授權，所以關閉一條策略並不會收回訪問。現在，被停用的策略根本不會
+  被求值。
 
-當用戶看不到一條記錄時，按順序檢查：
+如果你在更早的版本下審計過訪問，並得出"這條規則什麼也沒授予"或"這條策略是關閉
+的"的結論，值得重新執行一遍
+[解釋引擎](/docs/configure/permissions#diagnose--audit) —— 實際的範圍可能比
+後設資料所說的更寬。
 
-1. 使用者是否已認證並處於預期組織？
-2. 使用者是否擁有物件 `read` 許可權？
-3. 該物件的 `sharingModel` 是什麼（自 ObjectStack 13 起自定義物件預設 `private`）？
-4. 行級安全是否允許該記錄？
-5. 是否有共享規則應當生效？
-6. 是否存在直接的記錄共享？
-7. 該記錄是否歸屬於預期業務單元子樹中的使用者？
-8. 使用者是否在正確的專案/主機名下？
+## 行級安全拒絕它無法強制執行的內容 [#row-level-security-refuses-what-it-cannot-enforce]
 
-[解釋引擎](/docs/configure/permissions#診斷與審計)可以一次性回答上述所有問題——它報告每一層的判定結果，以及是哪條授權（或缺失的授權）決定了最終結果。
+從 ObjectStack 17.5 起，RLS 策略要麼精確地收窄它所宣告的範圍，要麼拒絕：
+
+- **沒有 `check` 的策略用它的 `using` 門控寫入。** 文件一直說 `check` 預設為
+  `using`，但只有聲明瞭 `check` 的策略才會被應用到寫入上，所以使用者可能寫入一行
+  自己讀不回來的資料。現在，單行插入或按 id 更新的結果如果落在所有適用的寫入
+  策略的 `using` 之外，會返回 `403 PERMISSION_DENIED`。如果一條策略本意就是讓
+  寫入可以落在其讀取範圍之外，就必須宣告一個允許這些寫入的 `check`。
+- **它無法強制執行的謂詞會拒絕。** 把欄位與列表比較
+  （`record.status != ['closed', 'archived']`）、與裸的 `current_user` 而不是
+  `current_user.id` 比較，或者指定了物件未宣告的欄位，都可能放進它本來要拒絕的
+  行和寫入。這樣的策略現在會失敗即關閉：它的讀取不返回任何行，寫入返回 `403`。
+- **寫入按儲存後的行來判定。** `check` 和組織隔離牆看到的，是引擎在
+  `beforeInsert` / `beforeUpdate` 鉤子執行之後所儲存的行。
+
+`os validate` 會在這些形態釋出之前報告它們（`rls-predicate-unenforceable`、
+`rls-predicate-unknown-field`），後設資料儲存入口也會拒絕攜帶這類策略的許可權集
+（`422 INVALID_METADATA`）。
+
+## 記錄共享 [#record-shares]
+
+用記錄共享處理例外情況：
+
+- 把某個商機共享給一位專家；
+- 在升級處理期間授予臨時訪問；
+- 讓外部整合訪問某條特定記錄。
+
+## 可見性故障排查 [#troubleshooting-visibility]
+
+當用戶看不到某條記錄時，按以下順序檢查：
+
+1. 使用者是否已認證，且處於預期的組織中？
+2. 使用者是否擁有物件的 `read` 許可權？
+3. 物件的 `sharingModel` 是什麼（從 ObjectStack 13 起，自定義物件預設為
+   `private`）？
+4. 行級安全是否允許這條記錄？
+5. 是否有本應適用的共享規則？
+6. 是否有直接的記錄共享？
+7. 記錄是否由預期業務單元子樹中的某個使用者擁有？
+8. 使用者訪問的專案 / 主機名是否正確？
+
+[解釋引擎](/docs/configure/permissions#diagnose--audit)一次呼叫就能回答所有這些
+問題 —— 它會報告每一層的判定，以及是哪項授權（或缺少的授權）決定了結果。

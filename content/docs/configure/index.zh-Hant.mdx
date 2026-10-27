@@ -1,20 +1,33 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 管理
+seoTitle: "管理：使用者、訪問和設定"
 description: 系統管理員在哪裡管理使用者、訪問、設定與整合 —— 以及哪個頁面解決哪類任務。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: b8fa9980d709254db66ee46fa6978bf3a1df09b57fcf013268b32513919dd6f6
+  source_sha: dc1a105142d4b26d331b4288248309f185672ffa2b1986e5f8d36afc521562e4
   guide_rev: 1
   mode: auto
 ---
 
 本章面向 ObjectOS 部署的**系統管理員**：負責使用者入職、授予訪問許可權、接通登入、郵件、儲存與整合，並保持系統健康運轉的人。你日常管理的是人和他們的許可權；應用、物件和許可權集本身則隨平臺及你安裝的應用包一起交付。
 
-> **許可權在 Studio 中設計，在 Setup 中分配。**絕大多數管理工作都不會離開 Setup（管理後臺）——只有編寫許可權集或執行解釋引擎時才需要進入 Studio。
+## Setup 與 Studio [#setup-and-studio]
 
-## Setup 控制台
+**許可權在 Studio 中設計，在 Setup 中分配。** 這句話是對一條貫穿整個產品的劃分的標準表述，而不只是關於許可權的規則：Setup *運營*一個執行中的部署，Studio *編寫*這個部署所執行的後設資料。兩者都位於 `/_console/` 下的同一個 UI 中；誰都不是獨立的介面。
 
-內建的管理控制台位於 **`/apps/setup`**，需要 `setup.access` 許可權。其左側導航由執行時已載入的能力外掛動態提供，因此你看到的選單精確反映當前部署所執行的內容——未啟用的能力不貢獻任何選單項，其分組保持為空。
+| | Setup | Studio |
+|---|---|---|
+| 回答 | 誰在這裡，他們可以做什麼？ | 這個應用由什麼組成？ |
+| 位置 | `/_console/apps/setup` | `/_console/studio` |
+| 門控 | `setup.access` | `studio.access` |
+| 面向 | 系統管理員 | 實施人員和開發者 |
+
+絕大多數管理工作都不會離開 Setup —— 只有編寫許可權集或執行解釋引擎時才需要進入 Studio。
+
+## Setup 應用 [#the-setup-app]
+
+內建的管理應用位於 **`/apps/setup`**，需要 `setup.access` 許可權。其左側導航由執行時已載入的能力外掛動態提供，因此你看到的選單精確反映當前部署所執行的內容——未啟用的能力不貢獻任何選單項，其分組保持為空。
 
 穩定的導航分組：
 
@@ -29,7 +42,7 @@ translation:
 | **Integrations**（整合） | Webhooks |
 | **Advanced**（高階） | OAuth 應用、簽名金鑰（JWKS）、身份關聯、使用者偏好 |
 
-## 任務地圖
+## 任務地圖 [#task-map]
 
 | 我需要 …… | 閱讀 |
 |---|---|
@@ -52,7 +65,7 @@ translation:
 | 檢視日誌、指標和審計記錄 | [可觀測性](/docs/operate/observability) |
 | 診斷故障部署 | [故障排查](/docs/operate/troubleshooting) |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任務 | 頁面 |
 |---|---|

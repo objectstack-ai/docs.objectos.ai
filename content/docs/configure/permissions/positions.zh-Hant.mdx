@@ -1,0 +1,158 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 崗位
+seoTitle: "崗位：職能和受眾錨點"
+description: 用崗位建模職能和受眾錨點。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9a6096331cd3521f789262b74df4f6d0c036eb8279faa0759092e883c35b050c
+  guide_rev: 1
+  mode: auto
+---
+
+崗位描述使用者所擔任的職能 —— "Sales Manager"、"Support Agent"、"Auditor"。
+從 ObjectStack 13（Permission Model v2，ADR-0090）起，崗位是**唯一**的人員
+分組概念：舊有的 Role 和 Profile 框架已合併為崗位，並從協議中移除。
+
+崗位有意設計為**扁平的**。沒有 `parent` 欄位，也沒有崗位層級 —— 彙報結構和
+基於子樹的可見性改為放在[業務單元樹](/docs/configure/permissions/record-access)
+上。
+
+## 崗位的職責 [#position-responsibilities]
+
+用崗位來建模：
+
+- 職能（"Sales Manager"、"Recruiter"、"Auditor"）；
+- 應用、標籤頁和手冊的受眾定向；
+- 審批職責（型別為 `position` 的審批人會自動展開為當前任職者）；
+- 向擔任同一職能的所有人分配[許可權集](/docs/configure/permissions/permission-sets)。
+
+用**業務單元**建模組織架構圖（部門、區域、上下級結構），用**許可權集**授予具體
+的物件、欄位和系統能力。
+
+## 系統物件 [#system-objects]
+
+| 物件 | 用途 |
+|---|---|
+| `sys_position` | 崗位定義（扁平 —— 沒有層級） |
+| `sys_user_position` | 使用者對某個崗位的任職分配 |
+| `sys_position_permission_set` | 通過崗位分配的許可權集 |
+| `sys_business_unit` | 用於層級和子樹共享的組織架構樹 |
+| `sys_business_unit_member` | 使用者在某個業務單元中的成員資格（`function_in_business_unit`） |
+
+寫入 RBAC 關聯表（`sys_user_position`、`sys_position_permission_set`、
+`sys_user_permission_set`、`sys_permission_set`）需要租戶級管理員許可權或一個
+[委派管理範圍](/docs/configure/permissions/permission-sets#delegated-administration)
+—— 僅有這些表上的普通 CRUD 授權是不夠的。
+
+## 受眾錨點：`everyone` 和 `guest` [#audience-anchors-everyone-and-guest]
+
+每個部署中都會預置兩個由系統管理的崗位：
+
+| 錨點 | 由誰持有 |
+|---|---|
+| `everyone` | 每個已認證的主體，隱式持有 |
+| `guest` | 僅限沒有會話的（匿名）HTTP 主體 |
+
+把一個許可權集繫結到 `everyone`，就能為所有已登入使用者授予一份基線。繫結是累加
+的，平臺會拒絕把高許可權的許可權集（View All / Modify All、刪除 / 清除 / 轉移、
+系統許可權、萬用字元）繫結到這些錨點上。
+
+**`guest` 不授予任何東西。** 在每個 HTTP 介面上，對物件資料的匿名訪問都會被
+拒絕（ObjectStack 17.0），`guest` 錨點上的任何繫結都不會給匿名呼叫者一個許可權集
+（ObjectStack 17.6）。要向匿名訪問者開放某樣東西，就改為宣告一個介面 ——
+[公開表單](/docs/build/interface/views#public-forms)或分享連結 —— 它們各自只
+授權自己所宣告的內容。
+
+配置的基線許可權集（`fallbackPermissionSet`，預設 `member_default`）通過同一條
+`everyone` 繫結路徑生效。注意，從 ObjectStack 14.2 起，成員基線不再包含
+**刪除** —— 刪除記錄必須按物件、通過崗位分配的許可權集顯式授予。
+
+**沒有任何許可權集的呼叫者會得到拒絕基線**（ObjectStack 17.6）。一個完全解析不到
+許可權集的請求 —— 匿名請求，或只指定了不存在的許可權集的請求 —— 對每個物件都會以
+`403 PERMISSION_DENIED` 被拒絕。它不會得到由 `requiredPermissions` 門控的欄位
+（如果該欄位聲明瞭 `maskingRule`，則會得到掩碼後的值），也不能在這樣的欄位上
+過濾、排序、分組或寫入。只要配置了基線許可權集，已登入使用者就不受影響 —— 預設的
+`member_default` 總能為他們解析出來。
+
+## 停用崗位 [#deactivating-a-position]
+
+崗位的 **Deactivate** 動作會立即收回它所賦予的一切（ObjectStack 17.1）：
+
+- 它不再分配任何許可權集，它的名稱也會從任職者的 `current_user.positions` 中
+  消失；
+- 以該崗位為接收方的共享規則不再共享給任何人，它已經授予的記錄共享會在下一次
+  對賬時被撤銷。
+
+停用阻止的是訪問，而不是定址：審批人型別為 `position` 的審批步驟仍會路由給
+已停用崗位的任職者。`active` 值為空的崗位不受影響 —— 只有顯式的停用才算數。
+
+> 在 ObjectStack 17.1 之前，這個開關是無效的：已停用的崗位仍在授權。升級越過
+> 這個版本會在即時資料上撤銷那些訪問，所以在升級之前，請重新啟用任何仍應授權
+> 的已停用崗位。
+
+## 帶生效期的分配 [#effective-dated-assignments]
+
+崗位和許可權集的分配帶有可選的 `valid_from` / `valid_until` 時間視窗（左閉右開，
+UTC；null 表示無界）。過期的授權會立即停止解析 —— 適用於臨時頂崗、外包人員和
+受認證約束的訪問。每項授權都可以記錄一個 `reason`，委派時還可以記錄
+`delegated_from`。
+
+標記為 `delegatable: true` 的崗位，允許其當前任職者在一個有界的時間視窗內把它
+自行委派給另一個使用者（未來的 `valid_until` 最長 30 天，必須填寫原因）。分配了
+管理範圍許可權集的崗位永遠不能設為可委派。
+
+## 推薦模式 [#recommended-pattern]
+
+保持一小組穩定的、按職能劃分的崗位：
+
+```text
+Sales Manager
+Sales Representative
+Support Manager
+Support Agent
+```
+
+把組織架構建模為業務單元：
+
+```text
+Sales
+  ├─ EMEA
+  └─ AMER
+Support
+```
+
+然後為崗位附加許可權集以獲得能力：
+
+```text
+Sales Manager position
+  -> CRM User
+  -> Sales Manager Access
+  -> Report Viewer
+```
+
+這樣崗位保持穩定，而許可權可以獨立演進。
+
+## 避免 [#avoid]
+
+- 每個使用者一個崗位；
+- 在每個崗位裡重複每一項許可權；
+- 把崗位名稱用作業務邏輯判斷；
+- 在崗位上重建層級 —— 子樹可見性屬於業務單元和
+  [記錄共享](/docs/configure/permissions/record-access)；
+- 在記錄共享更精確的情況下，通過經理崗位授予寬泛的訪問。
+
+## 從角色遷移（13 之前） [#migrating-from-roles-pre-13]
+
+如果你正在升級針對 ObjectStack 12 或更早版本編寫的後設資料：
+
+| 舊有 | 當前 |
+|---|---|
+| `sys_role` / `sys_user_role` / `sys_role_permission_set` | `sys_position` / `sys_user_position` / `sys_position_permission_set` |
+| `defineRole` / `RoleSchema`（帶 `parent`） | `definePosition` / `PositionSchema`（扁平） |
+| 後設資料型別 `role` 或 `profile` | `position` |
+| 共享接收方 `role` / `role_and_subordinates` | `position` / `unit_and_subordinates` |
+| `PermissionSetSchema.isProfile` | 已移除 —— `isDefault` 標記安裝時的建議 |
+
+角色層級必須重新建模為業務單元樹。`os lint` 會通過 `security-role-word` 規則
+標出殘留的角色詞彙。

@@ -1,26 +1,34 @@
 ---
 title: 字段级安全
-description: 隐藏或锁定单个字段 —— 授予语义、服务端强制执行，以及 FLS 在表单、视图和 API 中的行为。
+seoTitle: "字段级安全：授权和 API 强制执行"
+description: 隐藏、掩码或锁定单个字段 —— 授权语义、服务端强制执行，以及 FLS 在表单、视图和 API 中的行为。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 2fd3062133458070900d24fa614bf7c6c540bb3cba18425e4152295a992dac18
+  source_sha: 58871db7d6fcecf258805b25fbf6750df2977a64c4fc479c32004dad5e19422b
   guide_rev: 1
   mode: auto
 ---
 
-字段级安全（FLS）控制单个字段的可见性与可编辑性，作用于对象权限和[记录访问](/docs/configure/permissions/record-access)已经允许用户触达该记录*之后*。它是实现"支持人员能看到客户，但看不到其 `annual_revenue`"和"销售代表能读外部 id 但永远不能改"的那一层。
+字段级安全（FLS）控制单个字段的可见性与可编辑性，作用于对象权限和
+[记录访问](/docs/configure/permissions/record-access)已经允许用户触达该记录
+*之后*。它是实现"支持人员能看到客户，但看不到其 `annual_revenue`"和"销售代表
+能读外部 id 但永远不能改"的那一层。
 
-FLS 规则存在[权限集](/docs/configure/permissions/permission-sets)中——本页比那里的[字段安全附录](/docs/configure/permissions/permission-sets#field-security-appendix)更深入地讲解授予语义与强制执行。
+FLS 规则存放在[权限集](/docs/configure/permissions/permission-sets)中 —— 本页比
+那里的[字段安全附录](/docs/configure/permissions/permission-sets#field-security-appendix)
+更深入地讲解授权语义与强制执行。
 
-## 字段权限授予
+## 字段权限授权 [#field-permission-grants]
 
 字段权限以 `<object>.<field>` 为键，使用 `readable` / `editable`：
 
 ```ts
+// Keys of a permission set; its other keys are omitted.
 fields: {
-  // 只读：可见但不可编辑
+  // Read-only: visible but not editable
   'account.annual_revenue': { readable: true, editable: false },
   'account.description': { readable: true, editable: true },
-  // 隐藏：完全不可见
+  // Hidden: not visible at all
   'account.ssn': { readable: false, editable: false },
   'opportunity.amount': { readable: true, editable: true },
   'opportunity.probability': { readable: true, editable: false },
@@ -31,30 +39,96 @@ fields: {
 
 | 状态 | 规则 | 效果 |
 |---|---|---|
-| **隐藏** | `{ readable: false, editable: false }` | 字段完全不可见——从每个响应中剥离 |
+| **隐藏** | `{ readable: false, editable: false }` | 字段完全不可见 —— 从每个响应中剥离 |
 | **只读** | `{ readable: true, editable: false }` | 字段会返回，但对它的写入会被拒绝 |
 | **可编辑** | `{ readable: true, editable: true }` | 字段可见且可写 |
 
-> 字段权限键务必写成**带对象限定**的形式（`crm_lead.budget`，而不是 `budget`）——自 ObjectStack 14.4 起，`security-fls-unqualified-key` lint 会在编译时拒绝裸键，因为它们会静默地匹配不到任何东西。
+> 字段权限键务必写成**带对象限定**的形式（`crm_lead.budget`，而不是
+> `budget`）—— 从 ObjectStack 14.4 起，`security-fls-unqualified-key` lint
+> 会在编译时拒绝裸键，因为它们会悄悄地什么都匹配不到。
 
-## 授予如何合并
+## 掩码字段 [#masked-fields]
 
-FLS 使用**默认可见（黑名单）语义**：没有显式规则的字段原样通过——既可读*又*可写。权限集只约束它显式列出的字段。
+从 ObjectStack 17.1 起，字段还可以被**掩码**：返回时大部分值被替换，因此它仍可
+辨认，却不会被泄露。掩码声明在字段本身上，而不是在权限集中：
 
-字段授予在用户的多个权限集之间按**最宽松**方式取并集：一个权限集的 `readable: true` 会压过另一个权限集的 `false`。在减法式屏蔽层落地之前（已保留为 ADR-0066 ⑧），`{ readable: false }` 规则只有在**用户持有的其他任何权限集**都没有声明该字段 `readable: true` 时才会遮蔽它。实际影响：
+```ts
+// Fields of an object; the object around them is omitted.
+mobile: Field.phone({
+  label: 'Mobile',
+  maskingRule: 'phone',               // served as 138****5678
+  requiredPermissions: ['view_pii'],  // holders of view_pii see the stored value
+}),
+tax_id: Field.text({
+  label: 'Tax ID',
+  maskingRule: { keepHead: 2, keepTail: 2 },  // keep two characters at each end
+}),
+```
 
-- 保护敏感字段的方式是**只**在需要它们的权限集中授予——绝不要指望某个权限集里的 `false` 规则去覆盖别处的 `true`。
+`maskingRule` 接受五种预设之一 —— `phone`、`id_card`、`bank_account`、
+`email`、`name` —— 或者 `{ keepHead, keepTail }`，即两端各保留的字符数。掩码是
+确定性的，并保持值的长度。
+
+谁能看到存储的值：
+
+| 调用者 | 看到 |
+|---|---|
+| 持有字段 `requiredPermissions` 中的**每一项**能力 | 存储的值 |
+| 字段声明了 `requiredPermissions` 时的其他任何人 | 掩码 |
+| 字段没有声明 `requiredPermissions` 时，除系统上下文之外的所有人 | 掩码 |
+| 被 `readable: false` 授权隐藏了该字段的调用者 | 什么都看不到 —— 字段保持隐藏 |
+
+`requiredPermissions` 中的能力和其他能力一样，由权限集授予。掩码永远不会放宽
+一个隐藏字段：`readable: false` 授权仍会把它完全移除。
+
+掩码在每个界面上都是同一个值 —— API 响应、列表视图和表单、CSV 和 XLSX 导出，
+以及 AI Agent 读取的上下文，返回的都是同一个掩码。另外两条规则防止它泄露：
+
+- **掩码字段不能被查询。** 在它上面过滤、排序、分组或聚合都会被拒绝，与隐藏
+  字段相同 —— 参见 [API 中的强制执行](#enforcement-in-the-api)。
+- **掩码永远不会覆盖值。** 把掩码占位符发送回来的写入 —— 比如客户端重新提交
+  它读到的整条记录 —— 会以 `400 VALIDATION_ERROR` 被拒绝，而不是存储
+  `138****5678`。
+
+## 授权如何合并 [#how-grants-combine]
+
+FLS 使用**默认可见（黑名单）语义**：没有显式规则的字段原样通过 —— 既可读*又*
+可写。权限集只约束它显式列出的字段。
+
+字段授权在用户的多个权限集之间按**最宽松**方式取并集：一个权限集的
+`readable: true` 会压过另一个权限集的 `false`。在减法式屏蔽层落地之前（已保留
+为 ADR-0066 ⑧），`{ readable: false }` 规则只有在**用户持有的其他任何权限集**
+都没有声明该字段 `readable: true` 时才会隐藏它。实际影响：
+
+- 保护敏感字段的方式是**只**在需要它们的权限集中授予 —— 绝不要指望某个权限集
+  里的 `false` 规则去覆盖别处的 `true`。
 - 把出现在广泛授予的对象上的敏感字段视为评审警讯。
 
-已声明的规则本身以 fail-closed 方式强制执行：被遮蔽的字段在读取时被剥离，对不可编辑字段的写入会抛错。
+已声明的规则本身以失败即关闭的方式强制执行：隐藏字段在读取时被剥离，对不可
+编辑字段的写入会抛错。
 
-## API 中的强制执行
+## API 中的强制执行 [#enforcement-in-the-api]
 
-SecurityPlugin 中间件在服务端强制执行字段规则，与请求来路无关——REST、ObjectQL 或任何其他路径。不存在通过更底层 API 的后门。
+SecurityPlugin 中间件在服务端强制执行字段规则，与请求来路无关 —— REST、
+ObjectQL 或任何其他路径。不存在通过更底层 API 的后门。
 
-**读取时**——`find` / `findOne` 的结果在响应离开引擎之前，会从每条记录中剥离不可读字段。
+**读取时** —— `find` / `findOne` 的结果在响应离开引擎之前，会从每条记录中剥离
+不可读字段，并把掩码字段替换为其掩码。
 
-**写入时**——`insert` / `update` 请求在操作到达驱动**之前**被检查。如果请求体包含任何调用者无权编辑的字段，引擎抛出 `PermissionDeniedError`（HTTP 403），并附上违规字段名：
+**查询时** —— 调用者无法读取、或只能读到掩码的字段，也不能用来选择行，因为
+哪些行匹配会一次一个探测地泄露它的值。在它上面过滤、排序、分组或聚合都会以
+`403 PERMISSION_DENIED` 被拒绝。从 ObjectStack 17.6 起，这一点在每一个查询入口
+都成立，而不只是数据 API 的过滤和排序：
+
+- 在过滤条件或聚合中，作为比较右侧出现的字段；
+- 分析查询；
+- 对活动流、[审计日志](/docs/operate/audit-logs)和审批快照中所复制的值进行的
+  过滤和排序 —— 除非过滤条件以相等方式指定了一个对象，且调用者能读取它的每个
+  字段，否则会被拒绝。
+
+**写入时** —— `insert` / `update` 请求在操作到达驱动**之前**被检查。如果请求体
+包含任何调用者无权编辑的字段，引擎会抛出 `PermissionDeniedError`（HTTP 403），
+并附上违规字段名：
 
 ```json
 {
@@ -70,38 +144,53 @@ SecurityPlugin 中间件在服务端强制执行字段规则，与请求来路�
 }
 ```
 
-**为什么抛错而不是静默剥离？**静默剥离对诚实的客户端隐藏了安全边界（它们的更新"存不上"却不知道为什么），*同时*对探测型客户端也不给任何信号。抛错让边界在两个方向上都可观测——正当的 UI 得到可据以修复的错误；探测型客户端学不到任何它本来推断不出的东西。
+**为什么抛错而不是静默剥离？** 静默剥离对诚实的客户端隐藏了安全边界（它们的
+更新"存不上"却不知道为什么），*同时*对探测型客户端也不给任何信号。抛错让边界
+在两个方向上都可观测 —— 正当的 UI 得到可据以修复的错误；探测型客户端学不到
+任何它本来推断不出的东西。
 
 另外两个强制执行细节：
 
 - **批量插入**逐行检查；任意一行中出现一个违规字段，整个批次会被原子性拒绝。
-- **系统操作**（`ExecutionContext { isSystem: true }`）完全绕过该检查——用于迁移、种子数据加载和审计日志写入。
+- **系统操作**（`ExecutionContext { isSystem: true }`）完全绕过该检查 —— 用于
+  迁移、种子数据加载和审计日志写入。
 
-## FLS 在表单和视图中
+## FLS 在表单和视图中 [#fls-in-forms-and-views]
 
-生成的表单和内联表格会在 UI 中隐藏不可编辑字段——但那只是 **UX 层**。上文的服务端检查才是事实来源，因此行为在所有地方保持一致：
+生成的表单和内联表格会在 UI 中隐藏不可编辑字段 —— 但那只是 **UX 层**。上文的
+服务端检查才是事实来源，因此行为在所有地方保持一致：
 
-| 界面 | 隐藏字段 | 只读字段 |
-|---|---|---|
-| 记录表单 / 内联表格 | 不渲染 | 渲染但无可编辑控件；直接尝试写入会被 403 拒绝 |
-| 列表视图、相关列表、导出 | 列值从响应中剥离 | 值正常显示 |
-| REST / ObjectQL | 从结果中剥离 | 读取时返回；写入抛出带 `forbiddenFields` 的 `PERMISSION_DENIED` |
-| MCP / AI Agent | 剥离——Agent [以调用用户身份运行](/docs/configure/mcp#permission-enforcement) | 与 REST 相同 |
+| 界面 | 隐藏字段 | 掩码字段 | 只读字段 |
+|---|---|---|---|
+| 记录表单 / 内联表格 | 不渲染 | 值以掩码显示；把掩码写回会以 `400 VALIDATION_ERROR` 被拒绝 | 渲染但无可编辑控件；直接尝试写入会被 403 拒绝 |
+| 列表视图、相关列表、导出 | 列值从响应中剥离 | 显示掩码值，CSV 和 XLSX 导出中也是如此 | 值正常显示 |
+| REST / ObjectQL | 从结果中剥离 | 返回掩码值 | 读取时返回；写入抛出带 `forbiddenFields` 的 `PERMISSION_DENIED` |
+| MCP / AI Agent | 剥离 —— Agent [以调用用户身份运行](/docs/configure/mcp#permission-enforcement) | 与 REST 相同 | 与 REST 相同 |
+| 过滤、排序、分组、聚合 | 以 `403 PERMISSION_DENIED` 拒绝 | 以 `403 PERMISSION_DENIED` 拒绝 | 允许 |
 
-由于读取是剥离而不是报错，隐藏字段对该用户来说就像不存在一样——这正是目的所在。
+由于读取是剥离而不是报错，隐藏字段对该用户来说就像不存在一样 —— 这正是目的
+所在。查询它是例外：如上所述，那会返回 `403`。
 
-## 验证与评审 FLS
+## 验证与评审 FLS [#verifying-and-reviewing-fls]
 
-- **按判定、在运行时**——[解释引擎](/docs/configure/permissions#diagnose--audit)会连同其他每一层一起报告 FLS 层的判定结果，并点名起作用的权限集。当用户反馈字段"不见了"时用它。
-- **按变更、在构建时**——如果你的应用启用了访问矩阵快照门禁，`os compile` 会把推导出的（权限集 × 对象）能力矩阵与已提交的 `access-matrix.json` 做 diff，并在漂移时失败，让能力变更以可评审的语义 diff 形式随 Pull Request 流转：
+- **按判定、在运行时** —— [解释引擎](/docs/configure/permissions#diagnose--audit)
+  会连同其他每一层一起报告 FLS 层的判定结果，点名起作用的权限集，并把掩码字段
+  报告为掩码而不是隐藏。当用户反馈字段"不见了"时用它。
+- **按变更、在构建时** —— 如果你的应用启用了访问矩阵快照门禁，`os compile`
+  会把推导出的（权限集 × 对象）能力矩阵与已提交的 `access-matrix.json` 做
+  diff，并在漂移时失败，让能力变更以可评审的语义 diff 形式随 Pull Request
+  流转：
 
 ```bash
 os compile --update-access-matrix
 ```
 
-> 当字段承载敏感数据时，默认选**隐藏**而不是只读——只读仍会把值泄漏进响应和日志。把字段规则打包进匹配真实职能的权限集，并为合规场景配套审计日志留存。更多编写模式：[权限集](/docs/configure/permissions/permission-sets#field-security-appendix)。
+> 当字段承载敏感数据时，默认选**隐藏**而不是只读 —— 只读仍会把值泄露进响应和
+> 日志。把字段规则打包进匹配真实职能的权限集，并为合规场景配套审计日志留存。
+> 更多编写模式：
+> [权限集](/docs/configure/permissions/permission-sets#field-security-appendix)。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任务 | 页面 |
 |---|---|

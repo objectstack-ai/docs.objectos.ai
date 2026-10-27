@@ -1,15 +1,17 @@
 ---
 title: 认证
+seoTitle: "认证：OAuth、OIDC/SSO 和设备流程"
 description: 配置登录、会话、OAuth、OIDC/SSO 以及设备流程。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 84eb43cc244cc4e3d1cbb73885340dab6689e57a70bd8d34d353c7f43ff31b2c
+  source_sha: f5ecbdd5472f71c9839f722534cf88e4aba12301b053b26ef38e7fa713fc91f3
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 使用由 Better Auth 驱动的 ObjectStack 认证插件。认证是项目本地的：每个项目拥有独立的身份表和会话作用域。
 
-## 支持的能力
+## 支持的能力 [#what-is-supported]
 
 视所打包的应用和已启用的设置而定，ObjectOS 可支持：
 
@@ -24,7 +26,43 @@ ObjectOS 使用由 Better Auth 驱动的 ObjectStack 认证插件。认证是项
 - 手机号登录与短信 OTP（需显式开启）；
 - CLI/浏览器设备流程。
 
-## 手机号登录与短信（ObjectStack 14.3+）
+## 谁可以注册（ObjectStack 17.3+） [#who-may-sign-up-objectstack-173]
+
+自助注册**默认关闭**。谁可以自己创建账户由一个设置决定，即
+**Setup → Authentication → Audience**：
+
+| 受众 | 谁可以注册 |
+|---|---|
+| `invite_only`（默认） | 只有持有待处理邀请的地址 |
+| `email_domain` | 你所允许的域名下的地址 —— 精确匹配，不区分大小写；子域名需要单独的条目 |
+| `open` | 任何人 |
+
+受众会评判每一条自助路径：邮箱/密码注册、通过社交 Provider 的首次登录、魔法
+链接、OTP 和手机号。被拒绝的注册返回 `403 SELF_REGISTRATION_CLOSED`（在
+`email_domain` 下是 `403 EMAIL_DOMAIN_NOT_ALLOWED`）。开放注册附带两条规则：
+
+- `email_domain` 和 `open` 都需要一个**自助注册权限集** —— 即每个自助注册者
+  获得的权限集（`member_default` 可以；`admin_full_access` 会被拒绝）。
+- 两者都会开启邮箱验证：`email_domain` 总是开启，`open` 则除非部署自身的配置
+  关闭了它。
+
+*Email and password* 下的 **Allow self-service registration** 开关不会覆盖
+受众：受众为 `invite_only` 时，即使该开关打开，注册也保持关闭。
+
+由你自己创建人员永远不受受众限制 —— 邀请、**Create User**、批量导入和企业级
+SSO 在每种设置下都可用（参见[用户](/docs/configure/users#add-people)）。全新
+安装上的第一个账户也不受限制。
+
+> **从 17.2 或更早版本升级：** 过去未声明受众意味着开放邮箱/密码注册。现在它
+> 意味着 `invite_only`，而且升级时不会有任何失败 —— 依赖开放注册的部署只是不再
+> 接受注册。要保留它，请选择 `open`（并配一个自助注册权限集）。
+
+受众与**成员策略**是两个不同的决定（**Setup → Authentication → Membership**，
+或 `OS_AUTH_MEMBERSHIP_POLICY` —— 参见
+[环境变量](/docs/reference/environment-variables#multi-organization-deployments)）。
+受众决定某人*能否*成为用户；成员策略决定新用户加入*哪个组织*。
+
+## 手机号登录与短信（ObjectStack 14.3+） [#phone-sign-in--sms-objectstack-143]
 
 通过 `auth.plugins.phoneNumber` 设置开启手机号认证。开启后：
 
@@ -34,14 +72,14 @@ ObjectOS 使用由 Better Auth 驱动的 ObjectStack 认证插件。认证是项
 
 短信发送由 `@objectstack/plugin-sms` 提供，支持阿里云短信、Twilio 或开发环境日志回退，通过 `sms` 设置命名空间配置。含 OTP 验证码的消息体永不持久化或写入日志。通知也可以通过 `notify(channels: ['sms'])` 走 `sms` 通道。
 
-## 管理员用户管理（ObjectStack 14.3+）
+## 管理员用户管理（ObjectStack 14.3+） [#admin-user-management-objectstack-143]
 
 平台管理员可以不经邮件邀请流程直接开通账户：
 
 - `POST /api/v1/auth/admin/create-user` 直接创建用户，可选生成一次性密码（仅返回一次，不持久化）。`must_change_password` 标志强制首次登录时修改密码（未修改前返回 403 `PASSWORD_EXPIRED`）。
 - `POST /api/v1/auth/admin/import-users` 批量导入行 / CSV / XLSX（每次请求最多 500 行），支持 dry-run 和按邮箱或手机号 upsert；已存在用户的密码永不重置。自 16.0 起，默认 `passwordPolicy` 为 `'auto'`：具有可送达通道的行（真实邮箱 + 已接通的邮件服务，或手机号 + 短信邀请通道）会被**邀请**，只有无法触达的行才得到临时密码（仅返回一次，`must_change_password`）。依赖旧的仅建身份默认行为的调用方现在必须显式传入 `passwordPolicy: 'none'`；每行结果在 `rows[].delivery` 上，并附 `summary.delivery` 汇总。
 
-## 必需的 Secret
+## 必需的 Secret [#required-secret]
 
 设置：
 
@@ -57,11 +95,11 @@ ObjectOS 基于该值和项目环境 id 派生稳定的项目级 secret。这意
 
 完整的认证相关设置列表（包括旧版 `AUTH_SECRET` 别名）请参阅 [Environment variables](/docs/reference/environment-variables)。
 
-## 会话隔离
+## 会话隔离 [#session-isolation]
 
 在多项目部署中，Cookie 限定到项目主机名。ObjectOS 故意避免使用宽泛的根域 Cookie 作为项目会话——以防止会话跨客户项目泄漏。
 
-## 社交登录
+## 社交登录 [#social-login]
 
 通过环境变量或系统设置配置 Provider 凭据，具体取决于应用包暴露认证配置的方式。
 
@@ -83,7 +121,7 @@ https://crm.example.com/api/v1/auth/oauth2/callback/entra
 
 在 ObjectOS 中启用 Provider 前，先在身份提供方的应用注册中配置匹配的 redirect URI。
 
-## 企业级 OIDC/SSO
+## 企业级 OIDC/SSO [#enterprise-oidcsso]
 
 OIDC Provider 注册为通用 OAuth2 Provider，使用 `/api/v1/auth/oauth2/callback/<provider>` 路径。典型配置需要：
 
@@ -98,23 +136,24 @@ OIDC Provider 注册为通用 OAuth2 Provider，使用 `/api/v1/auth/oauth2/call
 
 对客户部署，优先使用 OIDC discovery URL，而不是手工配置 authorization/token/userinfo 端点。
 
-## 平台 SSO
+## 平台 SSO [#platform-sso]
 
 在云连接部署中，ObjectOS 可以使用控制面登录作为平台 SSO Provider。已经登录控制面的建设者无需创建独立的项目本地账户即可被预置到项目运行时。
 
 这要求控制面与 ObjectOS 共享同一个 `OS_AUTH_SECRET` 基础 secret。仅在客户希望每个项目拥有完全独立的登录边界时才禁用平台 SSO。
 
-## 运行检查
+## 运行检查 [#operational-checks]
 
 上线前：
 
 - 确认过期 token 返回 `401`；
+- 确认注册受众与应当能够创建账户的人群一致；
 - 确认登出会撤销活动会话；
 - 如策略需要，确认密码重置会撤销其他会话；
 - 确认回调 URL 与公开的项目域名一致；
 - 确认可信 origin 仅包含已批准的域名；
 - 确认 `OS_AUTH_SECRET` 存于 secret manager，而不是源码。
 
-## 后续步骤
+## 后续步骤 [#next-steps]
 
 认证确立的是用户*是谁*。要控制用户登录后*能访问什么*，请参阅 [Permissions](/docs/configure/permissions)。对于非浏览器客户端和机器对机器的访问，请参阅 [API access](/docs/configure/api-access)。

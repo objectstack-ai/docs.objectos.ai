@@ -1,8 +1,10 @@
 ---
 title: 存储
+seoTitle: "文件存储：本地磁盘、S3、R2、MinIO、Spaces"
 description: ObjectOS 把文件放在哪里 —— 本地磁盘、S3、R2、MinIO、Spaces。
+editions: [community, enterprise]
 translation:
-  source_sha: 7ec22c893adfedc9ade2e05655ab61ddd3b1aed89f9313707830fc2464f93e58
+  source_sha: 118eaaca8ed60b6085a54db822fa0487a70e083e96da8920405ffa3e1616d68d
   guide_rev: 1
   mode: auto
 ---
@@ -11,17 +13,17 @@ ObjectOS 的文件（附件、上传内容、生成的文档）会经过**存储
 
 该服务由 `@objectstack/service-storage` 提供，在 standalone 和 project 启动时默认启用。
 
-## 用户如何与之交互
+## 用户如何与之交互 [#how-users-interact-with-it]
 
 | 入口 | 行为 |
 |---|---|
-| Console 文件/图片字段 | 浏览器通过预签名 URL 直接上传到存储 |
+| UI 中的文件/图片字段 | 浏览器通过预签名 URL 直接上传到存储 |
 | REST `/api/v1/storage/*` | 编程式上传/下载端点 |
 | 对象 `file` / `image` 字段 | 渲染为上传控件；元数据持久化在 `sys_file` |
 
 文件以 `sys_file` 系统对象进行追踪，而非以原始路径出现在你的记录中。这让你的数据模型与存储后端解耦。
 
-## 本地文件系统（默认）
+## 本地文件系统（默认） [#local-filesystem-default]
 
 适用于：开发、单节点部署、演示。
 
@@ -51,7 +53,7 @@ new StorageServicePlugin({
 - ❌ 多节点、多可用区，或者任何需要跨区域持久化的场景 —— 请使用 S3
   兼容存储。
 
-## S3 兼容存储（生产）
+## S3 兼容存储（生产） [#s3-compatible-production]
 
 适用于：生产、多节点、持久化 + 生命周期管理。
 
@@ -82,7 +84,7 @@ AWS SDK 按其正常的凭据链读取凭据：
 | 共享配置 | `~/.aws/credentials`、`AWS_PROFILE` |
 | IAM 角色 | 在 EC2 / ECS / EKS / Lambda 上自动生效 —— 无需配置 |
 
-### Cloudflare R2
+### Cloudflare R2 [#cloudflare-r2]
 
 ```ts
 new StorageServicePlugin({
@@ -98,7 +100,7 @@ new StorageServicePlugin({
 
 凭据：R2 access key ID + secret，通过标准 `AWS_*` 环境变量或你的 secret manager 传入。
 
-### MinIO（自托管）
+### MinIO（自托管） [#minio-self-hosted]
 
 ```ts
 new StorageServicePlugin({
@@ -112,7 +114,7 @@ new StorageServicePlugin({
 });
 ```
 
-### DigitalOcean Spaces
+### DigitalOcean Spaces [#digitalocean-spaces]
 
 ```ts
 new StorageServicePlugin({
@@ -126,7 +128,7 @@ new StorageServicePlugin({
 });
 ```
 
-### S3 bucket 策略
+### S3 bucket 策略 [#s3-bucket-policy]
 
 存储使用预签名 PUT/GET URL。推荐的 bucket 策略：
 
@@ -135,7 +137,7 @@ new StorageServicePlugin({
 - 生命周期：1–7 天后让未完成的 multipart 上传过期；24 小时后让带 `temp=true` 标签的对象过期。
 - Versioning + Object Lock：可选，在合规部署中推荐启用。
 
-## REST 接口
+## REST 接口 [#rest-surface]
 
 `@objectstack/client` 会调用以下接口 —— 通常你不直接调用：
 
@@ -151,9 +153,9 @@ new StorageServicePlugin({
 
 每个文件的鉴权由 security 插件的权限求值器针对 `sys_file` 对象处理 —— 你无需独立的存储层 ACL。
 
-## 实时配置
+## 实时配置 [#live-configuration]
 
-当 settings 服务启用时（默认即启用），管理员可以在 **Console → Configuration → Storage** 中切换存储适配器而无需重启：
+当 settings 服务启用时（默认即启用），管理员可以在 **Setup → Configuration → Storage** 中切换存储适配器而无需重启：
 
 - 选择适配器、bucket、region、endpoint；
 - 粘贴凭据（在 `sys_setting` 中静态加密存储）；
@@ -161,7 +163,7 @@ new StorageServicePlugin({
 
 变更在下一次请求时生效——无需重启。
 
-## 容量规划
+## 容量规划 [#sizing]
 
 | 资源 | 默认值 | 可调项 |
 |---|---|---|
@@ -170,7 +172,7 @@ new StorageServicePlugin({
 | 单次上传上限 | 取决于后端（S3 = 5 GB） | — |
 | 分块上传上限 | 取决于后端（S3 = 5 TB） | — |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 - [系统设置](/docs/configure/system-settings) —— 实时配置以及存储切换所使用的设置服务
 - [Production Readiness](/docs/operate/production) —— 包含对象存储持久化与备份的清单

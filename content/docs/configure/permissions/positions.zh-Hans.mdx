@@ -1,0 +1,157 @@
+---
+title: 岗位
+seoTitle: "岗位：职能和受众锚点"
+description: 用岗位建模职能和受众锚点。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9a6096331cd3521f789262b74df4f6d0c036eb8279faa0759092e883c35b050c
+  guide_rev: 1
+  mode: auto
+---
+
+岗位描述用户所担任的职能 —— "Sales Manager"、"Support Agent"、"Auditor"。
+从 ObjectStack 13（Permission Model v2，ADR-0090）起，岗位是**唯一**的人员
+分组概念：旧有的 Role 和 Profile 框架已合并为岗位，并从协议中移除。
+
+岗位有意设计为**扁平的**。没有 `parent` 字段，也没有岗位层级 —— 汇报结构和
+基于子树的可见性改为放在[业务单元树](/docs/configure/permissions/record-access)
+上。
+
+## 岗位的职责 [#position-responsibilities]
+
+用岗位来建模：
+
+- 职能（"Sales Manager"、"Recruiter"、"Auditor"）；
+- 应用、标签页和手册的受众定向；
+- 审批职责（类型为 `position` 的审批人会自动展开为当前任职者）；
+- 向担任同一职能的所有人分配[权限集](/docs/configure/permissions/permission-sets)。
+
+用**业务单元**建模组织架构图（部门、区域、上下级结构），用**权限集**授予具体
+的对象、字段和系统能力。
+
+## 系统对象 [#system-objects]
+
+| 对象 | 用途 |
+|---|---|
+| `sys_position` | 岗位定义（扁平 —— 没有层级） |
+| `sys_user_position` | 用户对某个岗位的任职分配 |
+| `sys_position_permission_set` | 通过岗位分配的权限集 |
+| `sys_business_unit` | 用于层级和子树共享的组织架构树 |
+| `sys_business_unit_member` | 用户在某个业务单元中的成员资格（`function_in_business_unit`） |
+
+写入 RBAC 关联表（`sys_user_position`、`sys_position_permission_set`、
+`sys_user_permission_set`、`sys_permission_set`）需要租户级管理员权限或一个
+[委派管理范围](/docs/configure/permissions/permission-sets#delegated-administration)
+—— 仅有这些表上的普通 CRUD 授权是不够的。
+
+## 受众锚点：`everyone` 和 `guest` [#audience-anchors-everyone-and-guest]
+
+每个部署中都会预置两个由系统管理的岗位：
+
+| 锚点 | 由谁持有 |
+|---|---|
+| `everyone` | 每个已认证的主体，隐式持有 |
+| `guest` | 仅限没有会话的（匿名）HTTP 主体 |
+
+把一个权限集绑定到 `everyone`，就能为所有已登录用户授予一份基线。绑定是累加
+的，平台会拒绝把高权限的权限集（View All / Modify All、删除 / 清除 / 转移、
+系统权限、通配符）绑定到这些锚点上。
+
+**`guest` 不授予任何东西。** 在每个 HTTP 界面上，对对象数据的匿名访问都会被
+拒绝（ObjectStack 17.0），`guest` 锚点上的任何绑定都不会给匿名调用者一个权限集
+（ObjectStack 17.6）。要向匿名访问者开放某样东西，就改为声明一个界面 ——
+[公开表单](/docs/build/interface/views#public-forms)或分享链接 —— 它们各自只
+授权自己所声明的内容。
+
+配置的基线权限集（`fallbackPermissionSet`，默认 `member_default`）通过同一条
+`everyone` 绑定路径生效。注意，从 ObjectStack 14.2 起，成员基线不再包含
+**删除** —— 删除记录必须按对象、通过岗位分配的权限集显式授予。
+
+**没有任何权限集的调用者会得到拒绝基线**（ObjectStack 17.6）。一个完全解析不到
+权限集的请求 —— 匿名请求，或只指定了不存在的权限集的请求 —— 对每个对象都会以
+`403 PERMISSION_DENIED` 被拒绝。它不会得到由 `requiredPermissions` 门控的字段
+（如果该字段声明了 `maskingRule`，则会得到掩码后的值），也不能在这样的字段上
+过滤、排序、分组或写入。只要配置了基线权限集，已登录用户就不受影响 —— 默认的
+`member_default` 总能为他们解析出来。
+
+## 停用岗位 [#deactivating-a-position]
+
+岗位的 **Deactivate** 动作会立即收回它所赋予的一切（ObjectStack 17.1）：
+
+- 它不再分配任何权限集，它的名称也会从任职者的 `current_user.positions` 中
+  消失；
+- 以该岗位为接收方的共享规则不再共享给任何人，它已经授予的记录共享会在下一次
+  对账时被撤销。
+
+停用阻止的是访问，而不是寻址：审批人类型为 `position` 的审批步骤仍会路由给
+已停用岗位的任职者。`active` 值为空的岗位不受影响 —— 只有显式的停用才算数。
+
+> 在 ObjectStack 17.1 之前，这个开关是无效的：已停用的岗位仍在授权。升级越过
+> 这个版本会在实时数据上撤销那些访问，所以在升级之前，请重新启用任何仍应授权
+> 的已停用岗位。
+
+## 带生效期的分配 [#effective-dated-assignments]
+
+岗位和权限集的分配带有可选的 `valid_from` / `valid_until` 时间窗口（左闭右开，
+UTC；null 表示无界）。过期的授权会立即停止解析 —— 适用于临时顶岗、外包人员和
+受认证约束的访问。每项授权都可以记录一个 `reason`，委派时还可以记录
+`delegated_from`。
+
+标记为 `delegatable: true` 的岗位，允许其当前任职者在一个有界的时间窗口内把它
+自行委派给另一个用户（未来的 `valid_until` 最长 30 天，必须填写原因）。分配了
+管理范围权限集的岗位永远不能设为可委派。
+
+## 推荐模式 [#recommended-pattern]
+
+保持一小组稳定的、按职能划分的岗位：
+
+```text
+Sales Manager
+Sales Representative
+Support Manager
+Support Agent
+```
+
+把组织架构建模为业务单元：
+
+```text
+Sales
+  ├─ EMEA
+  └─ AMER
+Support
+```
+
+然后为岗位附加权限集以获得能力：
+
+```text
+Sales Manager position
+  -> CRM User
+  -> Sales Manager Access
+  -> Report Viewer
+```
+
+这样岗位保持稳定，而权限可以独立演进。
+
+## 避免 [#avoid]
+
+- 每个用户一个岗位；
+- 在每个岗位里重复每一项权限；
+- 把岗位名称用作业务逻辑判断；
+- 在岗位上重建层级 —— 子树可见性属于业务单元和
+  [记录共享](/docs/configure/permissions/record-access)；
+- 在记录共享更精确的情况下，通过经理岗位授予宽泛的访问。
+
+## 从角色迁移（13 之前） [#migrating-from-roles-pre-13]
+
+如果你正在升级针对 ObjectStack 12 或更早版本编写的元数据：
+
+| 旧有 | 当前 |
+|---|---|
+| `sys_role` / `sys_user_role` / `sys_role_permission_set` | `sys_position` / `sys_user_position` / `sys_position_permission_set` |
+| `defineRole` / `RoleSchema`（带 `parent`） | `definePosition` / `PositionSchema`（扁平） |
+| 元数据类型 `role` 或 `profile` | `position` |
+| 共享接收方 `role` / `role_and_subordinates` | `position` / `unit_and_subordinates` |
+| `PermissionSetSchema.isProfile` | 已移除 —— `isDefault` 标记安装时的建议 |
+
+角色层级必须重新建模为业务单元树。`os lint` 会通过 `security-role-word` 规则
+标出残留的角色词汇。

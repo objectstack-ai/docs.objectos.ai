@@ -1,27 +1,35 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 欄位級安全
-description: 隱藏或鎖定單個欄位 —— 授予語義、服務端強制執行，以及 FLS 在表單、檢視和 API 中的行為。
+seoTitle: "欄位級安全：授權和 API 強制執行"
+description: 隱藏、掩碼或鎖定單個欄位 —— 授權語義、服務端強制執行，以及 FLS 在表單、檢視和 API 中的行為。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 2fd3062133458070900d24fa614bf7c6c540bb3cba18425e4152295a992dac18
+  source_sha: 58871db7d6fcecf258805b25fbf6750df2977a64c4fc479c32004dad5e19422b
   guide_rev: 1
   mode: auto
 ---
 
-欄位級安全（FLS）控制單個欄位的可見性與可編輯性，作用於物件許可權和[記錄訪問](/docs/configure/permissions/record-access)已經允許使用者觸達該記錄*之後*。它是實現"支援人員能看到客戶，但看不到其 `annual_revenue`"和"銷售代表能讀外部 id 但永遠不能改"的那一層。
+欄位級安全（FLS）控制單個欄位的可見性與可編輯性，作用於物件許可權和
+[記錄訪問](/docs/configure/permissions/record-access)已經允許使用者觸達該記錄
+*之後*。它是實現"支援人員能看到客戶，但看不到其 `annual_revenue`"和"銷售代表
+能讀外部 id 但永遠不能改"的那一層。
 
-FLS 規則存在[許可權集](/docs/configure/permissions/permission-sets)中——本頁比那裡的[欄位安全附錄](/docs/configure/permissions/permission-sets#field-security-appendix)更深入地講解授予語義與強制執行。
+FLS 規則存放在[許可權集](/docs/configure/permissions/permission-sets)中 —— 本頁比
+那裡的[欄位安全附錄](/docs/configure/permissions/permission-sets#field-security-appendix)
+更深入地講解授權語義與強制執行。
 
-## 欄位許可權授予
+## 欄位許可權授權 [#field-permission-grants]
 
 欄位許可權以 `<object>.<field>` 為鍵，使用 `readable` / `editable`：
 
 ```ts
+// Keys of a permission set; its other keys are omitted.
 fields: {
-  // 只读：可见但不可编辑
+  // Read-only: visible but not editable
   'account.annual_revenue': { readable: true, editable: false },
   'account.description': { readable: true, editable: true },
-  // 隐藏：完全不可见
+  // Hidden: not visible at all
   'account.ssn': { readable: false, editable: false },
   'opportunity.amount': { readable: true, editable: true },
   'opportunity.probability': { readable: true, editable: false },
@@ -32,30 +40,96 @@ fields: {
 
 | 狀態 | 規則 | 效果 |
 |---|---|---|
-| **隱藏** | `{ readable: false, editable: false }` | 欄位完全不可見——從每個響應中剝離 |
+| **隱藏** | `{ readable: false, editable: false }` | 欄位完全不可見 —— 從每個響應中剝離 |
 | **只讀** | `{ readable: true, editable: false }` | 欄位會返回，但對它的寫入會被拒絕 |
 | **可編輯** | `{ readable: true, editable: true }` | 欄位可見且可寫 |
 
-> 欄位許可權鍵務必寫成**帶物件限定**的形式（`crm_lead.budget`，而不是 `budget`）——自 ObjectStack 14.4 起，`security-fls-unqualified-key` lint 會在編譯時拒絕裸鍵，因為它們會靜默地匹配不到任何東西。
+> 欄位許可權鍵務必寫成**帶物件限定**的形式（`crm_lead.budget`，而不是
+> `budget`）—— 從 ObjectStack 14.4 起，`security-fls-unqualified-key` lint
+> 會在編譯時拒絕裸鍵，因為它們會悄悄地什麼都匹配不到。
 
-## 授予如何合併
+## 掩碼欄位 [#masked-fields]
 
-FLS 使用**預設可見（黑名單）語義**：沒有顯式規則的欄位原樣通過——既可讀*又*可寫。許可權集只約束它顯式列出的欄位。
+從 ObjectStack 17.1 起，欄位還可以被**掩碼**：返回時大部分值被替換，因此它仍可
+辨認，卻不會被洩露。掩碼宣告在欄位本身上，而不是在許可權集中：
 
-欄位授予在使用者的多個許可權集之間按**最寬鬆**方式取並集：一個許可權集的 `readable: true` 會壓過另一個許可權集的 `false`。在減法式遮蔽層落地之前（已保留為 ADR-0066 ⑧），`{ readable: false }` 規則只有在**使用者持有的其他任何許可權集**都沒有宣告該欄位 `readable: true` 時才會遮蔽它。實際影響：
+```ts
+// Fields of an object; the object around them is omitted.
+mobile: Field.phone({
+  label: 'Mobile',
+  maskingRule: 'phone',               // served as 138****5678
+  requiredPermissions: ['view_pii'],  // holders of view_pii see the stored value
+}),
+tax_id: Field.text({
+  label: 'Tax ID',
+  maskingRule: { keepHead: 2, keepTail: 2 },  // keep two characters at each end
+}),
+```
 
-- 保護敏感欄位的方式是**只**在需要它們的許可權集中授予——絕不要指望某個許可權集裡的 `false` 規則去覆蓋別處的 `true`。
+`maskingRule` 接受五種預設之一 —— `phone`、`id_card`、`bank_account`、
+`email`、`name` —— 或者 `{ keepHead, keepTail }`，即兩端各保留的字元數。掩碼是
+確定性的，並保持值的長度。
+
+誰能看到儲存的值：
+
+| 呼叫者 | 看到 |
+|---|---|
+| 持有欄位 `requiredPermissions` 中的**每一項**能力 | 儲存的值 |
+| 欄位聲明瞭 `requiredPermissions` 時的其他任何人 | 掩碼 |
+| 欄位沒有宣告 `requiredPermissions` 時，除系統上下文之外的所有人 | 掩碼 |
+| 被 `readable: false` 授權隱藏了該欄位的呼叫者 | 什麼都看不到 —— 欄位保持隱藏 |
+
+`requiredPermissions` 中的能力和其他能力一樣，由許可權集授予。掩碼永遠不會放寬
+一個隱藏欄位：`readable: false` 授權仍會把它完全移除。
+
+掩碼在每個介面上都是同一個值 —— API 響應、列表檢視和表單、CSV 和 XLSX 匯出，
+以及 AI Agent 讀取的上下文，返回的都是同一個掩碼。另外兩條規則防止它洩露：
+
+- **掩碼欄位不能被查詢。** 在它上面過濾、排序、分組或聚合都會被拒絕，與隱藏
+  欄位相同 —— 參見 [API 中的強制執行](#enforcement-in-the-api)。
+- **掩碼永遠不會覆蓋值。** 把掩碼佔位符傳送回來的寫入 —— 比如客戶端重新提交
+  它讀到的整條記錄 —— 會以 `400 VALIDATION_ERROR` 被拒絕，而不是儲存
+  `138****5678`。
+
+## 授權如何合併 [#how-grants-combine]
+
+FLS 使用**預設可見（黑名單）語義**：沒有顯式規則的欄位原樣通過 —— 既可讀*又*
+可寫。許可權集只約束它顯式列出的欄位。
+
+欄位授權在使用者的多個許可權集之間按**最寬鬆**方式取並集：一個許可權集的
+`readable: true` 會壓過另一個許可權集的 `false`。在減法式遮蔽層落地之前（已保留
+為 ADR-0066 ⑧），`{ readable: false }` 規則只有在**使用者持有的其他任何許可權集**
+都沒有宣告該欄位 `readable: true` 時才會隱藏它。實際影響：
+
+- 保護敏感欄位的方式是**只**在需要它們的許可權集中授予 —— 絕不要指望某個許可權集
+  裡的 `false` 規則去覆蓋別處的 `true`。
 - 把出現在廣泛授予的物件上的敏感欄位視為評審警訊。
 
-已宣告的規則本身以 fail-closed 方式強制執行：被遮蔽的欄位在讀取時被剝離，對不可編輯欄位的寫入會拋錯。
+已宣告的規則本身以失敗即關閉的方式強制執行：隱藏欄位在讀取時被剝離，對不可
+編輯欄位的寫入會拋錯。
 
-## API 中的強制執行
+## API 中的強制執行 [#enforcement-in-the-api]
 
-SecurityPlugin 中介軟體在服務端強制執行欄位規則，與請求來路無關——REST、ObjectQL 或任何其他路徑。不存在通過更底層 API 的後門。
+SecurityPlugin 中介軟體在服務端強制執行欄位規則，與請求來路無關 —— REST、
+ObjectQL 或任何其他路徑。不存在通過更底層 API 的後門。
 
-**讀取時**——`find` / `findOne` 的結果在響應離開引擎之前，會從每條記錄中剝離不可讀欄位。
+**讀取時** —— `find` / `findOne` 的結果在響應離開引擎之前，會從每條記錄中剝離
+不可讀欄位，並把掩碼欄位替換為其掩碼。
 
-**寫入時**——`insert` / `update` 請求在操作到達驅動**之前**被檢查。如果請求體包含任何呼叫者無權編輯的欄位，引擎丟擲 `PermissionDeniedError`（HTTP 403），並附上違規欄位名：
+**查詢時** —— 呼叫者無法讀取、或只能讀到掩碼的欄位，也不能用來選擇行，因為
+哪些行匹配會一次一個探測地洩露它的值。在它上面過濾、排序、分組或聚合都會以
+`403 PERMISSION_DENIED` 被拒絕。從 ObjectStack 17.6 起，這一點在每一個查詢入口
+都成立，而不只是資料 API 的過濾和排序：
+
+- 在過濾條件或聚合中，作為比較右側出現的欄位；
+- 分析查詢；
+- 對活動流、[審計日誌](/docs/operate/audit-logs)和審批快照中所複製的值進行的
+  過濾和排序 —— 除非過濾條件以相等方式指定了一個物件，且呼叫者能讀取它的每個
+  欄位，否則會被拒絕。
+
+**寫入時** —— `insert` / `update` 請求在操作到達驅動**之前**被檢查。如果請求體
+包含任何呼叫者無權編輯的欄位，引擎會丟擲 `PermissionDeniedError`（HTTP 403），
+並附上違規欄位名：
 
 ```json
 {
@@ -71,38 +145,53 @@ SecurityPlugin 中介軟體在服務端強制執行欄位規則，與請求來�
 }
 ```
 
-**為什麼拋錯而不是靜默剝離？**靜默剝離對誠實的客戶端隱藏了安全邊界（它們的更新"存不上"卻不知道為什麼），*同時*對探測型客戶端也不給任何訊號。拋錯讓邊界在兩個方向上都可觀測——正當的 UI 得到可據以修復的錯誤；探測型客戶端學不到任何它本來推斷不出的東西。
+**為什麼拋錯而不是靜默剝離？** 靜默剝離對誠實的客戶端隱藏了安全邊界（它們的
+更新"存不上"卻不知道為什麼），*同時*對探測型客戶端也不給任何訊號。拋錯讓邊界
+在兩個方向上都可觀測 —— 正當的 UI 得到可據以修復的錯誤；探測型客戶端學不到
+任何它本來推斷不出的東西。
 
 另外兩個強制執行細節：
 
 - **批次插入**逐行檢查；任意一行中出現一個違規欄位，整個批次會被原子性拒絕。
-- **系統操作**（`ExecutionContext { isSystem: true }`）完全繞過該檢查——用於遷移、種子資料載入和審計日誌寫入。
+- **系統操作**（`ExecutionContext { isSystem: true }`）完全繞過該檢查 —— 用於
+  遷移、種子資料載入和審計日誌寫入。
 
-## FLS 在表單和檢視中
+## FLS 在表單和檢視中 [#fls-in-forms-and-views]
 
-生成的表單和內聯表格會在 UI 中隱藏不可編輯欄位——但那只是 **UX 層**。上文的服務端檢查才是事實來源，因此行為在所有地方保持一致：
+生成的表單和內聯表格會在 UI 中隱藏不可編輯欄位 —— 但那只是 **UX 層**。上文的
+服務端檢查才是事實來源，因此行為在所有地方保持一致：
 
-| 介面 | 隱藏欄位 | 只讀欄位 |
-|---|---|---|
-| 記錄表單 / 內聯表格 | 不渲染 | 渲染但無可編輯控制元件；直接嘗試寫入會被 403 拒絕 |
-| 列表檢視、相關列表、匯出 | 列值從響應中剝離 | 值正常顯示 |
-| REST / ObjectQL | 從結果中剝離 | 讀取時返回；寫入丟擲帶 `forbiddenFields` 的 `PERMISSION_DENIED` |
-| MCP / AI Agent | 剝離——Agent [以呼叫使用者身份執行](/docs/configure/mcp#permission-enforcement) | 與 REST 相同 |
+| 介面 | 隱藏欄位 | 掩碼欄位 | 只讀欄位 |
+|---|---|---|---|
+| 記錄表單 / 內聯表格 | 不渲染 | 值以掩碼顯示；把掩碼寫回會以 `400 VALIDATION_ERROR` 被拒絕 | 渲染但無可編輯控制元件；直接嘗試寫入會被 403 拒絕 |
+| 列表檢視、相關列表、匯出 | 列值從響應中剝離 | 顯示掩碼值，CSV 和 XLSX 匯出中也是如此 | 值正常顯示 |
+| REST / ObjectQL | 從結果中剝離 | 返回掩碼值 | 讀取時返回；寫入丟擲帶 `forbiddenFields` 的 `PERMISSION_DENIED` |
+| MCP / AI Agent | 剝離 —— Agent [以呼叫使用者身份執行](/docs/configure/mcp#permission-enforcement) | 與 REST 相同 | 與 REST 相同 |
+| 過濾、排序、分組、聚合 | 以 `403 PERMISSION_DENIED` 拒絕 | 以 `403 PERMISSION_DENIED` 拒絕 | 允許 |
 
-由於讀取是剝離而不是報錯，隱藏欄位對該使用者來說就像不存在一樣——這正是目的所在。
+由於讀取是剝離而不是報錯，隱藏欄位對該使用者來說就像不存在一樣 —— 這正是目的
+所在。查詢它是例外：如上所述，那會返回 `403`。
 
-## 驗證與評審 FLS
+## 驗證與評審 FLS [#verifying-and-reviewing-fls]
 
-- **按判定、在執行時**——[解釋引擎](/docs/configure/permissions#diagnose--audit)會連同其他每一層一起報告 FLS 層的判定結果，並點名起作用的許可權集。當用戶反饋欄位"不見了"時用它。
-- **按變更、在構建時**——如果你的應用啟用了訪問矩陣快照門禁，`os compile` 會把推匯出的（許可權集 × 物件）能力矩陣與已提交的 `access-matrix.json` 做 diff，並在漂移時失敗，讓能力變更以可評審的語義 diff 形式隨 Pull Request 流轉：
+- **按判定、在執行時** —— [解釋引擎](/docs/configure/permissions#diagnose--audit)
+  會連同其他每一層一起報告 FLS 層的判定結果，點名起作用的許可權集，並把掩碼欄位
+  報告為掩碼而不是隱藏。當用戶反饋欄位"不見了"時用它。
+- **按變更、在構建時** —— 如果你的應用啟用了訪問矩陣快照門禁，`os compile`
+  會把推匯出的（許可權集 × 物件）能力矩陣與已提交的 `access-matrix.json` 做
+  diff，並在漂移時失敗，讓能力變更以可評審的語義 diff 形式隨 Pull Request
+  流轉：
 
 ```bash
 os compile --update-access-matrix
 ```
 
-> 當欄位承載敏感資料時，預設選**隱藏**而不是隻讀——只讀仍會把值洩漏進響應和日誌。把欄位規則打包進匹配真實職能的許可權集，併為合規場景配套審計日誌留存。更多編寫模式：[許可權集](/docs/configure/permissions/permission-sets#field-security-appendix)。
+> 當欄位承載敏感資料時，預設選**隱藏**而不是隻讀 —— 只讀仍會把值洩露進響應和
+> 日誌。把欄位規則打包進匹配真實職能的許可權集，併為合規場景配套審計日誌留存。
+> 更多編寫模式：
+> [許可權集](/docs/configure/permissions/permission-sets#field-security-appendix)。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任務 | 頁面 |
 |---|---|

@@ -1,113 +1,192 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 許可權集
-description: 授予應用、物件、欄位以及系統許可權。
+seoTitle: "許可權集：物件、欄位和系統授權"
+description: 授予應用、物件、欄位和系統許可權。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 3a15cf4a4b1be9a3e606541bf85e92e80b2588e92e8c100bfa318aa21ee31384
+  source_sha: a358f4bda450dc16411f50560d7b6c74d2257257f89d2e6a509da19a9b8f70eb
   guide_rev: 1
   mode: auto
 ---
 
-許可權集是授予能力的主要方式。它們可以直接分配給使用者，或通過[崗位](/docs/configure/permissions/positions)間接分配。分配可以帶有 `valid_from` / `valid_until` 時間視窗——過期的授權會立即失效。
+許可權集是授予能力的主要方式。它們可以直接分配給使用者，也可以通過
+[崗位](/docs/configure/permissions/positions)間接分配。分配可以帶有
+`valid_from` / `valid_until` 時間視窗 —— 過期的授權會立即停止解析。
 
-## 許可權集控制什麼
+## 許可權集控制什麼 [#what-permission-sets-control]
 
 | 許可權型別 | 示例 |
 |---|---|
-| 應用訪問 | 使用者可以開啟 CRM 或 Console |
+| 應用訪問 | 使用者可以開啟 CRM 或 Setup |
 | 物件許可權 | 建立、讀取、更新、刪除記錄 |
-| 欄位許可權 | 讀取或更新指定欄位 |
-| 系統許可權 | 訪問 Console、執行報表、匯出資料 |
-| 整合許可權 | 使用 API Key、Webhook 或管理操作 |
+| 欄位許可權 | 讀取或更新選定的欄位 |
+| 系統許可權 | 訪問 Setup、執行報表、檢視審計日誌 |
+| 整合許可權 | 使用 API 金鑰、webhook 或管理動作 |
 
-## 物件許可權
+## 物件許可權 [#object-permissions]
 
-物件許可權回答：
+物件許可權回答的是：
 
 ```text
 Can this user perform this operation on this object at all?
 ```
 
-許可權集授權使用以下標誌名（由 security 外掛的許可權求值器強制執行）：
+許可權集授權使用以下標誌名稱（由安全外掛的許可權求值器強制執行）：
 
 | 標誌 | 含義 |
 |---|---|
-| `allowRead` | 讀取記錄訪問規則允許的記錄 |
+| `allowRead` | 讀取記錄訪問規則所允許的記錄 |
 | `allowCreate` | 建立記錄 |
-| `allowEdit` | 更新記錄訪問規則允許的記錄 |
-| `allowDelete` | 刪除記錄訪問規則允許的記錄 |
+| `allowEdit` | 更新記錄訪問規則所允許的記錄 |
+| `allowDelete` | 刪除記錄訪問規則所允許的記錄 |
+| `allowExport` | 獲取該物件記錄的批次、機器可讀副本 |
 | `viewAllRecords` | 讀取該物件的每一條記錄，繞過記錄訪問 |
-| `modifyAllRecords` | 更新或刪除該物件的每一條記錄，繞過記錄訪問；讀取上隱含 `viewAllRecords` |
+| `modifyAllRecords` | 更新或刪除該物件的每一條記錄，繞過記錄訪問；讀取時隱含 `viewAllRecords` |
 
-除非 `viewAllRecords` 或 `modifyAllRecords` 繞過了行級邊界，記錄訪問仍然生效。把這些標誌保留給管理許可權集——它們實際上是對該物件的租戶級超級使用者授權。
+除非 `viewAllRecords` 或 `modifyAllRecords` 繞過了常規的行級邊界，否則
+[記錄訪問](/docs/configure/permissions/record-access)依然起作用。把這兩個標誌
+保留給管理許可權集 —— 它們實際上是針對該物件、作用於整個租戶的超級使用者授權。
 
-## 系統許可權
+### 匯出是一項單獨的授權 [#export-is-its-own-grant]
 
-系統許可權用於平臺級操作，例如：
+匯出是一項**物件許可權**，而不是系統許可權，並且是**選擇加入**的：
 
-- 訪問 Console；
+| `allowExport` | 結果 |
+|---|---|
+| 未設定 | 匯出被**拒絕** |
+| `false` | 拒絕 |
+| `true` | 允許（仍受 `allowRead` 約束） |
+
+未設定過去意味著"繼承讀取"。從 ObjectStack 17.0 起，它意味著拒絕，而且
+`viewAllRecords` / `modifyAllRecords` 也不再授予它 —— "可以看到所有資料"和
+"可以批次複製這些資料"是刻意區分開的兩項授權。
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  deal: { allowRead: true, allowExport: true },   // ← add the grant
+}
+```
+
+有三個值得提前規劃的後果：
+
+- **沒有任何出廠許可權集帶有這項授權 —— 是升級把它拿走的。** 包自帶的許可權集會在
+  升級時重新預置，而從 ObjectStack 17.1 起，`admin_full_access`、
+  `organization_admin` 以及派生的 `organization_admin_no_bypass` 不再在 `*`
+  萬用字元上授予匯出。刻意沒有自動的替代：匯出按物件授予，放在應用自己的許可權集
+  中。在你編寫的許可權集中，凡是打算讓管理員匯出的地方，都顯式授予
+  `allowExport`。**在環境中編寫的許可權集也從來沒有帶過它** —— 請編輯任何其使用者
+  需要匯出的自定義許可權集。解析時不會有任何失敗，所以一次什麼都沒改的升級會得到
+  合法的後設資料，而其管理員已經悄悄失去了在所有未被應用許可權集點名的物件上的匯出
+  能力。
+- **`member_default` 有意不帶這項授權**，所以普通的已認證使用者會失去匯出能力，
+  直到管理員授予它。這正是這次翻轉的目的，而不是疏忽。
+- **帶有 `allowExport` 的許可權集屬於高許可權**，所以它不能繫結到 `everyone` 或
+  `guest` 受眾錨點 —— 否則只要把一個可匯出的許可權集繫結到匿名錨點，選擇加入就
+  形同虛設。
+
+合併採取最寬鬆原則，與 CRUD 位完全相同：任何一個已分配的許可權集授予 `true`，
+就授予了匯出，而 `false` 和未設定的結果相同。報表也受同一維度約束。
+
+## 系統許可權 [#system-permissions]
+
+系統許可權用於平臺動作，例如：
+
+- 訪問 Setup；
 - 管理使用者；
 - 管理崗位和許可權集；
 - 執行報表；
-- 匯出報表；
 - 管理整合；
 - 檢視審計日誌。
 
-讓系統許可權與業務物件許可權保持分離，便於管理員審計。
+把系統許可權與業務物件許可權分開，這樣管理員可以方便地審計它們。
 
-## 推薦的許可權集
+## 推薦的許可權集 [#recommended-sets]
 
-從幾個具名許可權集開始：
+從幾個具名的許可權集開始：
 
 | 許可權集 | 用途 |
 |---|---|
 | Basic User | 登入並訪問主應用 |
-| Setup Administrator | 管理使用者、崗位、設定和診斷 |
+| Setup Administrator | 管理使用者、角色、設定和診斷 |
 | Report Viewer | 檢視報表和儀表盤 |
-| Integration Operator | 管理 Webhook/API Key |
-| Support User | 讀取/更新支援類物件 |
+| Integration Operator | 管理 webhook / API 金鑰 |
+| Support User | 讀取 / 更新支援相關的物件 |
 
-再為客戶的應用新增領域特定的許可權集。
+然後為客戶的應用新增特定領域的許可權集。
 
-將許可權集標記為 `isDefault` 會在其所屬軟體包安裝時建議分配（替代 13 之前的 `isProfile` 標誌）。
+把許可權集標記為 `isDefault`，會在其所屬的包安裝時建議分配它（它取代了 13 之前
+的 `isProfile` 標誌）。
 
-## 委託管理（Delegated Administration）
+## 停用許可權集 [#deactivating-a-permission-set]
 
-許可權集可以攜帶 `adminScope`，使其持有者成為限定範圍的管理員。該範圍宣告：
+許可權集的 **Deactivate** 動作會立即讓它停止授權（ObjectStack 17.1）。被停用的
+許可權集不再貢獻任何物件、欄位、系統或標籤頁許可權 —— 也不再賦予它原本會賦予的任何
+管理員身份 —— 無論它是直接還是通過崗位到達使用者的。`active` 值為空的許可權集不受
+影響；只有顯式的停用才算數。
 
-- **在哪裡**可以操作——某個業務單元子樹；
-- **能做什麼**——`manageAssignments`、`manageBindings`、`authorEnvironmentSets`；
-- **可以分發哪些**許可權集（`assignablePermissionSets`）。
+兩個後果：
 
-被委託者只能針對白名單內的許可權集逐行寫入，且每條授權都會記錄 `granted_by` 供審計。授予或編寫本身帶有 `adminScope` 的許可權集，要求授予者持有嚴格包含的範圍。租戶級管理員完全繞過此閘門。
+- **你無法用它把所有人都鎖在外面。** 停用那個讓你的管理員成為管理員的許可權集，
+  會被拒絕刪除它的同一個"最後一個管理員"守衛拒絕。
+- **升級越過 17.1 就是一次撤銷。** 在 17.1 之前，這個開關是無效的，被停用的
+  許可權集仍在授權。升級之前，列出已停用的許可權集和崗位，並重新啟用任何仍應授權
+  的那些 —— 參見
+  [停用崗位](/docs/configure/permissions/positions#deactivating-a-position)。
 
-## 欄位安全（附錄）
+## 委派管理 [#delegated-administration]
 
-許可權集也承載欄位級授權。即使使用者能讀取一條記錄，單獨的欄位也可以被隱藏或設為只讀。
+許可權集可以攜帶一個 `adminScope`，把它的持有者變成限定範圍的管理員。這個範圍
+宣告：
 
-### 兩種模式
+- 委派者可以在**哪裡**行動 —— 一棵業務單元子樹；
+- 他們可以做**什麼** —— `manageAssignments`、`manageBindings`、
+  `authorEnvironmentSets`；
+- 他們可以分配**哪些**許可權集（`assignablePermissionSets`）。
+
+委派者只能針對允許列表中的許可權集寫入單行，每項授權都會蓋上 `granted_by` 以便
+審計。授予或編寫一個本身帶有 `adminScope` 的許可權集，要求授予者持有一個嚴格包含
+它的範圍。租戶級管理員完全繞過這道門控。
+
+## 欄位安全（附錄） [#field-security-appendix]
+
+許可權集也攜帶欄位級授權。即使使用者可以讀取一條記錄，單個欄位仍可以被隱藏或設為
+只讀。
+
+### 兩種模式 [#two-modes]
 
 | 模式 | 效果 |
 |---|---|
-| **隱藏** | 欄位從 API 響應和 Console 檢視中完全剝離 |
-| **只讀** | 欄位返回，但寫入被拒絕 |
+| **隱藏** | 欄位會從 API 響應和生成的檢視中完全剝離 |
+| **只讀** | 欄位會被返回，但寫入會被拒絕 |
 
-### 在哪裡強制執行
+第三種狀態 **掩碼**（`138****5678`）不是許可權集的模式：它宣告在欄位上，許可權集
+只決定誰持有解除掩碼所需的能力。參見
+[欄位級安全](/docs/configure/permissions/field-level-security#masked-fields)。
 
-檢查物件許可權的同一求值器在每條路徑上都應用欄位規則——REST、ObjectQL、生成的 Console 表單、匯出。沒有"繞過"它的低層 API。
+### 在哪裡強制執行 [#where-its-enforced]
 
-### 典型模式
+檢查物件許可權的同一個求值器，會在每條路徑上應用欄位規則 —— REST、ObjectQL、
+生成的表單、匯出。不存在通過更底層 API 的"後門"。
+
+### 典型模式 [#typical-patterns]
 
 | 用例 | 建議 |
 |---|---|
-| `sys_user` 上的 HR 資料（薪資、SSN） | 對除 `HR` 許可權集外的所有人隱藏 |
-| 外部系統識別符號 | 對支援只讀，對整合運維可寫 |
-| `product` 的內部成本 vs 客戶價格 | 對銷售隱藏 `cost`，對財務呈現 |
-| 含 PHI 的備註欄位 | 除包含相關臨床職能的許可權集外一律隱藏 |
+| `sys_user` 上的 HR 資料（薪資、SSN） | 除 `HR` 許可權集外對所有人隱藏 |
+| 外部系統識別符號 | 對支援人員只讀，對整合運維人員可寫 |
+| `product` 上的內部成本與客戶價格 | 對銷售隱藏 `cost`，對財務顯示 |
+| 含受保護健康資訊的備註欄位 | 除非許可權集包含相關的臨床角色，否則隱藏 |
 
-### 編寫建議
+### 編寫指南 [#authoring-guidance]
 
-- 當欄位承載敏感資料時，預設選擇**隱藏**而非只讀 —— 只讀仍然會把值洩漏到響應和日誌中。
-- 欄位許可權鍵必須**帶物件限定**（寫 `crm_lead.budget`，不要寫 `budget`）——自 ObjectStack 14.4 起，`security-fls-unqualified-key` 校驗會在編譯期拒絕裸鍵，因為裸鍵會靜默匹配不到任何欄位。
-- 把欄位規則打包到匹配真實職能的許可權集（`HR Manager`、`Finance Read-only`），而不是為每個欄位單獨建一套——更易審計。
-- 合規場景下，把欄位安全與審計日誌保留期搭配使用，事後才能回答"誰看過這條記錄？"。
+- 當欄位承載敏感資料時，預設選擇**隱藏**而不是隻讀 —— 只讀仍會把值洩露到響應
+  和日誌中。
+- 欄位許可權鍵始終要寫成**帶物件限定**的形式（`crm_lead.budget`，而不是
+  `budget`）—— 從 ObjectStack 14.4 起，`security-fls-unqualified-key` lint 會在
+  編譯時拒絕裸鍵，因為它們會悄悄地什麼都匹配不到。
+- 把欄位規則打包進與真實職能相匹配的許可權集（`HR Manager`、`Finance Read-only`），
+  而不是為每個欄位發明一個許可權集 —— 這樣更易於審計。
+- 對於合規用例，把欄位安全與審計日誌保留搭配使用，這樣你事後就能回答"誰看過這
+  一行？"

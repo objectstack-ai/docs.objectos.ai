@@ -1,22 +1,24 @@
 ---
 title: 系统设置
+seoTitle: "系统设置：品牌、功能开关、密钥"
 description: 通过清单（manifest）和共享的 K/V 存储配置租户与用户设置。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 1afa5ad1338dfcd2fe2139176d52b73679507a78ffc3c169f38620a87c6c59ac
+  source_sha: 61207542689619b2c68ae9534fa57297ca2d5796e8075a5a304434c60891b695
   guide_rev: 1
   mode: auto
 ---
 
 ObjectStack 包含一个用于运行时和插件设置的设置服务。
-当应用工件需要设置能力时，ObjectOS 会通过 Console 暴露这些设置。
+当应用工件需要设置能力时，ObjectOS 会通过 Setup 暴露这些设置。
 
-## 设置模型
+## 设置模型 [#settings-model]
 
 设置由代码声明，并以值的形式存储：
 
 | 层级 | 用途 |
 |---|---|
-| Settings Manifest | 定义字段、标签、默认值、校验、可见性以及操作 |
+| Settings Manifest | 定义字段、标签、默认值、校验、可见性以及动作 |
 | `sys_setting` | 存储租户/用户的 K/V 值 |
 | Resolver | 读取生效的值 |
 | Console UI | 渲染标准的设置页面 |
@@ -24,7 +26,7 @@ ObjectStack 包含一个用于运行时和插件设置的设置服务。
 对于普通配置，插件不应创建一次性的设置表。
 它们应当声明设置清单，并让 ObjectOS 一致地渲染和存储这些值。
 
-## 解析顺序
+## 解析顺序 [#resolution-order]
 
 每项设置都声明一个作用域（`global`、`tenant` 或 `user`）。
 解析器按从最高到最低的优先级遍历这个层叠结构，第一个已设置的值生效：
@@ -37,11 +39,11 @@ User setting
 Manifest default
 ```
 
-环境覆盖是锁定的。如果某个值是通过环境变量设置的，Console UI 会将其
+环境覆盖是锁定的。如果某个值是通过环境变量设置的，Setup 会将其
 显示为由主机托管，并拒绝运行时编辑。链路中更上层的任何锁定值也会锁定
 生效的值，因此更低层的作用域无法将其遮盖。
 
-## 常见设置领域
+## 常见设置领域 [#common-settings-areas]
 
 面向客户的设置通常包括：
 
@@ -54,24 +56,48 @@ Manifest default
 | AI providers | 模型提供商、API key、预算上限 |
 | SSO | OIDC 提供商设置以及测试连接 |
 
-## 机密信息
+## 品牌 [#branding]
+
+位于 **Setup → Configuration → Branding**。这些设置控制工作区的显示身份 ——
+它的名称、Logo 和颜色。
+
+| 设置 | 说明 |
+|---|---|
+| `Workspace name` | 必填。整个 UI 中显示的名称（默认 `ObjectStack`） |
+| `Support email` | 展示给用户、用于寻求帮助的地址（例如 `support@example.com`） |
+| `Default theme` | `Match system`、`light` 或 `dark` |
+| `Accent colour` | 带取色器的十六进制颜色（默认 `#6366f1`） |
+| `Logo URL` | 工作区 Logo 的 URL |
+
+## 功能开关 [#feature-flags]
+
+位于 **Setup → Configuration → Feature Flags** `[Beta]`。为这个工作区开关实验性
+和 Beta 功能 —— 分为 **Productivity**（AI Assistant、Kanban swimlanes）和
+**Collaboration**（Realtime cursors、Inline comments）两组。每一项都是租户级的
+UI 开关。
+
+> **Beta 功能可能会在不另行通知的情况下变更。** 用环境变量固定某个开关（例如
+> `OS_FEATURE_FLAGS_AI_ENABLED=true`），就能为整个部署锁定它。由于环境覆盖是
+> 锁定的，`OS_FEATURE_FLAGS_*` 变量优先于 UI 开关。
+
+## 机密信息 [#secrets]
 
 密码和凭据字段应由设置服务加密，或以环境托管的值提供。当配置了机密提供商时，
 设置服务会将密文存储在 `sys_secret` 中，并在 `sys_setting` 中只保留一个句柄。
 不要将机密信息存储在工件、compose 文件或 Git 中。
 
-## 测试操作
+## 测试动作 [#test-actions]
 
-设置清单可以声明标准的操作按钮，例如：
+设置清单可以声明标准的动作按钮，例如：
 
 - 发送测试邮件；
 - 测试 SSO discovery；
 - 验证对象存储凭据；
 - 校验 webhook 目标。
 
-在客户配置流程中使用这些操作，而不是要求运维人员先去翻查日志。
+在客户配置流程中使用这些动作，而不是要求运维人员先去翻查日志。
 
-## 相关内容
+## 相关内容 [#related]
 
 若干设置领域有专门的配置指南：
 
