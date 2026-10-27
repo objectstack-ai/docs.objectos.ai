@@ -1,0 +1,272 @@
+---
+title: 数据源
+seoTitle: "数据源：把对象绑定到外部数据库"
+description: 把 ObjectOS 连接到你现有的业务数据库，把对象路由到它们，并让 AI 原生地查询这些数据。
+editions: [community, enterprise]
+translation:
+  source_sha: decc627733034d98402da3945707ce26b5eab5e2301f74e0d58eb74b5bb81301
+  guide_rev: 1
+  mode: auto
+---
+
+**数据源**是到外部数据存储的一个具名连接。通过声明数据源，你把 ObjectOS
+指向你的业务已经在运行的数据库 —— 一个生产 PostgreSQL、一个用于报表的
+MySQL 副本、一个 MongoDB 集群 —— 然后把对象绑定到它们。对象一旦绑定，平台
+中的其他一切（REST API、权限、流程、仪表盘和 **AI Agent**）都会统一地基于
+这些数据工作，而不关心数据行实际存放在哪里。
+
+这是 ObjectOS 最实用的采用路径之一：不必迁移遗留系统，而是连接它，把你关心
+的表建模为对象，然后在原地不动的数据之上**用 AI 原生能力扩展它** —— 对话、
+分析、自动化。
+
+## 数据源是什么 [#what-a-datasource-is]
+
+每个数据源都是一个由 `DatasourceSchema` 校验的普通对象。核心字段：
+
+| 字段 | 用途 |
+|---|---|
+| `name` | 对象所引用的唯一标识符（`^[a-z_][a-z0-9_]*$`） |
+| `label` | 便于阅读的显示名称 |
+| `driver` | 由哪个驱动处理连接（`postgres`、`mysql`、`sqlite`、`mongodb`、`memory`，或某个插件提供的驱动） |
+| `config` | 驱动专属的连接设置（主机、数据库、凭据 ……） |
+| `pool` | 连接池大小（`min`、`max`、超时） |
+| `schemaMode` | 谁拥有模式：`managed`（默认）允许 ObjectOS 创建和修改表；`external` 或 `validate-only` 声明一个 ObjectOS 不拥有的数据库，ObjectOS 不会在其上执行任何 DDL |
+| `external` | 外部数据源的联邦策略 —— 它的写入门控和启动校验 —— 以及 `credentialsRef`，即任何数据源都可以携带的密钥存储引用 |
+| `active` | 连接是否启用 |
+
+`readReplicas`、`capabilities`（及其 `readOnly` 标志）、`healthCheck` 和
+`retryPolicy` 已在 ObjectStack 17.0 中移除：没有任何运行时路径读取过它们。
+解析时会逐个拒绝它们，并点名真正决定该行为的机制。
+
+自带的驱动有：
+
+| 驱动包 | `driver` | 后端 |
+|---|---|---|
+| `@objectstack/driver-sql` | `postgres`、`mysql`、`sqlite` | PostgreSQL、MySQL、SQLite（通过 knex） |
+| `@objectstack/driver-mongodb` | `mongodb` | MongoDB |
+| `@objectstack/driver-memory` | `memory` | 进程内，用于测试 —— 自 ObjectStack 17.7 起不再作为启动存储 |
+| `@objectstack/driver-sqlite-wasm` | `sqlite`（WASM） | WebContainers / 浏览器中的 SQLite |
+
+## 声明数据源 [#declaring-datasources]
+
+数据源在技术栈上声明，由 `defineStack` 组装。用 `defineDatasource()` 定义
+每个连接，然后把它们列在 `datasources` 下：
+
+```ts
+// src/datasources/business.datasource.ts
+import { defineDatasource } from '@objectstack/spec';
+
+// Connect to an EXISTING production database that ObjectOS does not own.
+// `external` mode: ObjectOS runs no DDL here, and writes stay off until you
+// opt in. The password is never inline: it lives in the secrets store, and
+// the datasource only references it.
+export const BusinessDb = defineDatasource({
+  name: 'business_primary',
+  label: 'Business System (Postgres)',
+  driver: 'postgres',
+  schemaMode: 'external',
+  config: {
+    host: 'db.internal.example.com',
+    port: 5432,
+    database: 'business',
+    username: 'objectos_readonly', // a database user granted SELECT only
+  },
+  external: {
+    allowWrites: false, // the default: the datasource refuses writes
+    credentialsRef: 'secret:business_db/password',
+  },
+  pool: { min: 1, max: 10 },
+  active: true,
+});
+```
+
+```ts
+// objectstack.config.ts
+import { defineStack } from '@objectstack/spec';
+import * as objects from './src/objects/index.js';
+import { BusinessDb } from './src/datasources/business.datasource.js';
+
+export default defineStack({
+  manifest: {
+    id: 'app.example.crm-extend',
+    namespace: 'biz',
+    version: '1.0.0',
+    type: 'app',
+    name: 'CRM extension',
+  },
+  datasources: [BusinessDb],
+  objects: Object.values(objects),
+});
+```
+
+> **`defineDatasource()` 在你编写它的地方就做校验。** 它从
+> `@objectstack/spec`（以及 `@objectstack/spec/data`）导出，在声明处运行
+> `DatasourceSchema` 校验，所以错误的字段会在包含它的文件中报告。框架的
+> `examples/app-crm` 技术栈就是这样声明数据源的。类型为 `Datasource`（来自
+> `@objectstack/spec/data`）的普通对象也被接受，会在技术栈组装时校验。
+>
+> **凭据绝不内联。** `DatasourceSchema` 会拒绝 `config` 中的 `password`，
+> 即使它是从环境变量读取的：数据源会被完整地存储在 `sys_metadata` 中，所以
+> 内联的密钥会以明文躺在那里。把密钥放进密钥存储，并在
+> `external.credentialsRef` 中指定它。解析出的密钥会在连接时注入。
+
+## 把对象绑定到数据源 [#binding-objects-to-a-datasource]
+
+每个对象都有一个 `datasource` 字段。它默认为 `'default'`（主数据库）。设置
+它，就能把某个特定对象路由到你所连接的某个系统：
+
+```ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const Customer = ObjectSchema.create({
+  name: 'biz_customer',
+  label: 'Customer',
+  sharingModel: 'private',
+  datasource: 'business_primary', // ← queries go to the business DB
+  external: { remoteName: 'customers' }, // the remote TABLE name
+  fields: {
+    name:  Field.text({ label: 'Name', required: true }),
+    email: Field.text({ label: 'Email' }),
+    tier:  Field.select({
+      label: 'Tier',
+      options: [
+        { label: 'Standard', value: 'standard' },
+        { label: 'Premium', value: 'premium' },
+      ],
+    }),
+  },
+});
+```
+
+> **对象所绑定的数据源必须能连上，否则启动失败。** 从 ObjectStack 17.0
+> 起，无法连接的数据源是启动失败，而不是一行警告。过去只有带
+> `validation.onMismatch: 'fail'` 的 `external` 数据源会快速失败：一个声明了
+> `datasource: 'analytics'` 并绑定了对象的应用，用错误的 URL 启动时会干净地
+> 启动并以零退出 —— 然后这些对象的每次读写都以
+> `Datasource 'x' is not registered` 失败。当某个数据驱动停止响应时，
+> `/api/v1/ready` 也会报告 **503**，所以数据库已经消失的副本会被移出轮换，
+> 而不是继续返回错误。连接尝试的上限是 10 秒。参见
+> [17.0 发布说明](https://objectstack.ai/docs/releases/v17)。
+
+### 用 `datasourceMapping` 集中路由 [#centralized-routing-with-datasourcemapping]
+
+逐个绑定对象，对少量对象来说没问题。对于整个命名空间或包，在技术栈上一次性
+声明路由规则。规则按顺序（或按 `priority`）求值；第一个匹配的规则生效：
+
+```ts
+// A second connection, for reporting.
+export const AnalyticsReplica = defineDatasource({
+  name: 'analytics_replica',
+  label: 'Analytics replica',
+  driver: 'postgres',
+  schemaMode: 'external',
+  config: {
+    host: 'replica.internal.example.com',
+    port: 5432,
+    database: 'business',
+    username: 'objectos_reports',
+  },
+  external: { credentialsRef: 'secret:analytics_db/password' },
+});
+
+export default defineStack({
+  datasources: [BusinessDb, AnalyticsReplica],
+  datasourceMapping: [
+    { namespace: 'biz',            datasource: 'business_primary' },
+    { objectPattern: 'report_*',   datasource: 'analytics_replica' },
+    { package: 'com.example.logs', datasource: 'default' },
+    { default: true,               datasource: 'default' },
+  ],
+});
+```
+
+规则按 `namespace`、`package`、`objectPattern`（glob）或 `default` 匹配，并
+指定目标 `datasource`。这让数据驻留的决策集中在一处，而不是散落在各个对象
+文件中。
+
+## 从现有的表生成对象 [#generating-objects-from-existing-tables]
+
+你不必为每张表手写一个对象。如今把遗留模式接入 ObjectOS 最快的方式，是
+**用一个编码 Agent（Claude Code）扫描业务表并生成源码级的对象定义** ——
+每张表一个 `*.object.ts` 文件，形态完全符合框架的预期。
+
+[`hotcrm`](https://github.com/objectstack-ai/hotcrm) 参考应用是这种形态的
+标准示例：每张表是一个 `src/objects/<name>.object.ts` 文件，使用
+`ObjectSchema.create({ … })` 和 `Field.*` 定义，全部由 `defineStack` 组装。
+典型流程：
+
+1. **连接**业务数据库，作为一个数据源（见上文）。
+2. **把 Claude Code 指向模式。** 让它内省所连接的数据库 —— 表名、列、类型、
+   外键 —— 并为每张表生成一个 `ObjectSchema.create` 文件，把 SQL 列映射为
+   `Field.*` 类型，把外键映射为 `Field.lookup(...)`。把每个对象的
+   `datasource` 设为你的连接（或依赖 `datasourceMapping`），并在表名与对象
+   名不同时设置 `external.remoteName`。
+3. **审阅和细化**生成的对象 —— 添加标签、字段分组、校验和权限。输出是你
+   拥有并提交的普通源码，就像 `hotcrm/src/objects/*.object.ts` 一样。
+4. **运行。** 这些对象现在通过绑定的数据源读取你现有的表。启动时，运行时会
+   检查每个对象与其表是否一致（`external.validation`），默认情况下不一致会
+   导致启动失败。写入保持关闭，直到两道门控都打开：数据源上的
+   `external.allowWrites: true` **和**对象上的 `external.writable: true`。
+
+由于生成的对象是普通源码，你拥有完全的控制权：保留合适的部分，删掉你不想
+暴露的列，并在一个平台从未需要拥有的数据库之上叠加 ObjectOS 的功能（历史
+跟踪、活动、共享规则）。
+
+## 查询下推 [#query-pushdown]
+
+什么在数据库中运行、什么由引擎求值，由每个驱动自己决定，而不是由数据源
+元数据决定。联邦对象上的过滤条件，比如 `?tier=premium`，会被下推到远程查询。
+
+没有可以调节的 `capabilities` 块。它已在 ObjectStack 17.0 中移除，因为没有
+任何东西读取它：声明一项能力从未改变过实际运行的路径，它的 `readOnly` 标志
+也从未阻止过一次写入。只读访问请参见[安全说明](#security-notes)。
+
+## 基于已连接数据的 AI [#ai-over-connected-data]
+
+一旦表被建模为对象，**AI 层就能免费在它们之上工作**。ObjectOS 的 Agent 和
+工具 —— `list_objects`、`describe_object`、`query_records`、
+`aggregate_data`，以及数据对话 Agent —— 都经过 ObjectQL，而 ObjectQL 会把
+每个对象路由到它所绑定的数据源。这意味着：
+
+- 用户可以**用自然语言提问**存放在遗留业务系统中的数据，答案基于真实的
+  数据行计算。
+- 工具调用和查询遵守**调用用户的权限** —— AI 看到的永远不会超过已登录用户
+  被允许看到的范围。
+- 无论对象背后是主数据库还是外部业务系统，同样的 Agent、流程和仪表盘都能
+  工作。
+
+关于如何接好对话层和 Agent 层，参见 [AI 服务](/docs/configure/ai)和
+[AI Agent](/docs/build/agents)；关于支撑 `default` 数据源的主数据库配置，
+参见[运行时](/docs/configure/runtime)。
+
+## 安全说明 [#security-notes]
+
+- **绝不内联凭据。** 把密码放进密钥存储，并用 `external.credentialsRef`
+  引用它，如上所示。
+- 对你不打算写入的系统，**使用只读的数据库用户** —— 只授予它 `SELECT`。
+  这样，任何经由该连接到达数据库的东西都无法写入，无论是否经过 ObjectOS。
+  在外部数据源上，`external.allowWrites: false` —— 默认值 —— 也会在 ObjectOS
+  自己的查询路径中拒绝写入。没有 `readOnly` 键：曾经存在的那个从未拦住过
+  一次写入，ObjectStack 17.0 已将其移除。
+- **用权限限定范围。** 对象级和字段级权限对已连接数据的作用，与对原生对象
+  完全相同。
+
+## 产品内的外部数据源联邦 [#in-product-external-datasource-federation]
+
+上面的流程 —— 连接数据库、建模对象、用编码 Agent 生成它们 —— 运行在
+**开箱即用的联邦**之上：`schemaMode: 'external'`，由
+[ADR-0015](https://github.com/objectstack-ai/objectstack/blob/main/docs/adr/0015-external-datasource-federation.md)
+（状态：*Accepted*）规定，**今天就已交付**：把对象绑定到 ObjectOS 不拥有的
+表，并在其周围设置校验门控。它默认只读，而且还处于早期：读取路径是成熟的
+那一条。
+
+它只在拥有这块能力的框架文档中记录一次 ——
+[External Datasources (Federation)](https://objectstack.ai/docs/data-modeling/external-datasources)。
+
+## 下一步 [#where-to-go-next]
+
+- [运行时](/docs/configure/runtime) —— `default` 背后的主数据库
+- [AI 服务](/docs/configure/ai) —— 对话、embedding、RAG、MCP
+- [AI Agent](/docs/build/agents) —— 基于你的对象的声明式 Agent
+- [数据模型](/docs/build/data) —— `ObjectSchema.create` 编写界面
+- [`examples/app-crm` 数据源](https://github.com/objectstack-ai/objectstack/tree/main/examples/app-crm/src/datasources) —— 一个真实的数据源 + 路由示例

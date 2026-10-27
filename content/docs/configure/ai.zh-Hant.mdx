@@ -1,0 +1,177 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: AI 服務
+seoTitle: "AI 服務：模型提供商、Embedder、RAG、MCP"
+description: ObjectOS 的 AI 在哪裡配置 —— 產品內 AI 執行時的提供商設定、開放的 embedder 和知識包，以及 MCP 伺服器。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 4abd19f584761c553296b8acedc8d1af5ea11b1c06ad99a52806921cbf0a033d
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 在開源 ObjectStack 框架自帶的 AI 基礎能力 —— MCP 伺服器、Knowledge
+Protocol 及其介面卡、embedder —— 之上，增加了一個**產品內 AI 執行時**：
+`ask` 資料查詢助手、`build` 編寫助手，以及 `/api/v1/ai/*` 對話端點。
+
+在自管理部署（ObjectOS Enterprise）上，解鎖產品內 AI 的是許可證。沒有許可證
+的單組織部署以 Community 的方式執行 —— 開放的 MCP 伺服器，自帶你的 AI ——
+有了許可證，AI Builder 和"問你的資料"就會在你自己的基礎設施上解鎖。參見
+[Docker → 許可證](/docs/deploy/docker#license)。
+
+## 什麼在哪裡配置 [#what-is-configured-where]
+
+| 層 | 在哪裡配置 | 隨誰釋出 |
+|---|---|---|
+| **對話模型提供商** | `ai` 設定名稱空間：**Setup → Configuration → AI & Embedder**，或 `OS_AI_*` 環境變數 | ObjectOS |
+| **Embedding** | `@objectstack/embedder-openai`，一個相容 OpenAI 的 embedder | 開放框架 |
+| **知識 / RAG** | `@objectstack/service-knowledge` 加一個介面卡外掛 | 開放框架 |
+| **MCP 伺服器** | 預設在 `/api/v1/mcp` 開啟；`OS_MCP_SERVER_ENABLED=false` 關閉它 | 開放框架 |
+
+## 對話模型提供商 [#chat-model-provider]
+
+沒有需要安裝或註冊的 AI 包。`@objectstack/service-ai` 已在 11.0 中離開開放
+的 ObjectStack 發行版；它所提供的 AI 執行時隨 ObjectOS 釋出，而不是隨開源
+框架釋出。
+
+提供商、模型和憑據都是 `ai` 名稱空間中的設定，所以它們的解析方式與其他所有
+設定相同：環境變數優先於 Setup 中儲存的值，並會鎖定它
+（[系統設定 → 解析順序](/docs/configure/system-settings#resolution-order)）。
+
+| 變數 | 設定 |
+|---|---|
+| `OS_AI_PROVIDER` | 提供商。支援的值包括 `gateway`、`openai`、`anthropic`、`google`、`deepseek`、`dashscope`、`cloudflare`、`siliconflow` 和 `openrouter`。 |
+| `OS_AI_OPENAI_API_KEY` · `OS_AI_OPENAI_MODEL` · `OS_AI_OPENAI_BASE_URL` | OpenAI，或任何相容 OpenAI 的 API —— Azure、本地閘道器、第三方端點 —— 配合 `OS_AI_PROVIDER=openai`。模型預設為 `gpt-4o`。 |
+| `OS_AI_ANTHROPIC_API_KEY` · `OS_AI_ANTHROPIC_MODEL` | Anthropic，配合 `OS_AI_PROVIDER=anthropic`。 |
+| `OS_AI_GOOGLE_API_KEY` · `OS_AI_GOOGLE_MODEL` | Google，配合 `OS_AI_PROVIDER=google`。 |
+| `OS_AI_GATEWAY_MODEL` · `OS_AI_GATEWAY_API_KEY` | Vercel AI Gateway，配合 `OS_AI_PROVIDER=gateway`。 |
+| `OS_AI_DEEPSEEK_API_KEY`、`OS_AI_DASHSCOPE_API_KEY` …… | 每個預設的相容 OpenAI 的提供商各有一個 `_API_KEY` 變數和一個 `_MODEL` 變數，例如 `OS_AI_DEEPSEEK_MODEL=deepseek-chat`。 |
+
+例如，不使用 Setup，為整個部署鎖定一個第三方的相容 OpenAI 的提供商：
+
+```bash
+OS_AI_PROVIDER=openai
+OS_AI_OPENAI_API_KEY=sk-...
+OS_AI_OPENAI_MODEL=your-model
+OS_AI_OPENAI_BASE_URL=https://your-provider.example.com/v1
+```
+
+相容 OpenAI 的 base URL 請用 `OS_AI_OPENAI_BASE_URL`，或 Setup 中的同一個
+欄位；`OPENAI_BASE_URL` 不是平臺級變數。
+
+### 沒有設定提供商時 [#when-no-provider-is-set]
+
+執行時會在啟動時，根據它找到的第一個上游憑據選擇介面卡：
+
+1. `AI_GATEWAY_MODEL`（配合 `AI_GATEWAY_API_KEY`），經由 Vercel AI Gateway；
+2. `OPENAI_API_KEY`；
+3. `ANTHROPIC_API_KEY`；
+4. `GOOGLE_GENERATIVE_AI_API_KEY`；
+5. 都沒有：`MemoryLLMAdapter`，一個背後沒有真實提供商的回顯模式。
+
+這些變數保留它們的上游名稱；它們沒有被改名為 `OS_*`。`OS_AI_MODEL` 會覆蓋
+直接檢測 OpenAI、Anthropic 和 Google 時使用的模型 id。啟動之後，執行時會
+讀取 `ai` 設定名稱空間，當提供商來自環境變數或 Setup 中儲存的值時，就切換
+介面卡。
+
+### 呼叫它 [#calling-it]
+
+產品內 AI 在 `/api/v1/ai/*` 下提供服務 —— 對話（JSON 或流式）、補全、環境
+提供的模型，以及會話 —— `@objectstack/client` SDK 通過它的 `ai` 名稱空間
+訪問它：`ai.chat`、`ai.chatStream`、`ai.complete`、`ai.models` 和
+`ai.conversations`。宣告式 AI —— Agent、Skill 和工具 —— 參見
+[AI Agent](/docs/build/agents)。
+
+## Embedder [#embedders]
+
+`@objectstack/embedder-openai` 可以對接任何支援 OpenAI `POST /v1/embeddings`
+形態的端點：OpenAI、Azure OpenAI、DashScope、智譜 BigModel、SiliconFlow、
+豆包、MiniMax、Ollama，或者你自己的閘道器。**預設（preset）**會填入某個已知
+提供商的 base URL；`baseUrl` 則指向任何其他端點。
+
+```ts
+import { createOpenAIEmbedder } from '@objectstack/embedder-openai';
+
+const embedder = createOpenAIEmbedder({
+  preset: 'dashscope',
+  apiKey: process.env.DASHSCOPE_API_KEY!,
+  model: 'text-embedding-v3',
+});
+```
+
+`apiKey` 是必需的。
+[包的 README](https://github.com/objectstack-ai/objectstack/tree/main/packages/plugins/embedder-openai)
+列出了每個提供商的 base URL 和一個典型模型。
+
+開放框架中還沒有知識介面卡會使用 embedder：`@objectstack/knowledge-memory`
+和 `@objectstack/knowledge-ragflow` 都不接受 embedder 選項。
+
+## 知識 / RAG [#knowledge--rag]
+
+知識服務宣告知識來源，並按許可權過濾返回的內容；檢索本身由介面卡外掛完成。
+
+| 介面卡 | 後端 | 適合 |
+|---|---|---|
+| `@objectstack/knowledge-memory` | 程序內 | 開發環境和測試 —— 不適合生產：沒有持久化 |
+| `@objectstack/knowledge-ragflow` | [RAGFlow](https://github.com/infiniflow/ragflow) | 分塊、embedding、混合檢索和重排序，由 RAGFlow 完成 |
+
+在開放框架中，接線方式是：
+
+```ts
+import { KnowledgeServicePlugin } from '@objectstack/service-knowledge';
+import { KnowledgeRagflowPlugin } from '@objectstack/knowledge-ragflow';
+
+kernel.use(new KnowledgeServicePlugin({
+  sources: [{
+    id: 'product_docs',
+    label: 'Product documentation',
+    adapter: 'ragflow',
+    source: { kind: 'http', urls: ['https://docs.example.com/sitemap.xml'] },
+    adapterConfig: { datasetId: 'rgf_doc_dataset_id' }, // RAGFlow dataset to bind
+  }],
+}));
+kernel.use(new KnowledgeRagflowPlugin({
+  endpoint: process.env.RAGFLOW_ENDPOINT!, // e.g. http://localhost:9380
+  apiKey: process.env.RAGFLOW_API_KEY!,
+}));
+```
+
+RAGFlow 介面卡不會建立資料集：在 RAGFlow UI 中建立一次資料集，在那裡選擇
+分塊方法、embedding 模型和重排序策略。
+
+每個帶有來源記錄的命中結果，都會按呼叫者的許可權重新檢查 —— 與約束普通
+ObjectQL 查詢的是同一套行級安全。把檢索作為 `search_knowledge` 工具暴露給
+產品內對話，屬於 ObjectOS 執行時的一部分。
+
+## MCP —— Model Context Protocol [#mcp--model-context-protocol]
+
+每個 ObjectOS 部署都已經在 `/api/v1/mcp` 上提供
+[Model Context Protocol](https://modelcontextprotocol.io) —— 預設開啟，無需
+安裝外掛 —— 也可以通過 stdio 提供。
+[連線 AI 工具（MCP）](/docs/configure/mcp)講解如何連線客戶端、stdio 開關，
+以及 Agent 能獲得的工具。
+
+在開放框架中顯式註冊 MCP 伺服器外掛：
+
+```ts
+import { MCPServerPlugin } from '@objectstack/mcp';
+
+kernel.use(new MCPServerPlugin({
+  transport: 'stdio', // or 'http'
+  autoStart: true,
+}));
+```
+
+工具不是按選項逐個開啟的：外掛啟動時會橋接 AI 工具登錄檔、後設資料服務和
+資料引擎。每次呼叫都以呼叫使用者的許可權執行。
+
+## 下一步 [#where-to-go-next]
+
+- [AI Agent](/docs/build/agents) —— 宣告式的 Agent、Skill 和工具
+- [連線 AI 工具（MCP）](/docs/configure/mcp) —— 把外部客戶端指向你的應用
+- [系統設定](/docs/configure/system-settings) —— 設定如何解析，以及環境變數會鎖定什麼
+- [安全與合規](/docs/reference/security) —— AI 資料流如何被隔離
+- [`@objectstack/embedder-openai` 原始碼](https://github.com/objectstack-ai/objectstack/tree/main/packages/plugins/embedder-openai)
+- [`@objectstack/service-knowledge` 原始碼](https://github.com/objectstack-ai/objectstack/tree/main/packages/services/service-knowledge)
+- [`@objectstack/knowledge-ragflow` 原始碼](https://github.com/objectstack-ai/objectstack/tree/main/packages/plugins/knowledge-ragflow)
+- [`@objectstack/mcp` 原始碼](https://github.com/objectstack-ai/objectstack/tree/main/packages/mcp)

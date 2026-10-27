@@ -1,0 +1,273 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 資料來源
+seoTitle: "資料來源：把物件繫結到外部資料庫"
+description: 把 ObjectOS 連線到你現有的業務資料庫，把物件路由到它們，並讓 AI 原生地查詢這些資料。
+editions: [community, enterprise]
+translation:
+  source_sha: decc627733034d98402da3945707ce26b5eab5e2301f74e0d58eb74b5bb81301
+  guide_rev: 1
+  mode: auto
+---
+
+**資料來源**是到外部資料儲存的一個具名連線。通過宣告資料來源，你把 ObjectOS
+指向你的業務已經在執行的資料庫 —— 一個生產 PostgreSQL、一個用於報表的
+MySQL 副本、一個 MongoDB 叢集 —— 然後把物件繫結到它們。物件一旦繫結，平臺
+中的其他一切（REST API、許可權、流程、儀表盤和 **AI Agent**）都會統一地基於
+這些資料工作，而不關心資料行實際存放在哪裡。
+
+這是 ObjectOS 最實用的採用路徑之一：不必遷移遺留系統，而是連線它，把你關心
+的表建模為物件，然後在原地不動的資料之上**用 AI 原生能力擴充套件它** —— 對話、
+分析、自動化。
+
+## 資料來源是什麼 [#what-a-datasource-is]
+
+每個資料來源都是一個由 `DatasourceSchema` 校驗的普通物件。核心欄位：
+
+| 欄位 | 用途 |
+|---|---|
+| `name` | 物件所引用的唯一識別符號（`^[a-z_][a-z0-9_]*$`） |
+| `label` | 便於閱讀的顯示名稱 |
+| `driver` | 由哪個驅動處理連線（`postgres`、`mysql`、`sqlite`、`mongodb`、`memory`，或某個外掛提供的驅動） |
+| `config` | 驅動專屬的連線設定（主機、資料庫、憑據 ……） |
+| `pool` | 連線池大小（`min`、`max`、超時） |
+| `schemaMode` | 誰擁有模式：`managed`（預設）允許 ObjectOS 建立和修改表；`external` 或 `validate-only` 宣告一個 ObjectOS 不擁有的資料庫，ObjectOS 不會在其上執行任何 DDL |
+| `external` | 外部資料來源的聯邦策略 —— 它的寫入門控和啟動校驗 —— 以及 `credentialsRef`，即任何資料來源都可以攜帶的金鑰儲存引用 |
+| `active` | 連線是否啟用 |
+
+`readReplicas`、`capabilities`（及其 `readOnly` 標誌）、`healthCheck` 和
+`retryPolicy` 已在 ObjectStack 17.0 中移除：沒有任何執行時路徑讀取過它們。
+解析時會逐個拒絕它們，並點名真正決定該行為的機制。
+
+自帶的驅動有：
+
+| 驅動包 | `driver` | 後端 |
+|---|---|---|
+| `@objectstack/driver-sql` | `postgres`、`mysql`、`sqlite` | PostgreSQL、MySQL、SQLite（通過 knex） |
+| `@objectstack/driver-mongodb` | `mongodb` | MongoDB |
+| `@objectstack/driver-memory` | `memory` | 程序內，用於測試 —— 自 ObjectStack 17.7 起不再作為啟動儲存 |
+| `@objectstack/driver-sqlite-wasm` | `sqlite`（WASM） | WebContainers / 瀏覽器中的 SQLite |
+
+## 宣告資料來源 [#declaring-datasources]
+
+資料來源在技術棧上宣告，由 `defineStack` 組裝。用 `defineDatasource()` 定義
+每個連線，然後把它們列在 `datasources` 下：
+
+```ts
+// src/datasources/business.datasource.ts
+import { defineDatasource } from '@objectstack/spec';
+
+// Connect to an EXISTING production database that ObjectOS does not own.
+// `external` mode: ObjectOS runs no DDL here, and writes stay off until you
+// opt in. The password is never inline: it lives in the secrets store, and
+// the datasource only references it.
+export const BusinessDb = defineDatasource({
+  name: 'business_primary',
+  label: 'Business System (Postgres)',
+  driver: 'postgres',
+  schemaMode: 'external',
+  config: {
+    host: 'db.internal.example.com',
+    port: 5432,
+    database: 'business',
+    username: 'objectos_readonly', // a database user granted SELECT only
+  },
+  external: {
+    allowWrites: false, // the default: the datasource refuses writes
+    credentialsRef: 'secret:business_db/password',
+  },
+  pool: { min: 1, max: 10 },
+  active: true,
+});
+```
+
+```ts
+// objectstack.config.ts
+import { defineStack } from '@objectstack/spec';
+import * as objects from './src/objects/index.js';
+import { BusinessDb } from './src/datasources/business.datasource.js';
+
+export default defineStack({
+  manifest: {
+    id: 'app.example.crm-extend',
+    namespace: 'biz',
+    version: '1.0.0',
+    type: 'app',
+    name: 'CRM extension',
+  },
+  datasources: [BusinessDb],
+  objects: Object.values(objects),
+});
+```
+
+> **`defineDatasource()` 在你編寫它的地方就做校驗。** 它從
+> `@objectstack/spec`（以及 `@objectstack/spec/data`）匯出，在宣告處執行
+> `DatasourceSchema` 校驗，所以錯誤的欄位會在包含它的檔案中報告。框架的
+> `examples/app-crm` 技術棧就是這樣宣告資料來源的。型別為 `Datasource`（來自
+> `@objectstack/spec/data`）的普通物件也被接受，會在技術棧組裝時校驗。
+>
+> **憑據絕不內聯。** `DatasourceSchema` 會拒絕 `config` 中的 `password`，
+> 即使它是從環境變數讀取的：資料來源會被完整地儲存在 `sys_metadata` 中，所以
+> 內聯的金鑰會以明文躺在那裡。把金鑰放進金鑰儲存，並在
+> `external.credentialsRef` 中指定它。解析出的金鑰會在連線時注入。
+
+## 把物件繫結到資料來源 [#binding-objects-to-a-datasource]
+
+每個物件都有一個 `datasource` 欄位。它預設為 `'default'`（主資料庫）。設定
+它，就能把某個特定物件路由到你所連線的某個系統：
+
+```ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const Customer = ObjectSchema.create({
+  name: 'biz_customer',
+  label: 'Customer',
+  sharingModel: 'private',
+  datasource: 'business_primary', // ← queries go to the business DB
+  external: { remoteName: 'customers' }, // the remote TABLE name
+  fields: {
+    name:  Field.text({ label: 'Name', required: true }),
+    email: Field.text({ label: 'Email' }),
+    tier:  Field.select({
+      label: 'Tier',
+      options: [
+        { label: 'Standard', value: 'standard' },
+        { label: 'Premium', value: 'premium' },
+      ],
+    }),
+  },
+});
+```
+
+> **物件所繫結的資料來源必須能連上，否則啟動失敗。** 從 ObjectStack 17.0
+> 起，無法連線的資料來源是啟動失敗，而不是一行警告。過去只有帶
+> `validation.onMismatch: 'fail'` 的 `external` 資料來源會快速失敗：一個聲明瞭
+> `datasource: 'analytics'` 並綁定了物件的應用，用錯誤的 URL 啟動時會乾淨地
+> 啟動並以零退出 —— 然後這些物件的每次讀寫都以
+> `Datasource 'x' is not registered` 失敗。當某個資料驅動停止響應時，
+> `/api/v1/ready` 也會報告 **503**，所以資料庫已經消失的副本會被移出輪換，
+> 而不是繼續返回錯誤。連線嘗試的上限是 10 秒。參見
+> [17.0 釋出說明](https://objectstack.ai/docs/releases/v17)。
+
+### 用 `datasourceMapping` 集中路由 [#centralized-routing-with-datasourcemapping]
+
+逐個繫結物件，對少量物件來說沒問題。對於整個名稱空間或包，在技術棧上一次性
+宣告路由規則。規則按順序（或按 `priority`）求值；第一個匹配的規則生效：
+
+```ts
+// A second connection, for reporting.
+export const AnalyticsReplica = defineDatasource({
+  name: 'analytics_replica',
+  label: 'Analytics replica',
+  driver: 'postgres',
+  schemaMode: 'external',
+  config: {
+    host: 'replica.internal.example.com',
+    port: 5432,
+    database: 'business',
+    username: 'objectos_reports',
+  },
+  external: { credentialsRef: 'secret:analytics_db/password' },
+});
+
+export default defineStack({
+  datasources: [BusinessDb, AnalyticsReplica],
+  datasourceMapping: [
+    { namespace: 'biz',            datasource: 'business_primary' },
+    { objectPattern: 'report_*',   datasource: 'analytics_replica' },
+    { package: 'com.example.logs', datasource: 'default' },
+    { default: true,               datasource: 'default' },
+  ],
+});
+```
+
+規則按 `namespace`、`package`、`objectPattern`（glob）或 `default` 匹配，並
+指定目標 `datasource`。這讓資料駐留的決策集中在一處，而不是散落在各個物件
+檔案中。
+
+## 從現有的表生成物件 [#generating-objects-from-existing-tables]
+
+你不必為每張表手寫一個物件。如今把遺留模式接入 ObjectOS 最快的方式，是
+**用一個編碼 Agent（Claude Code）掃描業務表並生成原始碼級的物件定義** ——
+每張表一個 `*.object.ts` 檔案，形態完全符合框架的預期。
+
+[`hotcrm`](https://github.com/objectstack-ai/hotcrm) 參考應用是這種形態的
+標準示例：每張表是一個 `src/objects/<name>.object.ts` 檔案，使用
+`ObjectSchema.create({ … })` 和 `Field.*` 定義，全部由 `defineStack` 組裝。
+典型流程：
+
+1. **連線**業務資料庫，作為一個數據源（見上文）。
+2. **把 Claude Code 指向模式。** 讓它內省所連線的資料庫 —— 表名、列、型別、
+   外部索引鍵 —— 併為每張表生成一個 `ObjectSchema.create` 檔案，把 SQL 列對映為
+   `Field.*` 型別，把外部索引鍵對映為 `Field.lookup(...)`。把每個物件的
+   `datasource` 設為你的連線（或依賴 `datasourceMapping`），並在表名與物件
+   名不同時設定 `external.remoteName`。
+3. **審閱和細化**生成的物件 —— 新增標籤、欄位分組、校驗和許可權。輸出是你
+   擁有並提交的普通原始碼，就像 `hotcrm/src/objects/*.object.ts` 一樣。
+4. **執行。** 這些物件現在通過繫結的資料來源讀取你現有的表。啟動時，執行時會
+   檢查每個物件與其表是否一致（`external.validation`），預設情況下不一致會
+   導致啟動失敗。寫入保持關閉，直到兩道門控都開啟：資料來源上的
+   `external.allowWrites: true` **和**物件上的 `external.writable: true`。
+
+由於生成的物件是普通原始碼，你擁有完全的控制權：保留合適的部分，刪掉你不想
+暴露的列，並在一個平臺從未需要擁有的資料庫之上疊加 ObjectOS 的功能（歷史
+跟蹤、活動、共享規則）。
+
+## 查詢下推 [#query-pushdown]
+
+什麼在資料庫中執行、什麼由引擎求值，由每個驅動自己決定，而不是由資料來源
+後設資料決定。聯邦物件上的過濾條件，比如 `?tier=premium`，會被下推到遠端查詢。
+
+沒有可以調節的 `capabilities` 塊。它已在 ObjectStack 17.0 中移除，因為沒有
+任何東西讀取它：宣告一項能力從未改變過實際執行的路徑，它的 `readOnly` 標誌
+也從未阻止過一次寫入。只讀訪問請參見[安全說明](#security-notes)。
+
+## 基於已連線資料的 AI [#ai-over-connected-data]
+
+一旦表被建模為物件，**AI 層就能免費在它們之上工作**。ObjectOS 的 Agent 和
+工具 —— `list_objects`、`describe_object`、`query_records`、
+`aggregate_data`，以及資料對話 Agent —— 都經過 ObjectQL，而 ObjectQL 會把
+每個物件路由到它所繫結的資料來源。這意味著：
+
+- 使用者可以**用自然語言提問**存放在遺留業務系統中的資料，答案基於真實的
+  資料行計算。
+- 工具呼叫和查詢遵守**呼叫使用者的許可權** —— AI 看到的永遠不會超過已登入使用者
+  被允許看到的範圍。
+- 無論物件背後是主資料庫還是外部業務系統，同樣的 Agent、流程和儀表盤都能
+  工作。
+
+關於如何接好對話層和 Agent 層，參見 [AI 服務](/docs/configure/ai)和
+[AI Agent](/docs/build/agents)；關於支撐 `default` 資料來源的主資料庫配置，
+參見[執行時](/docs/configure/runtime)。
+
+## 安全說明 [#security-notes]
+
+- **絕不內聯憑據。** 把密碼放進金鑰儲存，並用 `external.credentialsRef`
+  引用它，如上所示。
+- 對你不打算寫入的系統，**使用只讀的資料庫使用者** —— 只授予它 `SELECT`。
+  這樣，任何經由該連線到達資料庫的東西都無法寫入，無論是否經過 ObjectOS。
+  在外部資料來源上，`external.allowWrites: false` —— 預設值 —— 也會在 ObjectOS
+  自己的查詢路徑中拒絕寫入。沒有 `readOnly` 鍵：曾經存在的那個從未攔住過
+  一次寫入，ObjectStack 17.0 已將其移除。
+- **用許可權限定範圍。** 物件級和欄位級許可權對已連線資料的作用，與對原生物件
+  完全相同。
+
+## 產品內的外部資料來源聯邦 [#in-product-external-datasource-federation]
+
+上面的流程 —— 連線資料庫、建模物件、用編碼 Agent 生成它們 —— 執行在
+**開箱即用的聯邦**之上：`schemaMode: 'external'`，由
+[ADR-0015](https://github.com/objectstack-ai/objectstack/blob/main/docs/adr/0015-external-datasource-federation.md)
+（狀態：*Accepted*）規定，**今天就已交付**：把物件繫結到 ObjectOS 不擁有的
+表，並在其周圍設定校驗門控。它預設只讀，而且還處於早期：讀取路徑是成熟的
+那一條。
+
+它只在擁有這塊能力的框架文件中記錄一次 ——
+[External Datasources (Federation)](https://objectstack.ai/docs/data-modeling/external-datasources)。
+
+## 下一步 [#where-to-go-next]
+
+- [執行時](/docs/configure/runtime) —— `default` 背後的主資料庫
+- [AI 服務](/docs/configure/ai) —— 對話、embedding、RAG、MCP
+- [AI Agent](/docs/build/agents) —— 基於你的物件的宣告式 Agent
+- [資料模型](/docs/build/data) —— `ObjectSchema.create` 編寫介面
+- [`examples/app-crm` 資料來源](https://github.com/objectstack-ai/objectstack/tree/main/examples/app-crm/src/datasources) —— 一個真實的資料來源 + 路由示例

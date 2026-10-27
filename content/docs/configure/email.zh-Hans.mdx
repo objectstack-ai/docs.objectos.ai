@@ -1,0 +1,76 @@
+---
+title: 邮件
+seoTitle: "事务邮件：传输方式和模板"
+description: 配置事务邮件的投递提供商和模板。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 1ee2df65cf5765f43f4943d79c3f093362a542e7d3fc30bc4a3e6f7789e3a43c
+  guide_rev: 1
+  mode: auto
+---
+
+当应用需要时（密码重置、邀请、审批通知），ObjectOS 会通过框架的邮件插件
+发送事务邮件。没有定时报表邮件：ObjectStack 17.5 移除了定时报表投递，
+且没有替代方案。该插件自带三种传输方式。
+
+## 传输方式 [#transports]
+
+| 提供商 | 何时使用 | 必需的环境变量 |
+|---|---|---|
+| `log` | 本地开发；把邮件记录到 stdout，而不是发送 | 无 |
+| `resend` | 通过 Resend 获得 SaaS 级的送达率 | `OS_EMAIL_API_KEY` |
+| `postmark` | 通过 Postmark 获得 SaaS 级的送达率 | `OS_EMAIL_API_KEY` |
+
+默认值是 `log`。当配置了真实的提供商却没有提供 API 密钥时，ObjectOS 会
+回落到 log 传输方式 —— 这有助于防止非生产环境意外发出邮件。
+
+### SMTP 怎么办？ [#what-about-smtp]
+
+运行时目前**没有**内置原生的 SMTP 传输方式。如果你的环境需要 SMTP（企业
+中继、本地部署的邮件、物理隔离部署），你有两个生产级的选择：
+
+1. 在 ObjectOS 前面**运行一个 SMTP 转 API 的中继**。Resend、Postmark 以及
+   自托管的替代方案（Postal、Cuttlefish）都接受 SMTP 入站，并通过它们的
+   HTTP API 重新发出 —— ObjectOS 照常通过 HTTPS 与它们通信。
+2. **用自定义的邮件插件运行运行时。** 邮件插件的 API 很小（一个
+   `send(message)` 函数）；一个封装了 `nodemailer` 的项目插件可以通过
+   `requires` 列表接入。参见 spec 仓库中的
+   [插件编写指南](https://github.com/objectstack-ai/spec)。
+
+原生 SMTP 传输方式已列入路线图；可以在
+[github.com/objectstack-ai/objectstack/issues](https://github.com/objectstack-ai/objectstack/issues)
+跟踪进展。
+
+## 环境变量 [#environment-variables]
+
+| 变量 | 用途 |
+|---|---|
+| `OS_EMAIL_PROVIDER` | `log`、`resend` 或 `postmark` |
+| `OS_EMAIL_API_KEY` | 提供商的 API 密钥（Resend 或 Postmark） |
+| `OS_EMAIL_FROM` | 默认发件地址。支持 `addr@x` 和 `Name <addr@x>` 两种格式 |
+| `OS_EMAIL_RETRIES` | 发送失败时传输方式的重试次数（默认 `0`） |
+
+环境变量会覆盖产物 `email` 配置块中对应的值，所以运维人员无需重新构建产物
+就能重新指定投递方式。
+
+## 模板 [#templates]
+
+可复用的模板存放在 `sys_email_template` 中。模板支持由框架模板引擎求值的
+变量插值。应用代码（或流程）用一个模板 id 和一组变量调用邮件服务；服务生成
+主题和正文，并交给配置好的传输方式。
+
+## 验证投递 [#verifying-delivery]
+
+对于 Resend / Postmark，请在提供商的控制台中确认发件域名已配置好（SPF、
+DKIM，以及可选的 DMARC）。最快的端到端检查是 Setup 中邮件设置页上的
+**Send test email** 动作 —— 它使用实际的传输方式，并在页面内直接显示传输
+错误。
+
+## 运维指南 [#operational-guidance]
+
+- 把 API 密钥当作机密。把它存放在客户的密钥管理器中，绝不放进产物。
+- 关注传输错误日志：提供商的限流、退订抑制和退信都会出现在那里。
+- 对审计敏感的事务邮件（密码重置、MFA 验证）应按客户的策略保留 —— 在审计
+  日志上设置保留期，而不是在传输方式上。
+- 外发邮件不会阻塞业务事务：发送失败会作为错误报告出来，但不会回滚引发它
+  的记录变更。
