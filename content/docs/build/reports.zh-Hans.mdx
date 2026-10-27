@@ -1,0 +1,192 @@
+---
+title: 报表
+seoTitle: "构建报表：基于数据集的汇总、矩阵和联合报表"
+description: 与仪表盘绑定同一批数据集的分组报表和交叉报表 —— 可选配一张图表，并能从每个数字下钻到背后的记录。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: b9e6f81d52e7e18ec7dd039e188135dbeea353e30700f37dbc327be0018f9a52
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/dashboards.json):
+  dashboards.dataset-report-authoring, dashboards.drill-through-range,
+  dashboards.analytics-exposure-gate-and-measure-aggregate.
+
+  Deliberately not written: saved personal reports and scheduled report
+  delivery. dashboards.saved-report-ownership and
+  dashboards.report-schedule-dispatch-delivery are retired — the saved-report
+  stack was removed (objectstack #20102), and `subscription` / `schedule` on a
+  report are refused because nothing delivers a report on a timetable. The
+  report `dateRange` and `exportOptions` keys (objectstack #26548) are not
+  documented yet either: the spec accepts them, but the report page does not
+  render them.
+*/}
+
+**报表是一张绑定到数据集的数字表。** 它按数据集的维度对其度量进行分组 ——
+沿着行分组，矩阵报表还会沿着列分组 —— 并且可以在表格上方画出同一批数字
+的图表。因为报表是*按名称*从数据集中选择度量的，所以报表中的"收入"和
+[仪表盘](/docs/build/interface/dashboards)上显示的收入是同一个收入。
+
+## 从数据集开始 [#start-from-a-dataset]
+
+报表和仪表盘共享同一个语义层：**数据集**拥有基础对象、它所关联的关系、
+你可以分组的维度，以及你可以展示的度量。定义一次 —— 参见
+[仪表盘 → 先有数据集](/docs/build/interface/dashboards#datasets-first) ——
+然后把任意多个报表和组件绑定到它上面。
+
+数据集够不到的东西，报表也够不到：
+
+- 关闭了 API 的对象不能作为数据集的基础对象；查询会被拒绝。
+- 内部字段不能用作维度、度量或过滤条件 —— 对管理员也是如此。
+- 每个查询都以查看者的权限运行，所以报表永远不会统计查看者打不开的记录。
+
+## 报表类型 [#report-types]
+
+| `type` | 显示 | 选择 |
+|---|---|---|
+| `summary` | 每组一行，度量放在列中 | `rows`（维度）和 `values`（度量） |
+| `matrix` | 交叉表：一个维度向下、另一个维度横向，度量放在单元格中 | `rows`、`columns` 和 `values` |
+| `joined` | 多个子报表堆叠在一个页面中，每个都画成表格 | `blocks` 的每个条目各自选择 |
+
+单纯的记录列表不是报表：应该把它构建为该对象的一个列表
+[视图](/docs/build/interface/views)。
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+// Estimated hours by task status.
+export const hoursByStatus = defineReport({
+  name: 'hours_by_status',
+  label: 'Hours by Status',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+})
+
+// Status down, priority across.
+export const statusByPriority = defineReport({
+  name: 'status_by_priority',
+  label: 'Status × Priority',
+  type: 'matrix',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  columns: ['priority'],
+  values: ['est_hours'],
+})
+```
+
+`summary` 或 `matrix` 报表需要一个 `dataset`，并且 `values` 中至少有一个
+度量。`rows`、`columns` 和 `values` 指定的是数据集的维度和度量，而不是
+原始的对象字段。
+
+### 联合报表 [#joined-reports]
+
+联合报表把几个相互独立的子报表放在同一页上 —— 比如"未完成的工作"在
+"已完成的工作"上方。每个块绑定自己的数据集，选择自己的行、列和值，并有
+自己的 `runtimeFilter`。容器本身不做任何选择：联合报表上的 `dataset`、
+`rows`、`columns`、`values`、`order` 或 `chart` 都会被拒绝，缺少 `dataset`
+的块会被点名拒绝。块中不能再嵌套另一个联合报表。
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const taskOverview = defineReport({
+  name: 'task_overview',
+  label: 'Task Overview',
+  type: 'joined',
+  blocks: [
+    { name: 'open_block', label: 'Open Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['est_hours'],
+      runtimeFilter: { done: false } },
+    { name: 'done_block', label: 'Completed Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['task_count'],
+      runtimeFilter: { done: true } },
+  ],
+})
+```
+
+容器级的 `runtimeFilter` 会以 AND 方式并入每个块，所以像"本季度"这样的
+范围只需写一次。
+
+## 过滤和排序 [#filtering-and-ordering]
+
+- **`runtimeFilter`** 在数据集自身的过滤条件之上，限定报表要聚合的行。
+- **`order`** 对结果排序，最重要的键在前；每个键指定报表所选择的一个维度
+  或度量，指定一个报表没有选择的键属于编写错误。排序在服务器上针对整个
+  结果进行。日期维度本来就按时间顺序返回，所以只有在按度量排序（"最大
+  的在前"）、把最新的放在前面，或对另一个维度排序时，才需要 `order`。
+
+## 添加图表 [#adding-a-chart]
+
+`summary` 或 `matrix` 报表可以在表格上方画一张图表（对于带有 `columns`
+的矩阵报表，画在表格下方）。图表的坐标轴指定同一数据集的一个维度和一个
+度量：
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const hoursByStatusChart = defineReport({
+  name: 'hours_by_status_chart',
+  label: 'Hours by Status (Chart)',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+  chart: { type: 'bar', xAxis: 'status', yAxis: 'est_hours' },
+})
+```
+
+图表绘制的是表格显示的同一批数字。联合报表只绘制表格。
+
+## 下钻 [#drill-through]
+
+每个聚合行或单元格都可以点击：它会打开一个侧边抽屉，列出该数字背后的
+记录，范围精确限定在该分组 —— 对日期维度是该分桶的日期范围，对矩阵单元格
+则同时限定行和列。在抽屉中，点击一条记录即可打开它，或者点击
+**Open in list →** 在该对象的完整列表中继续。用 `drilldown: false` 关闭它。
+
+没有匹配数据的报表会显示空状态，而不是一张残缺的表格。
+
+## 把报表呈现在人们面前 [#putting-a-report-in-front-of-people]
+
+在一个[应用](/docs/build/interface/apps)的导航中添加一个 `report` 项：
+
+```ts
+// One navigation item of an app.
+{ id: 'nav_hours_by_status', type: 'report', label: 'Hours by Status',
+  reportName: 'hours_by_status', icon: 'sigma' }
+```
+
+报表页会显示报表的标签和描述，然后是报表本身。报表也会列在 `⌘K` 命令
+面板的 **Reports** 下 —— 参见[搜索](/docs/use/search)。
+
+管理员会在报表页上看到一个 **Edit** 按钮。它会在侧边面板中打开报表的
+设置；修改会保存为草稿，在发布之前其他人看不到。
+
+草稿允许是不完整的 —— 它可以指定一个还不存在的数据集、度量或维度。发布
+时会检查这些引用，并拒绝指定了缺失内容的报表，所以已发布的报表永远不会
+在没有报错的情况下显示为空白。
+
+## 仪表盘还是报表？ [#dashboards-or-reports]
+
+| 使用 | 何时 |
+|---|---|
+| [仪表盘](/docs/build/interface/dashboards) | 一眼看到多个数字和图表，带有作用于整个仪表盘的日期和过滤控件 |
+| 报表 | 完整回答一个问题 —— 一张你逐行阅读的分组表或交叉表，外加它的图表 |
+
+两者绑定同样的数据集，下钻的方式也相同，所以一个数字在它们之间移动时
+含义不变。作用于整个仪表盘的日期范围和全局过滤条件，见
+[仪表盘 → 全局日期范围和过滤条件](/docs/build/interface/dashboards#global-date-range-and-filters)。
+
+## 下一步 [#where-to-go-next]
+
+| 页面 | 为什么 |
+|:--|:--|
+| [仪表盘](/docs/build/interface/dashboards) | 数据集、组件、全局过滤条件 |
+| [视图](/docs/build/interface/views) | 普通的记录列表，以及列表中的图表 |
+| [应用](/docs/build/interface/apps) | 把报表放进导航 |
+| [权限](/docs/configure/permissions) | 每个报表查询都会应用的行级安全 |

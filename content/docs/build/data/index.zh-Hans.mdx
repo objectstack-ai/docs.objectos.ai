@@ -1,0 +1,347 @@
+---
+title: 数据模型
+seoTitle: "数据模型：对象、字段和关系"
+description: 对象、字段、关系、校验、索引 —— 向 AI 描述，或者用 TypeScript 编写。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: dfc4b470748f9d65a343db5a45ca7627a0b01485644546deff2adcd36ffb7430
+  guide_rev: 1
+  mode: auto
+---
+
+数据模型是你应用的唯一事实来源。一个对象一旦存在，ObjectOS 就会免费给你
+REST API、一个生成的视图、RBAC 检查点、审计日志记录和 AI 工具暴露。
+
+**大多数客户从不手写模式。** 他们在 [AI Builder](/docs/build/ai-builder)
+中描述自己需要什么，平台就会创建对象、字段、索引和翻译。本页描述的是底层
+的形状 —— 让你明白 AI 在生成什么，并在你想要的时候直接编辑它。
+
+## 编写路径 [#authoring-paths]
+
+| 路径 | 是什么样子 |
+|---|---|
+| **AI Builder**（首选） | *"创建一个 `support_ticket` 对象，包含 subject、description、priority、status、assignee。"* |
+| **点选构建** | **Studio → Objects → New Object** → 表单 |
+| **TypeScript（`*.object.ts`）** | 下面展示的 TS —— 通常位于一个 fork 出来的[模板](/docs/build/templates)中 |
+
+三者产出的都是同一个模式。模式是权威的；其他一切都是派生出来的。
+
+## 对象的结构 [#anatomy-of-an-object]
+
+```ts
+// src/objects/task.ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const Task = ObjectSchema.create({
+  name: 'todo_task',
+  label: 'Task',
+  pluralLabel: 'Tasks',
+  icon: 'check-square',
+  description: 'A single unit of work.',
+
+  fields: {
+    subject:     Field.text({ label: 'Subject', required: true, maxLength: 200 }),
+    description: Field.markdown({ label: 'Description' }),
+    status:      Field.select({
+      label: 'Status',
+      options: [
+        { label: 'To Do',       value: 'todo', default: true },
+        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Done',        value: 'done' },
+      ],
+    }),
+    due:         Field.date({ label: 'Due' }),
+    assignee:    Field.lookup('sys_user', { label: 'Assignee' }),
+  },
+
+  enable: {
+    trackHistory: true,    // record field changes in audit log
+    apiEnabled: true,      // expose REST endpoints (default true)
+    feeds: true,           // chatter / comments / @mentions
+  },
+});
+```
+
+在你的技术栈中注册它：
+
+```ts
+// objectstack.config.ts
+import { defineStack } from '@objectstack/spec';
+import * as objects from './src/objects';
+
+export default defineStack({
+  manifest: { id: 'my.app', namespace: 'todo', version: '0.1.0', type: 'app', name: 'My App' },
+  objects: Object.values(objects),
+});
+```
+
+每个对象名都以技术栈的 `namespace` 加一个下划线开头：在 `todo` 命名空间
+中就是 `todo_task`。你需要做的就这么多。`os dev` 会重新编译，然后
+`/api/v1/data/todo_task`、生成的 Task 视图以及它的权限行都会出现。
+
+## 字段类型 [#field-types]
+
+ObjectStack 提供约 25 种字段类型。最常用的有：
+
+### 标量 [#scalars]
+
+| 类型 | 存储什么 | 辅助函数 |
+|---|---|---|
+| `text` | 短字符串 | `Field.text({ maxLength, required })` |
+| `textarea` | 长字符串 | `Field.textarea(...)` |
+| `markdown` | 带 markdown 的富文本 | `Field.markdown(...)` |
+| `number` | 数字；`scale` 设置小数位数 | `Field.number({ min, max, scale })` |
+| `currency` | 金额 | `Field.currency(...)` |
+| `boolean` | 真/假 | `Field.boolean({ defaultValue })` |
+| `date` | 日历日期 | `Field.date(...)` |
+| `datetime` | 时间戳 | `Field.datetime(...)` |
+| `email` | 经过校验的邮箱 | `Field.email(...)` |
+| `url` | 经过校验的 URL | `Field.url(...)` |
+| `phone` | 经过校验的电话 | `Field.phone(...)` |
+| `json` | 任意 JSON | `Field.json(...)` |
+
+### 选项 [#choices]
+
+| 类型 | 用于 |
+|---|---|
+| `select` | 单选（枚举） |
+| `multiselect` | 多选 |
+
+### 关系 [#relationships]
+
+| 类型 | 基数 | 辅助函数 |
+|---|---|---|
+| `lookup` | 一对多（外键） | `Field.lookup('sys_user', { label })` |
+| `master_detail` | 带级联删除的一对多 | `Field.masterDetail('order', { label })` |
+
+### 文件与媒体 [#files--media]
+
+| 类型 | 存储什么 |
+|---|---|
+| `file` | 通过存储服务保存的一个文件 |
+| `image` | 带预览的图片文件 |
+
+### 计算 / 派生 [#computed--derived]
+
+| 类型 | 行为 |
+|---|---|
+| `formula` | 读取时由 CEL 表达式计算 |
+| `summary` | 相关记录的聚合值（sum/count/avg） |
+| `autonumber` | 序列号（`INV-{000001}`） |
+| `created`、`lastModified` | 系统维护的时间戳 |
+| `createdBy`、`lastModifiedBy` | 系统维护的用户引用 |
+
+## 必填 / 唯一 / 默认值 [#required--unique--default]
+
+每个标量字段上的常用修饰：
+
+```ts
+Field.text({
+  label: 'Code',
+  required: true,
+  unique: true,          // unique constraint enforced at DB level
+  defaultValue: '',
+  inlineHelpText: 'Internal short code',
+})
+```
+
+## 校验 [#validation]
+
+内联：
+
+```ts
+Field.number({ label: 'Quantity', min: 1, max: 9999 })
+Field.text({ label: 'SKU', minLength: 8, maxLength: 8 })
+```
+
+对象级规则 —— 一条跨字段规则，以及一条针对模式的 `format` 规则。规则的
+`condition` 描述的是无效的记录：当它为真时，写入会被拒绝。
+
+```ts
+ObjectSchema.create({
+  name: 'order',
+  fields: {
+    sku:      Field.text({ label: 'SKU' }),
+    discount: Field.currency({ label: 'Discount' }),
+    total:    Field.currency({ label: 'Total' }),
+  },
+  validations: [
+    {
+      type: 'cross_field',
+      name: 'discount_lt_total',
+      message: 'Discount cannot exceed total',
+      fields: ['discount', 'total'],
+      condition: 'record.discount > record.total',
+    },
+    {
+      type: 'format',
+      name: 'sku_format',
+      message: 'SKU looks like ABC-1234',
+      field: 'sku',
+      regex: '^[A-Z]{3}-[0-9]{4}$',
+    },
+  ],
+});
+```
+
+校验在每次写入时运行 —— REST、UI、ObjectQL —— 所以不存在"后门"。
+
+## 索引与性能 [#indexes--performance]
+
+```ts
+ObjectSchema.create({
+  name: 'order',
+  fields: { /* ... */ },
+  indexes: [
+    { fields: ['status', 'created_at'] },
+    { fields: ['account', 'created_at'], unique: false },
+  ],
+});
+```
+
+驱动会在模式同步时创建真实的数据库索引。
+
+## 字段分组 [#field-groups]
+
+对于很长的表单，把字段分组：
+
+```ts
+ObjectSchema.create({
+  name: 'task',
+  fieldGroups: [
+    { key: 'core',     label: 'Task',     icon: 'check-square' },
+    { key: 'planning', label: 'Planning', icon: 'calendar' },
+    { key: 'meta',     label: 'Metadata', icon: 'info', defaultExpanded: false },
+  ],
+  fields: {
+    subject: Field.text({ label: 'Subject', group: 'core' }),
+    due:     Field.date({ label: 'Due',     group: 'planning' }),
+  },
+});
+```
+
+## 能力标志与归属 [#capability-flags--ownership]
+
+```ts
+ObjectSchema.create({
+  name: 'task',
+  fields: { subject: Field.text({ label: 'Subject' }) },
+  ownership: 'user',         // 'user' (default) | 'business_unit' | 'org' | 'none'
+  sharingModel: 'private',   // OWD — custom objects default to private (v13)
+  enable: {
+    apiEnabled: true,         // generated REST endpoints (default true)
+    searchable: true,         // index records for global search (default true)
+    trackHistory: true,       // History tab + field-level diffs (opt-in, default false)
+    feeds: true,              // sys_comment / @mentions (default true)
+    activities: true,         // mirror CRUD to sys_activity timeline (default true)
+    files: false,             // Attachments panel (opt-in, default false)
+    clone: true,              // record deep cloning (default true)
+  },
+});
+```
+
+`enable` 是一套**封闭的词汇** —— 这个块是严格的，所以一个无法识别的标志
+（像 `feedEnabled` 这样的拼写错误，或者一个曾经存在过的键）会成为一个
+点名该键的解析错误，而不是一个被静默丢弃的设置。上面的七个标志就是全部，
+外加另一个键：
+
+```ts
+// Keys of an object; its name and fields are omitted.
+enable: {
+  apiMethods: ['get', 'list', 'create', 'update'],  // no delete over the API
+}
+```
+
+`apiMethods` 是对象暴露哪些 API 操作的白名单。可编写的词汇恰好是六个基本
+操作 —— `get`、`list`、`create`、`update`、`delete`、`bulk`。省略这个键
+表示不受限制的访问；`[]` 表示全部拒绝。八个遗留值（`upsert`、`import`、
+`export`、`aggregate`、`search`、`history`、`restore`、`purge`）是*派生*
+出来的有效操作，而不是你需要声明的东西：存储中的遗留值仍然能被解析，但会
+被剥离，并给出一条点名替代项的警告（`upsert` → `create` + `update`，
+`export`/`aggregate`/`search` → `list`，`history` → `get`；`restore` 和
+`purge` 不由任何东西派生，直接删除）。注意一个陷阱 —— 一个*只*包含遗留值
+的白名单会被剥离成 `[]`，这会关闭该对象的 API，而不是放宽它。
+
+> **不存在软删除 —— `enable.trash` 已被移除。**
+> 早先的文档曾把 `enable: { trash: true }` 指为已退役的对象级 `softDelete`
+> 属性的替代品。那是错的，而且值得直说：`trash` 从来没有运行时的消费者。
+> 每一次删除始终都是硬删除，所以一个默认为 true、承诺有回收站的标志是一个
+> 虚假的能力 —— 作者们写下 `trash: false`，以为自己是在退出一个从未运行过
+> 的软删除。这个键（以及它的邻居 `enable.mru`）现在会在**解析时被拒绝**并
+> 附上指引，而不是被忽略。把它从你的源码中删掉，或者运行
+> `os migrate meta --from 16` 让它为你重写。
+>
+> 若要可恢复性，请使用按字段的 `trackHistory`（记录改了什么的审计线索）
+> 或一个 [`lifecycle`](#data-lifecycle-retention) 策略。真正的回收站目前
+> 不是已交付的能力。
+
+> **同样已从对象表面移除的：**`softDelete`、`versioning`、`search`（改用
+> 顶层的 `searchableFields`）、`recordName`（改用一个自动编号字段作为
+> `nameField`）、`keyPrefix`、`tags`、`active` 和 `abstract` —— 如果你
+> 传入其中之一，`ObjectSchema.create` 会抛出一个带定位、点名替代项的错误。
+
+自 ObjectStack 14 起，`enable.*` 标志是**强制执行的**，而不只是建议：
+`feeds: false` 会以 403 `FEEDS_DISABLED` 拒绝创建评论，`files` 必须先开启
+才能创建 `sys_attachment` 行（否则返回 403 `FILES_DISABLED`），
+`activities` / `trackHistory` 控制时间线和 History 标签页。合规用的
+`sys_audit_log` 行无论标志如何都会写入。
+
+## 数据生命周期（保留） [#data-lifecycle-retention]
+
+高数据量的对象可以声明一个 `lifecycle` 块，让平台限制它们的增长
+（ObjectStack 14.4，ADR-0057）：
+
+```ts
+ObjectSchema.create({
+  name: 'my_event',
+  fields: { payload: Field.json({ label: 'Payload' }) },
+  lifecycle: {
+    class: 'event',               // 'record' | 'audit' | 'telemetry' | 'transient' | 'event'
+    retention: { maxAge: '14d' }, // reaper deletes rows past the window
+    // time-sharded table: 2 shards of 1 week
+    storage: { strategy: 'rotation', shards: 2, unit: 'week' },
+  },
+});
+```
+
+内置的 LifecycleService（用 `OS_LIFECYCLE_DISABLED=1` 禁用）会清理过期的
+行、轮换按时间分片的表，并归档审计类对象。`sys_activity`（14 天）和
+`sys_audit_log`（热数据 90 天，然后归档）等平台对象自带生命周期声明，你可以
+通过 `lifecycle.retention_overrides` 设置按环境调整。
+
+## 系统对象（每个项目免费附带） [#system-objects-free-with-every-project]
+
+你不需要声明这些 —— 它们始终存在：
+
+| 对象 | 是什么 |
+|---|---|
+| `sys_user` | 用户账户 |
+| `sys_org` | 组织 / 租户 |
+| `sys_member` | 组织成员关系 |
+| `sys_position`、`sys_permission_set` | RBAC 基本元素 |
+| `sys_audit_log` | 审计线索（加载了审计能力时） |
+| `sys_file`、`sys_attachment` | 文件元数据（加载了存储时） |
+| `sys_comment`、`sys_activity` | 信息流 / 讨论（加载了信息流时） |
+| `sys_session`、`sys_api_key` | 认证产物 |
+| `sys_webhook`、`sys_webhook_delivery` | Webhook 订阅（启用时） |
+
+在 `lookup` 字段中按名称引用它们 —— 例如 `Field.lookup('sys_user', { label: 'Owner' })`。
+
+## 多态平台功能 [#polymorphic-platform-features]
+
+当你启用 `feeds: true` 和 `trackHistory: true` 时，你的对象会自动参与：
+
+- `sys_comment`（thread_id = `<object>:<id>`）
+- `sys_attachment`（parent_object = `<object>`，parent_id = `<id>`）
+- `sys_activity`（时间线）
+- `sys_audit_log`（字段级 diff）
+
+你不需要为每个对象逐一连接这些 —— 它们在平台上是多态的。
+
+## 下一步 [#where-to-go-next]
+
+- [权限](/docs/configure/permissions) —— 控制对你的对象的访问
+- [流程 / 自动化](/docs/build/automation/flows) —— 响应记录变更
+- [API 访问](/docs/configure/api-access) —— 调用你生成的 REST
+- [`os explain`](/docs/reference/cli) —— 打印渲染后的模式
+- [`@objectstack/spec` 源码](https://github.com/objectstack-ai/objectstack/tree/main/packages/spec) —— 模式就是契约；这里的一切都从它派生

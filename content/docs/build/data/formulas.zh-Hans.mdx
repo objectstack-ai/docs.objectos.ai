@@ -1,8 +1,10 @@
 ---
 title: 公式
+seoTitle: "公式字段、动态默认值和 CEL 逻辑"
 description: 计算字段、动态默认值与条件逻辑 —— 元数据需要"思考"的地方，都用同一门 CEL 表达式语言。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: e665dc6fce9b0f27d22e829919a1ec41bec1d4ea6c7f82b23a1c2a44d7d95bf0
+  source_sha: 4c94691d64eaae42bb49bfe69035aae77414eb5038b32c992efce1b2768c0aa1
   guide_rev: 1
   mode: auto
 ---
@@ -20,7 +22,7 @@ translation:
 
 本页讲构建者如何*使用*公式。完整的语言 —— 运算符、标准库、`Expression` 信封 —— 见 [CEL 参考](/docs/reference/cel)。
 
-## 公式字段
+## 公式字段 [#formula-fields]
 
 公式字段在读取时由一条 CEL 表达式计算出它的值。它是只读的 —— 永远不能直接写入：
 
@@ -31,8 +33,8 @@ import { ObjectSchema, Field } from '@objectstack/spec/data';
 export const Invoice = ObjectSchema.create({
   name: 'invoice',
   fields: {
-    subtotal: Field.decimal({ label: 'Subtotal' }),
-    tax_rate: Field.decimal({ label: 'Tax Rate' }),
+    subtotal: Field.currency({ label: 'Subtotal' }),
+    tax_rate: Field.number({ label: 'Tax Rate', scale: 4 }),
 
     total: Field.formula({
       label: 'Total',
@@ -52,10 +54,10 @@ export const Invoice = ObjectSchema.create({
 
 > **警告：**公式字段的 `type` 永远是 `formula`。**不要**给 `Field.formula` 传 `type: 'currency'` 或 `type: 'number'` —— 那会覆盖 `type: 'formula'`，字段就静默地永远不再计算。值的类型请用 `returnType` 声明。
 
-### 日常模式
+### 日常模式 [#everyday-patterns]
 
 ```ts
-// 分档标签
+// Tiered label
 Field.formula({
   label: 'Discount Tier',
   returnType: 'text',
@@ -66,21 +68,21 @@ Field.formula({
   `,
 })
 
-// 距关闭还有几天
+// Days until close
 Field.formula({
   label: 'Days to Close',
   returnType: 'number',
   expression: 'daysBetween(record.close_date, today())',
 })
 
-// 全名 —— joinNonEmpty 会跳过空白部分
+// Full name — joinNonEmpty skips blank parts
 Field.formula({
   label: 'Full Name',
   returnType: 'text',
   expression: F`joinNonEmpty([record.salutation, record.first_name, record.last_name], ' ')`,
 })
 
-// 毛利率，保留 2 位小数
+// Gross margin with 2 decimal places
 Field.formula({
   label: 'Gross Margin %',
   returnType: 'number',
@@ -91,14 +93,14 @@ Field.formula({
 
 > **提示：**CEL 遇到 `null + string` 会抛错，所以拼接时把可能为空的操作数包进 `coalesce(record.x, '')` —— 或者直接用 `joinNonEmpty`，省掉这套仪式。
 
-### 16.0 新增
+### 16.0 新增 [#new-in-160]
 
 - **日期与数字做算术现在是构建期错误。**像 `record.end_date - record.start_date + 1` 或 `today() + 30` 这样的表达式过去总在运行时出错（静默求值为 null）；现在构建会直接拒绝，并在报错中指向 `daysBetween(a, b)`（求跨度）以及 `daysFromNow(n)` / `addDays(d, n)` / `addMonths(d, n)`（移动日期）。
 - **空值守卫三元表达式可以编译了。**`cond ? value : null` —— 例如 `record.end_date != null ? daysBetween(record.start_date, record.end_date) + 1 : null` —— 是让公式在输入就绪前保持空白的推荐写法。
 - **注册了 `floor(x)` / `ceil(x)`。**它们分别向 −∞ / +∞ 取整（所以 `floor(-1.2) == -2`）—— 不像整数除法那样向零取整。
 - **日期与 `today()` 的相等比较现在能匹配了。**时间值会在比较前先做类型归一，因此 `record.due_date == today()` 和 `daysBetween(today(), record.due_date) == 0` 都能按预期工作。
 
-### 公式作为记录标题
+### 公式作为记录标题 [#formula-as-record-title]
 
 自 ADR-0079 起，记录的标题由 `nameField` 指定的字段决定 —— 组合式标题可以用文本公式：
 
@@ -115,7 +117,7 @@ ObjectSchema.create({
 });
 ```
 
-## 动态默认值
+## 动态默认值 [#dynamic-defaults]
 
 包在 `` cel`...` `` 里的 `defaultValue` 在**插入时**求值 —— 用的是用户的时钟和身份，不是你笔记本的：
 
@@ -132,7 +134,7 @@ due_date: Field.date({
 
 同样的技巧也适用于种子数据：一条带 ``close_date: cel`daysFromNow(45)` `` 的种子记录会在包安装时解析，因此演示数据永远新鲜，而不是把编译时的时间戳固化进包里。
 
-## 条件式字段行为
+## 条件式字段行为 [#conditional-field-behavior]
 
 谓词让字段随记录的其余部分而变化：
 
@@ -145,7 +147,10 @@ po_number: Field.text({
 }),
 rating: Field.select({
   label: 'Rating',
-  options: [ /* ... */ ],
+  options: [
+    { label: 'Hot', value: 'hot' },
+    { label: 'Cold', value: 'cold' },
+  ],
   visibleWhen: P`record.status == 'qualified'`,
 }),
 notes: Field.textarea({
@@ -155,7 +160,7 @@ notes: Field.textarea({
 
 `F`（公式）、`P`（谓词）、`cel` 这几个标签模板 helper 可以互换 —— 在调用处哪个读起来顺就用哪个。
 
-## 30 秒学会 CEL
+## 30 秒学会 CEL [#cel-in-30-seconds]
 
 | 概念 | 语法 |
 |---|---|
@@ -174,7 +179,7 @@ notes: Field.textarea({
 
 > **提示：**`has(record.x)` 只要键存在就为 true —— 哪怕值是 `null`。要检查"非空白"，用 `isBlank(...)` 或 `record.x != null`。
 
-## 最佳实践
+## 最佳实践 [#best-practices]
 
 | 应该 | 不应该 |
 |---|---|
@@ -183,7 +188,7 @@ notes: Field.textarea({
 | 用 `coalesce` / `isBlank` 处理空值 | 把公式用在频繁变化的数据上 |
 | 给每个公式声明 `returnType` | 重新实现本该由验证规则负责的逻辑 |
 
-## 用对话构建
+## 用对话构建 [#build-by-chat]
 
 你很少需要手写公式。告诉 [AI Builder](/docs/build/ai-builder)：
 
@@ -191,7 +196,7 @@ notes: Field.textarea({
 
 它会生成 CEL，推断并写好 `returnType`，表达式在发布前会先经过校验 —— 无效的公式会带着定位信息使构建失败。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 页面 | 原因 |
 |---|---|

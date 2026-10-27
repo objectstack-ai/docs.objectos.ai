@@ -1,0 +1,182 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 包
+seoTitle: "包：建立、版本、釋出和安裝"
+description: ObjectOS 中的組織單元 —— 有版本、可安裝、可共享。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 70f6f415a52b419b4e4bd5c5a098a219d44cec7e84d230ad689ef57aed35512a
+  guide_rev: 1
+  mode: auto
+---
+
+你在 ObjectOS 中構建的一切都存在於一個**包**中：一個有版本的、自包含的
+後設資料集合。包是 AI Builder 工作的單元、市場交付的單元，也是 ObjectOS
+跟蹤更新的單元。
+
+## 包裡有什麼 [#whats-in-a-package]
+
+```text
+com.acme.crm@1.2.0
+├── manifest          id, version, namespace, dependencies
+├── objects/          *.object.ts, *.state.ts, *.hook.ts
+├── views/            *.view.ts, *.page.ts, *.form.ts
+├── actions/          *.action.ts
+├── flows/            *.flow.ts, *.approval.ts
+├── agents/           *.agent.ts, *.skill.ts
+├── permissions/      *.permission.ts
+├── sharing/          *.sharing.ts
+├── translations/     en.ts, zh-CN.ts, ...
+├── apps/             *.app.ts  (navigation)
+└── data/             defineDataset(...) seed
+```
+
+每個後設資料產物（物件、動作、流程 ……）恰好屬於一個包。包 id 採用
+**反向域名**形式（`com.acme.crm`、`org.mycompany.helpdesk`），名稱空間
+字首（`crm_`、`hd_`）讓安裝在同一租戶中的不同包的表名 / 物件名不會衝突。
+
+## 建立包 [#creating-a-package]
+
+### 通過 AI Builder [#from-the-ai-builder]
+
+> *"為我們的內部 CRM 新建一個包，名稱空間為 `crm`。"*
+
+AI 會呼叫 `create_package` 和 `set_active_package`。從那以後，你描述的
+每個物件 / 欄位 / 動作都會落在 `crm` 中。
+
+### 通過 CLI [#from-the-cli]
+
+```bash
+os init my-crm -t app
+cd my-crm
+# manifest lives in the `manifest:` block of ./objectstack.config.ts
+pnpm dev
+```
+
+### 通過 UI [#from-the-ui]
+
+**Studio → Packages → New Package** —— 名稱、id、版本、名稱空間。
+
+## 當前包 [#active-package]
+
+在 AI Builder 中，一次對話帶有一個**當前包** —— 新後設資料的預設容器。當你
+說類似 *"切換到 `com.acme.helpdesk`。"* 的話時，AI 會用
+`set_active_package` 工具設定它。在 CLI 中，當前包就是專案
+`objectstack.config.ts` 中（`manifest:` 塊）宣告的那個包。
+
+## 版本管理 [#versioning]
+
+包採用 **semver**。規則與執行時相同 —— 參見
+[更新日誌與版本管理](/docs/resources/changelog)。
+
+在你釋出之前，升級版本號不會改變任何東西。執行時會按租戶、按包跟蹤
+`installed_version`，當目錄中有更新的版本時，市場會顯示一個
+*"Update available"* 徽標。
+
+## 依賴 [#dependencies]
+
+包可以依賴其他包：
+
+```json
+{
+  "id": "com.acme.helpdesk",
+  "version": "0.3.0",
+  "dependencies": {
+    "com.acme.crm": "^1.0.0",
+    "sys.feeds":   "*"
+  }
+}
+```
+
+執行時在安裝時解析依賴。如果 `com.acme.crm` 沒有安裝，helpdesk 的安裝會
+失敗，並給出清晰的錯誤。
+
+系統包（`sys.*`）始終存在 —— 資訊流、附件、審計、身份等。
+
+## 釋出 [#publishing]
+
+```bash
+os cloud login                 # once: stores a cloud token in ~/.objectstack/cloud.json
+os compile                     # → dist/objectstack.json
+os package publish             # → ObjectStack cloud catalog
+```
+
+`os package publish` 會把編譯好的清單上傳到 `OS_CLOUD_URL` 所指定的目錄。
+認證來自 `os cloud login`（互動式），或者在 CI 中來自一個
+`OS_CLOUD_API_KEY` bearer 令牌。對於私有 / 物理隔離的分發，跳過釋出，
+直接把編譯好的 `dist/objectstack.json` 交給目標安裝環境（見下文的安裝）。
+參見[市場](/docs/build/marketplace)。
+
+> **這兩個變數配置的是你構建機器的釋出身份** —— 也就是 CLI 訪問包目錄的
+> 憑據。它們不是*部署*連線控制平面的方式：一個執行中的部署用它被繫結時
+> 簽發的令牌進行認證，沒有需要配置的 API 金鑰。在把這兩個名字中的任何一個
+> 複製到部署的配置中之前，請先檢視[環境變數](/docs/reference/environment-variables)。
+
+## 安裝 [#installing]
+
+安裝是一個**環境內**的操作 —— 與釋出不同。你把包釋出一次（到目錄），然後
+在目標環境*內部*安裝它，由你的環境登入確認並授權這次安裝。安裝時你永遠
+不需要知道環境 id。
+
+| 路徑 | 怎麼做 |
+|---|---|
+| 在 UI 中（推薦） | 登入環境 → **Marketplace** → 選擇包 → **Install**。安裝到當前環境。 |
+| CLI → 執行中的執行時 | `os package install com.acme.crm --runtime <url>` —— 執行時從它配置的目錄中解析包，並把它合併到自己的核心中 |
+| CLI 物理隔離 | `os package install ./dist/objectstack.json --runtime <url>` —— 內聯傳送編譯好的產物，不經過目錄往返 |
+| REST | `POST /api/v1/marketplace/install-local`（請求體：`{ packageId, versionId? }` 或 `{ manifest }`） |
+| 物理隔離（啟動時） | 掛載編譯好的 `dist/objectstack.json` 產物（參見[物理隔離](/docs/deploy/air-gapped)） |
+
+安裝命令中的包 id 是穩定的清單 id（`com.acme.crm`）—— 你永遠不需要內部的
+`pkg_…` 行 id。
+
+> **CI 快捷方式。** 部署到一個*已知*環境的流水線可以一步完成釋出和安裝：
+> `os package publish --env <id> --install [--seed-sample-data]`。這是為
+> 自動化提供的便利，而不是人使用的路徑 —— 互動式安裝發生在環境的
+> Marketplace 中。
+
+安裝會把包的後設資料合併到即時核心中，向 ObjectQL 註冊它的物件，並在首次
+安裝時寫入初始資料 —— 無需重啟。快取的安裝會在下次啟動時重新註冊，所以
+它們能在程序重啟後保留下來。
+
+## 解除安裝 [#uninstalling]
+
+解除安裝會刪除包的快取清單，使它在下次啟動時不再被重新註冊。由於物件註冊是
+累加式的，要完全卸下一個已在執行的包的物件，需要**重啟核心**。資料預設
+**保留**，所以你可以重新安裝並繼續。
+
+## 跨包約定 [#cross-package-conventions]
+
+為了防止許多包共存時發生衝突：
+
+| 產物 | 約定 |
+|---|---|
+| 物件名稱 | 始終帶字首：`crm_account`、`hd_ticket` |
+| 動作名稱 | 帶字首：`crm_assign_owner`、`hd_close_ticket` |
+| 流程名稱 | 帶字首：`hd_overdue_alert` |
+| 翻譯鍵 | 放在名稱空間之下：`crm.account.label` |
+| 種子資料 `externalId` | `<prefix>:<key>`，例如 `crm:demo-account-1` |
+| 系統名稱 | 保留：`sys_*`（自定義包中永遠不要使用） |
+
+CLI 和 AI Builder 都會在建立時強制執行這些約定。
+
+## 系統包 [#system-packages]
+
+執行時自帶一小組始終存在的包，提供多型服務：
+
+| 包 | 提供 |
+|---|---|
+| `sys.identity` | `sys_user`、`sys_organization`、`sys_member`、會話、API 金鑰 |
+| `sys.feeds` | `sys_comment`、`sys_activity`、`sys_attachment` |
+| `sys.audit` | `sys_audit_log` |
+| `sys.files` | `sys_file` |
+| `sys.ai` | `ai_conversations`、`ai_pending_actions` |
+| `sys.settings` | `sys_setting` |
+
+你通過在物件上設定 `enable: { feeds: true, trackHistory: true, … }` 來啟用
+它們 —— 參見[資料模型](/docs/build/data)。
+
+## 下一步 [#where-to-go-next]
+
+- [市場](/docs/build/marketplace) —— 把包分發給其他租戶
+- [資料模型](/docs/build/data) —— 包裡裝的是什麼
+- [`os package` 命令](/docs/reference/cli) —— 完整的 CLI 參考

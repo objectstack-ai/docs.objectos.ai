@@ -1,0 +1,273 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 驗證規則
+seoTitle: "驗證規則：必填、唯一和 CEL 規則"
+description: 必填欄位、唯一約束，以及由 CEL 驅動的規則 —— 在平臺層面攔住錯誤資料，錯誤訊息由你掌控。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 1f582742d9d1e87e240b1d6d773f281c8036338f52226387f84a0549f02bc5c1
+  guide_rev: 1
+  mode: auto
+---
+
+**校驗在每一條寫入路徑上執行。** REST、表單、ObjectQL —— 同樣的規則在
+所有地方觸發，所以錯誤資料沒有後門可走。從 16.0 起，這也包括多行更新：
+批次更新會對每一條匹配的行各評估一次規則。驗證規則是作用於單條記錄的
+確定性、同步、無副作用的謂詞：只憑傳入的寫入（以及在更新時，變更前的
+記錄）就能判定，不做任何 I/O。
+
+校驗是分層的 —— 使用能表達該規則的最低一層：
+
+| 層 | 表達 | 示例 |
+|---|---|---|
+| **欄位修飾符** | 存在性、唯一性 | `required: true`、`unique: true` |
+| **欄位約束** | 單個欄位的形狀 | `min`、`max`、`maxLength`、`format` |
+| **條件修飾符** | 依賴上下文的存在性 | ``requiredWhen: P`record.amount > 10000` `` |
+| **物件驗證規則** | 跨欄位的業務邏輯 | "折扣不能超過總額" |
+| **唯一索引** | 組合 / 限定範圍的唯一性 | `{ fields: ['code', 'organization'], unique: true }` |
+| **生命週期鉤子** | 任意校驗程式碼、刪除守衛 | `beforeInsert` / `beforeUpdate` / `beforeDelete` |
+
+## 欄位級：必填、唯一、約束 [#field-level-required-unique-constraints]
+
+通用修飾符適用於每一種欄位型別：
+
+```ts
+// Fields of an object; the object around them is omitted.
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+fields: {
+  email: Field.email({ label: 'Contact Email', required: true, unique: true }),
+  quantity: Field.number({ label: 'Quantity', min: 1, max: 9999 }),
+  code: Field.text({ label: 'Code', minLength: 3, maxLength: 20 }),
+}
+```
+
+| 修飾符 | 行為 |
+|---|---|
+| `required: true` | 在執行時拒絕 `null` / `undefined` |
+| `unique: true` | 資料庫級的唯一約束 —— 而不是存在競態的應用層檢查 |
+| `min` / `max` | 數值範圍（number、currency、percent、rating、slider ……） |
+| `minLength` / `maxLength` | 文本型別的字元數上下限 |
+| `format` | 內建的形狀檢查 —— `email`、`url`、`phone` 欄位型別預設自帶 |
+| `readonly: true` | 在插入和更新時由伺服器強制執行 —— 對該欄位的非系統寫入會被丟棄，並在響應的 `droppedFields` 中報告；如果寫入帶上了 `strictReadonlyWrites` 選項，則會被直接拒絕。要在建立時為只讀欄位寫入初值，請以系統身份寫入：種子資料、系統鉤子，或 `runAs: 'system'` 的流程 |
+
+欄位型別還會免費校驗自身：`email` 檢查 `local@domain` 的形狀，`url`
+要求帶協議，`select` 的值必須匹配某個選項，`lookup` 強制要求被引用的記錄
+存在，`json` 必須能被解析。每種型別的預設行為見
+[欄位型別參考](/docs/reference/field-types)。
+
+### 條件必填 / 只讀 / 可見 [#conditional-required--read-only--visible]
+
+存在性可以通過 CEL 謂詞依賴記錄的其餘部分：
+
+```ts
+import { P } from '@objectstack/spec';
+
+po_number: Field.text({
+  label: 'PO Number',
+  requiredWhen: P`record.amount > 10000`,
+}),
+```
+
+`visibleWhen`、`readonlyWhen` 和 `requiredWhen` 都接受一個 CEL 謂詞 ——
+參見[公式](/docs/build/data/formulas)。它們只讀取記錄自己的欄位。一個無法
+求值的 `requiredWhen` 或 `readonlyWhen` —— 欄位名拼錯、對 `null` 做大小
+比較、通過查詢關係讀取（比如 `record.account.tier`）—— 會以
+`VALIDATION_FAILED` 拒絕這次寫入，而不是放行；需要讀取關聯記錄的檢查應該
+放在[驗證規則](#reading-a-related-record)中。
+
+## 物件級驗證規則 [#object-level-validation-rules]
+
+跨欄位的業務邏輯放在物件的 `validations` 陣列中：
+
+```ts
+export const Order = ObjectSchema.create({
+  name: 'order',
+  fields: {
+    amount: Field.currency({ label: 'Amount', required: true }),
+    status: Field.select({
+      label: 'Status',
+      options: [
+        { label: 'Draft', value: 'draft' },
+        { label: 'Submitted', value: 'submitted' },
+      ],
+    }),
+  },
+
+  validations: [
+    {
+      name: 'amount_positive',
+      type: 'script',
+      severity: 'error',
+      message: 'Amount must be greater than zero',
+      // CEL predicate — TRUE means the record is INVALID.
+      condition: 'record.amount <= 0',
+      events: ['insert', 'update'],
+    },
+  ],
+});
+```
+
+> **警告：** 對於 `script` 規則，`condition` 是**失敗**謂詞 —— 當它求值為
+> TRUE 時，校驗失敗。為*錯誤*的狀態編寫判斷：`record.amount <= 0` 會拒絕
+> 非正數的金額。
+
+### 通用屬性 [#common-properties]
+
+每種規則型別都共享這個基礎結構：
+
+| 屬性 | 必需 | 說明 |
+|---|---|---|
+| `name` | 是 | 唯一的規則名（`snake_case`） |
+| `message` | 是 | 面向使用者的錯誤訊息 |
+| `type` | 是 | `script`、`state_machine`、`format`、`cross_field`、`json_schema`、`conditional` |
+| `severity` | 否 | `error`（阻止儲存，預設）、`warning`（允許儲存）、`info` |
+| `events` | 否 | `insert`、`update` —— 預設 `['insert', 'update']`。`delete` 事件已在 16.0 中移除：求值器從未在刪除時執行過（刪除不攜帶記錄內容），所以它一直是靜默的空操作 —— 請用 `beforeDelete` 鉤子守護刪除 |
+| `priority` | 否 | 0–9999，越小越先執行（預設 100） |
+| `active` | 否 | 無需刪除即可開關（預設 `true`） |
+
+### 六種規則型別 [#the-six-rule-types]
+
+| 型別 | 檢查 | 關鍵配置 |
+|---|---|---|
+| `script` | 任意 CEL 謂詞 | `condition`（TRUE = 無效） |
+| `state_machine` | 允許的狀態遷移 | `field`、`transitions` 對映、可選的 `initialStates` |
+| `format` | 用正則或內建格式檢查單個欄位 | `field`、`regex` 或 `format: 'email' \| 'url' \| 'phone' \| 'json'` |
+| `cross_field` | 欄位之間的關係 | `fields`、`condition` |
+| `json_schema` | 用 JSON Schema 檢查 JSON 欄位 | `field`、`schema` |
+| `conditional` | 僅當某個謂詞成立時才應用巢狀規則 | `when`、`then`、可選的 `otherwise` |
+
+你會經常用到的兩條規則：
+
+```ts
+// Two validation rules, entries of the object's `validations` array.
+
+// State machine — enforce the status flow
+{
+  name: 'order_status_transitions',
+  type: 'state_machine',
+  severity: 'error',
+  message: 'Invalid status transition',
+  field: 'status',
+  transitions: {
+    draft: ['submitted', 'cancelled'],
+    submitted: ['approved', 'rejected', 'cancelled'],
+    approved: ['completed'],
+    rejected: ['draft'],
+    cancelled: [],
+    completed: [],
+  },
+  initialStates: ['draft'],  // new in 16.0: states a record may be CREATED in
+  events: ['insert', 'update'],  // include 'insert' so initialStates is checked
+}
+
+// Cross-field — dates in order
+{
+  name: 'date_range_valid',
+  type: 'cross_field',
+  severity: 'error',
+  message: 'End date must be after start date',
+  fields: ['start_date', 'end_date'],
+  condition: 'record.end_date <= record.start_date',
+  events: ['insert', 'update'],
+}
+```
+
+**16.0 新增：** `state_machine` 規則可以宣告 `initialStates` —— 記錄可以
+在哪些狀態下被*建立*。插入時如果狀態欄位的值不在列表中，就會被拒絕
+（`invalid_initial_state`）。`transitions` 只管更新，而 `select` 欄位允許
+任何已宣告的選項作為初始值，所以沒有 `initialStates` 時，一條記錄可能在
+流程中途出生（例如建立時就已經是 `approved`）。省略它即可保留舊行為
+（插入時不檢查初始狀態）。規則的 `events` 必須包含 `insert`，檢查才會執行。
+
+在更新時的條件中，`previous` 儲存變更前的快照 ——
+`record.stage != previous.stage` 可以檢測到變化。
+
+### 讀取關聯記錄 [#reading-a-related-record]
+
+從 ObjectStack 17.5 起，`script` 或 `cross_field` 規則可以通過 `lookup`、
+`master_detail`、`user` 或 `tree` 欄位讀取**一跳**：
+
+```ts
+// One validation rule, an entry of the object's `validations`
+{
+  name: 'partner_deal_cap',
+  type: 'script',
+  severity: 'error',
+  message: 'Partner deals over 10,000 need a direct contract',
+  condition: "record.account.type == 'partner' && record.amount > 10000",
+  events: ['insert', 'update'],
+}
+```
+
+引擎只加載條件中點名的關聯欄位，每個引用欄位一次批次讀取；沒有規則跨越
+關係時什麼也不讀。第二跳（`record.account.owner.email`）會被拒絕，在跨越
+引用的同時比較該引用的 id 也會被拒絕。欄位級謂詞和行級安全仍然只作用於
+記錄自己的欄位。
+
+規則能看到 `record` 和 `previous`，僅此而已：它無法得知是誰在儲存。
+`current_user.can(...)` 在別處回答 —— 參見
+[CEL → 許可權檢查](/docs/reference/cel#permission-checks) —— 而在驗證規則中
+它無法求值，所以該規則會拒絕它執行到的每一次寫入。
+
+## 唯一性：用索引，而不是規則 [#uniqueness-use-an-index-not-a-rule]
+
+**沒有** `uniqueness` 校驗型別 —— 這是有意為之。先 SELECT 再 INSERT 的
+檢查天生存在競態（TOCTOU）；資料庫的唯一約束則不會。在資料層強制唯一性：
+
+```ts
+// Keys of an object; its name and its other fields are omitted.
+fields: {
+  // Field-level
+  email: Field.email({ label: 'Contact Email', unique: true }),
+},
+
+// Composite / scoped via indexes
+indexes: [
+  { fields: ['code', 'organization'], unique: true },
+  // add `partial` for a scoped/conditional constraint
+],
+```
+
+同樣的邏輯也排除了非同步 / 遠端校驗（那是客戶端表單的事，而且會在寫入路徑
+上帶來 SSRF 和延遲隱患）和自定義處理器 —— 任意的校驗程式碼應該放在
+`beforeInsert` / `beforeUpdate` 生命週期鉤子中，刪除時的守衛放在
+`beforeDelete` 鉤子中。
+
+## 自定義錯誤訊息 [#custom-error-messages]
+
+`message` 是規則觸發時使用者看到的內容 —— 在表單中，也在 API 的錯誤響應
+中。讓它可以據此行動：
+
+| 弱 | 強 |
+|---|---|
+| "Invalid input" | "Close date is required for closed deals" |
+| "Validation failed" | "Phone must match format: +1-XXX-XXX-XXXX" |
+| "Error" | "Discount cannot exceed total" |
+
+用 `severity` 來調節：`error` 阻止儲存，`warning` 顯示訊息但允許儲存，
+`info` 純粹是提示。
+
+> **警告：** 謂詞無法求值的規則（解析錯誤、欄位名拼錯、無法比較的值）
+> **失敗即關閉**：這次寫入會以 `VALIDATION_FAILED` 被拒絕，絕不會跳過規則
+> 而儲存下來。在釋出新規則之前，用真實記錄測試它。
+
+## 最佳實踐 [#best-practices]
+
+| 要 | 不要 |
+|---|---|
+| 在儘可能低的一層校驗（欄位 → 規則 → 鉤子） | 用鉤子做欄位修飾符就能表達的事 |
+| 編寫清晰、可據此行動的訊息 | 在多個層重複同一項檢查 |
+| 用 `priority` 讓廉價的格式檢查先執行 | 構建過於複雜的條件 |
+| 用真實世界的資料測試規則 | 攔住合理的邊界情況 |
+
+## 下一步 [#where-to-go-next]
+
+| 頁面 | 為什麼 |
+|---|---|
+| [資料模型](/docs/build/data) | 這些規則所保護的物件和欄位 |
+| [公式](/docs/build/data/formulas) | `condition` 和 `requiredWhen` 背後的 CEL 語言 |
+| [關係](/docs/build/data/relationships) | 跨物件的引用完整性 |
+| [CEL 參考](/docs/reference/cel) | 條件可用的完整運算子和標準庫參考 |
+| [欄位型別](/docs/reference/field-types) | 每種欄位型別內建的校驗預設值 |
+| [流程](/docs/build/automation/flows) | 用自動化響應（有效的）記錄變更 |
