@@ -76,7 +76,9 @@ jobs:
         run: node .github/scripts/bump-upstream-pin.mjs --check
 
   bump:
-    name: Bump ${{ inputs.upstream || github.event.client_payload.upstream }}
+    # A static name: a skipped job's name is never evaluated, so an expression
+    # here shows up verbatim as a check on every pull request that runs `pins`.
+    name: Bump an upstream pin
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     # Two bumps of one upstream would both diff from the same old pin.
