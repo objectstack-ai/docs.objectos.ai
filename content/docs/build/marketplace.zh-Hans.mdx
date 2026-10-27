@@ -1,17 +1,19 @@
 ---
-title: Marketplace
+title: 市场
+seoTitle: "市场：安装和发布现成的应用"
 description: 无需编写代码，即可将现成应用安装到运行中的 ObjectOS。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 6594741158e878583fe7c8ade604d28171cc95179827cdbd114fadbd105a34b5
+  source_sha: 5fb581df2aa59854381bb78c50049fa3203dd3c3ded12d2e39d88d4997ff7e68
   guide_rev: 1
   mode: auto
 ---
 
-ObjectOS marketplace 让你能够将预构建的应用安装到运行中的运行时——无需构建步骤、无需重启、无需检出源代码。这是在第一天就将真正的软件交付到用户面前的最快方式。
+ObjectOS 市场让你能够将预构建的应用安装到运行中的运行时——无需构建步骤、无需重启、无需检出源代码。这是在第一天就将真正的软件交付到用户面前的最快方式。
 
-## 工作原理
+## 工作原理 [#how-it-works]
 
-marketplace 客户端是开源的 `@objectstack/cloud-connection` 包。云托管环境和自托管的 ObjectOS 镜像开箱即已接好；如果是你自己组装的技术栈，用几行配置即可启用：
+市场客户端是开源的 `@objectstack/cloud-connection` 包。云托管环境和自托管的 ObjectOS 镜像开箱即已接好；如果是你自己组装的技术栈，用几行配置即可启用：
 
 ```ts
 import {
@@ -34,64 +36,65 @@ plugins: [
 
 浏览 / 安装的*机制*是开放的；目录*服务*（组织目录、审核、付费分发）由 `OS_CLOUD_URL` 所指向的控制平面提供。应用一经安装就存在于你运行时自己的内核中 —— 运行时的任何部分都不依赖目录保持可达。
 
-当你打开 Console（`/_console/`）时，marketplace 标签页会查询已配置的应用目录，并展示可安装的应用。
+当你打开 ObjectOS（`/_console/`）时，市场标签页会查询已配置的应用目录，并展示可安装的应用。
 
 ```text
-You ─→ Console ─→ Marketplace tab ─→ pick app ─→ Install
+You ─→ ObjectOS ─→ Marketplace tab ─→ pick app ─→ Install
                                                   ↓
                                        Artifact merged into kernel
                                                   ↓
-                                       Console re-renders with new
+                                       The page re-renders with new
                                        objects / views / permissions
                                                   ↓
                                        Done — no restart
 ```
 
-## 目录
+## 目录 [#catalogs]
 
 | 目录 | 来源 | 适用场景 |
 |---|---|---|
-| **Default** | 与运行时镜像预先打包 | 首次评估、演示、离线 |
+| **Default** | 与 ObjectOS 运行时镜像预先打包 | 首次评估、演示、离线 |
 | **ObjectStack public catalog** | 公共应用注册表 | 最新的社区应用与第一方应用 |
-| **Private catalog** | 你自己发布的制品 | 不想公开的内部应用 |
-| **Local** | 挂载到运行时中的文件 | 隔离网络环境、自定义构建 |
+| **Private catalog** | 你自己发布的产物 | 不想公开的内部应用 |
+| **Local** | 挂载到运行时中的文件 | 物理隔离、自定义构建 |
 
-目录来源通过 marketplace 插件或环境变量配置；参见[运行时配置](/docs/configure/runtime)。
+目录来源通过市场插件或环境变量配置；参见[运行时配置](/docs/configure/runtime)。
 
-## 默认目录中包含的内容
+## 默认目录中包含的内容 [#whats-in-the-default-catalog]
 
-这些应用可以在 Console 中一键安装：
+这些应用可以一键安装：
 
 | 应用 | 提供的能力 |
 |---|---|
 | **Todo** | 通用任务与项目跟踪器 |
 | **Contracts** | 带 AI 条款提取的合同生命周期管理（CLM） |
-| **Procurement** | 供应商、采购订单、三方匹配 |
+| **Procurement** | 供应商、采购订单、三单匹配 |
 | **Compliance** | SOC 2 / ISO 27001 控制项 + 证据收集 |
 | **Helpdesk** | AI 优先的客户支持工单系统 |
 | **Content** | 编辑日历 + 渠道 ROI |
 | **HR** | 通讯录、组织架构图、休假 |
 | **Project** | 项目 / 任务 / 里程碑跟踪 |
 
-源代码位于 [github.com/objectstack-ai/templates](https://github.com/objectstack-ai/templates)——可以克隆其中任意一个作为自定义应用的起点。
+源代码位于
+[github.com/objectstack-ai/templates](https://github.com/objectstack-ai/templates)——可以克隆其中任意一个作为自定义应用的起点。
 
-## 安装流程
+## 安装流程 [#install-flow]
 
-1. **打开 Console**——http://localhost:3000/_console/
-2. **登录**——如果尚不存在账户，请在 `/_account/register` 注册一个
-3. **进入 marketplace 标签页**
+1. **打开 ObjectOS**——http://localhost:3000/_console/
+2. **登录**——如果尚不存在账户，请在 `/_console/register` 注册一个
+3. **进入市场标签页**
 4. **选择一个应用，点击 Install**
-5. **重新加载 Console**——新应用的对象、视图和流程将会出现
+5. **重新加载页面**——新应用的对象、视图和流程将会出现
 
-在幕后，marketplace 会获取应用编译后的制品，将其合并到运行中的内核，并通过 ObjectQL 注册其对象。种子数据（如果应用定义了）会在首次安装时插入。
+在幕后，市场会获取应用编译后的产物，将其合并到运行中的内核，并通过 ObjectQL 注册其对象。种子数据（如果应用定义了）会在首次安装时插入。
 
-## 卸载
+## 卸载 [#uninstall]
 
-在 Console → Marketplace → 已安装的应用 → Uninstall。该应用的对象会从内核中移除，其数据表会被标记为待清理（默认情况下数据会被保留；你可以选择是否删除数据表）。
+在 **Marketplace → 已安装的应用 → Uninstall**。该应用的对象会从内核中移除，其数据表会被标记为待清理（默认情况下数据会被保留；你可以选择是否删除数据表）。
 
-## 发布你自己的应用
+## 发布你自己的应用 [#publishing-your-own-app]
 
-任何通过 `os init` 构建的内容都可以成为一个 marketplace 应用。
+任何通过 `os init` 构建的内容都可以成为一个市场应用。
 
 ```bash
 os init my-app -t app --install
@@ -103,36 +106,36 @@ os package publish                            # publish to a catalog
 
 要发布到公共目录，你需要一个注册表账户（`os login`）。要发布到私有目录，请将 `OS_PACKAGE_REGISTRY` 指向你自己的注册表。
 
-## 版本管理
+## 版本管理 [#versioning]
 
-每个已发布的应用都是不可变的。更新会产生一个新版本。运行时会按应用跟踪已安装的版本以及可用的更新。当某个应用在用户所跟踪的目录中发布了新版本时，用户会在 Console 中看到一个 "Update available" 徽标。
+每个已发布的应用都是不可变的。更新会产生一个新版本。运行时会按应用跟踪已安装的版本以及可用的更新。当某个应用在用户所跟踪的目录中发布了新版本时，用户会看到一个 "Update available" 徽标。
 
-## 通过 CLI 安装
+## 通过 CLI 安装 [#installing-from-the-cli]
 
-Console 是主要的安装入口，但同一个 install-local 端点也可以脚本化，用于 CI 和隔离网络环境下的运维：
+市场标签页是主要的安装入口，但同一个 install-local 端点也可以脚本化，用于 CI 和物理隔离环境下的运维：
 
 ```bash
-# 目录模式 —— 运行时从其配置的目录解析包
+# Catalog mode — the runtime resolves the package from its configured catalog
 os package install com.acme.crm --runtime http://localhost:3000 \
   --email admin@example.com --password …
 
-# 隔离网络模式 —— 内联发送编译好的制品，不经过目录往返
+# Air-gapped mode — send a compiled artifact inline, no catalog round-trip
 os package install ./dist/objectstack.json --runtime http://localhost:3000 \
   --email admin@example.com --password …
 ```
 
-凭证是**目标运行时**上的账户（不是你的云端登录）—— 与 Console 安装使用同一套授权。
+凭证是**目标运行时**上的账户（不是你的云端登录）—— 与应用内安装使用同一套授权。
 
-## 权限
+## 权限 [#permissions]
 
-安装应用需要 `manage_marketplace` 系统权限——默认情况下只有 **Setup Administrator** 权限集的成员拥有该权限。普通用户看到的 marketplace 是只读的。
+安装应用需要 `manage_marketplace` 系统权限——默认情况下只有 **Setup Administrator** 权限集的成员拥有该权限。普通用户看到的市场是只读的。
 
-## 隔离网络环境下的 marketplace
+## 物理隔离环境下的市场 [#air-gapped-marketplaces]
 
-对于没有公网出口的部署环境，可在你的网络内运行一个本地目录服务器，并将 ObjectOS 指向它。拓扑结构请参见[隔离网络](/docs/deploy/air-gapped)。
+对于没有公网出口的部署环境，可在你的网络内运行一个本地目录服务器，并将 ObjectOS 指向它。拓扑结构请参见[物理隔离](/docs/deploy/air-gapped)。
 
-## marketplace 不是什么
+## 市场不是什么 [#what-the-marketplace-is-not]
 
-- **不是代码分发渠道。** 已发布的应用是编译后的制品——它们以声明式方式描述数据 + UI + 流程，不会分发任意 JavaScript。
-- **不是沙箱。** 已安装的应用对你数据库的访问权限与内核中的其他任何内容相同——在安装来自不可信来源的应用之前，请先审查制品。
+- **不是代码分发渠道。** 已发布的应用是编译后的产物——它们以声明式方式描述数据 + UI + 流程，不会分发任意 JavaScript。
+- **不是沙箱。** 已安装的应用对你数据库的访问权限与内核中的其他任何内容相同——在安装来自不可信来源的应用之前，请先审查产物。
 - **（暂时）不是支付平台。** 公共目录中的应用都是免费的 Apache-2.0 应用。商业 / 付费分发已列入路线图。

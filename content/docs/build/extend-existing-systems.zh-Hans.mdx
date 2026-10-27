@@ -1,0 +1,91 @@
+---
+title: 扩展现有系统
+description: 把你已经在运行的数据库作为外部数据源联邦接入 ObjectOS —— 默认只读，而且还处于早期阶段 —— 并把它的表建模为对象，无需迁移。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: f2aed087dbf4f5abe0d1db987fa124702e063509e62d3f866137fa20c45c87c5
+  guide_rev: 1
+  mode: auto
+---
+
+大多数评估 ObjectOS 的团队都已经有一个记录系统 —— 一个 CRM、一个 ERP、
+一个工单工具，或者一个跑在生产 SQL 或 MongoDB 数据库上的自建后台。问题
+很少是"我们应该把它扔掉重建吗？"，而是"我们能不能在不做冒险迁移的情况
+下，和已有的东西协同工作？"
+
+先说一条边界，因为它决定了本页能承诺什么。ObjectOS 运行的本体**不是
+架在你现有系统之上的语义层**：它就是系统本身 —— 数据库、API、UI 和 Agent
+工具都从它派生。对于你已经在运行的系统，它能提供的东西更窄，用
+[ObjectStack](https://github.com/objectstack-ai/objectstack) README 的说法
+就是：**联邦接入外部数据源默认只读，而且还处于早期阶段。** 你把数据库
+连接为一个数据源，把你关心的表建模为对象，ObjectOS 就会通过与其他一切
+相同的权限模型来读取它们。记录系统依然是记录系统。
+
+## 这一步的形状 [#the-shape-of-the-move]
+
+你不需要替换你的业务系统。你把 ObjectOS 放在它*旁边*，并指向同一个
+数据库：
+
+1. **连接**现有数据库，作为一个外部
+   [数据源](/docs/configure/data-sources)（`schemaMode: 'external'`）：
+   ObjectOS 不会对它执行任何 DDL，写入保持关闭，直到你主动开启。密码存放
+   在密钥存储中，从不放在数据源里。用一个只能读取的数据库用户连接，并
+   审慎地开启写入。
+2. **建模**这些表为对象 —— 手工完成，或者让一个编码 Agent 扫描模式并为你
+   生成源码级的对象文件。
+3. **绑定**每个对象到该数据源（逐个对象绑定，或者用一条路由规则绑定整个
+   命名空间）。
+4. **读取** —— 一张表一旦成为对象，每个视图、仪表盘、流程和 Agent 工具都
+   能读取它，自动路由到正确的数据库，并受同样的权限约束。
+
+遗留应用本身不会有任何变化。数据行留在原处，遗留应用继续写入它们。
+
+## 为什么无需重写也能行得通 [#why-this-works-without-a-rewrite]
+
+| 顾虑 | ObjectOS 如何处理 |
+|---|---|
+| "我们不能搬动数据" | 数据从不移动。ObjectOS 就地连接你的数据库。 |
+| "我们不能冒险写入生产环境" | 联邦接入默认只读：写入需要在数据源上（`external.allowWrites: true`）**和**每个对象上（`external.writable: true`）都主动开启。一个只被授予 `SELECT` 的数据库用户，在每条路径上都成立，无论是否经过 ObjectOS。 |
+| "为每张表建模要花好几周" | 编码 Agent 扫描模式，为每张表生成一个对象文件 —— 你来审阅和细化，而不是手工敲。 |
+| "AI 不能被托付我们的数据" | Agent 以**已登录用户**的身份运行，遵守对象级、记录级和字段级权限。它们看到的永远不会多于背后那个人。 |
+| "我们的数据不能离开我们的网络" | 在 ObjectOS Enterprise 上，ObjectOS 运行在你的环境中：业务数据和提示词都留在你的边界之内。 |
+
+## 用编码 Agent 生成对象 [#generating-objects-with-a-coding-agent]
+
+把现有模式接入进来的最快方式，是用一个编码 Agent（比如 Claude Code）
+**扫描业务表并生成源码级的对象定义** —— 每张表一个 `*.object.ts` 文件。
+
+[`hotcrm`](https://github.com/objectstack-ai/hotcrm) 参考应用展示了这些
+输出应有的确切形状：每张表成为一个 `src/objects/<name>.object.ts`，使用
+`ObjectSchema.create({ … })`，带有类型化的 `Field.*` 定义，外键用
+`Field.lookup(...)`，由 `defineStack` 组装起来。Agent 会内省你已连接的
+数据库，把列映射为字段类型，写出由你拥有并提交的对象。你保留合适的部分，
+删掉你不想暴露的列，再在其上添加标签、校验和权限。
+
+完整的、分步骤的编写指南见[数据源](/docs/configure/data-sources)。
+
+## 第一天你就能得到什么 [#what-you-get-on-day-one]
+
+一旦这些表被建模为绑定到你现有数据库的对象：
+
+- **自然语言分析。** 用户就真实记录提问 —— "这个季度哪些商机延期了，
+  负责人是谁？" —— 答案通过 ObjectQL 针对实时数据计算出来。
+- **受治理的自动化。** 流程和动作读取同样的数据，并且 —— 在你开启了写入
+  的地方 —— 写入它，每一步都有审计。
+- **生成的 API 和 UI。** REST 端点和管理界面都来自同一份元数据。
+- **同一个权限模型。** 适用于人的边界，同样适用于 AI 的流量。
+
+## 它（目前）还不是什么 [#what-it-is-not-yet]
+
+联邦接入还处于早期。读取路径是成熟的那一条；关于每种数据源协议目前支持
+什么，请查看[数据源](/docs/configure/data-sources)和框架自己的
+[外部数据源](https://objectstack.ai/docs/data-modeling/external-datasources)
+指南。如果你需要的是一个*描述*许多系统、却不运行其中任何一个的语义层，
+那是另一类产品。
+
+## 从这里开始 [#start-here]
+
+- [数据源](/docs/configure/data-sources) —— 连接数据库、绑定对象、路由查询
+- [AI Agent](/docs/build/agents) —— 基于你的对象的声明式 Agent
+- [权限](/docs/configure/permissions) —— AI 所继承的模型
+- [在本地运行 ObjectOS Community](/docs/start/community) —— 几分钟内搭起开源运行时

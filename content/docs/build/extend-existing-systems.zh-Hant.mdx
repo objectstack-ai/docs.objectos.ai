@@ -1,0 +1,92 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 擴充套件現有系統
+description: 把你已經在執行的資料庫作為外部資料來源聯邦接入 ObjectOS —— 預設只讀，而且還處於早期階段 —— 並把它的表建模為物件，無需遷移。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: f2aed087dbf4f5abe0d1db987fa124702e063509e62d3f866137fa20c45c87c5
+  guide_rev: 1
+  mode: auto
+---
+
+大多數評估 ObjectOS 的團隊都已經有一個記錄系統 —— 一個 CRM、一個 ERP、
+一個工單工具，或者一個跑在生產 SQL 或 MongoDB 資料庫上的自建後臺。問題
+很少是"我們應該把它扔掉重建嗎？"，而是"我們能不能在不做冒險遷移的情況
+下，和已有的東西協同工作？"
+
+先說一條邊界，因為它決定了本頁能承諾什麼。ObjectOS 執行的本體**不是
+架在你現有系統之上的語義層**：它就是系統本身 —— 資料庫、API、UI 和 Agent
+工具都從它派生。對於你已經在執行的系統，它能提供的東西更窄，用
+[ObjectStack](https://github.com/objectstack-ai/objectstack) README 的說法
+就是：**聯邦接入外部資料來源預設只讀，而且還處於早期階段。** 你把資料庫
+連線為一個數據源，把你關心的表建模為物件，ObjectOS 就會通過與其他一切
+相同的許可權模型來讀取它們。記錄系統依然是記錄系統。
+
+## 這一步的形狀 [#the-shape-of-the-move]
+
+你不需要替換你的業務系統。你把 ObjectOS 放在它*旁邊*，並指向同一個
+資料庫：
+
+1. **連線**現有資料庫，作為一個外部
+   [資料來源](/docs/configure/data-sources)（`schemaMode: 'external'`）：
+   ObjectOS 不會對它執行任何 DDL，寫入保持關閉，直到你主動開啟。密碼存放
+   在金鑰儲存中，從不放在資料來源裡。用一個只能讀取的資料庫使用者連線，並
+   審慎地開啟寫入。
+2. **建模**這些表為物件 —— 手工完成，或者讓一個編碼 Agent 掃描模式併為你
+   生成原始碼級的物件檔案。
+3. **繫結**每個物件到該資料來源（逐個物件繫結，或者用一條路由規則繫結整個
+   名稱空間）。
+4. **讀取** —— 一張表一旦成為物件，每個檢視、儀表盤、流程和 Agent 工具都
+   能讀取它，自動路由到正確的資料庫，並受同樣的許可權約束。
+
+遺留應用本身不會有任何變化。資料行留在原處，遺留應用繼續寫入它們。
+
+## 為什麼無需重寫也能行得通 [#why-this-works-without-a-rewrite]
+
+| 顧慮 | ObjectOS 如何處理 |
+|---|---|
+| "我們不能搬動資料" | 資料從不移動。ObjectOS 就地連線你的資料庫。 |
+| "我們不能冒險寫入生產環境" | 聯邦接入預設只讀：寫入需要在資料來源上（`external.allowWrites: true`）**和**每個物件上（`external.writable: true`）都主動開啟。一個只被授予 `SELECT` 的資料庫使用者，在每條路徑上都成立，無論是否經過 ObjectOS。 |
+| "為每張表建模要花好幾周" | 編碼 Agent 掃描模式，為每張表生成一個物件檔案 —— 你來審閱和細化，而不是手工敲。 |
+| "AI 不能被託付我們的資料" | Agent 以**已登入使用者**的身份執行，遵守物件級、記錄級和欄位級許可權。它們看到的永遠不會多於背後那個人。 |
+| "我們的資料不能離開我們的網路" | 在 ObjectOS Enterprise 上，ObjectOS 執行在你的環境中：業務資料和提示詞都留在你的邊界之內。 |
+
+## 用編碼 Agent 生成物件 [#generating-objects-with-a-coding-agent]
+
+把現有模式接入進來的最快方式，是用一個編碼 Agent（比如 Claude Code）
+**掃描業務表並生成原始碼級的物件定義** —— 每張表一個 `*.object.ts` 檔案。
+
+[`hotcrm`](https://github.com/objectstack-ai/hotcrm) 參考應用展示了這些
+輸出應有的確切形狀：每張表成為一個 `src/objects/<name>.object.ts`，使用
+`ObjectSchema.create({ … })`，帶有型別化的 `Field.*` 定義，外部索引鍵用
+`Field.lookup(...)`，由 `defineStack` 組裝起來。Agent 會內省你已連線的
+資料庫，把列對映為欄位型別，寫出由你擁有並提交的物件。你保留合適的部分，
+刪掉你不想暴露的列，再在其上新增標籤、校驗和許可權。
+
+完整的、分步驟的編寫指南見[資料來源](/docs/configure/data-sources)。
+
+## 第一天你就能得到什麼 [#what-you-get-on-day-one]
+
+一旦這些表被建模為繫結到你現有資料庫的物件：
+
+- **自然語言分析。** 使用者就真實記錄提問 —— "這個季度哪些商機延期了，
+  負責人是誰？" —— 答案通過 ObjectQL 針對即時資料計算出來。
+- **受治理的自動化。** 流程和動作讀取同樣的資料，並且 —— 在你開啟了寫入
+  的地方 —— 寫入它，每一步都有審計。
+- **生成的 API 和 UI。** REST 端點和管理介面都來自同一份後設資料。
+- **同一個許可權模型。** 適用於人的邊界，同樣適用於 AI 的流量。
+
+## 它（目前）還不是什麼 [#what-it-is-not-yet]
+
+聯邦接入還處於早期。讀取路徑是成熟的那一條；關於每種資料來源協議目前支援
+什麼，請檢視[資料來源](/docs/configure/data-sources)和框架自己的
+[外部資料來源](https://objectstack.ai/docs/data-modeling/external-datasources)
+指南。如果你需要的是一個*描述*許多系統、卻不執行其中任何一個的語義層，
+那是另一類產品。
+
+## 從這裡開始 [#start-here]
+
+- [資料來源](/docs/configure/data-sources) —— 連線資料庫、繫結物件、路由查詢
+- [AI Agent](/docs/build/agents) —— 基於你的物件的宣告式 Agent
+- [許可權](/docs/configure/permissions) —— AI 所繼承的模型
+- [在本地執行 ObjectOS Community](/docs/start/community) —— 幾分鐘內搭起開源執行時

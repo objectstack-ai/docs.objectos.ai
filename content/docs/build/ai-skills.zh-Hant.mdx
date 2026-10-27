@@ -1,18 +1,19 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: IDE Skills（Claude Code / Cursor / Copilot）
-description: 把 ObjectOS Skills 安裝進你的編碼 Agent，讓 Claude Code、Cursor、Copilot、Codex 等知道如何正確編寫 ObjectOS 後設資料。
+description: 安裝 ObjectStack Skills，讓 Claude Code、Cursor、Copilot、Codex 等編碼 Agent 正確編寫 ObjectStack 後設資料 —— 也就是 ObjectOS 執行的本體。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 13dc900bd554134c9584ba12f7505b6c43049269fbf5d0fa94e125e5584021dc
+  source_sha: 1c4b67992500eaa86e4fac4a8e9f8065f54259b7f639e19d1346d5d317b5fc1f
   guide_rev: 1
   mode: auto
 ---
 
-[AI Builder](./ai-builder) 跑在 Console 內，跟你租戶的資料庫對話。但有時你希望同樣的領域知識出現在 IDE 裡 —— 當你手工編輯 `*.object.ts`、設計流程，或讓 Cursor 寫一個 CEL 謂詞時。
+[AI Builder](./ai-builder) 位於 ObjectOS 內部，跟你租戶的資料庫對話。但有時你希望同樣的領域知識出現在 IDE 裡 —— 當你手工編輯 `*.object.ts`、設計流程，或讓 Cursor 寫一個 CEL 謂詞時。
 
-ObjectOS 提供 **9 個一方 Agent Skill**，教編碼助手如何編寫各類 ObjectOS 後設資料。它們通過開放的 [`skills`](https://www.npmjs.com/package/skills) 生態（Vercel Labs）分發，相容 **Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、Cline、Continue、Roo、Goose、Kiro、opencode** 及 ~50 個其它 Agent。
+ObjectStack 提供 **9 個一方 Agent Skill**，教編碼助手如何編寫各類 ObjectStack 後設資料 —— 也就是 ObjectOS 執行的本體。它們通過開放的 [`skills`](https://www.npmjs.com/package/skills) 生態（Vercel Labs）分發，相容 **Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、Cline、Continue、Roo、Goose、Kiro、opencode** 及 ~50 個其它 Agent。
 
-## 安裝
+## 安裝 [#install]
 
 在任何使用 `@objectstack/*` 包的專案裡：
 
@@ -24,7 +25,7 @@ CLI 會檢測你配置了哪些 Agent（`.claude/`、`.cursor/`、`.github/copil
 
 > 不改 `package.json`，不做全域性安裝。Skill 是被提交進倉庫的純 Markdown —— 整個團隊（包括 CI Agent）共享同一份指令。
 
-## 你拿到什麼
+## 你拿到什麼 [#what-you-get]
 
 | Skill | 何時載入 |
 |:------|:--------|
@@ -34,22 +35,22 @@ CLI 會檢測你配置了哪些 Agent（`.claude/`、`.cursor/`、`.github/copil
 | `objectstack-ui` | View、App、Page、Dashboard、Report、Chart、Action |
 | `objectstack-automation` | Flow、Workflow、Trigger、審批、排程、Webhook |
 | `objectstack-ai` | Agent、Tool、Skill、對話、Model Registry、MCP |
-| `objectstack-api` | REST/GraphQL 端點、認證、即時、錯誤信封 |
+| `objectstack-api` | REST 端點、認證提供商、即時通道、錯誤信封、批次/版本化約定 |
 | `objectstack-i18n` | 翻譯包、locale 回退、覆蓋率 |
 | `objectstack-formula` | CEL 表示式 —— 公式欄位、校驗/共享/可見性謂詞、條件 |
 
 每個 Skill **作用域感知** —— 它告訴 Agent 何時載入自己、何時讓位給兄弟 Skill，這樣 Claude 就不會用 platform Skill 去建模物件、或用 data Skill 寫 CEL 表示式。
 
-## 工作原理
+## 工作原理 [#how-it-works]
 
 每個 Skill 是 [framework 倉庫](https://github.com/objectstack-ai/objectstack/tree/main/skills) `skills/` 下的一個資料夾：
 
 ```
 skills/objectstack-data/
-├── SKILL.md              # YAML frontmatter + 散文指南
+├── SKILL.md              # YAML frontmatter + prose guide
 ├── references/
-│   └── _index.md         # 指向 @objectstack/spec Zod 源码
-└── rules/                # 可选的深入规则
+│   └── _index.md         # pointers into @objectstack/spec Zod sources
+└── rules/                # optional deep-dive rules
 ```
 
 `SKILL.md` 的 frontmatter 就是 `skills add` 讀取的內容，用以把 Skill 路由到正確的 Agent 表面：
@@ -66,13 +67,13 @@ metadata:
 ---
 ```
 
-所有 Skill 共享一條核心規則：**`@objectstack/spec` 裡的 Zod schema 才是真理**。Skill 給出意圖;Agent 讀 `node_modules/@objectstack/spec/src/**/*.zod.ts` 裡的 schema 獲得精確欄位形態。這就是為什麼裝上 Skill 後幻覺欄位幾乎消失。
+所有 Skill 共享一條核心規則：**`@objectstack/spec` 裡的 Zod schema 才是真理**。Skill 給出意圖；Agent 讀 `node_modules/@objectstack/spec/src/**/*.zod.ts` 裡的 schema 獲得精確欄位形態。這就是為什麼裝上 Skill 後幻覺欄位幾乎消失。
 
-## Skills 與 AI Builder
+## Skills 與 AI Builder [#skills-vs-ai-builder]
 
 |  | [AI Builder](./ai-builder) | IDE Skills |
 |:--|:--|:--|
-| 在哪執行 | Console（瀏覽器） | 你的 IDE / 編碼 Agent |
+| 在哪執行 | 你的瀏覽器 | 你的 IDE / 編碼 Agent |
 | 改的是什麼 | 你租戶裡的即時後設資料 | 你倉庫裡的檔案 |
 | 代表誰 | 你的終端使用者/管理員 | 你的開發者 |
 | 審批模型 | HITL 佇列（`ai:approve`） | Pull Request 評審 |
@@ -80,12 +81,12 @@ metadata:
 
 兩者互補。多數團隊用 AI Builder 做租戶定製，用 IDE Skill 做**打算釋出的包**（見 [Templates](./templates) 和 [Marketplace](./marketplace)）。
 
-## 升級
+## 升級 [#updating]
 
 Skill 跟隨 `@objectstack/spec` 版本。升級 spec 包後重跑 `npx skills add objectstack-ai/objectstack/skills`，可讓你的 Agent 與最新的 Zod schema、CEL 輔助函式、後設資料詞彙保持同步。
 
-## 相關
+## 相關 [#related]
 
-- [AI Builder](./ai-builder) —— Console 內的對應物
+- [AI Builder](./ai-builder) —— 瀏覽器中的對應物
 - [Agents](./agents) —— 宣告跑在 *ObjectOS 內* 的服務端 Agent
 - [Templates](./templates) —— 每個官方模板都帶著這些 Skill 構建

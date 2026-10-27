@@ -1,0 +1,193 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 報表
+seoTitle: "構建報表：基於資料集的彙總、矩陣和聯合報表"
+description: 與儀表盤繫結同一批資料集的分組報表和交叉報表 —— 可選配一張圖表，並能從每個數字下鑽到背後的記錄。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: b9e6f81d52e7e18ec7dd039e188135dbeea353e30700f37dbc327be0018f9a52
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/dashboards.json):
+  dashboards.dataset-report-authoring, dashboards.drill-through-range,
+  dashboards.analytics-exposure-gate-and-measure-aggregate.
+
+  Deliberately not written: saved personal reports and scheduled report
+  delivery. dashboards.saved-report-ownership and
+  dashboards.report-schedule-dispatch-delivery are retired — the saved-report
+  stack was removed (objectstack #20102), and `subscription` / `schedule` on a
+  report are refused because nothing delivers a report on a timetable. The
+  report `dateRange` and `exportOptions` keys (objectstack #26548) are not
+  documented yet either: the spec accepts them, but the report page does not
+  render them.
+*/}
+
+**報表是一張繫結到資料集的數字表。** 它按資料集的維度對其度量進行分組 ——
+沿著行分組，矩陣報表還會沿著列分組 —— 並且可以在表格上方畫出同一批數字
+的圖表。因為報表是*按名稱*從資料集中選擇度量的，所以報表中的"收入"和
+[儀表盤](/docs/build/interface/dashboards)上顯示的收入是同一個收入。
+
+## 從資料集開始 [#start-from-a-dataset]
+
+報表和儀表盤共享同一個語義層：**資料集**擁有基礎物件、它所關聯的關係、
+你可以分組的維度，以及你可以展示的度量。定義一次 —— 參見
+[儀表盤 → 先有資料集](/docs/build/interface/dashboards#datasets-first) ——
+然後把任意多個報表和元件繫結到它上面。
+
+資料集夠不到的東西，報表也夠不到：
+
+- 關閉了 API 的物件不能作為資料集的基礎物件；查詢會被拒絕。
+- 內部欄位不能用作維度、度量或過濾條件 —— 對管理員也是如此。
+- 每個查詢都以檢視者的許可權執行，所以報表永遠不會統計檢視者打不開的記錄。
+
+## 報表型別 [#report-types]
+
+| `type` | 顯示 | 選擇 |
+|---|---|---|
+| `summary` | 每組一行，度量放在列中 | `rows`（維度）和 `values`（度量） |
+| `matrix` | 交叉表：一個維度向下、另一個維度橫向，度量放在單元格中 | `rows`、`columns` 和 `values` |
+| `joined` | 多個子報表堆疊在一個頁面中，每個都畫成表格 | `blocks` 的每個條目各自選擇 |
+
+單純的記錄列表不是報表：應該把它構建為該物件的一個列表
+[檢視](/docs/build/interface/views)。
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+// Estimated hours by task status.
+export const hoursByStatus = defineReport({
+  name: 'hours_by_status',
+  label: 'Hours by Status',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+})
+
+// Status down, priority across.
+export const statusByPriority = defineReport({
+  name: 'status_by_priority',
+  label: 'Status × Priority',
+  type: 'matrix',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  columns: ['priority'],
+  values: ['est_hours'],
+})
+```
+
+`summary` 或 `matrix` 報表需要一個 `dataset`，並且 `values` 中至少有一個
+度量。`rows`、`columns` 和 `values` 指定的是資料集的維度和度量，而不是
+原始的物件欄位。
+
+### 聯合報表 [#joined-reports]
+
+聯合報表把幾個相互獨立的子報表放在同一頁上 —— 比如"未完成的工作"在
+"已完成的工作"上方。每個塊繫結自己的資料集，選擇自己的行、列和值，並有
+自己的 `runtimeFilter`。容器本身不做任何選擇：聯合報表上的 `dataset`、
+`rows`、`columns`、`values`、`order` 或 `chart` 都會被拒絕，缺少 `dataset`
+的塊會被點名拒絕。塊中不能再巢狀另一個聯合報表。
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const taskOverview = defineReport({
+  name: 'task_overview',
+  label: 'Task Overview',
+  type: 'joined',
+  blocks: [
+    { name: 'open_block', label: 'Open Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['est_hours'],
+      runtimeFilter: { done: false } },
+    { name: 'done_block', label: 'Completed Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['task_count'],
+      runtimeFilter: { done: true } },
+  ],
+})
+```
+
+容器級的 `runtimeFilter` 會以 AND 方式併入每個塊，所以像"本季度"這樣的
+範圍只需寫一次。
+
+## 過濾和排序 [#filtering-and-ordering]
+
+- **`runtimeFilter`** 在資料集自身的過濾條件之上，限定報表要聚合的行。
+- **`order`** 對結果排序，最重要的鍵在前；每個鍵指定報表所選擇的一個維度
+  或度量，指定一個報表沒有選擇的鍵屬於編寫錯誤。排序在伺服器上針對整個
+  結果進行。日期維度本來就按時間順序返回，所以只有在按度量排序（"最大
+  的在前"）、把最新的放在前面，或對另一個維度排序時，才需要 `order`。
+
+## 新增圖表 [#adding-a-chart]
+
+`summary` 或 `matrix` 報表可以在表格上方畫一張圖表（對於帶有 `columns`
+的矩陣報表，畫在表格下方）。圖表的座標軸指定同一資料集的一個維度和一個
+度量：
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const hoursByStatusChart = defineReport({
+  name: 'hours_by_status_chart',
+  label: 'Hours by Status (Chart)',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+  chart: { type: 'bar', xAxis: 'status', yAxis: 'est_hours' },
+})
+```
+
+圖表繪製的是表格顯示的同一批數字。聯合報表只繪製表格。
+
+## 下鑽 [#drill-through]
+
+每個聚合行或單元格都可以點選：它會開啟一個側邊抽屜，列出該數字背後的
+記錄，範圍精確限定在該分組 —— 對日期維度是該分桶的日期範圍，對矩陣單元格
+則同時限定行和列。在抽屜中，點選一條記錄即可開啟它，或者點選
+**Open in list →** 在該物件的完整列表中繼續。用 `drilldown: false` 關閉它。
+
+沒有匹配資料的報表會顯示空狀態，而不是一張殘缺的表格。
+
+## 把報表呈現在人們面前 [#putting-a-report-in-front-of-people]
+
+在一個[應用](/docs/build/interface/apps)的導航中新增一個 `report` 項：
+
+```ts
+// One navigation item of an app.
+{ id: 'nav_hours_by_status', type: 'report', label: 'Hours by Status',
+  reportName: 'hours_by_status', icon: 'sigma' }
+```
+
+報表頁會顯示報表的標籤和描述，然後是報表本身。報表也會列在 `⌘K` 命令
+面板的 **Reports** 下 —— 參見[搜尋](/docs/use/search)。
+
+管理員會在報表頁上看到一個 **Edit** 按鈕。它會在側邊面板中開啟報表的
+設定；修改會儲存為草稿，在釋出之前其他人看不到。
+
+草稿允許是不完整的 —— 它可以指定一個還不存在的資料集、度量或維度。釋出
+時會檢查這些引用，並拒絕指定了缺失內容的報表，所以已釋出的報表永遠不會
+在沒有報錯的情況下顯示為空白。
+
+## 儀表盤還是報表？ [#dashboards-or-reports]
+
+| 使用 | 何時 |
+|---|---|
+| [儀表盤](/docs/build/interface/dashboards) | 一眼看到多個數字和圖表，帶有作用於整個儀表盤的日期和過濾控制元件 |
+| 報表 | 完整回答一個問題 —— 一張你逐行閱讀的分組表或交叉表，外加它的圖表 |
+
+兩者繫結同樣的資料集，下鑽的方式也相同，所以一個數字在它們之間移動時
+含義不變。作用於整個儀表盤的日期範圍和全域性過濾條件，見
+[儀表盤 → 全域性日期範圍和過濾條件](/docs/build/interface/dashboards#global-date-range-and-filters)。
+
+## 下一步 [#where-to-go-next]
+
+| 頁面 | 為什麼 |
+|:--|:--|
+| [儀表盤](/docs/build/interface/dashboards) | 資料集、元件、全域性過濾條件 |
+| [檢視](/docs/build/interface/views) | 普通的記錄列表，以及列表中的圖表 |
+| [應用](/docs/build/interface/apps) | 把報表放進導航 |
+| [許可權](/docs/configure/permissions) | 每個報表查詢都會應用的行級安全 |
