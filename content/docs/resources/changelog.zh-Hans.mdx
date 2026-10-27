@@ -1,0 +1,584 @@
+---
+title: 更新日志与版本管理
+description: ObjectOS 如何进行版本管理、版本之间有哪些变化，以及支持哪些版本。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 323046628fabcce6da190adf852a2f76c7c2b603056f600290b8dbf3ef64dfd3
+  guide_rev: 1
+  mode: auto
+---
+
+## 版本管理策略 [#versioning-policy]
+
+ObjectOS 版本采用 **[语义化版本](https://semver.org/)** 的形式 `MAJOR.MINOR.PATCH`，
+但有一个例外，如下表所述：在 v17 线上，次版本也可能包含破坏性变更。
+
+| 版本变化 | 含义 | 你要做什么 |
+|---|---|---|
+| **补丁版本**（`14.7.0 → 14.7.1`） | 缺陷修复，没有行为变化 | 直接升级，无需修改应用 |
+| **次版本**（`17.4 → 17.5`） | 新功能 —— 在 v17 线上还包括破坏性的修正。每个 17.x 版本的发布说明都用同样的话说明这一点：它是"按版本号而言的次版本，而不是按影响范围而言" | 在升级之前，阅读该版本的升级检查清单和[特定版本步骤](/docs/operate/upgrade#version-specific-steps) |
+| **主版本**（`13 → 14`） | 在发布说明中记录的破坏性变更 | 升级前阅读迁移指南 |
+
+所有 `@objectstack/*` 包以同步的版本号一起发布 —— 它们作为一个矩阵一起测试，而不是
+各自独立测试。
+
+## 兼容性矩阵 [#compatibility-matrix]
+
+| 组件 | 兼容规则 |
+|---|---|
+| ObjectOS 镜像 ↔ 编译后的产物 | 相同的次版本。14.7.x 镜像运行 14.7.x 产物；14.7 产物可能使用 14.0 镜像中不可用的功能。协议握手（`PROTOCOL_VERSION`，12.0+）会在安装时拒绝不兼容的包。 |
+| ObjectOS ↔ CLI | 推荐使用相同的次版本。通过 `npm i -g` 安装的 CLI 会生成固定在它自身版本上的脚手架。 |
+| ObjectOS ↔ 数据库驱动 | 驱动由镜像构建固定；需确认 Postgres ≥ 13 / MongoDB ≥ 5 / Turso（任何当前版本）。 |
+| Node.js | **22 或更新** —— 从 17.0 起，每个已发布的 `@objectstack/*` 包的 `engines.node` 都是 `>=22.0.0`。Node 20 已于 2026-04-30 结束生命周期。 |
+
+## 支持窗口 [#support-windows]
+
+支持是**相对于当前主版本**定义的，而不是针对固定的日历：
+
+| 分支 | 状态 |
+|---|---|
+| 当前主版本（目前为 17.x） | 活跃开发；新功能和修复 |
+| 上一个主版本（目前为 16.x） | 仅安全修复 |
+| 更早的主版本 | 不再支持 |
+
+关键的安全修复会向后移植到当前和上一个主版本。其他所有修复都落在 `main` 上。与某个
+具体主版本相关的日期，会随该主版本的[发布说明](https://objectstack.ai/docs/releases)
+一起公布。
+
+## 发布说明 [#release-notes]
+
+已发布的 ObjectOS 版本及其 CHANGELOG 条目发布在：
+
+- **npm**：[`@objectstack/runtime`](https://www.npmjs.com/package/@objectstack/runtime)
+- **GitHub**：[github.com/objectstack-ai/objectstack/releases](https://github.com/objectstack-ai/objectstack/releases)
+- **源码 CHANGELOG**：[`CHANGELOG.md`](https://github.com/objectstack-ai/objectstack/blob/main/CHANGELOG.md)
+- **长篇发布说明**：每个版本一页，附带其升级检查清单，位于 [objectstack.ai/docs/releases](https://objectstack.ai/docs/releases) —— v17 线见 [v17](https://objectstack.ai/docs/releases/v17)
+
+要接收通知，请在 GitHub 上 watch
+[github.com/objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack)
+→ Releases。
+
+## 近期要点 [#recent-highlights]
+
+下面的每个 17.x 次版本都会改变运行中部署的行为。每份升级检查清单中属于运维人员的
+部分，见[升级与回滚 → 特定版本步骤](/docs/operate/upgrade#version-specific-steps)。
+
+### 17.7 [#177]
+
+`@objectstack` **17.7.0**（发布于 2026-10-06）是 v17 线的当前版本。它把凭据从此前
+被复制进去的副本中移出，并让一行你看不到的数据表现得像一行不存在的数据。完整说明：
+[objectstack.ai/docs/releases/v17/17-7](https://objectstack.ai/docs/releases/v17/17-7)。
+
+> **警告：**升级之后，请轮换每个流程密钥和 JWT 签名密钥，并重新签发私密的分享链接：
+> 升级之前制作的副本仍留在审计轨迹中。在 17.7 上设置的密钥，更早的版本无法读取，
+> 所以规划回滚时要考虑到这一点。参见
+> [升级与回滚 → 17.7](/docs/operate/upgrade#objectstack-177)。
+
+变化了什么：
+
+- **凭据不再随副本传播**（安全）—— 流程的入站 `secret` 和 `http` 节点的
+  `signingSecret` 迁移到一个只写存储中，审计轨迹不再记录凭据字段，凭据字段在每个
+  写入响应、记录事件、webhook 正文和流程触发记录中都会被掩码。
+- **公开表单只在显式开关打开时才公开**（破坏性）—— 只有当表单的 `sharing` 在
+  `allowAnonymous` 和 `publicLink` 之外还设置了 `enabled: true` 时，才会匿名提供该
+  表单。只设置了后两者的表单会返回 `404 FORM_NOT_FOUND`。参见
+  [视图](/docs/build/interface/views#public-forms)。
+- **你无法读取的行就是不存在的** —— 对调用者无法读取的行按 id 更新或删除，会返回
+  `404 RECORD_NOT_FOUND`，按过滤条件更新或删除只会触及可读的行。
+- **读取和写入只返回已声明的字段** —— 没有任何元数据声明的列，例如已退役字段的残留
+  列，不再被返回；转换可用 `os migrate unmapped-columns` 读取它。参见
+  [CLI](/docs/reference/cli#database-migrations--os-migrate)。
+- **应用代码只能通过元数据 API 访问存储的元数据** —— 钩子、动作和作业的代码不再
+  直接读写 `sys_metadata`，写入它的流程节点会被拒绝。
+- **日期、时间和数字跟随语言** —— 四项格式设置已退役，点名其中之一的设置写入会返回
+  `400`。参见[本地化](/docs/configure/localization)。
+- **内存引擎不再能作为启动存储**，外部登录也不再自行关联到邮箱未验证的本地账户。
+- **Console（Studio）** —— 五次 objectui 固定版本移动；第一次修复了 17.6 中四个已知
+  的 console 问题。
+
+### 17.6 [#176]
+
+`@objectstack` **17.6.0**（发布于 2026-10-02）在每一扇门上以同样的方式判定访问：
+没有权限集的调用者什么都得不到，字段级安全覆盖每一个查询。完整说明：
+[objectstack.ai/docs/releases/v17/17-6](https://objectstack.ai/docs/releases/v17/17-6)。
+
+变化了什么：
+
+- **解析不到任何权限集的调用者对每个对象都会被拒绝**（破坏性，安全）—— 过去它会
+  被准入每一个没有任何权限集授予的对象。应用声明的匿名端点（`authRequired: false`）
+  不能再读写对象，也没有任何受支持的渠道会给匿名调用者授予权限集。公开表单继续正常
+  工作。
+- **字段级安全覆盖每一个查询入口** —— 跨字段比较、活动流、审计轨迹、审批快照和
+  分析。审计轨迹和活动流只向非系统读者（包括管理员）显示关于该读者能读取的记录的行；
+  17.7 的 `view_all_audit_log` 能力（平台管理员默认持有）把删除和登出轨迹还给了他们。
+  参见[审计日志](/docs/operate/audit-logs)。
+- **打包的流程拥有它的名称** —— 在部署中以打包流程的名称保存的流程会停止运行，开/关
+  切换只作用于打包的流程。参见[流程](/docs/build/automation/flows#visual-builder)。
+- **存储的元数据正文在每一处副本中都会被脱敏** —— 对静态存储的副本运行
+  `os migrate audit-metadata-bodies --apply`。`/api/v1/meta` 上的数据源元数据需要
+  `manage_platform_settings`。
+- **「is empty」也会匹配 `''` 和 `[]`**，在共享规则和视图中，作用于文本和多值字段。
+- **日期在每一扇门上都遵循同一条规则** —— `datetime` 的年份必须在 1000 到 9999 之间，
+  导入只按 ISO 8601、导出自身的格式或年份在前的格式读取日期单元格。
+- **共享选项列表** —— 一种新的 `picklist` 元数据类型，字段按名称引用它，其他包可以
+  扩展它。
+
+### 17.5 [#175]
+
+`@objectstack` **17.5.0**（发布于 2026-09-29）把若干默认值转向安全的一侧：定时任务
+在部署要求之前保持关闭，行级安全、分析和记录写入会拒绝它们无法兑现的内容。完整说明：
+[objectstack.ai/docs/releases/v17/17-5](https://objectstack.ai/docs/releases/v17/17-5)。
+
+> **警告：**一个升级后什么都不做的部署，不会运行任何定时流程，也不会运行任何打包的
+> cron 作业；隔离墙式部署在 `OS_PLATFORM_OWNER_EMAIL` 指定管理员之前没有任何平台
+> 管理员。参见[升级与回滚 → 17.5](/docs/operate/upgrade#objectstack-175)。
+
+变化了什么：
+
+- **定时任务在部署开启之前保持关闭**（破坏性）——
+  `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` 门控每一个时间触发的流程和打包的 cron
+  作业。参见[环境变量](/docs/reference/environment-variables#runtime-services)。
+- **隔离墙式部署只从 `OS_PLATFORM_OWNER_EMAIL` 获取平台管理员身份**（破坏性）——
+  `admin_full_access` 授权不再赋予这一身份。
+- **已保存报表的整套机制被移除**（破坏性）—— `/api/v1/reports` 和定时报表投递，
+  没有后继者。`report` 元数据类型、数据集和分析保持不变。参见
+  [REST API](/docs/reference/rest-api#reports)。
+- **行级安全在遇到无法强制执行的谓词时失败即关闭**，没有 `check` 的策略现在会用它的
+  `using` 约束插入和更新。
+- **分析只回答可以读取该对象的调用者** —— 其他人会被以 `403` 拒绝，与 `/data` 上
+  相同。
+- **决策节点走第一个匹配的分支** —— `mode: 'inclusive'` 会运行每一个为真的分支。从
+  Studio 存储的决策节点在升级后采用新的含义。参见
+  [流程](/docs/build/automation/flows#conditions-and-branches)。
+- **写入的值必须符合其声明的类型** —— `date` 为 `YYYY-MM-DD`，`datetime` 为
+  ISO 8601，数字为其 JSON 写法；其他任何形式都是 `400 VALIDATION_FAILED`。
+- **验证规则可以通过查找读取一跳之外的记录**，CEL 增加了
+  `current_user.can(object, verb)`。参见
+  [验证规则](/docs/build/data/validation-rules#reading-a-related-record)和
+  [CEL](/docs/reference/cel#permission-checks)。
+- **没有声明页大小的视图显示 50 行**，而不是 25 行。
+
+### 17.4 [#174]
+
+`@objectstack` **17.4.0**（发布于 2026-09-09）把每个时长键重命名为带有其单位，并关闭
+了两条悄无声息的写入路径。完整说明：
+[objectstack.ai/docs/releases/v17/17-4](https://objectstack.ai/docs/releases/v17/17-4)。
+
+变化了什么：
+
+- **只读字段会从非系统的创建中剥离**，而不只是从更新中剥离 —— 在 `droppedFields`
+  中报告。要预置这样的字段，请以系统身份进行。参见
+  [验证规则](/docs/build/data/validation-rules)。
+- **每个时长键的名称都带有其单位**（破坏性）—— `timeout` 变为 `timeoutMs`，
+  `refreshInterval` 变为 `refreshIntervalSeconds`，依此类推，没有别名：旧写法会在
+  解析时被拒绝，并点名该键。
+- **会话上的 `positions` 是安全维度** —— 按岗位收窄的 Console 门控现在会为担任该
+  岗位的人生效。
+- **流程可以带着理由拒绝** —— 一个 `outcome: 'refused'` 的 `end` 节点，加上按记录
+  的 `message`。参见
+  [流程](/docs/build/automation/flows#ending-a-run-completed-or-refused)。
+- **分析的日期范围是一个封闭的词汇表** —— 一个声明的预设或一对 `[start, end]`；
+  其他任何形式都是 `400`。
+- **多组织运行时开源了** —— `@objectstack/organizations` 是一个已发布的包。
+
+### 17.3 [#173]
+
+`@objectstack` **17.3.0**（发布于 2026-09-04）是 v17 线上最大的一个版本。完整说明：
+[objectstack.ai/docs/releases/v17/17-3](https://objectstack.ai/docs/releases/v17/17-3)。
+
+变化了什么：
+
+- **开放的自助注册必须声明**（破坏性）—— 没有声明受众姿态的应用只接受邀请，没有
+  待处理邀请的注册会以 `403 SELF_REGISTRATION_CLOSED` 被拒绝（全新安装上的第一个
+  账户不受此限）。
+- **共享授权按租户划定范围** —— 17.3 之前写入的 `sys_record_share` 行需要由运维人员
+  运行回填。参见[升级与回滚 → 17.3](/docs/operate/upgrade#objectstack-173)。
+- **权限存储故障会明确地失败**（`503`），而不是被解析为一个没有任何能力的用户。
+- **自动编号在每个组织内唯一**，现有的重复项会阻止新索引的建立：先运行
+  `os migrate duplicates`。
+- **复合元数据寻址已退役** —— `/api/v1/meta/:type/:section/:name` 返回
+  `404 ROUTE_NOT_FOUND`。参见[REST API](/docs/reference/rest-api#metadata--apiv1meta)。
+- **开关流程需要 `manage_metadata`。**
+- **SDK** —— `client.projects.*` 变为 `client.environments.*`，没有别名。
+
+### 17.2 [#172]
+
+`@objectstack` **17.2.0**（发布于 2026-08-23）不再让那些声明了一个无人求值的条件的
+写入看起来像条件写入。完整说明：
+[objectstack.ai/docs/releases/v17/17-2](https://objectstack.ai/docs/releases/v17/17-2)。
+
+变化了什么：
+
+- **按 id 写入不再丢弃谓词**（破坏性）—— 如果按 id 更新或删除的 `where` 点名了
+  `id` 之外的内容，除非声明了 `multi: true`，否则会被拒绝；`data.id` 与 `where.id`
+  不一致的写入会返回 `400 UPDATE_ID_MISMATCH`。
+- **`http_request_errors_total` 已退役** —— 基于它的面板读数恒为零；请使用
+  `http_requests_total{status=~"5.."}`。
+- **外部数据源路由需要一项能力** —— `manage_platform_settings` 或
+  `manage_metadata`。
+- **`os g agent` 已退役** —— 改为编写 Skill。
+
+### 17.1 [#171]
+
+`@objectstack` **17.1.0**（发布于 2026-08-20）是 v17 线的第一个次版本。17.0 让*可编写的
+表面*变得响亮，17.1 则让运行时的回答变得响亮：承诺撤销访问权限的标志现在真的会撤销，
+失败的读取不再被当作空读取返回，从未派发的流程不再被报告为一次失败的运行，从来不应
+可读的凭据也不再被返回。完整说明：
+[objectstack.ai/docs/releases/v17/17-1](https://objectstack.ai/docs/releases/v17/17-1)。
+
+> **警告：**17.1.0 按版本号而言是次版本，按影响范围而言却不是。它的若干安全修正会
+> 改变现有部署上谁能读、谁能写，而且没有任何迁移步骤来提醒你。前滚之前，请逐项完成
+> 完整说明中的 17.1.0 升级检查清单。
+
+变化了什么：
+
+- **停用一个权限集或岗位，现在真的会停止授予访问权限**（安全）—— 这两种对象都带有
+  一个停用动作，其对话框承诺访问会停止，但从来没有任何东西读取这一列：一个以
+  `active: false` 预置的岗位仍会授予它的权限集，一个以 `active: false` 预置的权限集
+  仍会返回平台管理员姿态。共享规则通过第二条路径触达用户，而这条路径从不经过那个
+  检查点，所以一条把记录共享给已停用岗位的规则会继续共享 —— 这些共享会在下一次
+  协调时被撤销。`active` 列缺失或为 NULL 的行不受影响。如果一个部署曾以为这个开关
+  不起作用而使用它，那么这是对线上数据的一次真实撤销，所以请先审核你已停用的行。
+  参见[权限集](/docs/configure/permissions/permission-sets)。
+- **随附的管理员权限集不再在 `*` 通配符上授予导出**（破坏性）—— `admin_full_access`、
+  `organization_admin` 以及派生出的 `organization_admin_no_bypass` 带有
+  `objects['*'].allowExport: true`，这让 17.0 的导出维度无法被拒绝：应用可以声明某个
+  对象谁都不能导出，平台却照样导出。导出现在按对象授予，写在应用自己的权限集中；
+  我们有意不提供自动替代。读取不受影响 —— 这只收窄了批量外流。
+- **部分字段脱敏** —— `FieldSchema` 声明 `maskingRule`：封闭的预设枚举 `phone` /
+  `id_card` / `bank_account` / `email` / `name`，外加一个 `{ keepHead, keepTail }` 的
+  兜底写法。声明了规则的字段会以脱敏但仍可辨认的形式（`138****5678`）返回给每个非
+  系统调用方，字段的 `requiredPermissions` 就是解除脱敏的门槛。脱敏走唯一的运行时
+  通道，所以 API 调用方、浏览器用户和 CSV/XLSX 导出路由看到的是同一个值；被脱敏的
+  调用方无法在该字段上筛选、排序、分组或聚合。参见
+  [字段级安全](/docs/configure/permissions/field-level-security)。
+- **两项 ObjectOS 不暴露的开放运行时能力** —— 17.1 新增了记录查看审计
+  （`sys_audit_log` 中的 `read` 动作），以及一个只读层级，让记录的读者能看到它的审批
+  请求。两者都只能通过构造函数选项开启 —— `AuditPlugin` 的 `readAudit`、审批服务的
+  `recordReaderVisibleObjects` —— 而 ObjectOS 运行时没有设置它们，所以在 ObjectOS
+  部署上两者都不可用。
+- **三个流程入口共用一张如实的状态表** —— 被拒绝的派发不再被报告为一次失败的运行：
+  `404` 未找到，`409` `FLOW_DISABLED`，`422` `FLOW_NO_START_NODE`，`400`
+  `FLOW_FAILED` 则表示一次确实运行了但被拒绝的运行。自动化的 `trigger` 路由、动作
+  入口，以及声明为 `type: 'flow'` 的端点，现在读取同一份共享定义，而不是三份各自的
+  副本，`outputMapping` 也不再应用于失败的结果。调用方应根据 HTTP 状态分支，而不是
+  根据内部的 `success` 标志。参见[流程](/docs/build/automation/flows)。
+- **`error.code` 在每个入口都是封闭词汇** —— 抛出的代码如果不在平台的标准集合中，
+  就不再进入 `error.code`；它改由新的可选字段 `declaredCode` 承载，这样应用自己的
+  拼写得以保留，而不会扩大平台的词汇。
+- **失败的读取不再读作空读取** —— 这是在元数据协议、汇总索引，以及级联删除和注册表
+  探测中一并关闭的一类反复出现的问题：一次*失败*的读取过去与一次确实什么都没找到的
+  读取无法区分，于是 upsert 的预加载会把每次更新都变成插入，而"删除这个会破坏什么"
+  的回答是"什么都不会"。没有移除任何 `catch` —— 每一个都按错误类型加以区分，所以
+  尚未开通的表仍是无害的，其他一切都会暴露出来。
+- **编写时的门控延伸到运行时发布入口** —— 过去只有 `os build` / `os validate` 执行的
+  规则，现在也会判定运行时写入，所以 Studio 和元数据 API 无法写入 CLI 拒绝的内容。
+  升级之后请重新运行 `os build` / `os validate`：若干新的拒绝可能会让在 17.0 上
+  构建干净的 stack 失败，包括未知的 stack 顶层键、目标不是已声明页面的仪表盘页头
+  `modal` 动作，以及点名了公式字段或根本没有点名字段的列表视图 `sort`。
+- **Console（Studio）** —— 两次 objectui 固定版本移动，带来了仪表盘组件的重新键控、
+  动作上结构化 `confirm` 对象的退役、指标小部件上的 `I18nLabel`，以及为挂载在子路径
+  下的控制台由宿主执行的 `submitBehavior.url` 重定向。
+
+### 17.0 [#170]
+
+`@objectstack` **17.0.0**（发布于 2026-08-14）是一个说真话的版本：16.0 让*已声明的
+元数据*变得诚实，17.0 则对它周围的表面做了同样的事。完整说明：
+[objectstack.ai/docs/releases/v17/17-0](https://objectstack.ai/docs/releases/v17/17-0)。
+变化了什么：
+
+- **Node.js 22 是下限**（破坏性）—— 在全部 50 个已发布的清单中，`engines.node` 从
+  `>=18.0.0` 改为 `>=22.0.0`。CI、发布流水线和每个随附的 Docker 镜像本来就运行在 22
+  上；现在承诺与事实一致了。在 Node 22+ 上没有任何变化。如果你的 CI 固定了 Node
+  版本，请把它固定为 22。
+- **批量导出是一项独立的特权**（破坏性）—— `allowExport` 未设置过去表示"继承读取"；
+  现在它表示**拒绝**，`viewAllRecords` / `modifyAllRecords` 也不再授予它。包随附的
+  权限集会在升级时重新预置，所以 `admin_full_access` 和 `organization_admin` 仍能导出
+  —— **在环境中编写的权限集则不会**。请为其用户需要导出的每个自定义权限集添加
+  `allowExport: true`。参见[权限集](/docs/configure/permissions/permission-sets)。
+- **文件是一条记录，而不是列中的一个 blob** —— 媒体字段
+  （`file`/`image`/`avatar`/`video`/`audio`）存储一个不透明的 `sys_file` id；
+  `{ url, name, size, … }` 对象变为*读取*（展开）形式。由于字节由平台掌管，
+  `accept` / `maxSize` 可以声明**并由服务器强制执行**，而不只是浏览器端的提示。
+  `os migrate files-to-references` 执行这一转换。参见
+  [字段类型](/docs/reference/field-types#media)。
+- **GraphQL 表面已移除**（破坏性）—— 它从第一天起就只有 schema：由于该服务从未被
+  分配，处理程序无条件返回 501。`/graphql` 现在返回 404。不受影响的是：把 `graphql`
+  作为**外部**数据源的协议，那是别人的 API，而不是 ObjectOS 提供的 API。
+- **没有条件的共享规则什么都不共享，被停用的 RLS 策略就是停用的**（破坏性，安全）——
+  一条没有条件的已存储规则过去会被求值为*该对象的每一条记录*，而一个用
+  `enabled: false` 关闭的 RLS 策略仍会贡献它的 OR 分支授权。现在两者都会失败关闭。
+  参见[记录访问](/docs/configure/permissions/record-access)。
+- **审批请求对其参与者可见**（安全）—— `getRequest` / `listRequests` /
+  `countRequests` 只应用了可见性规则中的租户那一半，所以任何已认证用户都能读取其租户
+  中的任何请求：载荷快照、决策历史和附件。
+- **审批人可以动态路由** —— 审批节点新增 `expression` 审批人（基于 `current.*` /
+  `trigger.*` / `vars.*` 的 CEL）、节点级的 `onEmptyApprovers` 策略，以及作者声明的
+  决策输出，它们会以 `<nodeId>.<key>` 流程变量的形式恢复运行。参见
+  [审批](/docs/build/automation/approvals)。
+- **出问题的数据源会在启动时大声报错** —— 有对象绑定的数据源必须连接成功，否则启动
+  失败；`objectql.init()` 拒绝在失效的数据驱动上启动；当某个数据源不再响应时，
+  `/api/v1/ready` 返回 503。过去这样的启动会干净地完成、以零退出，然后让绑定对象的
+  每一次读写都失败。
+- **`enable.apiMethods` 缩减为六个原语**（破坏性）—— 可编写的枚举正好是 `get`、
+  `list`、`create`、`update`、`delete`、`bulk`。八个旧值是*派生的*有效操作；已存储
+  的旧值会在解析时被剔除，并给出一条点名其替代项的警告。
+- **失效元数据的清理仍在继续**（破坏性）—— `object.enable.trash` 和 `enable.mru`、
+  `tool.requiresConfirmation`、`agent.tools[]`、`agent.knowledge`、
+  `SkillSchema.permissions`、报表的 `aria` / `performance`、`flow.active`，以及一长串
+  被解析却被忽略的键都已移除。每一个都会在解析时拒绝，并给出升级处方，而不是被悄悄
+  剔除。运行 `os migrate meta --from 16` 来重写你的源文件。
+- **可编写的表面已封闭** —— 现在每一种可编写的元数据类型都会以点名的处方拒绝未知键，
+  在解析路径上也是如此，而不只是在 `create()` 中。一个拼写错误会成为一个定位明确的
+  错误，而不是一个悄悄从未生效的设置。
+
+### 16.0 [#160]
+
+`@objectstack` **16.0.0** 收拢了开发者表面，并让已声明的元数据变得诚实：调用方组织
+只有一个认可的名字，真正的多审批人治理，真正会触发的相对时间自动化，以及一次全平台的
+清理，把被悄悄忽略的元数据变成编写时的响亮错误。完整说明：
+[objectstack.ai/docs/releases](https://objectstack.ai/docs/releases)。
+变化了什么：
+
+- **钩子/动作 `ctx` 上的 `tenantId` 别名已移除**（16.0，破坏性）—— 在每个
+  `*.hook.ts` / `*.action.ts` 主体中，以 `ctx.user.organizationId` /
+  `ctx.session.organizationId` 读取调用方的组织（值不变；对于系统写入，`ctx.user` 为
+  `undefined`）。驱动层的租户维度（`ExecutionContext.tenantId`）是一个不同的概念，
+  不受影响。
+- **审批：法定人数、按组会签，以及元数据驱动的收件箱** —— 审批步骤支持 M-of-N 法定
+  人数（`minApprovals`），以及每组各需一位审批人的步骤，依据开启时的快照计票，并支持
+  外出（OOO）替代；一次驳回仍然一票否决，阈值会被钳制，因此错误配置永远不会造成死锁。
+  决策可以携带文件附件，进度（"2 of 3 · finance pending"）在服务端计算，而批准 /
+  驳回 / 转派 / 退回 / 要求补充信息 / 催办 / 撤回 / 重新提交都是
+  `sys_approval_request` 上声明的 `type:'api'` 动作 —— 审批收件箱通过其通用动作
+  运行时来渲染它们，而不是靠手写的按钮。
+- **相对时间自动化** —— 流程开始节点可以声明 `timeRelative`（`offsetDays: [60, 30, 7]`
+  或 `withinDays`）；每日扫描会为每条匹配的记录启动一次流程，所以"在合同结束前 60 天
+  提醒我"终于可以直接实现 —— 不再需要只有在碰巧编辑时才会触发的日期相等条件。
+- **带筛选的汇总** —— `summaryOperations.filter` 让父记录的合计只聚合匹配的子行，并在
+  子行进入或离开该谓词时重新聚合。
+- **严格的仪表盘小部件**（16.0，破坏性）—— `DashboardWidgetSchema` 是 `.strict()`：
+  未声明的键（拼写错误或已移除的内联分析键）会成为一个解析错误，点名该键并指向数据集
+  形态（`dataset` + `dimensions` + `values`），而不是悄悄地什么都不渲染。
+- **MCP：stdio 有了身份，Agent 有了检查器** —— stdio 自动启动改由独立的
+  `OS_MCP_STDIO_ENABLED` 开关控制（默认关闭），并需要一个 `OS_MCP_STDIO_API_KEY=osk_...`
+  主体，失败关闭，经过与 HTTP 相同的授权链解析（RLS/FLS/租户都会应用；没有 `system`
+  绕过）。新的 `validate_expression` 工具让 Agent 在保存公式之前，先对照真实的对象
+  schema 检查它。
+- **强制执行或移除的清理**（16.0，破坏性）—— 已声明却未强制执行的元数据现在会大声
+  报错：失效的字段/对象/Agent 属性被移除，或被标记为墓碑并附带指引；钩子事件从 18 个
+  合并为 8 个；验证规则失去了从未被求值的 `'delete'` 事件；webhook 的 `undelete` /
+  `api` 触发器被移除；未知的 `requires` 能力标记会在编写时被拒绝（`aiStudio` /
+  `aiSeat` 别名已不复存在 —— 请使用 kebab-case 的 `ai-studio` / `ai-seat`）。
+- **引擎掌管的系统行通过通用数据 API 只读**（ADR-0103）—— 作业、通知、审批运行时行、
+  共享行、审计轨迹、机密等都被锁定为 `get`/`list`，一个失败关闭的守卫会拒绝通过
+  `/data` 进行的用户上下文写入。确实需要接受用户写入的第三方 `system` 对象必须声明
+  `userActions`。
+- **日期逻辑不再说谎** —— `record.due_date == today()` 现在能够匹配（时间相等比较会被
+  改写，以强制转换字段操作数），而公式中的日期*算术*（`end - start + 1`、
+  `today() + 30`）变为构建时错误，并指向 `daysBetween` / `daysFromNow` / `addDays` /
+  `addMonths` —— 那些表达式在运行时本来就总是出错并得到 `null`。
+- **批量导入用户默认使用 `passwordPolicy: 'auto'`** —— 有可送达渠道的行（真实邮箱 +
+  已接入的邮件服务，或手机号 + 短信邀请路径）会收到邀请；只有无法触达的行才会得到一个
+  一次性临时密码（`must_change_password`）。如需旧的仅身份行为，请显式传入
+  `passwordPolicy: 'none'`；每行的结果见 `rows[].delivery`。
+
+### 14.x [#14x]
+
+ObjectOS One 和捆绑的服务器基于 `@objectstack` **14.7.0** 发布。运行时的启动契约没有
+变化 —— `createStandaloneStack` 接受同样的产物、环境和数据库设置 —— 但 13.0 和 14.0
+都在授权词汇上带来了破坏性变更，所以**从 ≤ 12.x 前滚之前，请审查你的权限元数据**。
+完整说明：[objectstack.ai/docs/releases](https://objectstack.ai/docs/releases)。
+14.x 中变化了什么：
+
+- **ADR-0090 词汇收拢完成**（14.0，破坏性）—— `book.audience` 以
+  `{ permissionSet }` 门控（原为 `{ profile }`），`PortalSchema.profiles` →
+  `positions`，`RLSUserContextSchema.role` → `positions`（字符串数组），
+  `sys_record_share.recipient_type: 'role'` → `'position'`。
+- **对象能力标志得到强制执行**（14.0，近乎破坏性）—— `enable.*` 标志从被解析却不使用
+  变成了真正的门控。`activities` 和 `feeds` 是默认开启、可以关闭的（默认 `true`；
+  `feeds: false` 会以 403 `FEEDS_DISABLED` 拒绝评论），`trackHistory` 驱动"历史"
+  选项卡，`files` 需要主动开启（在 `enable: { files: true }` 之前返回 403
+  `FILES_DISABLED`）。
+- **成员基线失去了删除权限**（14.2，破坏性）—— `member_default` 不再授予记录删除；请
+  通过按岗位分配的权限集，逐个对象重新授予。
+- **管理员用户管理与手机认证**（14.3）—— 直接创建用户
+  （`POST /api/v1/auth/admin/create-user`，一次性密码并强制轮换）、批量导入
+  （行/CSV/XLSX，试运行，upsert）、通过 `@objectstack/plugin-sms`（阿里云 / Twilio）
+  以短信 OTP 进行的可选手机登录，以及一个 `sms` 通知渠道。
+- **数据生命周期契约**（14.4，ADR-0057）—— 对象声明 `lifecycle`（类别、保留、轮转、
+  归档）；默认开启的 LifecycleService 会清理、轮转和归档平台数据（`sys_activity` 14
+  天，`sys_audit_log` 热存储 90 天）。用 `OS_LIFECYCLE_DISABLED=1` 关闭；通过
+  `lifecycle.retention_overrides` 调整。14.5 移除了各插件的 `retentionDays` /
+  `retentionSweepMs` 选项（`JobRunRetention`、`NotificationRetention`），改用
+  生命周期声明，并把带有生命周期类别的系统数据拆分到一个专用的遥测数据源
+  （`OS_TELEMETRY_DB`）；`os db clean` 可回收 SQLite 空间。
+- **按生效日期的授权与委派**（14.4，ADR-0091）—— 岗位和权限集分配支持
+  `valid_from` / `valid_until` 时间窗口（失败关闭，没有后台作业），`delegatable`
+  岗位允许担任者在有限的时间窗口内自行委派（≤ 30 天，需要填写原因，绝不包括管理员
+  范围）。
+- **MCP 范围上限**（14.5，ADR-0090 D10）—— 通过 OAuth 连接的 Agent 以
+  `effective_permission = scope_ceiling ∩ user_grants` 运行（`data:read` /
+  `data:write` / `actions:execute`），失败关闭。
+- **安全修复**（14.4–14.5）—— FLS 键必须带对象限定（裸键会悄悄地什么都匹配不到；现在
+  会被检查拒绝并提供自动修复）；设置和分享链接路由不再信任可伪造的 `x-user-id` 一类
+  请求头；分析查询的范围限定在调用方的读取筛选器之内。
+
+### 13.x —— 权限模型 v2 [#13x--permission-model-v2]
+
+`@objectstack` **13.0** 重构了授权（ADR-0090）。破坏性变更：
+
+- **角色和简档收拢为岗位** —— `sys_role*` 表、`RoleSchema` / `defineRole`、元数据
+  种类 `role` / `profile`，以及 `ExecutionContext.roles[]` 都已不复存在；岗位是扁平
+  的，层级移到了业务单元树上。共享接收方已重命名（`role` → `position`，
+  `role_and_subordinates` → `unit_and_subordinates`）。
+- **自定义对象默认私有** —— 一个带有所有者、却没有显式 `sharingModel` 的对象现在是
+  私有的；`read` / `read_write` / `full` 这几个 OWD 别名已移除。声明 `sharingModel:
+  'public_read_write'` 可恢复之前的行为。
+- **RBAC 关联表的写入受到门控** —— 对 `sys_user_position`、
+  `sys_position_permission_set`、`sys_user_permission_set` 和 `sys_permission_set`
+  的写入需要租户管理员或委派管理范围。
+
+新增的还有：`everyone` / `guest` 受众锚点、委派管理（`PermissionSet.adminScope`）、
+带有逐层归因的 `explain()` 引擎、`os compile` 的访问矩阵快照门控、面向 MCP 客户端的
+自助 OAuth 2.1、编写时的安全检查（`validateSecurityPosture`）、按操作划分的
+`Object.requiredPermissions` 映射，以及包命名空间前缀的强制执行。从未被强制执行的
+schema（合规 / 脱敏 / 全局 RLS 配置）被直接移除。
+
+### 12.x [#12x]
+
+`@objectstack` **12.0** 加固了 API 的默认姿态：
+
+- **默认拒绝匿名数据访问**（破坏性）—— `api.requireAuth` 现在默认为 `true`；匿名的
+  `/data/*` 请求会得到 401。提供公开数据的部署必须用 `api: { requireAuth: false }`
+  显式退出（启动时会有警告）。分享链接、公开表单、`/auth` 和 `/health` 不受影响。
+- **强制执行的协议握手** —— `PROTOCOL_VERSION` + `checkProtocolCompat()` 会在安装时
+  拒绝不兼容的包。
+- **自适应的记录界面** —— 记录根据字段复杂度推导出以页面还是以模态框/抽屉显示；
+  `FormField.span` 变为响应式（`'auto'` / `'full'`）；相关列表获得 `'primary'`
+  选项卡提升。
+- **包随附的权限** —— 包声明默认权限集，它们在启动时实体化，并带有来源追踪。
+- **构建时检查** —— `lint-view-refs`、`validateListViewMode`、`validateFormLayout`
+  以及破坏性操作的 RBAC 映射会对编译进行门控。
+
+### 10.x [#10x]
+
+10.x 系列基于 `@objectstack` **10.0 – 10.2** 发布。每一项破坏性变更都落在多组织租户层，
+所以单租户的 ObjectOS 部署无需任何配置变更即可从 9.x 前滚。变化了什么：
+
+- **行级组织范围拆分为独立插件**（10.0，破坏性）—— `organization_id` 自动标记、按组织
+  重放种子数据以及默认组织引导，从 `@objectstack/plugin-security` 移到了需主动启用的
+  [`@objectstack/plugin-org-scoping`](https://www.npmjs.com/package/@objectstack/plugin-org-scoping)。
+  单组织部署更精简（不再需要在每次查询时剥离通配 RLS），而 `OS_MULTI_TENANT=true`
+  仍会把该插件自动注册在 `plugin-security` 之前，所以由 CLI 驱动的项目无需修改代码。
+  按照 ADR-0002，*租户*是物理隔离（一个环境 = 一个数据库）；`organization_id` 是同一
+  数据库内的*逻辑*范围划分，所以它值得拥有自己的插件。
+- **不再自动创建个人工作区**（10.0，破坏性）—— `plugin-security` 不再为每个新用户创建
+  一个"`<User>'s Workspace`"组织。用户现在要接受邀请，或显式创建自己的第一个组织
+  （Slack / Linear / GitHub-Orgs 的模式）。第一个注册的用户 —— 会被自动提升为平台
+  管理员 —— 在多租户模式下仍会得到一个 `Default Organization`，以便其会话能够解析
+  RLS；单租户部署不会创建任何组织。
+- **`record` 表单字段类型**（ADR-0014）—— `Record<string, X>` 属性（例如对象的
+  `fields` 映射）现在可以在 Studio 中作为一等表单字段编辑，而不是以原始 JSON 的形式
+  泄露出来，对象预览窗格也会挂载真正的 `ObjectGrid` 渲染器 —— 你预览到的就是将要
+  交付的。
+- **通过 `IEmbedder` 实现可插拔的嵌入** —— 一个新的嵌入器协议，外加
+  [`@objectstack/embedder-openai`](https://www.npmjs.com/package/@objectstack/embedder-openai)；
+  知识库 / RAG 适配器现在使用 `IEmbedder`，并被重命名以去掉 `plugin-` 前缀。
+- **公开表单** —— 在 `/f/:slug` 提供的匿名 Web-to-Lead / Web-to-Case 表单，一个统一的
+  FormPage（公开的 `/f/:slug` + 内部的 `/forms/:name`），一个 `type: 'form'` 动作
+  变体，以及 `ObjectSchema` 上的 `defaultDetailForm`。
+- **云端身份拆分** —— `os cloud login` 现在与 `os login` 分开，云端控制平面移到了一个
+  私有仓库（开源运行时因此更精简），`objectstack init` 生成的项目又能构建和启动了。
+
+### 9.x [#9x]
+
+9.x 系列在 10.0 切换之前运行于 `@objectstack` **9.0 – 9.11**。运行时的启动契约与 8.0
+相同 —— `createStandaloneStack` 仍接受同样的产物、环境和数据库设置 —— 所以 8.0 部署
+无需修改配置即可前滚。变化的是面向作者的表面：
+
+- **分析数据集是唯一的作者表面**（9.0，破坏性）—— 仪表盘小部件、报表和列表图表现在
+  绑定一个语义化的 `dataset`（`defineDataset(...)`），并**按名称**选择维度/度量。旧的
+  内联查询字段（小部件上的 `object`/`valueField`/`aggregate`，报表上的
+  `objectName`/`columns`/`groupingsDown`，列表图表上的 `xAxisField`/`yAxisFields`）
+  已被移除。迁移方法：把内联查询移入一个 `defineDataset`，并按名称引用它。
+  `ChartTypeSchema` 还去掉了 8 个只会按其基础类型渲染的变体类型
+  （`stacked-bar`→`bar`、`spline`→`line`、`bubble`→`scatter`，……）。
+- **更严格的构建时验证**（9.6–9.7）—— `os compile` 现在遇到裸字段引用（用 `amount`
+  而不是 `record.amount`）、未知的 CEL 函数和错误的流程值插值语法时会**失败**，并
+  各自附带"你是不是想写"的提示。过去"能构建但悄悄出错"的 stack 现在会大声失败 ——
+  升级后请重新运行 `os compile` 并修复它标出的问题。
+- **数字字段公式能计算混合算术**（9.7）—— `record.amount / 100` 和
+  `record.price * 2` 现在会求值，而不是悄悄得到 `null`；不再需要 `/ 100.0` 这种浮点
+  字面量的变通写法。
+- **对象级 REST 门控，现已强制执行**（ADR-0049）—— 对象的 `apiEnabled: false` 会把它
+  从 REST 表面移除，`apiMethods` 白名单则限制可以访问哪些操作。此前这些会被解析，
+  但不会被强制执行。
+- **包文档即元数据 + `book` 导航**（9.3–9.6）—— `src/docs/*.md` 注册为 `doc` 元数据；
+  `book` 元素（ADR-0046）声明一条按派生成员关系组织的导航主干，在
+  `GET /api/v1/meta/book/:name/tree` 提供，并带有受众门控。
+- **`os package install`**（9.3）—— 从目录 id 或内联的物理隔离产物向运行中的运行时
+  安装包，用 `--email` / `--password` 进行认证。
+- **审批**（9.3）—— 退回修改（`maxRevisions`，默认 3）、由作业支撑的 SLA 自动升级、
+  列表搜索/分页，以及无需会话的双语批准/驳回确认链接。
+- **入站 webhook 流程触发器**（9.3）—— `type: 'api'` 流程会挂载一个经 HMAC 验证的
+  `POST /api/v1/automation/hooks/:flowName/:hookId` 端点，提供幂等的、由队列支撑的
+  接收。
+- **通知保留默认开启**（9.5）—— 通知历史在 **90 天**后自动清理；把消息模块的
+  `retentionDays` 设为 `0` 可永久保留历史。
+- **CLI 捆绑 AI 提供商 SDK**（9.0）—— 兼容 OpenAI 的提供商（DeepSeek、DashScope、
+  SiliconFlow、OpenRouter、Cloudflare）在全局安装的 CLI 上开箱即用。
+
+需要注意一项流程编写行为的变化：`create_record` 节点的 `outputVariable` 现在保存的是
+**创建出的记录对象**（原为单纯的 id），所以请把期望得到 id 的 `{var}` 引用更新为
+`{var.id}`。
+
+### 8.0.x [#80x]
+
+ObjectOS One 和捆绑的服务器基于 `@objectstack` **8.0.1** 发布。
+
+- **基于 Streamable HTTP 的 MCP** —— 每个部署都可以充当一个可通过网络访问的
+  [Model Context Protocol](https://modelcontextprotocol.io) 服务器。用
+  `OS_MCP_SERVER_ENABLED=true` 开启；端点位于 `/api/v1/mcp`，认证失败关闭（匿名请求
+  会被拒绝）。插件由 `@objectstack/plugin-mcp-server` 重命名为 `@objectstack/mcp`。
+- **自助 API 密钥** —— `POST /api/v1/keys` 会生成一个只显示一次的 `sys_api_key`。
+  REST 数据和元数据 API（`/api/v1/data`、`/api/v1/meta`）现在通过与 MCP 相同的验证器
+  认证 API 密钥，并以密钥所有者的权限和记录级安全运行。
+- **字段级条件规则** —— `visibleWhen`、`readonlyWhen` 和 `requiredWhen` 由 ObjectQL
+  在服务端强制执行，而不只是在表单界面中。
+- **可复用的 RLS 读取筛选器** —— `security.getReadFilter(object, context)` 暴露了
+  记录访问的读取范围；分析数据集、仪表盘和报表都桥接到它，并在无法应用该范围时失败
+  关闭。
+- **独立宿主 stack** —— 运行时随附一个单租户的 `createStandaloneStack` 宿主；7.x 中
+  连接云端、按主机名路由的 `createObjectOSStack` 包装器已被移除。从那时起，运行单独
+  发布的应用的部署通过 **URL** 指定那个产物。如今负责这件事的变量，以及不再起作用的
+  已退役拼写，参见[环境变量](/docs/reference/environment-variables#retired-names)。
+
+### 5.0 —— `project` → `environment` 重命名（已发布） [#50--project--environment-rename-shipped]
+
+原先称为*项目*的运行时概念已被全面重命名为*环境*。受影响的有：
+
+- CLI 标志：`--environment` / `-e`
+- HTTP 路径：`/api/v1/environments/:environmentId/...`
+- 请求头：`X-Environment-Id`
+- 环境变量：`OS_ENVIRONMENT_ID`（`OS_PROJECT_ID` 当时作为已弃用的别名保留；现在已不再
+  读取）
+- 数据库列：`environment_id`
+- JSON schema：`EnvironmentArtifact`
+
+## 升级 [#upgrading]
+
+机械步骤参见[升级与回滚](/docs/operate/upgrade)，你跨越的每个版本参见它的
+[特定版本步骤](/docs/operate/upgrade#version-specific-steps)。升级前的检查：
+
+1. 阅读从当前版本到目标版本之间每个次版本的 CHANGELOG 条目。
+2. 运行 `os diff <old-artifact> <new-artifact>`，找出破坏性的 schema 变更。
+3. 针对目标版本运行 `os doctor`。
+4. 在滚动整个集群之前，先启动一个金丝雀实例。
+5. 为镜像标签和产物版本都准备好回滚计划（两者独立滚动）。
+
+## 报告回归问题 [#reporting-regressions]
+
+如果某个补丁版本或次版本破坏了原本正常的功能，请在
+[github.com/objectstack-ai/objectstack/issues](https://github.com/objectstack-ai/objectstack/issues)
+提交缺陷，并写明你从哪个版本升级到哪个版本。我们把回归问题视为最高优先级的缺陷类别。
