@@ -1,7 +1,7 @@
 ---
 title: Docker
 seoTitle: "Docker: Run ObjectOS Community and Enterprise"
-description: Run ObjectOS with Docker — pin the image, set the three required variables, add PostgreSQL with Compose, wire the probes and the proxy, upgrade and roll back. The Enterprise image adds digest pinning, verification and a license.
+description: Run ObjectOS with Docker — pin the image, set the three required variables, add PostgreSQL with Compose, wire the probes and the proxy, upgrade and roll back. The Enterprise image adds a private registry, verification and a license.
 editions: [community, enterprise]
 ---
 
@@ -281,8 +281,8 @@ mount, upgrades it without touching the image.
 ## Enterprise adds
 
 The licensed Enterprise image runs the same way, and adds a private
-registry, digest pinning, supply-chain verification, a license, and
-multi-node. Your release ships a **deploy bundle** containing a Compose
+registry, supply-chain verification, a license, and multi-node; its release
+notes name the digest to pin. Your release ships a **deploy bundle** containing a Compose
 stack, an environment template per deployment shape, and a README with the
 commands for your exact version. This section is the decision map for what
 that bundle configures.
