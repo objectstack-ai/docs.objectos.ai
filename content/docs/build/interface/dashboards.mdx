@@ -153,10 +153,13 @@ The drawer also offers an **"Open in list →"** escape hatch that
 escalates the peek to the object's full list page (sort, bulk-select,
 export, shareable URL), scoped by the same drill filter.
 
-Drill-through is automatic — no per-widget configuration — whenever the
-dataset exposes the base object and the widget groups by at least one
-dimension. `metric` and chart widgets render the aggregate only; expose
-detail through a `table` or `pivot` widget instead.
+Chart widgets drill the same way: click a bar, point or slice and the
+drawer lists the records in that bucket — for a date dimension, exactly
+that bucket's date range. Drill-through is automatic — no per-widget
+configuration — whenever the dataset exposes the base object and the
+widget groups by at least one dimension. A `metric` tile shows the
+aggregate only. [Reports](/docs/build/reports) drill through the same
+way.
 
 ## Global date range and filters
 
@@ -227,6 +230,7 @@ and review the generated dataset + dashboard metadata before approving.
 
 | Page | Why |
 |:--|:--|
+| [Reports](/docs/build/reports) | Grouped and cross-tab reports over the same datasets |
 | [Apps](/docs/build/interface/apps) | Put dashboards in navigation |
 | [Views](/docs/build/interface/views) | Inline `chart` list views over the same datasets |
 | [Pages](/docs/build/interface/pages) | Free-form layouts when a widget grid isn't enough |
