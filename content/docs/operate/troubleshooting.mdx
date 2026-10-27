@@ -15,19 +15,20 @@ checks the configuration it was given, prints a fatal error naming the
 variables that disagree, and exits. Those messages name the problem exactly,
 and no amount of restarting will change the outcome.
 
-The refusals you are most likely to meet:
+The refusals you are most likely to meet, on either edition:
 
 | The log says | What it means |
 |---|---|
-| Two settings are named together as an unsupported pairing | A license mode and a cloud posture that cannot work together — most often an ordinary, online-validated license on a deployment configured with no control plane. [Air-gapped](/docs/deploy/air-gapped) has the supported matrix. |
-| A walled deployment requires a license | A multi-organization tenancy posture was asked for without a license. Isolation is a licensed capability; the runtime will not serve traffic while pretending to have it. |
-| A decision was not made | On a multi-organization posture, the new-sign-up membership policy and the set of mounted AI agents have no safe default. Declaring either available value is accepted; leaving it unset is not. |
-| A retired variable is set | An old artifact-selection variable refuses the boot and names its replacement. See [retired names](/docs/reference/environment-variables#retired-names). |
-| The cluster secret is missing | Turning on a cluster driver makes one shared secret key mandatory across every replica. |
+| A data driver could not connect | The database in `OS_DATABASE_URL` — or a datasource the app binds objects to — is unreachable, or its credentials are wrong. The boot is refused rather than serve a server that errors on every request. |
+| A destructive schema change is pending, naming each change | The new app or version needs a change that would lose data. Back up, then apply it deliberately with `os migrate apply --allow-destructive`, and restart. |
+| An artifact's expected and actual digest | An integrity pin on `OS_ARTIFACT_URL` does not match the bytes fetched — see [below](#the-app-is-not-the-one-you-expected). |
+| The port is in use | `os start` never moves to another port. Free it, or change `OS_PORT` and the proxy's upstream together. |
+| A multi-node topology was declared | `OS_CLUSTER_REPLICAS` is above 1 on a runtime that is not licensed for multi-node, or whose coordination is in-process. Run one replica — see [Docker → Multi-node](/docs/deploy/docker#multi-node). |
+| `Cannot find module 'pg'` | A bare Node.js install has no PostgreSQL driver. The image ships `pg` and `mysql2`; outside it, install the driver beside the CLI (`npm install -g pg`). |
 
 If the log shows no fatal error, check the ordinary causes: container logs for
-the failing service, a port conflict, and a missing auth secret when
-authentication endpoints are expected.
+the failing service, and the probes — `/api/v1/health` answers once the
+process serves HTTP, `/api/v1/ready` only once its database answers.
 
 ## The app is not the one you expected
 
@@ -37,9 +38,11 @@ decision the deployment declares — see
 one you published:
 
 - **Confirm which mode this deployment is in.** If no artifact reference is
-  set, the runtime is serving the metadata authored in the image plus whatever
-  was installed into it — publishing a new artifact changes nothing until the
-  deployment names it.
+  set, the runtime is serving whatever its image carries — on Community, the
+  file at `/srv/app/objectstack.json`, or an empty kernel plus the apps
+  installed into it; on Enterprise, the metadata authored in the image plus
+  whatever was installed into it. Publishing a new artifact changes nothing
+  until the deployment names it.
 - **Check the boot banner**, which names the app that was actually loaded.
 - **An integrity pin that does not match refuses the boot** and prints both the
   expected and the actual digest. Those two being printed together is the
@@ -51,18 +54,33 @@ one you published:
 - **Pinned, with the host unreachable, a locally cached copy may serve** — but
   only one whose bytes still hash to the pin, and it says so with a warning.
   The cache is re-hashed on every read; a filename is never the authority.
-- **Setting a retired artifact variable does not select an app.** One of them
-  refuses the boot outright; the others are read by nothing at all, so the
-  deployment boots as if you had set nothing. [Retired
+- **Setting a retired artifact variable does not select an app.** On the
+  Enterprise image one of them refuses the boot outright; the others are read
+  by nothing at all, so the deployment boots as if you had set nothing. [Retired
   names](/docs/reference/environment-variables#retired-names) lists them
   against their replacements.
+
+## Nobody can sign in
+
+On a fresh deployment, the first account to register becomes the
+administrator. That rule counts **people, not logins**: an app that seeds
+people records without sign-in accounts makes the database look populated,
+so registration stays closed, and the seeded people have no password to sign
+in with. The boot log reports it at error level under
+`no_sign_in_account_at_boot`. The recovery is out of band — one invitation
+row written to the database, then an ordinary registration; ObjectStack's
+[self-hosting guide](https://objectstack.ai/docs/deployment/self-hosting#a-seeded-directory-opens-no-bootstrap-window)
+walks it. To prevent it, seed sign-in accounts with the people, or leave the
+directory empty until the first administrator exists.
 
 ## Login fails
 
 Check:
 
-- `OS_AUTH_SECRET` is configured;
-- public URL and callback URL match;
+- `OS_AUTH_SECRET` is configured — without it, the sign-in endpoints are
+  skipped altogether;
+- `OS_AUTH_URL` and `OS_TRUSTED_ORIGINS` name the public address;
+- the OIDC callback URL matches the public address;
 - OIDC discovery URL is reachable from ObjectOS;
 - trusted origins include the public domain;
 - cookies are scoped to the deployment's public hostname.
@@ -90,6 +108,15 @@ Environment -> Tenant -> User -> Default
 If the environment provides a value, runtime edits should be rejected
 instead of silently overwriting it.
 
+## Stored secrets cannot be read
+
+Encrypted settings, `secret` fields and datasource credentials are encrypted
+under `OS_SECRET_KEY`. If they stop decrypting after a restart or a restore,
+the key changed: a container that never set it minted its own and lost it
+with its filesystem, or a database was restored without its original key.
+Set the escrowed original — see [Backup](/docs/operate/backup). A new key
+cannot recover values encrypted under the old one.
+
 ## Webhooks or jobs do not run
 
 Check:
@@ -97,6 +124,8 @@ Check:
 - the artifact `requires` list includes the needed capability;
 - the ObjectOS image includes the optional service package;
 - queue/job service configuration is available;
+- scheduled flows and cron jobs need `OS_AUTOMATION_SCHEDULED_WORK_ENABLED=true`
+  — unset is off;
 - outbound network access to the target is allowed;
 - delivery logs or job runs are visible in Setup diagnostics.
 
@@ -109,3 +138,15 @@ Check:
 - credentials and TLS options;
 - schema sync/migration logs;
 - storage persistence if using local SQLite.
+
+## Enterprise adds
+
+The licensed image refuses a few more configurations at startup:
+
+| The log says | What it means |
+|---|---|
+| Two settings are named together as an unsupported pairing | A license mode and a cloud posture that cannot work together — most often an ordinary, online-validated license on a deployment configured with no control plane. [Air-gapped](/docs/deploy/air-gapped) has the supported matrix. |
+| A walled deployment requires a license | A multi-organization tenancy posture was asked for without a license. Isolation is a licensed capability; the runtime will not serve traffic while pretending to have it. |
+| A decision was not made | On a multi-organization posture, the new-sign-up membership policy and the set of mounted AI agents have no safe default. Declaring either available value is accepted; leaving it unset is not. |
+| A retired variable is set | An old artifact-selection variable refuses the boot and names its replacement. See [retired names](/docs/reference/environment-variables#retired-names). |
+| The cluster secret is missing | Turning on a cluster driver makes one shared secret key mandatory across every replica. |

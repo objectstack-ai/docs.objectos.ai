@@ -1,48 +1,39 @@
 ---
 title: Upgrade and Rollback
-description: Upgrade or roll back ObjectOS Enterprise by changing the image digest it pins, after backing up the database.
+description: Upgrade or roll back a self-managed ObjectOS deployment by changing the exact image it pins, after backing up the database — and the operator steps each ObjectStack release asks for.
 editions: [community, enterprise]
 ---
 
-On ObjectOS Enterprise, the image you run is pinned by **digest**, never by
-a tag, so an upgrade is a change of digest and a rollback is the previous
-one. [Docker → Upgrade and rollback](/docs/deploy/docker#upgrade-and-rollback)
-documents this procedure and the reason for each step; this page repeats it as
-a checklist.
+An upgrade is a change of the exact image you pin, and a rollback is the
+previous one. On Community that is the image's version tag; on Enterprise it
+is the image digest ([Enterprise adds](#enterprise-adds)). Everything else on
+this page is the same for both.
+[Docker → Upgrade and rollback](/docs/deploy/docker#upgrade-and-rollback)
+documents the procedure and the reason for each step; this page repeats it as
+a checklist, and adds the steps particular releases ask for.
 
 ## Upgrade
 
-1. Take the **new digest** from the release notes and read the image's
-   [release manifest](/docs/deploy/docker#the-image-can-tell-you-what-it-is)
-   before rolling it out: confirm the product major line is the one you are
-   on, and check whether the embedded runtime's compatibility range moved. A
-   runtime major-version move means breaking changes underneath — read that
-   release's notes first.
+1. Read the notes of every ObjectStack release between the version you run
+   and the one you are moving to, and work through its
+   [version-specific steps](#version-specific-steps) below. A major-version
+   move means breaking changes underneath.
 2. **Back up the database.** Schema migrations are *forward*: rolling the
    image back does not roll the schema back.
-3. Change the image digest and restart the stack. The migration runs to
-   completion before new replicas take traffic.
-4. Confirm readiness (`/api/v1/ready`) returns 200 and the replicas report
-   healthy.
+3. Change the image to the new exact version and restart. The schema is
+   brought up to date before the runtime reports ready; a destructive change
+   refuses the boot and names itself until you apply it with
+   `os migrate apply --allow-destructive`.
+4. Confirm readiness (`/api/v1/ready`) returns 200.
 
 ## Roll back
 
-Keep the **previous** digest: that is what a rollback is. To roll back,
-restore the previous digest and repeat step 3 — valid as long as the version
-you are leaving made no incompatible schema change (the release notes say
-when it did). Secrets have the same one-way edge: a secret set or rotated
-on ObjectStack 17.7 or later cannot be read by a release before 17.7 (see
+Keep the **previous** version: that is what a rollback is. To roll back,
+restore it and repeat step 3 — valid as long as the version you are leaving
+made no incompatible schema change (the release notes say when it did).
+Secrets have the same one-way edge: a secret set or rotated on ObjectStack
+17.7 or later cannot be read by a release before 17.7 (see
 [17.7](#objectstack-177) below).
-
-## On Kubernetes and air-gapped sites
-
-- **Kubernetes** — upgrading is the same change of image digest, with the
-  migration Job running to completion before the new replicas serve. See
-  [Kubernetes → Rolling upgrades change the digest](/docs/deploy/kubernetes#rolling-upgrades-change-the-digest).
-- **Air-gapped** — verify the new digest outside, transfer it in, change the
-  pinned digest, restart. Keep the previous digest: inside an air-gapped
-  network it may be the only copy you have to roll back to. See
-  [Air-gapped → Getting the image inside the network](/docs/deploy/air-gapped#getting-the-image-inside-the-network).
 
 ## The app versions separately
 
@@ -57,7 +48,8 @@ ability to roll back cleanly even when the database backup is perfect
 
 The steps above are the same for every release. Some ObjectStack releases
 underneath ObjectOS also ask the operator to act: set a variable before the
-new image boots, run a data migration, rotate a credential. The image's
+new image boots, run a data migration, rotate a credential. The Community
+image's version **is** the ObjectStack version; on Enterprise, the image's
 [release manifest](/docs/deploy/docker#the-image-can-tell-you-what-it-is)
 says which ObjectStack version it embeds. Work through the subsection of
 every version you cross, oldest first, beside the steps above.
@@ -250,3 +242,25 @@ After the first boot:
   (`account_not_linked`); it no longer links to that account silently.
 
 Full checklist: [17.7.0](https://objectstack.ai/docs/releases/v17/17-7#upgrade-checklist).
+
+## Enterprise adds
+
+The Enterprise image is pinned by **digest**, never by a tag, so an upgrade
+is a change of digest and a rollback is the previous one.
+
+1. Take the **new digest** from the release notes and read the image's
+   [release manifest](/docs/deploy/docker#the-image-can-tell-you-what-it-is)
+   before rolling it out: confirm the product major line is the one you are
+   on, and check whether the embedded runtime's compatibility range moved.
+2. Back up the database, then change the image digest and restart the
+   stack. The migration runs to completion before new replicas take traffic.
+3. Confirm readiness returns 200 and the replicas report healthy. Keep the
+   previous digest to roll back to.
+
+- **Kubernetes** — upgrading is the same change of image digest, with the
+  migration Job running to completion before the new replicas serve. See
+  [Kubernetes → Rolling upgrades change the digest](/docs/deploy/kubernetes#rolling-upgrades-change-the-digest).
+- **Air-gapped** — verify the new digest outside, transfer it in, change the
+  pinned digest, restart. Keep the previous digest: inside an air-gapped
+  network it may be the only copy you have to roll back to. See
+  [Air-gapped → Getting the image inside the network](/docs/deploy/air-gapped#getting-the-image-inside-the-network).

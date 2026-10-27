@@ -27,11 +27,8 @@ Use it to correlate:
 
 ## Metrics and errors
 
-The runtime exposes pluggable metrics and error reporter interfaces.
-Wire them to the customer's chosen system, such as Prometheus, OpenTelemetry,
-Datadog, Sentry, or another approved backend.
-
-Track at least:
+The runtime keeps metrics and error reports in-process, and exports them only
+when you choose an exporter. Track at least:
 
 | Signal | Why |
 |---|---|
@@ -40,21 +37,27 @@ Track at least:
 | 5xx errors | Alert on runtime failures |
 | Readiness transitions | The process reports ready only once its kernel is built, and `/api/v1/ready` answers 503 when a data driver stops |
 
-### Minimal Prometheus example
+Request count and duration are emitted as `http_requests_total` and
+`http_request_duration_ms`, labelled by method, route pattern and status, for
+every inbound request — sign-in and the REST data API included.
 
-ObjectOS exposes a Prometheus-compatible metrics endpoint when the
-metrics service is enabled:
+### Export with OpenTelemetry
 
-```yaml
-# prometheus.yml
-scrape_configs:
-  - job_name: objectos
-    metrics_path: /metrics
-    static_configs:
-      - targets: ['objectos:3000']
-```
+Metrics leave the runtime over **OTLP**. Set `OS_OBS_EXPORTER=otlp` **and**
+`OS_OTLP_ENDPOINT` (e.g. `https://<collector>/otlp`). The exporter defaults to
+`noop` (zero runtime cost), so export is opt-in — setting an endpoint without
+`OS_OBS_EXPORTER=otlp` emits nothing, and `otlp` without an endpoint warns and
+falls back to `noop`. Use `OS_OBS_EXPORTER=console` or `json` for local
+debugging, and `OS_OBS_DEPLOYMENT_ENV` to tag the deployment (defaults to
+`production`). [Environment Variables](/docs/reference/environment-variables#observability)
+lists the rest.
 
-Useful starter alerts:
+The runtime does not serve a scrape endpoint of its own. To use Prometheus,
+point the exporter at an OpenTelemetry Collector and let the collector expose
+the metrics to Prometheus — or send them to any backend that accepts OTLP,
+such as Grafana Cloud or Datadog.
+
+A starter alert, assuming your pipeline keeps the runtime's metric names:
 
 ```yaml
 groups:
@@ -69,31 +72,26 @@ groups:
           summary: "ObjectOS 5xx rate above 2% for 5 minutes"
 ```
 
+Alert on `http_requests_total{status=~"5.."}`, not on
+`http_request_errors_total`: that series was retired in ObjectStack 17.2 and
+reads a flat zero, which looks like a healthy server.
+
 Cold starts are not on that list. The kernel is built once, at startup, and
-the process reports [ready](/docs/deploy/docker) only afterwards — there is
+the process reports [ready](/docs/deploy/docker#health-checks) only afterwards — there is
 no steady-state cache-miss signal to alert on, so alert on readiness instead.
 
 Auth failures are not on it either. The runtime's metric registry covers
 HTTP, storage, cache, background jobs and the package registry; none of those
 counts a rejected credential, so there is no series to alert on. Counting
-401/403 out of `http_requests_total` is not a substitute for one: the sign-in
-endpoints do not feed that counter, a rejected API key is indistinguishable
-from a request that carried no credential at all, and both statuses are
+401/403 out of `http_requests_total` is not a substitute for one: a rejected
+API key is indistinguishable from a request that carried no credential at
+all, and both statuses are
 dominated by ordinary permission denials against users who authenticated
 perfectly well. Review sign-in activity in Setup's `Auth` audit view
 instead, as a holder of `view_all_audit_log` — platform administrators hold
 it by default. Without it, sign-outs and sign-ins whose session has since
 been removed are not served; see
 [Audit Logs](/docs/operate/audit-logs#what-each-reader-is-served).
-
-For OpenTelemetry, set `OS_OBS_EXPORTER=otlp` **and** `OS_OTLP_ENDPOINT`
-(e.g. `https://<collector>/otlp`) and ObjectOS will emit traces and metrics
-in OTLP format. The exporter defaults to `noop` (zero runtime cost), so OTLP
-export is opt-in — setting an endpoint without `OS_OBS_EXPORTER=otlp` emits
-nothing. Use `OS_OBS_EXPORTER=console` or `json` for local debugging, and
-`OS_OBS_DEPLOYMENT_ENV` to tag the deployment (defaults to `production`). The
-shape of spans matches the
-[request flow](/docs/architecture#how-a-request-is-served).
 
 ## Audit logs
 
