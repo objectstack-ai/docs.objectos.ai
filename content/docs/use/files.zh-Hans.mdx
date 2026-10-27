@@ -1,0 +1,110 @@
+---
+title: 文件与附件
+seoTitle: "文件与附件：上传、下载、权限"
+description: 把文件附加到记录上，或上传到文件字段中 —— 谁能查看、添加和删除它们，以及被删除的文件会保留多久。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3bb89abc1ac77bc14428766ab10e45b3a10ceef5d201d4d588c672c0a4072b9f
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/attachments-storage.json):
+  attachments-storage.presigned-upload-roundtrip,
+  attachments-storage.download-authz-both-sides,
+  attachments-storage.read-inherits-parent-rls,
+  attachments-storage.attach-requires-parent-edit,
+  attachments-storage.sys-file-status-pipeline,
+  attachments-storage.orphan-tombstone-reap,
+  attachments-storage.inline-grid-receipt-cells,
+  attachments-storage.field-accept-maxsize-server-enforced,
+  attachments-storage.upload-limits-scope-and-ownership.
+*/}
+
+文件通过两种方式到达一条记录：
+
+| 方式 | 长什么样 | 用来放 |
+|---|---|---|
+| **附件** | 记录页上的 **Attachments**（附件）标签页，列出任意数量的文件 | 合同、照片、往来信函 —— 任何属于这条记录的东西 |
+| **文件和图片字段** | 表单中的上传控件，有时出现在明细表的每一行里 | 记录需要的某一份特定文档 —— 每条报销明细一张收据、一张产品照片 |
+
+两者都把文件本身存放在存储中，由记录指向它，因此决定谁能打开它的是同样
+的规则。
+
+## 附件标签页 [#the-attachments-tab]
+
+构建者为其开启了附件功能的对象，会在每个记录页上显示一个
+**Attachments** 标签页。
+
+| 控件 | 它做什么 |
+|---|---|
+| **Upload**（上传） | 从你的电脑中选择一个或多个文件 |
+| 文件列表 | 附加到这条记录上的每个文件 |
+| **Download**（下载） | 打开文件 |
+| **Delete attachment**（删除附件） | 在你确认后，把文件从这条记录上移除 |
+
+没有任何附件的记录会显示 **No attachments yet. Upload a file to get
+started.**
+
+## 谁能做什么 [#who-can-do-what]
+
+附件跟随它所属的记录：
+
+| 要…… | 你需要 |
+|---|---|
+| 查看附件并下载它们 | 对该记录的读取权限 |
+| 上传附件 | 对该记录的**编辑**权限 —— 只能读取是不够的 |
+| 删除附件 | 是上传它的人，或者拥有对该记录的编辑权限 |
+
+上传文件的人总是可以下载和移除它。
+
+如果你无法读取一条记录，它的附件对你来说就不存在：它们不会出现在任何
+列表或计数中。当某个操作被拒绝时，你会看到一条直白的消息，例如
+*You don't have access to attach files to this record.* 或
+*Only the uploader or someone who can edit this record may delete this
+attachment.*
+
+## 文件和图片字段 [#file-and-image-fields]
+
+文件或图片字段会在表单中显示一个上传控件。选择一个文件，它会立即上传，
+然后显示为一个带文件名的标签，你可以在保存前移除它。在明细表中（比如
+发票的明细行），每一行都有自己的上传单元格。
+
+字段可以限制它接受哪些文件类型，以及文件可以有多大。保存时服务器会再次
+检查这些限制 —— 违反限制的文件会被拒绝，消息中会点名该字段，并且不会
+保存任何内容。
+
+## 下载是短时有效的链接 [#downloads-are-short-lived-links]
+
+**Download** 会向服务器请求一个只在几分钟内有效的链接（默认五分钟）。
+如果你复制这个链接、稍后再打开，它就已经过期了 —— 从记录上重新下载即可。
+没有该记录访问权限的人根本拿不到一个可用的链接。
+
+## 大小限制 [#size-limits]
+
+单个文件最大可以是 **100 MB**，除非你的管理员设置了不同的限制（存储设置
+**Limits** 下的 **Max upload size (MB)**）。超过限制的文件会在存储任何
+内容之前被拒绝。
+
+## 被删除的文件会怎样 [#what-happens-to-removed-files]
+
+删除一个附件，会把它从**那条记录**上移除。文件本身会分阶段清理，所以一次
+失误不会当场销毁数据：
+
+| 状态 | 会发生什么 |
+|---|---|
+| 同时附加在另一条记录上 | 只要还有任何记录持有它，它就会保留 |
+| 不再附加在任何地方 | 保留 **30 天**，然后回收它的存储 |
+| 开始了但从未完成的上传 | **7 天**后移除 |
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 阅读 |
+|---|---|
+| 打开并编辑文件所属的记录 | [记录操作](/docs/use/records) |
+| 与团队讨论一条记录 | [在记录上协作](/docs/use/collaboration) |
+| 从电子表格导入大量记录 | [导入数据](/docs/use/import) |
+| 设置文件存放在哪里 | [存储](/docs/configure/storage) |
+| 回到导览 | [使用 ObjectOS](/docs/use) |

@@ -2,19 +2,20 @@
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 記錄操作
 description: 開啟、閱讀、建立和編輯支撐你日常工作的記錄 —— 任務、專案、客戶，什麼都行。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: e4156649bc6fa4ef24418c529397b9750286ac1d581b10a1c35f534b9a29c092
+  source_sha: 18dd6c9ea408b3c20cbbdf3ace75fbfc3830ea0ae649a3066878122a22934d97
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 中的一切都是**記錄** —— 一個任務、一個專案、一個客戶、一張發票。本頁教你如何開啟一條記錄、讀懂記錄頁、建立新記錄，以及一次編輯多條記錄。
 
-## 開啟記錄
+## 開啟記錄 [#opening-a-record]
 
 在任何列表中，**記錄的標題就是連結** —— 點選即可開啟記錄頁。要返回時，使用記錄頂部的返回連結（例如 **< All Tasks**），或左上角的麵包屑。
 
-## 記錄頁的結構
+## 記錄頁的結構 [#anatomy-of-a-record-page]
 
 從上到下，一個記錄頁依次顯示：
 
@@ -27,13 +28,13 @@ ObjectOS 中的一切都是**記錄** —— 一個任務、一個專案、一�
 | **欄位分組** | 其餘欄位，按卡片分組（如 Overview、Schedule、Details） |
 | **Show N empty fields**（顯示 N 個空欄位） | 分組末尾的開關 —— 空欄位預設摺疊，以保持頁面簡短 |
 
-### 讀懂狀態流水線
+### 讀懂狀態流水線 [#reading-the-state-pipeline]
 
 當物件帶有工作流時，頁面頂部的條會把每個階段顯示為一個箭頭形：已完成的階段帶對勾（✓ Backlog → ✓ To Do → ✓ In Progress），**當前階段高亮顯示**。一眼就能看出記錄進行到了哪一步。
 
 > **提示：**如果一條記錄看起來內容稀少，點選 **Show N empty fields** —— 欄位是存在的，只是還沒有值。
 
-## 建立記錄
+## 建立記錄 [#creating-a-record]
 
 點選任意列表頂部的 **+ New**（新建）。彈出一個模態框（例如 *"Create Task — Add a new Task to your database"*）。表單中：
 
@@ -46,15 +47,15 @@ ObjectOS 中的一切都是**記錄** —— 一個任務、一個專案、一�
 
 最後點 **Create**（建立）完成，或點 **Cancel**（取消）放棄。
 
-## 內聯編輯記錄
+## 內聯編輯記錄 [#editing-records-inline]
 
 改動記錄不必逐條開啟。在表格檢視中，開啟工具欄上的 **Edit inline**（內聯編輯）開關 —— 單元格變為可編輯，你可以像用電子表格一樣，直接在列表裡修正狀態、重新指派任務或更新日期。
 
-## 行內操作選單
+## 行內操作選單 [#the-per-row-actions-menu]
 
 表格中的每一行末尾都有一個 `⋮` **操作**選單。它包含對這單條記錄可用的操作 —— 無需先開啟記錄的快捷方式。
 
-## 一次選中多條記錄
+## 一次選中多條記錄 [#selecting-many-records-at-once]
 
 表格每行的開頭都有一個**核取方塊**：
 
@@ -63,7 +64,7 @@ ObjectOS 中的一切都是**記錄** —— 一個任務、一個專案、一�
 
 > **提示：**批次操作因物件而異；它們就是列表頭部 **+ New** 和 **Import** 旁邊的那些按鈕。
 
-## 列表頭部全覽
+## 列表頭部全覽 [#the-list-header-in-full]
 
 每個列表上方都有：
 
@@ -74,7 +75,7 @@ ObjectOS 中的一切都是**記錄** —— 一個任務、一個專案、一�
 | 自定義批次操作 | 物件特有的操作，如 **Reassign…**，作用於你選中的記錄 |
 | 鈴鐺靜音開關 | 遮蔽這個物件的通知 —— 參見[通知](/docs/use/notifications) |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 我想…… | 閱讀 |
 |---|---|
@@ -82,4 +83,4 @@ ObjectOS 中的一切都是**記錄** —— 一個任務、一個專案、一�
 | 看彙總和趨勢，而不是一行行記錄 | [儀表盤](/docs/use/dashboards) |
 | 處理等我審批的記錄 | [審批](/docs/use/approvals) |
 | 控制哪些更新會通知我 | [通知](/docs/use/notifications) |
-| 回到 Console 導覽 | [使用 ObjectOS](/docs/use) |
+| 回到導覽 | [使用 ObjectOS](/docs/use) |

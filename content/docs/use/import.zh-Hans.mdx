@@ -1,0 +1,155 @@
+---
+title: 导入数据
+seoTitle: "导入向导：CSV 与 Excel 导入、映射、撤销"
+description: 从 CSV 或 Excel 文件导入记录 —— 映射列、在保存任何内容之前修正错误，并撤销出错的导入。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 47a5d626f6c1bbf30e5d32d5604cf1ecf5a2d4285086b433ec1cbad75d838a2f
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/records-forms.json):
+  records-forms.import-wizard-encoding-and-hints,
+  records-forms.named-import-mapping,
+  records-forms.import-job-undo-cancel,
+  records-forms.import-transform-matrix.
+*/}
+
+当你有一份电子表格里的记录 —— 一份客户名单、去年的项目 —— **导入向导**
+会分三步把它们变成记录：**Upload**（上传）、**Mapping**（映射）、
+**Preview**（预览）。在你最后按下 **Import** 之前，什么都不会被保存。
+
+## 打开向导 [#opening-the-wizard]
+
+在对象的列表中，点击列表头部的 **Import**。在某些对象上，它位于头部的
+`⋯` 溢出菜单中。
+
+只有当该对象开放导入、并且你被允许创建它的记录时，你才会看到它 ——
+导入会创建记录，所以它需要与 **+ New** 相同的权限。
+
+## 第 1 步 —— 上传 [#step-1--upload]
+
+把文件拖到向导上、点击 **Browse Files**（浏览文件），或者粘贴
+（`Ctrl/⌘+V`）直接从 Excel 或 Google Sheets 复制的行。
+
+| 文件 | 是否支持 |
+|---|---|
+| CSV、TSV | 是 |
+| Excel `.xlsx` | 是 |
+| 旧版 Excel `.xls` | 否 —— 先打开它并另存为 `.xlsx` |
+
+第一行必须是列标题，并且至少要有一行数据。
+
+**不确定该用哪些列？** 点击 **Download template**（下载模板），得到一个
+Excel 文件，其中列出了你可以导入的每一列，必填列标有 `*`，并附有填写
+说明。
+
+> **提示：**中文版 Excel 保存的文件（"另存为 CSV"）通常是 GBK 编码，而不是
+> UTF-8。你不需要转换它们：向导会检测编码，所以中文标题和值都能完整
+> 导入。
+
+## 第 2 步 —— 映射 [#step-2--mapping]
+
+向导按名称把你的列与对象的字段匹配起来，并说明它有多确定（**High**、
+**Medium** 或 **Low confidence**）。检查这些匹配，修改其中错误的：
+
+| 选择 | 效果 |
+|---|---|
+| 一个字段 | 该列的值写入那个字段 |
+| **— Skip —**（跳过） | 忽略该列 |
+
+值看起来与字段类型不符的列会被标记出来（例如 *Looks like Date*）。
+
+**必填字段必须被映射。** 如果有一个没有映射，**Next** 会保持禁用，向导会
+列出缺少的字段 —— 把那一列加到你的文件里，或者上传一个包含它的文件。
+
+**复用映射。** 在 **Mapping template**（映射模板）下，**Save current**
+（保存当前）会把这套列到字段的映射保存在你的浏览器中，下次导入相同布局
+的文件只需一次点击。如果你的应用构建者为这类文件设置了**保存的映射**，
+就选择它：此时服务器会重命名列、转换值并应用它自己的规则，列映射以只读
+方式显示。
+
+## 第 3 步 —— 预览 [#step-3--preview]
+
+预览会按导入后的样子显示你的行。有问题的行会被高亮 —— 点击高亮的单元格
+即可就地修正值。点击 **Validate data**（校验数据），在写入任何内容之前
+让服务器检查每一行；你会看到有多少行有效、哪些行有错误。通过校验的行，
+就是导入会接受的行。
+
+典型错误：
+
+| 消息 | 含义 |
+|---|---|
+| *This field is required* | 一个必填值为空 |
+| *"abc" is not a valid number*（或日期、时间、真/假） | 该值无法按字段的类型读取 |
+| *"Gold" is not one of the allowed options* | 选项字段收到了一个它不提供的值 |
+| *No matching record for "Acme"* | 一个指向另一条记录的列，指定了一条不存在的记录 |
+| *"Acme" matches more than one record* | 这个名称不唯一 —— 使用一个唯一的值或记录 ID |
+
+### 导入选项 [#import-options]
+
+| 选项 | 它做什么 |
+|---|---|
+| **When a row matches an existing record**（当某行匹配到已有记录时） | **Always create new**（始终新建）、**Update existing (skip if no match)**（更新已有，无匹配则跳过）或 **Update if matched, else create**（匹配则更新，否则新建） |
+| **Match on**（匹配依据） | 用于查找已有记录的字段 —— 邮箱、编码、外部 ID |
+| **Keep unknown option values**（保留未知选项值） | 把字段不提供的选项值原样保存，而不是拒绝该行 |
+| **Skip rows with a blank match value**（跳过匹配值为空的行） | 排除没有可匹配内容的行 |
+| **Import in the background**（在后台导入） | 把导入作为一个以后可以撤销的任务运行 |
+
+按匹配字段更新，能让导入可以安全地重复：再次运行同一个文件，会更新它
+创建过的记录，而不是产生重复。
+
+## 结果 [#the-result]
+
+导入完成后，你会看到有多少记录被**创建**、**更新**和**跳过**，以及所有
+行错误。**Download failed rows**（下载失败的行）只给你那些没成功的行，
+修好后可以再次导入。
+
+## 后台导入、取消与撤销 [#background-imports-cancel-and-undo]
+
+超过 **5,000 行**的文件总是在后台导入；较小的文件在你勾选
+**Import in the background** 时也会在后台导入。后台导入会显示进度，你可以
+继续工作。
+
+| 操作 | 会发生什么 |
+|---|---|
+| **Cancel import**（取消导入） | 停止任务。已写入的行会保留；一行要么完整保存，要么完全不保存 —— 绝不会只写一半。 |
+| **History**（历史） | 列出该对象的后台导入，最新的在前，附带状态、行数和结果 |
+| **Undo import**（撤销导入） | 删除导入创建的记录，并把它更新过的记录恢复为之前的值。其他任何东西都不会被动到。 |
+
+如果有些行无法撤销，向导会告诉你有多少 —— 再次选择 **Undo import**，
+只重试那些行。
+
+> **提示：**第一次导入一个大文件？勾选 **Import in the background**。如果
+> 结果不是你预期的，一次 **Undo import** 就能把一切恢复原状。
+
+## 面向应用构建者：保存的映射 [#for-app-builders-saved-mappings]
+
+保存的映射是你的包中的 `mapping` 元数据。它把外来的标题重命名为字段
+（"Full Name" → `name`），设定让重复导入执行更新而不是产生重复的键，并且
+可以在导入途中转换值：
+
+| 转换 | 作用 |
+|---|---|
+| `map` | 把代码翻译成值（`'Webform'` → `web`）；没有对应条目的值原样通过 |
+| `constant` | 写入一个固定值，忽略该列 |
+| `lookup` | 把一个名称解析为相关记录的 ID |
+| `split` | 把一列拆分到多个字段 |
+| `join` | 把多列合并到一个字段，跳过空的部分 |
+
+指定了 `javascript` 转换的映射会在写入任何行之前被拒绝 —— 服务器端没有
+可以运行它的沙箱。通过为另一种格式声明的映射导入文件（用 CSV 映射导入
+JSON）会被拒绝，并同时点名两种格式；Excel 文件走 CSV 映射。指定了一个
+不存在的映射的导入会被拒绝，而不是退回到按位置匹配列。
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 阅读 |
+|---|---|
+| 编辑导入的记录 | [记录操作](/docs/use/records) |
+| 找到我刚导入的记录 | [搜索](/docs/use/search) |
+| 把列表过滤到我导入的内容 | [使用视图](/docs/use/views) |
+| 回到导览 | [使用 ObjectOS](/docs/use) |

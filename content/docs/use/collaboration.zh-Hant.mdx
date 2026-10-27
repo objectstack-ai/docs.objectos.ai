@@ -1,0 +1,152 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 在記錄上協作
+seoTitle: "記錄討論、@提及、歷史、分享連結與公開表單"
+description: 與團隊討論一條記錄、@提及他人、檢視改了什麼以及是誰改的 —— 以及分享連結和公開表單會向外部人員開放什麼。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 6f006fa86f045c560def736d420ace4826af5c3751a280f581b2c7d8bbc2d102
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/records-forms.json and access-security.json):
+  records-forms.record-discussion-mentions,
+  records-forms.comment-reactions-and-edit-stamps,
+  records-forms.field-history-tracking,
+  access-security.share-link-capability-tokens,
+  access-security.share-link-landing-page,
+  access-security.share-link-combined-gates,
+  access-security.public-form-intake,
+  access-security.public-form-withdrawal-layers.
+*/}
+
+對一條記錄的工作很少是一個人完成的。每個記錄頁都可以承載關於它的討論、
+一條變更軌跡，以及 —— 當應用為此做了設定時 —— 一種向不登入的人展示
+記錄或從他們那裡收集資料的方式。
+
+## 討論 [#the-discussion]
+
+記錄頁的標籤頁下方是它的 **Discussion**（討論）：評論和記錄的活動合在
+一個資訊流裡，最早的在前。（它出現在構建者開啟了討論功能的物件上。）
+
+| 你可以 | 怎麼做 |
+|---|---|
+| 評論 | 在 **Write a comment…** 中輸入，然後按 **Send** 或 `Ctrl+Enter`。工具欄中有粗體、斜體、列表和行內程式碼，還有 **Preview**（預覽） |
+| 提及某人 | 輸入 `@`，從建議中選擇一個人（或使用 **Mention someone**） |
+| 回覆 | 在評論下方回覆，讓一個話題保持在一起 |
+| 回應 | 給評論加一個表情回應 |
+| 編輯或刪除 | 僅限你自己的評論。被編輯過的評論會標記為 **(edited)** —— 這個標記由伺服器設定，所以無法隱藏 |
+| 關注記錄 | 點 **Subscribe to notifications**（訂閱通知），獲知這條記錄的更新 |
+
+評論在你傳送的那一刻就會出現，然後被替換為已儲存的副本，不會出現重複。
+
+### 過濾資訊流 [#filtering-the-feed]
+
+資訊流把評論與記錄的活動混在一起。用過濾器收窄它：
+
+| 過濾器 | 顯示 |
+|---|---|
+| **All Activity**（全部活動） | 所有內容 |
+| **Comments Only**（僅評論） | 評論和回覆 |
+| **Field Changes**（欄位變更） | 對記錄欄位的編輯 |
+| **Tasks Only**（僅任務） | 任務條目 |
+
+過濾結果為空，只是說明這條記錄還沒有那一類內容。
+
+## @提及 [#mentions]
+
+當你 `@mention` 某人時，他們的鈴鐺裡會收到一條通知，附帶評論預覽和一個
+直達該記錄的連結。
+
+提及永遠不會超出討論本身的範圍：只有當被提及的人能讀取這條記錄和這條
+評論時，他們才會收到通知。提及某人**不會**授予他們訪問許可權。評論的作者
+不會因為自己的提及收到通知，沒有被提及的人也不會。
+
+## 改了什麼，是誰改的 [#what-changed-and-who-changed-it]
+
+| 位置 | 它顯示什麼 |
+|---|---|
+| 討論資訊流 | 對於應用構建者選擇跟蹤的欄位，顯示一行類似 **Industry: Technology → Finance** 的記錄，使用你在表單中看到的標籤 |
+| **History**（歷史）標籤頁 | 記錄的完整變更歷史。它出現在構建者開啟了歷史跟蹤的物件上 |
+
+對未被跟蹤的欄位的修改，不會在資訊流中生成前後對比的記錄行。
+
+## 與團隊分享一條記錄 [#sharing-a-record-with-your-team]
+
+記錄 `⋯` 選單中的 **Share** 會複製記錄的地址（或開啟裝置的分享面板）。它
+不授予任何許可權：開啟它的人仍然需要對該記錄的訪問許可權 —— 參見
+[許可權](/docs/configure/permissions)。
+
+## 分享連結：任何拿到連結的人 [#share-links-anyone-with-the-link]
+
+對於應用構建者開啟了公開分享的物件，一條記錄還可以擁有**分享連結** ——
+一個把這一條記錄展示給沒有賬戶的人、或者有賬戶但無權訪問該記錄的人的
+連結。
+
+分享連結由能看到該記錄的人，通過 API（`POST /api/v1/share-links`）為一條
+記錄建立。每個連結都可以帶有自己的限制：
+
+| 限制 | 效果 |
+|---|---|
+| **密碼** | 頁面會要求輸入：**Password required**，輸錯時顯示 **Wrong password.**，直到輸對為止 |
+| **僅限已登入使用者** | 沒有會話的訪問者會看到 **Sign in required**，以及一個回到同一頁面的 **Sign in** 連結 |
+| **郵箱白名單** | 只有郵箱在名單中的已登入使用者才能看到這條記錄 |
+| **過期日期** | 連結在那一天失效 |
+| **隱藏欄位** | 在物件始終對分享連結隱藏的欄位之外，再從連結展示的內容中排除的欄位 |
+
+開啟連結的人看到的是一個應用之外的頁面 —— 沒有選單，除非連結要求否則也
+不需要登入 —— 以只讀方式顯示記錄的欄位。如果有欄位被隱藏，頁面會顯示
+**Some fields are hidden by the owner** 並列出它們。
+
+### 撤銷，以及連結永遠不會暴露什麼 [#revoking-and-what-a-link-never-exposes]
+
+- **撤銷**一個連結（`DELETE /api/v1/share-links/…`），它會立刻失效：頁面
+  顯示 **This link has expired or was revoked.** 超過過期日期的連結也是
+  如此。
+- **刪除記錄**之後，指向它的每個連結都會返回 **This link is invalid or no
+  longer available.** —— 與一個憑空編造的連結得到的答案相同，因此連結
+  永遠不會證實一條記錄是否存在。
+- **隱藏欄位在伺服器上就被移除。** 它們永遠不會到達訪問者的瀏覽器，而不
+  只是不顯示在螢幕上。
+- **只有一條記錄。** 連結只打開它所針對的那一條記錄，永遠不會開啟相關
+  記錄或列表的其餘部分。
+- **密碼留在伺服器上。** 它以雜湊形式儲存，任何響應都不會把它帶回來。
+- **不做任何快取。** 通過連結提供的頁面會告訴瀏覽器和代理不要保留副本，
+  所以共用電腦上的下一個人看不到受密碼保護的記錄。
+- **你只能看到你自己的連結。** 列出連結時返回的是你建立的連結，而不是
+  其他任何人的。
+
+如果應用構建者為該物件關閉了公開分享，它上面的每個連結都會失效，直到
+重新開啟。
+
+## 公開表單：從外部收集資料 [#public-forms-collecting-data-from-outside]
+
+**公開表單**是應用構建者釋出在某個連結（例如 `/forms/contact-us`）上、
+供未登入的人使用的表單 —— 聯絡表單、網頁獲客表單或支援請求。訪問者填寫
+表單後會看到表單的確認資訊（例如一條感謝訊息）；每次提交都會成為一條
+記錄，你的團隊可以像處理其他記錄一樣處理它。
+
+公開表單永遠不會開放的內容：
+
+- **只有列出的欄位。** 訪問者只能看到和填寫表單顯示的欄位 —— 而不是物件
+  的其餘部分。
+- **不能查詢。** 無論表單聲明瞭什麼，公開表單都沒有會搜尋你的記錄的欄位
+  （沒有查詢選擇器或人員選擇器）。
+- **不能偽造歸屬。** 訪問者無法設定記錄歸誰所有、屬於哪個組織，也無法
+  設定諸如狀態之類的欄位；為這些欄位傳送的值會被丟棄，由伺服器來設定。
+
+要**關閉**一個公開表單，構建者可以取消釋出它，或關閉匿名訪問。之後該
+連結會像表單不存在一樣作答，提交會立即停止。
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 閱讀 |
+|---|---|
+| 給記錄附加檔案 | [檔案與附件](/docs/use/files) |
+| 控制哪些通知會到達我 | [通知](/docs/use/notifications) |
+| 瞭解誰能看到一條記錄 | [許可權](/docs/configure/permissions) |
+| 構建一個公開表單 | [檢視 → 公開表單](/docs/build/interface/views#public-forms) |
+| 回到導覽 | [使用 ObjectOS](/docs/use) |

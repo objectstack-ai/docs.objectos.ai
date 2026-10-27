@@ -1,9 +1,11 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 審批
+seoTitle: "審批收件箱：提交、審閱和跟蹤請求"
 description: 提交記錄等待籤核、處理指派給你的請求，並隨時掌握每個審批的進展。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: be7bf40fa6c2851bc8f023b2031210431adc3a29af061befa0aecee7d1fb4737
+  source_sha: 2e66606b534686f5a7d8944dc432440b441ef36a02de56101bfa89b2627a1ce3
   guide_rev: 1
   mode: auto
 ---
@@ -12,7 +14,7 @@ translation:
 
 本頁覆蓋流程的兩端：把東西提交審批，以及處理等你決定的請求。
 
-## 你的審批收件箱
+## 你的審批收件箱 [#your-approval-inbox]
 
 所有與審批相關的東西都在一個地方：**Account → Inbox → Approvals**（賬戶 → 收件箱 → 審批）。開啟 **Account** 應用（所有人都能用），在左側邊欄展開 **Inbox**，選擇 **Approvals**。
 
@@ -23,13 +25,15 @@ translation:
 | **My Pending**（待我處理） | 等*你*來決定的請求。這就是你的待辦清單。 |
 | **I Submitted**（我提交的） | 你發出的審批請求 —— 在這裡檢視自己的送審進展到哪一步。 |
 | **Completed**（已完成） | 已有結論的請求，無論批准還是拒絕。 |
-| **All**（全部） | 你有權看到的每一條審批請求。 |
+| **All**（全部） | 你能看到的每一條審批請求 —— 具體是哪些，見下文。 |
 
 當沒有任何事項等你處理時，**My Pending** 會顯示空狀態 *"No pending approvals — You're all caught up."* 這正是你希望在一天結束時看到的畫面。
 
-> **提示：**收藏審批收件箱，或者直接瞟一眼 Console 首頁的 **Needs your attention** 列表 —— 待處理的審批也會出現在那裡，並標註已經等了多久。
+**你能看到你參與其中的請求。** 一條請求對以下人員可見：提交它的人、它當前正在等待的人（直接指派，或通過他們擔任的崗位），以及任何已經對它做出決定或發表過評論的人。管理員能看到每一條請求。能開啟這條記錄並不夠 —— 一個能讀這條記錄、但沒有參與審批的同事，看不到它的請求、評論或附件。
 
-## 審批請求是什麼
+> **提示：**收藏審批收件箱，或者直接瞟一眼首頁的 **Needs your attention** 列表 —— 待處理的審批也會出現在那裡，並標註已經等了多久。
+
+## 審批請求是什麼 [#what-an-approval-request-is]
 
 | 它是…… | 它不是…… |
 |---|---|
@@ -39,11 +43,11 @@ translation:
 
 因為每次提交都會得到自己的請求，被拒絕後重新提交記錄會開啟一條全新的請求 —— 舊的那條會作為歷史留在 **Completed** 裡。
 
-## 處理請求
+## 處理請求 [#acting-on-a-request]
 
 當一條請求被路由給你時，會發生兩件事：
 
-1. **你會收到通知** —— 頂欄的鈴鐺出現未讀角標，事項會出現在 Console 首頁的 **Needs your attention** 和 **Account → Inbox → Notifications** 中。
+1. **你會收到通知** —— 頂欄的鈴鐺出現未讀角標，事項會出現在首頁的 **Needs your attention** 和 **Account → Inbox → Notifications** 中。
 2. **相關記錄會向你顯示審批操作** —— 開啟這條記錄，你會看到 **Approve**（批准）和 **Reject**（拒絕）兩個記錄操作。這些按鈕只對被指派的審批人顯示；其他檢視這條記錄的人看不到。
 
 | 想要…… | 這樣做 |
@@ -55,19 +59,19 @@ translation:
 
 > **提示：**讀記錄，而不只是讀請求。審批請求只告訴你*有*事情需要決定；記錄本身才告訴你*該不該*批准。
 
-## 待審期間記錄被鎖定
+## 待審期間記錄被鎖定 [#records-locked-while-pending]
 
 取決於審批的配置方式，記錄在請求待處理期間可能被**鎖定** —— 在做出決定之前欄位無法編輯。這是在保護審批人：他們批准的正是當初提交的內容，中間沒有悄悄的改動。如果你需要修改一條被鎖定的記錄，請讓審批人拒絕它（或在應用支援時撤回它），改完後重新提交。
 
-## 應用自帶的審閱佇列
+## 應用自帶的審閱佇列 [#app-provided-review-queues]
 
 有些應用會新增自己精心組織的**審閱佇列頁面** —— 比如應用導航裡的一個 "Approvals" 頁面，只顯示與該團隊相關的事項，已經預先過濾好、可以直接逐條處理。有就用它；底層是同樣的請求，只是換了一個更友好的視角。你的 **Account → Inbox → Approvals** 收件箱始終是完整的、一站式的總覽。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 現在做什麼 | 閱讀 |
 |---|---|
-| 以日常使用者身份導覽 Console | [使用 ObjectOS](/docs/use) |
+| 以日常使用者身份導覽 ObjectOS | [使用 ObjectOS](/docs/use) |
 | 處理你正在審批的記錄 | [記錄](/docs/use/records) |
 | 跟進路由給你的其他一切 | [通知](/docs/use/notifications) |
 | 像審批人一樣切分列表 | [檢視](/docs/use/views) |

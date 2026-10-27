@@ -1,0 +1,125 @@
+---
+title: 搜索
+seoTitle: "搜索与命令面板：找到任意记录"
+description: 输入记录的一部分就能找到它 —— 无论是在 ⌘K 面板、列表的搜索框还是查找选择器中 —— 并跳转到应用中的任何位置。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 78801613cbafc2e8b4473a6057341caba6dbfad1ba128189df982d69710f578b
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/search.json): search.cross-field-object-search,
+  search.field-scoped-narrowing, search.rls-both-personas,
+  search.pinyin-flag-both-sides, search.freshness-and-empty,
+  search.console-global-search, search.command-palette-navigation,
+  search.global-search-skips-unreadable.
+*/}
+
+输入名称、邮箱、状态或城市的一部分，ObjectOS 就会找出包含它的记录。
+同一套搜索在三个地方运行：
+
+| 位置 | 搜索什么 |
+|---|---|
+| **全局搜索** —— `⌘K`（Mac）/ `Ctrl-K`（Windows/Linux），或顶栏的 **Search…** | 你能读取的所有对象中的记录，外加应用自己的菜单 |
+| **列表搜索** —— 视图工具栏中的放大镜 | 你所在列表的记录 |
+| **查找选择器** —— 指向另一条记录的字段上的 **Select…** 框 | 你可以选择的记录 |
+
+三者都会把你输入的词发送到服务器，得到同样的答案，所以在一处出现的
+记录，在另外两处也会出现。
+
+## 匹配是如何工作的 [#how-matching-works]
+
+| 你输入 | 它找到 |
+|---|---|
+| 单词的一部分 —— `retail` | 被搜索字段中任何位置含有 `retail` 的每条记录：*Acme Retail*，或行业为 *Retail* 的客户 |
+| 任意大小写 —— `Retail`、`RETAIL` | 同样的记录；搜索不区分大小写 |
+| 多个词 —— `retail northwind` | **每个**词都匹配到同一条记录某个字段的记录 |
+| 一个选项标签 —— `In Progress` | 状态（或其他选项字段）取该选项的记录，即使存储的值不同 |
+
+搜索哪些字段，由构建应用的人按对象设定。如果他们没有选择，搜索会查看
+记录的名称或标题、它的文本字段（包括邮箱、电话、URL 和长文本）以及它的
+选项字段 —— 不包括数字、日期、是/否字段、文件，或指向其他记录的链接。
+
+> **提示：**词越多，结果越窄。`acme invoice` 找到的是 Acme 的发票，而不是
+> 所有 Acme 记录再加上所有发票。
+
+## 你只能找到你能读取的内容 [#you-only-find-what-you-can-read]
+
+搜索以你的权限运行，与打开一个列表相同：
+
+- 你无法读取的记录永远不会被返回，也不会计入总数。
+- 你无权访问的对象会被静默跳过 —— 你的搜索仍会从你能读取的对象中给出
+  答案。
+- 对你隐藏的字段不会被搜索，所以命中结果不会泄露其中的内容。
+
+两个人输入同样的词，可能得到不同的结果。这是正确的：每个人看到的是
+自己被允许看到的匹配。
+
+## 始终是最新的 [#always-up-to-date]
+
+没有需要等待的索引。你刚创建的记录立刻就能被找到；重命名之后，新名称
+能匹配，旧名称不再匹配；被删除的记录会立即从结果中消失。
+
+没有任何匹配时，你会看到 **No results found**（未找到结果）—— 这不是
+错误。试试更少或更短的词。
+
+## 中文名称与拼音 [#chinese-names-and-pinyin]
+
+当你的应用支持中文时，搜索还能匹配用拼音输入的中文名称：完整拼写
+（`zhangwei`）或首字母（`zw`）都能找到 **张伟**，而汉字照常按输入匹配。
+拼音适用于记录的名称字段。
+
+当应用的语言列表中包含一种中文时，拼音搜索就会开启。管理员可以用
+`OS_SEARCH_PINYIN_ENABLED` 设置为整个部署开启或关闭它。
+
+## 命令面板 [#the-command-palette]
+
+按 `⌘K` / `Ctrl-K`（或点击 **Search…**）打开面板。它既是搜索框，也是
+导航器：
+
+| 你会看到 | 它做什么 |
+|---|---|
+| **Recently viewed**（最近查看） | 搜索框为空时显示 —— 你最近打开过的记录，一键即达 |
+| 按对象名称分组的记录 | 至少输入**两个字符**；匹配项出现在 *Accounts*、*Contacts* 之类的标题下。按 **Enter** 打开高亮的记录 |
+| **Objects**、**Dashboards**、**Pages**、**Reports** | 当前应用菜单中名称匹配的项 —— 包括收在菜单分组里的项 |
+| **Switch App**（切换应用） | 你的其他应用；当前应用标记为 **Current** |
+| **Preferences**（偏好设置） | **Light Theme**、**Dark Theme**、**System Theme** —— 立即生效 |
+| **Open Full Search Page**（打开完整搜索页） | 打开搜索页（见下文） |
+
+面板只提供你本来就能到达的内容：侧边栏中对你隐藏的菜单项在这里也被
+隐藏，未启用的应用不会出现在 **Switch App** 下。
+
+> **提示：**让双手留在键盘上 —— `⌘K`、输入、方向键、**Enter**。再按一次
+> `⌘K` 会关闭面板。
+
+## 搜索页 [#the-search-page]
+
+**Open Full Search Page** 会把你带到同一搜索的整页视图：匹配的应用对象、
+仪表盘、页面和报表，以及按对象分组的记录匹配。在它的搜索框中输入即可
+进一步细化。
+
+## 在列表内搜索 [#searching-inside-a-list]
+
+视图工具栏中的放大镜会收窄你所在的列表。它与视图的过滤、分组和排序
+协同工作 —— 参见[使用视图](/docs/use/views)。知道在*哪个*列表时用它；
+不知道时用 `⌘K`。
+
+## 面向应用构建者 [#for-app-builders]
+
+对象的 `searchableFields` 设定搜索扫描哪些字段；省略它，就会得到上文
+描述的名称、文本和选项字段。视图或 API 调用可以把扫描收窄到其中更少的
+字段，但永远不能放宽 —— 请求一个不在该集合中的字段会被拒绝，而不是被
+忽略。计算型的 `formula` 字段不能被搜索，因为它没有被存储；把值复制到
+一个存储的文本字段上，然后搜索那个字段。
+
+## 下一步 [#where-to-go-next]
+
+| 我想…… | 阅读 |
+|---|---|
+| 过滤、分组和排序一个列表 | [使用视图](/docs/use/views) |
+| 打开并编辑我找到的记录 | [记录操作](/docs/use/records) |
+| 了解谁能看到哪些记录 | [权限](/docs/configure/permissions) |
+| 回到导览 | [使用 ObjectOS](/docs/use) |
