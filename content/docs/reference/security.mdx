@@ -304,12 +304,22 @@ file public GitHub issues for security problems.
 
 ## Supply chain
 
-- Pre-built images published from [github.com/objectstack-ai/docs.objectos.ai](https://github.com/objectstack-ai/docs.objectos.ai)
-  with reproducible build provenance.
+- The **Community** image, `ghcr.io/objectstack-ai/objectstack`, is public.
+  It is built and published from the open-source
+  [objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack)
+  repository on every ObjectStack release, and its tags mirror the version
+  of the ObjectStack CLI inside it.
+- The **Enterprise** image is the licensed image, from a private registry;
+  your license comes with the registry credentials. See
+  [Deployment](/docs/deploy#the-two-images), and verify the image before
+  production as [Docker](/docs/deploy/docker#verify-the-image-before-production)
+  describes.
 - All `@objectstack/*` packages have published source on GitHub —
   Apache-2.0, no obfuscation.
-- Use SHA-pinned image tags (`sha-<short>`) in production to avoid
-  drift; see [Docker](/docs/deploy/docker).
+- Pin one exact image in production: the exact version tag (`X.Y.Z`) on
+  Community, the digest your release notes name on Enterprise. A rolling
+  tag such as `latest` can be re-pointed under you; see
+  [Docker](/docs/deploy/docker#pin-the-image).
 
 ## Suggested hardening checklist
 
@@ -323,7 +333,7 @@ file public GitHub issues for security problems.
 - [ ] OIDC for human accounts; API keys for machine accounts.
 - [ ] Backup + restore drill executed and timed.
 - [ ] Negative tests: cross-org access denied, field security holds, expired session rejects.
-- [ ] Image pinned to `sha-<short>` or semver tag.
+- [ ] Image pinned to an exact version tag (`X.Y.Z`) or a digest, never a rolling tag.
 - [ ] `os doctor` clean in CI before each release.
 
 See [Production Readiness](/docs/operate/production) for the full

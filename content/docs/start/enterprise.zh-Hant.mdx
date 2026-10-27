@@ -1,0 +1,45 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 在 ObjectOS Enterprise 上開始
+seoTitle: "在 ObjectOS Enterprise 上開始：許可授權，自管理"
+description: ObjectOS Enterprise 是你在自己的基礎設施上執行的許可版本 —— 如何獲得許可證，以及部署指南從哪裡開始。
+editions: [enterprise]
+translation:
+  source_sha: 65aa2affdd32ca612f967daaffd1275dc3cb60a61e72bd88b99c97ee9c0f11f2
+  guide_rev: 1
+  mode: auto
+---
+
+**ObjectOS Enterprise** 是在商業許可下、執行在你所運維的基礎設施上的
+ObjectOS：產品內 AI、AI 治理和官方支援都在你自己的伺服器上；在完整的
+私有部署上，還有叢集、單個部署承載多個組織、SCIM 和物理隔離執行。完整
+列表參見[版本對比](/docs/editions/compare)，合同選項參見
+[許可與定價](/docs/editions/license)，從單節點的 **Business Self-Managed**
+起步。
+
+## 1. 獲取許可證 [#1-get-a-license]
+
+ObjectOS Enterprise 按合同銷售：
+[聯絡銷售](mailto:sales@objectstack.ai)。你的許可證附帶獲得許可的
+Enterprise 映象的映象倉庫憑據，每個版本的釋出說明都會註明要執行的確切
+映象摘要。
+
+## 2. 部署 [#2-deploy]
+
+部署指南從[部署](/docs/deploy)開始，它會帶你走完每個部署都要做的三個
+決定。然後選擇你的形態：
+
+- [Docker](/docs/deploy/docker) —— 受支援的技術棧：拉取、校驗、許可、
+  執行、擴充套件、升級。
+- [Kubernetes](/docs/deploy/kubernetes) —— 任何編排器都必須保持的屬性。
+- [物理隔離](/docs/deploy/air-gapped) —— 作為一種許可證模式的物理隔離，
+  以及在啟動時會被拒絕的組合。
+
+## 3. 運維 [#3-operate]
+
+[生產就緒](/docs/operate/production)是上線前的檢查清單；之後，
+[運維](/docs/operate)涵蓋備份、升級、可觀測性和審計日誌。
+
+想在購買前先評估？[ObjectOS Community](/docs/start/community) 免費執行
+同一個執行時，你在上面構建的內容是普通的 ObjectStack 後設資料，可以原樣
+遷移到 Enterprise。

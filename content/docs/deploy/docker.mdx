@@ -1,29 +1,278 @@
 ---
 title: Docker
-seoTitle: "Docker: Run the ObjectOS Enterprise Image by Digest"
-description: Run the ObjectOS Enterprise runtime image with Docker — digest-pinned, signature-verified, licensed, and scaled to multiple replicas.
+seoTitle: "Docker: Run ObjectOS Community and Enterprise"
+description: Run ObjectOS with Docker — pin the image, set the three required variables, add PostgreSQL with Compose, wire the probes and the proxy, upgrade and roll back. The Enterprise image adds digest pinning, verification and a license.
 editions: [community, enterprise]
 ---
 
-Docker is the supported way to run ObjectOS Enterprise. Your release ships a
-**deploy bundle** containing a Compose stack, an environment template per
-deployment shape, and a README with the commands for your exact version. This
-page is the decision map for what that bundle configures.
+Docker is the standard way to run ObjectOS on your own servers. The steps
+are the same for both self-managed editions: one image, pinned exactly, with
+the configuration injected at runtime and the database outside the
+container. This page walks them with the open **Community** image,
+`ghcr.io/objectstack-ai/objectstack`; the [Enterprise adds](#enterprise-adds)
+section at the end covers what changes on the licensed image.
 
-## What you are given
+## Pin the image
+
+The Community image is published on every ObjectStack release. Its tags
+mirror the version of the ObjectStack CLI inside it: a release `X.Y.Z` is
+pushed as `X.Y.Z`, and moves `latest`, `X.Y` and `X` onto it. Only the exact
+tag is immutable — the rolling ones move with the next release, so a routine
+`docker compose pull` on `latest` can replace the version you run with no
+deployment event.
+
+**Run the exact version in production**, the same version as the CLI that
+built your app. Keep the previous one written down: that is what a rollback
+is. The image is published for `linux/amd64` and `linux/arm64`, runs as a
+non-root user, listens on port **8080**, and carries its own health check.
+It includes the PostgreSQL (`pg`) and MySQL (`mysql2`) drivers.
+
+## The three values you set
+
+Everything else has a workable default. These three do not:
+
+| Variable | What happens without it |
+|---|---|
+| `OS_DATABASE_URL` | Data lands in a SQLite file under the runtime's home directory — fine on one durable host, lost with a container's filesystem. Use `postgres://…` in production. |
+| `OS_AUTH_SECRET` | The sign-in endpoints under `/api/v1/auth/*` are **skipped**, and the server runs with no authentication. |
+| `OS_SECRET_KEY` | The runtime mints its own key for stored secrets and keeps it on its filesystem. In a container that key dies with the container, and every secret encrypted under it becomes unreadable. |
+
+Generate the two secrets once and keep them in your secret manager:
+
+```bash
+OS_AUTH_SECRET=$(openssl rand -hex 32)
+OS_SECRET_KEY=$(openssl rand -hex 32)
+```
+
+**Never bake either secret into an image.** Pass them at runtime from your
+orchestrator's secret store. Back up `OS_SECRET_KEY` with the database: a
+database restored without its key cannot decrypt its own secrets — see
+[Backup](/docs/operate/backup). The full list is
+[Environment Variables](/docs/reference/environment-variables).
+
+## Run it
+
+The image carries no app. Hand it the `objectstack.json` that `os build`
+compiles, in one of three ways.
+
+**Mount the artifact.** No image build at all — the image looks for the app
+at `/srv/app/objectstack.json`:
+
+```bash
+docker run -p 8080:8080 \
+  -v "$PWD/dist/objectstack.json:/srv/app/objectstack.json:ro" \
+  -e OS_DATABASE_URL="postgres://objectos:secret@db-host:5432/objectos" \
+  -e OS_AUTH_SECRET \
+  -e OS_SECRET_KEY \
+  ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+**Name the artifact by URL.** `OS_ARTIFACT_URL` points at a published
+artifact, so a fixed image plus one variable is a running app, and upgrading
+the app is a change of that variable and a restart:
+
+```bash
+docker run -p 8080:8080 \
+  -e OS_ARTIFACT_URL="https://releases.example.com/crm-2.2.2.json#sha256=<64 hex characters>" \
+  -e OS_DATABASE_URL -e OS_AUTH_SECRET -e OS_SECRET_KEY \
+  ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+The optional `#sha256=` fragment pins the artifact's bytes, and the runtime
+holds the boot to it:
+
+| Situation | What the runtime does |
+|---|---|
+| No pin | Boots without verification. If the artifact cannot be fetched, the boot **fails** so your orchestrator retries — there is no cached copy to fall back on. |
+| Pin present, bytes match | Boots, and keeps the verified copy. |
+| Pin present, bytes differ | **Refuses to boot**, naming the expected and the actual digest. |
+| Pin present, host unreachable | Boots from the cached copy only if it still matches the pin, and says so with a warning. |
+
+`file:///…` works too, for a mounted file. Publish artifacts as immutable,
+version-named objects and give only your release pipeline write access to
+them — that is what makes rolling the app back the same operation as rolling
+it forward.
+
+**Copy the artifact into your own image.** One self-contained image per
+release. The project scaffold (`npm create objectstack`) writes a Dockerfile
+of this shape for you:
+
+```dockerfile title="Dockerfile"
+FROM node:22-slim AS build
+WORKDIR /app
+COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* package-lock.json* ./
+RUN if [ -f pnpm-lock.yaml ]; then corepack pnpm@10 install --frozen-lockfile; \
+    else npm ci; fi
+COPY . .
+RUN npx os build              # → dist/objectstack.json
+
+FROM ghcr.io/objectstack-ai/objectstack:X.Y.Z
+COPY --from=build --chown=node:node /app/dist/objectstack.json /srv/app/objectstack.json
+```
+
+## Compose with PostgreSQL
+
+A single-host production stack: the image above with its database beside it.
+
+```yaml title="docker-compose.yml"
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      OS_DATABASE_URL: postgres://objectos:${POSTGRES_PASSWORD}@db:5432/objectos
+      OS_AUTH_SECRET: ${OS_AUTH_SECRET}
+      OS_SECRET_KEY: ${OS_SECRET_KEY}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: objectos
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: objectos
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U objectos -d objectos"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+```
+
+```bash
+# .env beside docker-compose.yml — never committed
+POSTGRES_PASSWORD=…
+OS_AUTH_SECRET=…
+OS_SECRET_KEY=…
+
+docker compose up -d
+curl -fsS http://localhost:8080/api/v1/health
+```
+
+When you move to a managed PostgreSQL, point `OS_DATABASE_URL` at it and
+remove the `db` service. The schema is brought up to date when the runtime
+boots: safe changes run on their own, and a destructive one **refuses the
+boot** and names each change, until you apply it deliberately with
+`os migrate apply --allow-destructive`
+([CLI](/docs/reference/cli#database-migrations--os-migrate)).
+
+## Health checks
+
+Two endpoints, and they are not interchangeable:
+
+| Endpoint | Answers | Wire it to |
+|---|---|---|
+| `/api/v1/health` | The process is up and serving HTTP. It never touches the database. | Liveness |
+| `/api/v1/ready` | The runtime has booted **and its data drivers answer**. `503`, naming the failing driver, while one does not. | Readiness, and your load balancer |
+
+Crossed over, they fail badly. A liveness probe on `/api/v1/ready` restarts
+every replica during a database outage — which a restart cannot fix — and
+turns a configuration fault into a restart loop that hides it. Readiness is
+the one that should react: it takes a replica out of rotation while its
+database is away and puts it back when the database returns, with no
+restart. A datasource the app binds to must also connect at startup, or the
+boot fails outright: an unreachable database is a failed deploy, not a
+container that comes up and then errors on every request.
+
+## Reverse proxy and TLS
+
+Terminate TLS in front of the runtime — Caddy, nginx, Traefik or your cloud
+load balancer — and keep three values in step with the public address:
+
+```bash
+OS_AUTH_URL=https://app.example.com          # sign-in callbacks and cookie origin
+OS_TRUSTED_ORIGINS=https://app.example.com   # sign-in callback and CSRF allow-list
+OS_PORT=8080                                 # the proxy's upstream port
+```
+
+```text title="Caddyfile"
+app.example.com {
+    reverse_proxy localhost:8080
+}
+```
+
+A drifted port or origin is the classic self-hosting failure: the app runs,
+but sign-ins bounce and browsers block API calls. CORS needs no entry while
+the Console and the API share the public origin. A front end served from
+**another** origin is listed in `OS_CORS_ORIGIN`, explicitly — `*` is
+refused at boot while credentials are on. Turn on HSTS only once TLS is
+confirmed; [Production Readiness](/docs/operate/production) has the rest.
+
+## First boot: the first administrator
+
+On a fresh database, open the deployment's address and **register — the
+first account becomes the administrator.** Do it straight after the first
+deploy, before you share the address. The production server seeds no
+default credentials: the `admin@objectos.ai` account you may know from
+`os dev` exists only on development databases.
+
+To name the administrators in configuration instead, set
+`OS_PLATFORM_OWNER_EMAIL` to one address or a comma-separated list; each
+listed account holds the standing once its email address is verified. A
+multi-organization posture requires it — see
+[Environment Variables](/docs/reference/environment-variables#multi-organization-deployments).
+
+An app that seeds people records without sign-in accounts closes this door:
+the first-account rule counts people, not logins. The boot log says so —
+see [Troubleshooting](/docs/operate/troubleshooting#nobody-can-sign-in).
+
+## Multi-node
+
+ObjectOS Community runs **one replica**. Coordination — locks, queues,
+schedules — is in-process, so a second replica would not share it.
+Declaring several replicas (`OS_CLUSTER_REPLICAS` above 1) without a
+license **refuses the boot** rather than run them on per-process locks.
+Clustering and high availability are Enterprise capabilities — see
+[Multi-node](#multi-node-on-enterprise) below.
+
+## Upgrade and rollback
+
+1. Read the release notes of every ObjectStack version you cross, and the
+   [version-specific steps](/docs/operate/upgrade#version-specific-steps)
+   they ask of the operator.
+2. **Back up the database.** Schema migrations go forward: rolling the image
+   back does not roll the schema back.
+3. Change the image tag to the new exact version and restart. The schema is
+   brought up to date at boot, before the runtime reports ready.
+4. Confirm `/api/v1/ready` answers 200.
+5. To roll back, restore the previous tag and repeat step 3 — valid as long
+   as the version you are leaving made no incompatible schema change.
+
+The app versions separately: changing `OS_ARTIFACT_URL`, or the artifact you
+mount, upgrades it without touching the image.
+
+## Enterprise adds
+
+The licensed Enterprise image runs the same way, and adds a private
+registry, digest pinning, supply-chain verification, a license, and
+multi-node. Your release ships a **deploy bundle** containing a Compose
+stack, an environment template per deployment shape, and a README with the
+commands for your exact version. This section is the decision map for what
+that bundle configures.
+
+### What you are given
 
 Your license comes with **registry credentials** for the private runtime
 image. Signing in requires a token with package **read** access; there is no
-public image and no source build: the image is produced by our release
-pipeline from sources that are not distributed, so `docker build` is not a
-path that exists for you.
+public Enterprise image and no source build: the image is produced by our
+release pipeline from sources that are not distributed, so `docker build` is
+not a path that exists for it.
 
 **Supported architecture: `linux/amd64` only.** That is a declaration, not an
 omission: the build refuses to produce an image for an architecture we have
 not declared. Apple Silicon and Graviton hosts would run it under emulation,
 which is fine for a look and wrong for production.
 
-## Pin the image by digest
+### Pin the image by digest
 
 The image reference you run in production is a **digest**, not a tag:
 
@@ -33,12 +282,9 @@ OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters
 
 A tag is a human-readable name and can be re-pointed at different bytes. A
 digest is content-addressed: the same digest is always the same image, on
-every host, forever. With a tag, a routine `docker compose pull` can replace
-the version you are running with no deployment event — and afterwards there
-is no way to prove what was actually running when something went wrong. Your
-release notes give the digest; paste it verbatim.
-
-Keep the **previous** digest too. That is what a rollback is.
+every host, forever. With a tag, there is no way to prove afterwards what was
+actually running when something went wrong. Your release notes give the
+digest; paste it verbatim. Keep the **previous** digest too.
 
 ### The image can tell you what it is
 
@@ -52,7 +298,7 @@ release manifest. You never have to ask us which build you have.
 That manifest is also the single most useful thing to attach to a support
 request: it is enough to reproduce your exact image.
 
-## Verify the image before production
+### Verify the image before production
 
 The image is **signed** (keyless, through our release pipeline's OIDC
 identity) and ships with an **SBOM** and **build provenance**. Verify once,
@@ -68,10 +314,10 @@ questions:
 The bundle README carries the verification commands with the identity and
 issuer to check against, matched to your release.
 
-## License
+### License
 
-**A license is part of the happy path.** How the runtime behaves without one
-depends on what you asked it to be:
+**A license is part of the happy path.** How the Enterprise image behaves
+without one depends on what you asked it to be:
 
 - **Single-organization, no license** — the deployment runs as ObjectOS
   Community: the open MCP server, bring your own AI. Nothing bricks.
@@ -105,7 +351,7 @@ available value is accepted; not deciding is not:
 
 A single-organization deployment sees neither check.
 
-## The shipped stack
+### The shipped stack
 
 The Compose stack in the bundle sequences a deployment the way it has to be
 sequenced, and it is worth knowing the order because any other orchestrator
@@ -119,22 +365,12 @@ has to reproduce it:
 4. The reverse proxy begins forwarding only once a replica is genuinely
    answering — not merely spawned.
 
-Two HTTP endpoints exist for this, and they are not interchangeable:
-`/api/v1/health` for liveness and `/api/v1/ready` for readiness.
-Readiness is backed by the data layer: since ObjectStack 17.0
-`/api/v1/ready` answers **503** when a data driver stops answering, so a
-replica whose database has gone away is pulled from rotation rather than
-left serving errors. A datasource that objects bind to must also connect
-at startup or the boot fails outright — an unreachable database is a
-failed deploy, not a container that comes up and then errors on every
-request.
-
 In production, point the deployment at your **managed** PostgreSQL (and Redis,
 if you cluster) and remove the bundled database services. Give the proxy your
 domain to get automatic HTTPS. The runtime container runs as a non-root user
 and keeps its runtime state on a declared volume.
 
-## Multi-node
+### Multi-node on Enterprise
 
 Scaling past one replica changes what is mandatory:
 
@@ -147,19 +383,19 @@ Scaling past one replica changes what is mandatory:
   invalidates every existing session and orphans the signing key; the
   environment template documents the one-time cleanup that goes with a
   rotation.
+- `OS_CLUSTER_REPLICAS` sets how many application replicas the bundled stack
+  starts.
 
-Multi-node and high availability are Enterprise capabilities — see
-[License & Pricing](/docs/editions/license).
+### Upgrade by digest
 
-## Upgrade and rollback
+The upgrade steps above hold, with the digest in place of the tag:
 
 1. Take the **new digest** from the release notes and read the image's
    release manifest before rolling it out: confirm the product major line is
    the one you are on, and check whether the embedded runtime's compatibility
    range moved. A runtime major-version move means breaking changes
    underneath — read that release's notes first.
-2. **Back up the database.** Schema migrations are *forward*: rolling the
-   image back does not roll the schema back.
+2. Back up the database.
 3. Change the image digest and restart the stack. The migration runs to
    completion before new replicas take traffic.
 4. Confirm readiness returns 200 and the replicas report healthy.
@@ -169,7 +405,7 @@ Multi-node and high availability are Enterprise capabilities — see
 
 ## Next
 
-- [Kubernetes](/docs/deploy/kubernetes) — the same properties, on an orchestrator.
-- [Air-gapped](/docs/deploy/air-gapped) — the license mode for disconnected sites.
-- [Production Readiness](/docs/operate/production) — pre-flight checklist.
+- [Kubernetes](/docs/deploy/kubernetes) — the same image, on an orchestrator.
+- [Production Readiness](/docs/operate/production) — the checklist before go-live.
 - [Observability](/docs/operate/observability) — logs, metrics, audit.
+- [Air-gapped](/docs/deploy/air-gapped) — the Enterprise license mode for disconnected sites.

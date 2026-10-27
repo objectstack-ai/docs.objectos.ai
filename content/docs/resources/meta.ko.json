@@ -1,11 +1,5 @@
 {
   "title": "리소스",
   "defaultOpen": false,
-  "pages": [
-    "glossary",
-    "faq",
-    "changelog",
-    "license",
-    "support"
-  ]
+  "pages": ["glossary", "faq", "changelog", "support"]
 }

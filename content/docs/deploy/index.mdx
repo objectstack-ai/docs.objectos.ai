@@ -1,35 +1,84 @@
 ---
 title: Deployment
-seoTitle: "Deployment: ObjectOS Enterprise from the Licensed Image"
-description: Run ObjectOS Enterprise, the self-managed edition, from the licensed runtime image — digest-pinned, licensed on the happy path, with the supported combinations enforced at startup.
+seoTitle: "Deployment: Self-Managed ObjectOS, Community and Enterprise"
+description: Run ObjectOS on your own infrastructure — the open Community image or the licensed Enterprise image, one runtime, one configuration contract, and what the license adds.
 editions: [community, enterprise]
 ---
 
-ObjectOS Enterprise, the self-managed edition, is delivered as a **licensed,
-pre-built runtime image** — on a single node as Business Self-Managed, or as a
-full Enterprise deployment.
-You do not build it, and there is no public image to pull: your license comes
-with registry credentials, and the release notes name the exact image digest
-to run. (If you are looking for the free self-hosted edition, that is
-**ObjectOS Community** — the open-source runtime image
-`ghcr.io/objectstack-ai/objectstack` and `os start`, which
-[Run ObjectOS Community locally](/docs/start/community) boots; see
-[License & Pricing](/docs/editions/license) for how the editions differ.)
+ObjectOS has two self-managed editions, and they deploy the same way.
+**ObjectOS Community** is the open-source runtime image; **ObjectOS
+Enterprise** is the licensed image, on a single node as Business
+Self-Managed or as a full Enterprise deployment. Both run the same runtime
+and read the same configuration: a database, an auth secret and a secret
+key. What differs is where the image comes from, how the app gets in, and
+what a license unlocks. Each page in this section is written once for both,
+and ends with an **Enterprise adds** section where the licensed image does
+more.
+
+## The two images
+
+| | **Community** | **Enterprise** |
+|---|---|---|
+| Image | `ghcr.io/objectstack-ai/objectstack`, public | The licensed Enterprise image, from a private registry; your license comes with the registry credentials |
+| Pin it by | The exact version tag (`X.Y.Z`), which matches the ObjectStack CLI inside | The image **digest** your release notes name |
+| Architectures | `linux/amd64` and `linux/arm64` | `linux/amd64` only |
+| How the app arrives | Your compiled `objectstack.json` from `os build`: mounted, copied into your own image, or named by `OS_ARTIFACT_URL`. An empty runtime installs apps from the Console marketplace instead. | One of three run shapes: the app bundled in the image, a published artifact, or a published artifact composed with the image's enterprise plugins ([below](#how-the-app-gets-in)) |
+| Variables you must set | `OS_DATABASE_URL`, `OS_AUTH_SECRET`, `OS_SECRET_KEY` (the image already sets `OS_PORT=8080`) | The same, plus `OS_LICENSE_KEY` and a deliberate `OS_CLOUD_URL` |
+| Copyable configuration | The examples on these pages | The **deploy bundle** that ships with each release |
+| What the license unlocks | — | In-product AI (AI Builder, "ask your data"), AI governance, clustering and high availability, several organizations on one deployment, SCIM, air-gapped operation |
+
+[Compare Editions](/docs/editions/compare) has the full matrix. An app built
+on Community is ordinary ObjectStack metadata and runs on Enterprise
+unchanged.
 
 ## Every deployment decides three things
 
 | Decision | What it means |
 |---|---|
-| **Which bytes run** | The image is pinned **by digest**, never by a tag. A tag can be re-pointed; a digest is the same bytes forever. |
+| **Which bytes run** | Pin one exact image. A rolling tag such as `latest` can be re-pointed under you; an exact version, or a digest, cannot. Keep the previous one: that is what a rollback is. |
+| **Where the configuration lives** | Outside the image and the app. The database URL, the secrets and the deployment's identity are environment variables injected at runtime, never baked in. [Environment Variables](/docs/reference/environment-variables) is the contract. |
+| **Which database** | Production runs on PostgreSQL. With no `OS_DATABASE_URL` the runtime writes a SQLite file under its home directory, which suits one durable host and loses data on a container's ephemeral filesystem. |
+
+## How the app gets in
+
+The Community image carries **no app**. You give it the artifact that
+`os build` compiles, `dist/objectstack.json`, in one of three ways:
+
+| Way | How | Use it when |
+|---|---|---|
+| **Mount it** | Mount the file at `/srv/app/objectstack.json`, where the image looks by default | You want no image build at all |
+| **Copy it into your own image** | A two-stage Dockerfile `FROM` the official image | You ship one self-contained image per release |
+| **Name it by URL** | `OS_ARTIFACT_URL`, with an optional `#sha256=` integrity pin | You want app upgrades to be an environment change and a restart |
+
+[Docker](/docs/deploy/docker#run-it) shows all three. With no artifact at
+all, the runtime boots an empty kernel, and apps are installed from the
+Console marketplace.
+
+## Guides
+
+- [Docker](/docs/deploy/docker) — run the image, configure it, put it behind a proxy, upgrade it.
+- [Kubernetes](/docs/deploy/kubernetes) — the same image on an orchestrator, and the properties to preserve.
+- [Air-gapped](/docs/deploy/air-gapped) — Enterprise only: air-gap as a **license mode**, and the combinations refused at startup.
+
+Without a container runtime, the same artifact runs under `os start` on a
+host with Node.js 22 — see
+[Run ObjectOS Community locally](/docs/start/community).
+
+## Enterprise adds
+
+### Two more decisions: license and cloud posture
+
+| Decision | What it means |
+|---|---|
 | **Which license** | A license is part of the happy path, not an add-on. Some deployment shapes *refuse to start* without one. |
 | **Which cloud posture** | Whether this runtime talks to a control plane. This is **coupled to the license mode**, and unsupported combinations are refused at startup rather than degrading quietly. |
 
-The last two are one decision in practice, and getting them wrong is a boot
+The two are one decision in practice, and getting them wrong is a boot
 failure, not a slow leak. [Air-gapped](/docs/deploy/air-gapped) states the
 supported combinations in full — read it even if your site is connected,
 because it is the page that explains *why* the pairs are what they are.
 
-## Where the copyable configuration lives
+### The deploy bundle
 
 Your release ships a **deploy bundle**: a Compose stack, environment
 templates for each supported shape, and a README with the exact commands for
@@ -42,10 +91,10 @@ bundle carries the **values you copy**. When the two ever seem to disagree,
 the bundle that shipped with your image is right: it is versioned with the
 runtime it configures.
 
-## How the app gets in
+### Three run shapes
 
-The image can run the app three ways, and the choice affects what is
-available to you — it is not just a matter of packaging.
+The Enterprise image can run the app three ways, and the choice affects what
+is available to you — it is not just a matter of packaging.
 
 | Shape | The app comes from | Use it when |
 |---|---|---|
@@ -57,9 +106,3 @@ Each shape has its own environment template in the deploy bundle. Copy the
 one for your shape rather than adapting another: the templates differ in the
 values that decide posture, and those are exactly the values the runtime
 checks before it serves anything.
-
-## Guides
-
-- [Docker](/docs/deploy/docker) — the supported stack: pull, verify, license, run, scale, upgrade.
-- [Kubernetes](/docs/deploy/kubernetes) — the properties any orchestrator must preserve.
-- [Air-gapped](/docs/deploy/air-gapped) — air-gap as a **license mode**, and the combinations that are refused at startup.

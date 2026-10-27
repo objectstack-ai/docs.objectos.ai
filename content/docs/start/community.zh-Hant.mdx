@@ -1,0 +1,364 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 在本地執行 ObjectOS Community
+seoTitle: "用 os start 或 os init 在本地執行 ObjectOS Community"
+description: "在開源執行時 ObjectOS Community 上從零到一個執行中的應用：一個 CLI、一條命令，無需賬戶，也無需 Docker。"
+editions: [community]
+translation:
+  source_sha: 830910eec853d34ebcd2357928eec4e753013766473391a72b60214c2479ce9e
+  guide_rev: 1
+  mode: auto
+---
+
+**ObjectOS Community** 是 ObjectOS 的開源版本：執行時及其 UI，構建在
+Apache-2.0 的 ObjectStack 框架之上，可以在任何地方免費執行。本頁用一個
+CLI 和一條命令在你自己的機器上啟動它。這裡的一切都不需要賬戶、許可證
+或 Docker。
+
+另外兩種入門方式各有專頁：如果你想要託管、無需安裝，請看
+[在 ObjectOS Cloud 上開始](/docs/start/cloud)；如果要在你自己的基礎設施
+上使用許可版本，請看[在 ObjectOS Enterprise 上開始](/docs/start/enterprise)。
+你在這裡構建的內容是普通的 ObjectStack 後設資料，所以能在每個版本上執行。
+
+啟動開源執行時有兩種方式，取決於你在做什麼。
+
+| 你是 …… | 從這裡開始 |
+|---|---|
+| 第一次試用開源執行時，或在生產中執行它 | [路徑 A —— `os start`](#path-a--os-start-operator--first-time-evaluator) |
+| 用程式碼構建或定製一個應用 | [路徑 B —— `os init`](#path-b--os-init-developer) |
+
+兩者都會產出一個帶 UI 的執行中伺服器 —— 賬戶登入、註冊和自助服務都是
+這個 UI 內部的路由，而不是一個單獨的介面。區別在於你是否要搭建原始檔。
+
+## 前提條件 [#prerequisites]
+
+- **Node.js 22 或更新版本** —— `node --version`
+- 一個終端
+
+僅此而已。不需要 Docker。不需要資料庫。不需要註冊賬戶。
+
+---
+
+## 路徑 A —— `os start`（運維人員 / 首次評估者） [#path-a--os-start-operator--first-time-evaluator]
+
+全域性安裝 CLI，然後執行它：
+
+```bash
+npm i -g @objectstack/cli
+os start
+```
+
+你會看到：
+
+```text
+◆ ObjectStack
+────────────────────────────────────────
+🏠 Home: ~/.objectstack
+📦 Artifact: none (empty kernel — install apps via the Console marketplace)
+🗄️ Database: file:~/.objectstack/data/objectstack.db
+🎯 Environment: env_local
+  → Starting server...
+
+  ✓ Server is ready
+
+  ➜  API:       http://localhost:3000/
+  ➜  Console:   http://localhost:3000/_console/
+  ➜  MCP:       http://localhost:3000/api/v1/mcp
+      connect an AI client (Claude Code, Cursor, …) · skill: http://localhost:3000/api/v1/mcp/skill
+
+  Mode:    production
+  Driver:  SqlDriver(better-sqlite3)  → ~/.objectstack/data/objectstack.db
+  Tenancy: single
+  Plugins: 32 loaded
+
+  Press Ctrl+C to stop
+```
+
+就這樣。你已經在執行開源執行時 ObjectOS Community 了。ObjectOS Cloud 和
+ObjectOS Enterprise 在此之上增加了什麼，參見[版本對比](/docs/editions/compare)。
+
+上面這段輸出抄錄自 `@objectstack/cli` 17.7.0 啟動一個空核心。Home 路徑
+顯示為 `~/…` —— CLI 列印的是你展開後的路徑。你自己啟動時，在伺服器啟動
+之前還會列印一行 `No objectstack.config.ts or artifact found`，另外還有
+啟動提示（本地儲存驅動、開發用加密金鑰、啟動診斷）和已載入外掛名稱的
+完整列表，這兩者都取決於你的環境。
+
+### 運行了什麼 [#whats-running]
+
+| URL | 它是什麼 |
+|---|---|
+| http://localhost:3000/_console/register | 建立你的第一個賬戶 |
+| http://localhost:3000/_console/ | 生成的 UI —— 以及**應用市場** |
+| http://localhost:3000/_console/apps/setup | **Setup** —— 使用者、角色、審計日誌、設定 |
+| http://localhost:3000/api/v1/health | 存活檢查 —— 程序是否在執行 |
+| http://localhost:3000/api/v1/ready | 就緒檢查 —— 是否在執行**並且**能提供資料 |
+
+執行時啟動後是一個**空核心** —— 沒有物件，沒有應用 —— 並暴露應用市場，
+讓你在幾秒鐘內安裝現成的應用。
+
+這裡兩個探針都返回 200，而且在本地也沒有什麼需要把它們接上的 —— 但它們
+不能互換，在部署之前值得弄清哪個是哪個。存活檢查只報告程序正在執行，
+所以在資料庫宕機期間它會一直是綠的；而一旦某個資料驅動不再響應，就緒
+檢查就會返回 **503**。[Docker](/docs/deploy/docker) 和
+[Kubernetes](/docs/deploy/kubernetes) 說明了哪個探針該放在哪裡。
+
+### 通過對話構建 —— AI Builder [#build-by-chat--the-ai-builder]
+
+產品內的 AI Builder 屬於 ObjectOS：它隨 ObjectOS Cloud 和 ObjectOS
+Enterprise 提供，而不在你剛剛啟動的開源執行時中；開源執行時的 AI 路徑是
+橫幅裡列印的 MCP 端點（`http://localhost:3000/api/v1/mcp` —— 把 Claude
+Code 或任何 MCP 客戶端指向它）。在 ObjectOS 上，登入之後，開啟 AI 助手
+（右上角的閃光圖示），描述你需要什麼：
+
+> *"我需要跟蹤客戶支援工單。每個工單有主題、描述、優先順序
+> （低/中/高/緊急）、狀態和負責人。新增一個按狀態分組的看板檢視。"*
+
+AI 會提出一個計劃，你批准，後設資料就上線了 —— REST 端點、生成的檢視、
+審計日誌記錄、許可權關卡。不需要編輯檔案，也不需要重啟。完整的詞彙參見
+[構建 → AI Builder](/docs/build/ai-builder)。
+
+> **在 IDE 裡手寫程式碼？** 執行 `npx skills add objectstack-ai/objectstack/skills`，
+> 教會 Claude Code / Cursor / Copilot / Codex 如何針對真實的 Zod 模式編寫
+> ObjectStack 後設資料 —— 也就是 ObjectOS 執行的本體。參見
+> [構建 → IDE 技能](/docs/build/ai-skills)。
+
+### 從市場安裝一個應用 [#install-an-app-from-the-marketplace]
+
+開啟 **http://localhost:3000/_console/**，登入，然後選擇一個應用：
+
+| 應用 | 它給你什麼 |
+|---|---|
+| Todo | 通用的任務與專案跟蹤 |
+| Contracts | 帶 AI 提取的合同生命週期管理 |
+| Procurement | 供應商、採購訂單、三單匹配 |
+| Compliance | SOC 2 / ISO 27001 控制項 + 證據 |
+| Helpdesk | AI 優先的客戶支援 |
+| Content | 編輯日曆 + 渠道 ROI |
+| HR | 通訊錄、組織架構圖、休假 |
+
+安裝 → 重新整理 → 它就在那裡，帶著它的物件、檢視、許可權和種子資料。不需要
+重啟。
+
+### 常用引數 [#common-flags]
+
+```bash
+os start --port 3200                       # different port
+os start --database postgres://...         # external database
+os start --auth-secret "$(openssl rand -hex 32)"  # enable auth in /api/v1/auth/*
+os start --home /var/lib/objectos          # persistent home (production)
+```
+
+每個選項參見[執行時配置](/docs/configure/runtime)，面向生產的路徑參見
+[Docker](/docs/deploy/docker)。
+
+---
+
+## 路徑 B —— `os init`（開發者） [#path-b--os-init-developer]
+
+當你要用 TypeScript 定義自己的資料模型、檢視和流程時，用這條路徑。
+
+```bash
+npx @objectstack/cli init my-app -t app --install
+cd my-app
+pnpm dev
+```
+
+你會看到：
+
+```text
+◆ Development Mode
+────────────────────────────────────────
+📂 Config: my-app/objectstack.config.ts
+  → Compiling objectstack.config.ts → dist/objectstack.json...
+
+◆ Compile
+────────────────────────────────────────
+  ✓ Build complete (312ms)
+
+  Data: 1 Objects  3 Fields
+  UI: 0 Apps
+  Logic: 0 Flows
+  Security: 0 Positions  0 Permissions
+  Runtime: 0 plugins
+
+  Artifact: my-app/dist/objectstack.json (2.2 KB)
+
+  → Starting dev server (local mode)...
+🎯 Environment ID: env_local
+📦 Artifact: dist/objectstack.json
+🗄️ Database: file:my-app/.objectstack/data/objectstack.db
+  👁  watching objectstack.config.ts, src — rebuild + restart on change
+
+  ✓ Server is ready
+
+  ➜  API:       http://localhost:3000/
+  ➜  Console:   http://localhost:3000/_console/
+  ➜  MCP:       http://localhost:3000/api/v1/mcp
+      connect an AI client (Claude Code, Cursor, …) · skill: http://localhost:3000/api/v1/mcp/skill
+
+  🔑  Dev admin: admin@objectos.ai / admin123
+      seeded on empty DB · dev only — do not use in production
+      platform admin — Setup, Studio and every record, but NO app-declared capability, so
+      an app that gates navigation on requiredPermissions may show it an empty menu; grant
+      it a permission set under Setup → Users, or sign in as an account your app seeds
+
+  Artifact: dist/objectstack.json
+  Mode:    development
+  Driver:  SqlDriver(better-sqlite3)  → my-app/.objectstack/data/objectstack.db
+  Tenancy: single
+  Plugins: 38 loaded
+
+  Press Ctrl+C to stop
+```
+
+上面這段輸出抄錄自在 `@objectstack/cli` 17.7.0 建立的腳手架上執行
+`pnpm dev`。專案路徑顯示為 `my-app/…` —— CLI 列印的是你展開後的路徑；
+`Build complete` 的耗時是抄錄機器測得的值，所以你的會不同。你自己執行時
+還會列印：塊上方 pnpm 的指令碼頭、逐步的編譯進度、啟動提示（配置載入、
+開發用密文欄位加密）、已載入外掛名稱的完整列表、啟動診斷，以及一段 MCP
+連線尾註。尾註由另一個程序列印，所以它通常落在橫幅裡面，常常與橫幅逐行
+交錯。
+
+注意開發伺服器請求的是埠 **3000**，與 `os start` 使用的埠相同。如果
+該埠已被佔用，它會繫結下一個空閒埠並告訴你：
+`↪ server bound to port 3001 (requested 3000)`。
+
+### 新增你自己的物件 [#add-your-own-object]
+
+你新增的每個物件都帶有你專案的名稱空間。`os init` 從專案名稱推匯出它
+（`my-app` → `my_app`），並把它作為 `manifest.namespace` 寫進
+`objectstack.config.ts`，所以一個任務物件是 `my_app_task`。編譯會拒絕一個
+不帶字首的 `task`，提示
+`Rename it to 'my_app_task' (namespace = 'my_app')`，並說明規則：
+``Every object.name must be `${manifest.namespace}_${shortName}`.``
+
+建立 `src/objects/task.object.ts`：
+
+```ts
+// src/objects/task.object.ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+const task = ObjectSchema.create({
+  name: 'my_app_task',
+  label: 'Task',
+  fields: {
+    subject:   Field.text({ label: 'Subject', required: true, maxLength: 200 }),
+    done:      Field.boolean({ label: 'Done', defaultValue: false }),
+    due:       Field.date({ label: 'Due' }),
+    assignee:  Field.lookup('sys_user', { label: 'Assignee' }),
+  },
+  // Org-wide default: who sees records they don't own. Required — the
+  // compile refuses an object that declares none.
+  sharingModel: 'private',
+});
+
+export default task;
+```
+
+然後從 `src/objects/index.ts` 匯出它。`objectstack.config.ts` 通過那個
+`index.ts` 桶檔案載入每個目錄，所以桶檔案沒有匯出的檔案永遠不會被載入。
+在示例物件那一行下面加上這一行：
+`export { default as task } from './task.object';`
+
+`npx objectstack generate object task` 會為你寫出這個檔案的存根和同樣的
+桶檔案匯出行。
+
+儲存。開發伺服器會重新編譯，列印
+`✚ new object(s): my_app_task — table & seeds sync on restart`，並用新的
+構建自動重啟：不需要編寫遷移，也不需要手動重啟。如果它只打印
+`✗ compile failed`，執行 `pnpm build` 檢視原因。現在你有了：
+
+- **`/api/v1/data/my_app_task`** —— 建立、讀取、更新和刪除，支援過濾、
+  排序和分頁（[REST API](/docs/reference/rest-api)）。它只響應已登入的
+  呼叫方，所以先以開發管理員身份登入（見下文）。
+- **生成的列表、表單和記錄頁** —— 腳手架還沒有宣告任何應用，所以 Console
+  中沒有指向它們的連結；直接開啟
+  `http://localhost:3000/_console/apps/setup/my_app_task`。
+- **許可權集編輯器中的 Task 一行** —— Setup → Permission Sets，開啟一個
+  許可權集，*Design in Studio*：為該許可權集設定建立、讀取、編輯和刪除。
+- **審計日誌記錄** —— 每一次建立、更新和刪除，列在
+  Setup → Audit Logs 下。
+
+```bash
+curl -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"email":"admin@objectos.ai","password":"admin123"}' \
+  http://localhost:3000/api/v1/auth/sign-in/email
+curl -b cookies.txt -H 'Content-Type: application/json' \
+  -d '{"subject":"Try the API"}' \
+  http://localhost:3000/api/v1/data/my_app_task
+curl -b cookies.txt http://localhost:3000/api/v1/data/my_app_task
+```
+
+### 專案結構 [#project-layout]
+
+```text
+my-app/
+├── objectstack.config.ts    # defineStack(): manifest + one key per barrel
+├── src/                     # one index.ts barrel per directory
+│   ├── actions/
+│   ├── apps/
+│   ├── dashboards/
+│   ├── flows/
+│   ├── objects/             # index.ts + my_app_item.object.ts, the sample object
+│   ├── picklists/
+│   ├── skills/
+│   └── views/
+├── dist/
+│   └── objectstack.json     # Compiled artifact (regenerated on save)
+├── .objectstack/            # Local SQLite databases (pnpm dev creates them)
+├── package.json
+├── pnpm-workspace.yaml
+└── tsconfig.json
+```
+
+`os init` 還會寫入一個 `.gitignore` 和你所用安裝器的鎖檔案。
+
+`dist/objectstack.json` 就是你交付到生產環境的東西 —— 把它掛載到執行時上，
+無論是開源的 ObjectStack 映象還是 ObjectOS Enterprise 部署，它就成了你的
+應用。
+
+### 或者從模板開始 [#or-start-from-a-template]
+
+面向生產的入門模板位於
+[github.com/objectstack-ai/templates](https://github.com/objectstack-ai/templates)：
+
+```bash
+git clone https://github.com/objectstack-ai/templates.git
+cd templates/packages/todo
+pnpm install
+pnpm dev    # http://localhost:4002
+```
+
+每個模板都少於 2500 行程式碼，一次就能讀完，可以獨立執行。
+
+---
+
+## 開箱即載入的內容 [#whats-loaded-out-of-the-box]
+
+兩條路徑都會自動為你載入這些外掛：
+
+> HTTP 伺服器、REST API、Dispatcher、MCP 伺服器、Auth、Security（RBAC +
+> RLS + FLS）、Audit、Sharing、平臺物件、Metadata、ObjectQL、預設資料來源
+> 以及外部資料來源和資料來源管理服務、Queue、Jobs、Cache、Settings、Email、
+> SMS、Messaging、Storage、Analytics、外部校驗、Marketplace、包管理、
+> 遷移恢復、Setup 和 Account 應用，以及 Console UI。
+
+路徑 B 還會載入自動化服務，以及記錄變更、計劃、相對時間和入站
+HTTP/Webhook 流程觸發器，因為腳手架的 `objectstack.config.ts` 聲明瞭
+`requires: ['automation', 'triggers']`。由於 `pnpm dev` 以開發模式執行，
+它還會開啟一個專用的遙測資料來源 —— 資料庫旁邊的第二個 SQLite 檔案。
+
+你不需要匯入或連線其中任何一個 —— 上面的列表即使沒有任何東西宣告也會
+載入；自動化服務和流程觸發器在有東西宣告需要它們時啟用；開發模式會加上
+遙測資料來源。
+
+## 下一步 [#next-steps]
+
+| 接下來做什麼 | 閱讀 |
+|---|---|
+| 在 Docker 中執行（面向生產） | [Docker](/docs/deploy/docker) |
+| 用 Postgres 代替 SQLite | [執行時配置](/docs/configure/runtime) |
+| 新增 Google / Okta / Entra 登入 | [身份認證](/docs/configure/authentication) |
+| 鎖定誰能做什麼 | [許可權](/docs/configure/permissions) |
+| 把事件傳送到 Slack / Zapier / 你的服務 | [Webhook](/docs/configure/webhooks) |
+| 部署到生產環境 | [生產就緒](/docs/operate/production) |

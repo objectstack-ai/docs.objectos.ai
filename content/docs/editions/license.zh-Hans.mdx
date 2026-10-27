@@ -1,0 +1,185 @@
+---
+title: 许可与定价
+description: ObjectOS 是一个产品、三个版本 —— Community（开源，免费）、Cloud 和 Enterprise —— 每个版本如何授权，以及它们与 ObjectStack 框架的关系。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3f247c23f9174367cda1010c58924661ee44c078a757975a358b3cb707a68289
+  guide_rev: 1
+  mode: auto
+---
+
+## 一个产品，三个版本 [#one-product-three-editions]
+
+ObjectOS 是 **ObjectStack 应用的官方运行时环境**，有三个版本：
+**ObjectOS Community**（开源、自托管、免费）、**ObjectOS Cloud**（由我们
+运维）和 **ObjectOS Enterprise**（由你在商业许可下运维）。ObjectStack 是这
+三个版本所运行的协议、SDK、CLI 和框架的名称。
+
+{/*
+  Naming, decided under #79 and re-confirmed on #107: "Console UI" here and in
+  the Apache-2.0 list further down names the *component* — the shipped browser
+  bundle, the `@objectstack/console` package, the same spelling architecture.mdx
+  and configure/system-settings.mdx were deliberately kept at. #79 retired
+  "Console" as the name of the end-user surface (a reader opens ObjectOS, not
+  "the Console") but kept the names of things the product ships, and a license
+  enumerates artifacts rather than surfaces. Both occurrences on this page are
+  therefore deliberate — do not rewrite them to "the UI" or to "ObjectOS".
+*/}
+
+开源这部分有两个名字、一个许可证。
+**[ObjectStack 框架](https://github.com/objectstack-ai/objectstack)**
+（Apache-2.0）是协议、内核、SDK 和 CLI；**ObjectOS Community** 是由它构建
+的开源运行时和 Console UI —— 生产级运行时镜像、MCP 服务器、权限与共享、
+审计、每一项协议能力 —— **构建、运行和自托管你自己的应用**所需的一切，
+免费，开发与生产之间没有功能关卡。它的代码位于同一个 objectstack 仓库中。
+当你想在这套机制之上获得**嵌入式 AI** 和一个**官方运维 / 官方支持**的平台
+时，你购买的就是 ObjectOS Cloud 和 ObjectOS Enterprise。
+
+## 版本 [#editions]
+
+ObjectOS Community 免费。两个商业版本使用一张价目表、两种交付方式，
+**AI 席位**是唯一的计价单位。
+
+| | **Community** | **Free** | **Team** | **Enterprise** |
+|---|---|---|---|---|
+| 版本 | ObjectOS Community | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise |
+| 交付方式 | **自管理** | 云 | 云 | **自管理（私有部署）** |
+| 价格 | **免费**（Apache-2.0） | **免费** | **24 美元** / AI 席位 / 月 | 定制（按量）—— [联系销售](mailto:sales@objectstack.ai) |
+| UI 内 AI（AI Builder + "问你的数据"） | 仅 MCP（自带模型） | 体验版 | ✓ | ✓ |
+| AI 治理（动作审计、护栏、权限范围限定） | — | — | — | ✓ |
+| 集群 / 高可用、多组织自托管、物理隔离、SCIM | — | — | — | ✓ |
+| 支持 | 社区 | 社区 | 标准 | SLA + 专属 |
+
+在 Team 和完整私有部署之间，有两个 **ObjectOS Enterprise 之下的合同
+选项**，价格不变：**Business**（ObjectOS Cloud 上的 SSO 和 AI 治理，
+**54 美元** / AI 席位 / 月，按年付费为 45 美元 / AI 席位 / 月；优先支持）
+和 **Business Self-Managed**（单节点入门选项，**540 美元** / AI 席位 / 年）。
+两者都按合同销售 —— [联系销售](mailto:sales@objectstack.ai)。
+
+想**免费**自托管？那就是 **ObjectOS Community**（仅 MCP 的 AI：自带模型）。
+参见下文的 [ObjectOS Community](#objectos-community)。
+
+**开放的机制，封闭的智能。** 建模数据和运行应用所需的一切都是开源的
+（ObjectOS Community，基于 ObjectStack 框架）。Cloud 和 Enterprise 在其上
+叠加了*嵌入式智能* —— 产品内的 AI Builder 和"问你的数据"助手，经过治理
+和审计 —— 再加上运营规模和官方支持。
+
+**你只为 AI 席位付费。** 唯一计费的席位是 **AI 席位**；只读用户、非 AI 的
+应用用户以及通过 MCP 构建的开发者都免费，没有按用户收取的席位税（与那些
+每用户 150–300 美元的老牌厂商形成鲜明对比）。
+
+## 云还是自管理 [#cloud-or-self-managed]
+
+自管理的 ObjectOS 是 **ObjectOS Community**（免费）或 **ObjectOS
+Enterprise**（需许可）。云是 Free 和 Team；Team 之上的一切都是 Enterprise
+合同。
+
+- **云（Free / Team）** —— 完全托管，自助开通。价格包含托管和一份充裕的
+  每月 AI 额度（模型由我们运行）。
+- **Enterprise** —— 需许可的 ObjectOS，按合同销售，有三种形态：
+  - **Business** —— ObjectOS Cloud 上的一个合同选项：托管服务上的 SSO /
+    SAML 和 AI 治理（动作审计、护栏、权限范围限定），54 美元 / AI 席位 /
+    月，或按年付费 45 美元 / AI 席位 / 月，优先支持。
+  - **Business Self-Managed** —— 单节点入门选项：以**单节点 Docker 许可证**
+    形式交付的 Business 套餐，适用于 **10–25 个 AI 席位**（540 美元/AI 席位/
+    年，按年）：在你自己的基础设施上提供 UI 内 AI 和 AI 治理，**自带模型 /
+    密钥**（你自己承担 LLM 成本 —— 没有平台 AI 账单或计量），刷卡支付，
+    标准支持。如果许可证过期，运行时会继续运行，你的数据保持完整 —— 只是
+    付费功能会关闭（它永远不会变砖）。
+  - **完整私有部署** —— 适用于超出上述范围的一切：集群 / 高可用 / 多节点、
+    多组织自托管、数据驻留和**物理隔离**运行、SCIM 和身份生命周期、合规
+    证明、SLA 和专属支持，以及线下 / 发票付款。以**年度许可证**销售，可选
+    多年锁价；不续约时，你的部署会**永久保留最后一个已付费的版本**（你失去
+    的是更新和支持，绝不是你的系统或数据）。价格按量计算 ——
+    [联系销售](mailto:sales@objectstack.ai)。
+
+**不按节点收费** —— 集群 / 扩展已包含在 Enterprise 中。
+
+## 什么时候选哪个 [#when-you-might-want-each]
+
+| 场景 | 选择 |
+|---|---|
+| 你希望平台**由别人托管和运维** | ObjectOS Cloud（Free → Team） |
+| 你需要托管服务上的 **SSO 和 AI 治理** | **Business**，ObjectOS Enterprise 在 ObjectOS Cloud 上的合同选项 |
+| 你必须在**你自己的单个节点**上运行，并且想要产品内 AI，AI 席位 ≤25 个 | **Business Self-Managed**，ObjectOS Enterprise 的合同选项（单节点入门） |
+| 你需要**集群 / 高可用**、**多组织**、**物理隔离**、**SCIM**、合规证明、SLA 或线下付款 | **ObjectOS Enterprise**，完整私有部署 |
+| 你自托管 ObjectOS Community，但需要一个**带商业合同的受支持发行版**（SLA、安全补丁优先、指定升级渠道） | **ObjectOS Runtime Subscription** —— [联系销售](mailto:sales@objectstack.ai) |
+| 你想要**免费自托管**，并通过 MCP 自带 AI | **ObjectOS Community**（开源） |
+| 你需要以 ObjectOS 或 ObjectStack 名义进行 **OEM / 再分发**的权利 | 商业协议 —— [联系销售](mailto:sales@objectstack.ai) |
+
+## ObjectOS Community [#objectos-community]
+
+**ObjectOS Community** —— 运行时镜像和 Console UI —— 以及构建它的
+**ObjectStack 框架**，均采用
+[Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0)
+授权：没有 copyleft，有明确的专利授权，永久免费 —— 没有席位，没有用量
+档位，没有许可证服务器，没有密钥，没有遥测。在你的笔记本、你的服务器、
+你客户的服务器或一个 1000 个 Pod 的集群上运行它；许可证在任何情况下都
+一样。你在那里的 AI 路径是开放的 **MCP 服务器**：把你自己的 Claude Code
+（或任何 MCP 客户端）指向你的部署，它就能用你自己的模型查询和操作你的
+数据。
+
+Apache-2.0 授权的内容（位于 objectstack 仓库中）：运行时镜像、所有
+`@objectstack/*` npm 包（运行时、插件、服务、驱动、适配器、CLI、客户端
+SDK）、templates 仓库，以及 Console UI，包括它提供的 Account 应用。
+文档采用 CC-BY-4.0。
+
+全文：[LICENSE](https://github.com/objectstack-ai/objectstack/blob/main/LICENSE)
+
+## 商标 [#trademarks]
+
+"ObjectOS"和 ObjectOS 标志是**商标**，不受任何代码许可证的覆盖。你可以
+如实地说你的产品*构建于* ObjectOS / ObjectStack 之上或*兼容* ObjectOS /
+ObjectStack；在你自己的产品、公司或域名中使用这些名称或标志需要书面许可。
+参见 [TRADEMARK.md](https://github.com/objectstack-ai/objectos/blob/main/TRADEMARK.md)。
+
+## 第三方组件 [#third-party-components]
+
+ObjectOS 构建在 ObjectStack 框架和若干上游开源项目（Node.js、Hono、Zod、
+Better Auth、AI SDK ……）之上。每个组件都带有自己的许可证 —— 全部是
+Apache-2.0、MIT 或 BSD 风格的宽松许可证，兼容商业使用。完整清单见每个
+版本随附发布的 SBOM。
+
+## 常见问题 [#faq]
+
+### ObjectOS 是开源的吗？ [#is-objectos-open-source]
+
+**ObjectOS Community** 是：运行时和 Console 采用 Apache-2.0，免费，并在
+[objectstack 仓库](https://github.com/objectstack-ai/objectstack)中公开
+开发，与构建它们的 ObjectStack 框架放在一起。**ObjectOS Cloud** 和
+**ObjectOS Enterprise** 是商业版本 —— 在同一套机制之上提供嵌入式 AI、
+托管与运维、SSO 和支持。
+
+### 我能在卖给客户的闭源 SaaS 中使用 ObjectStack 吗？ [#can-i-use-objectstack-in-a-closed-source-saas-i-sell-to-my-customers]
+
+可以。Apache-2.0 没有 copyleft，也没有版税 —— 你不需要公开你的代码，
+即使你的产品赚了钱，你也不欠任何费用。
+
+### 我能不付费自托管 ObjectOS 吗？ [#can-i-self-host-objectos-without-paying]
+
+可以 —— 那就是 **ObjectOS Community**：同样开放的机制，自托管，AI 仅通过
+MCP（自带模型）。*需许可*的自管理版本是 ObjectOS Enterprise，它的两个
+选项（单节点上的 Business Self-Managed，或完整的 Enterprise 部署）都会
+增加产品内 AI、AI 治理和商业支持。
+
+### 如果我不续约，软件会停止工作吗？ [#does-the-software-stop-working-if-i-dont-renew]
+
+它永远不会变砖。Business Self-Managed 会降级为免费机制的行为（付费功能
+关闭；你的数据和运行时继续工作）。完整的 Enterprise 部署会**永久保留最后
+一个已付费的版本** —— 你失去的是更新、新的 AI 能力和支持，而不是你的
+系统。
+
+### ObjectOS 会"回传数据"吗？ [#does-objectos-phone-home]
+
+ObjectOS Enterprise 会在线校验许可证；物理隔离的 Enterprise 许可证离线
+校验。ObjectOS Community 没有遥测，没有许可证检查，也没有更新探测。
+
+### 如果我想为 ObjectOS Community 获得合同担保怎么办？ [#what-if-i-want-a-contractual-warranty-on-objectos-community]
+
+那就是 **ObjectOS Runtime Subscription** —— 针对 ObjectOS Community 的
+支持合同（官方发行版、SLA、安全补丁优先），功能上没有任何差别。请联系
+[sales@objectstack.ai](mailto:sales@objectstack.ai)。
+
+### ObjectOS Community 和框架会一直免费吗？ [#will-objectos-community-and-the-framework-always-be-free]
+
+会。Apache-2.0 的授予不可撤销，所有已经发布的内容都会保持发布时的许可。

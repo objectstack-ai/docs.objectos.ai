@@ -1,0 +1,167 @@
+---
+title: Importing data
+seoTitle: "Import Wizard: CSV and Excel Import, Mapping, Undo"
+description: Bring records in from a CSV or Excel file — map the columns, fix errors before anything is saved, and undo an import that went wrong.
+editions: [community, cloud, enterprise]
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/records-forms.json):
+  records-forms.import-wizard-encoding-and-hints,
+  records-forms.named-import-mapping,
+  records-forms.import-job-undo-cancel,
+  records-forms.import-transform-matrix.
+*/}
+
+When you have records in a spreadsheet — a customer list, last year's
+projects — the **import wizard** turns them into records in three steps:
+**Upload**, **Mapping**, **Preview**. Nothing is saved until you press
+**Import** at the end.
+
+## Opening the wizard
+
+In the object's list, click **Import** in the list header. On some
+objects it sits in the header's `⋯` overflow menu instead.
+
+You'll only see it when the object is open for import and you're
+allowed to create its records — importing creates records, so it needs
+the same permission as **+ New**.
+
+## Step 1 — Upload
+
+Drag a file onto the wizard, click **Browse Files**, or paste
+(`Ctrl/⌘+V`) rows copied straight from Excel or Google Sheets.
+
+| File | Supported |
+|---|---|
+| CSV, TSV | Yes |
+| Excel `.xlsx` | Yes |
+| Old Excel `.xls` | No — open it and save as `.xlsx` first |
+
+The first row must be the column headers, and there must be at least
+one data row.
+
+**Not sure which columns to use?** Click **Download template** for an
+Excel file listing every column you can import, with required ones
+marked `*`, and instructions for filling it in.
+
+> **Tip:** Files saved by a Chinese-language Excel ("Save as CSV") are
+> often encoded GBK rather than UTF-8. You don't need to convert them:
+> the wizard detects the encoding, so Chinese headers and values come
+> through intact.
+
+## Step 2 — Mapping
+
+The wizard matches your columns to the object's fields by name and says
+how sure it is (**High**, **Medium** or **Low confidence**). Review the
+matches and change any that are wrong:
+
+| Choice | Effect |
+|---|---|
+| A field | The column's values go into that field |
+| **— Skip —** | The column is ignored |
+
+A column whose values don't look like the field's type is flagged (for
+example *Looks like Date*).
+
+**Required fields must be mapped.** If one isn't, **Next** stays
+disabled and the wizard names the missing fields — add that column to
+your file, or upload a file that has it.
+
+**Reusing a mapping.** Under **Mapping template**, **Save current**
+stores this column-to-field mapping in your browser so the next import
+of the same file layout is one click. If your app's builder set up a
+**saved mapping** for this kind of file, choose it instead: the server
+then renames columns, converts values and applies its own rules, and
+the column mapping is shown read-only.
+
+## Step 3 — Preview
+
+The preview shows your rows as they will be imported. Rows with
+problems are highlighted — click a highlighted cell to fix the value
+right there. Click **Validate data** to check every row against the
+server before anything is written; you'll see how many rows are valid
+and which have errors. A row that passes validation is a row the import
+will accept.
+
+Typical errors:
+
+| Message | Meaning |
+|---|---|
+| *This field is required* | A required value is empty |
+| *"abc" is not a valid number* (or date, time, true/false) | The value can't be read as the field's type |
+| *"Gold" is not one of the allowed options* | A choice field got a value it doesn't offer |
+| *No matching record for "Acme"* | A column that points to another record named one that doesn't exist |
+| *"Acme" matches more than one record* | That name isn't unique — use a unique value or the record ID |
+
+### Import options
+
+| Option | What it does |
+|---|---|
+| **When a row matches an existing record** | **Always create new**, **Update existing (skip if no match)**, or **Update if matched, else create** |
+| **Match on** | The field(s) used to find an existing record — an email, a code, an external ID |
+| **Keep unknown option values** | Store a choice value the field doesn't offer as it is, instead of rejecting the row |
+| **Skip rows with a blank match value** | Leave out rows with nothing to match on |
+| **Import in the background** | Run the import as a job you can undo later |
+
+Updating by a match field makes an import safe to repeat: running the
+same file again updates the records it created instead of making
+duplicates.
+
+## The result
+
+When the import finishes you see how many records were **created**,
+**updated** and **skipped**, and any row errors. **Download failed
+rows** gives you just the rows that didn't make it, ready to fix and
+import again.
+
+## Background imports, cancel and undo
+
+Files with more than **5,000 rows** always import in the background;
+smaller ones do when you tick **Import in the background**. A
+background import shows its progress, and you can keep working.
+
+| Action | What happens |
+|---|---|
+| **Cancel import** | Stops the job. Rows already written stay; a row is either fully saved or not saved at all — never half-written. |
+| **History** | Lists this object's background imports, newest first, with status, row counts and result |
+| **Undo import** | Deletes the records the import created and restores records it updated to their previous values. Nothing else is touched. |
+
+If some rows can't be undone, the wizard tells you how many — choose
+**Undo import** again to retry just those.
+
+> **Tip:** Importing a big file for the first time? Tick **Import in
+> the background**. If the result isn't what you expected, one **Undo
+> import** puts things back.
+
+## For app builders: saved mappings
+
+A saved mapping is `mapping` metadata in your package. It renames
+foreign headers onto fields ("Full Name" → `name`), sets the key that
+makes re-imports update rather than duplicate, and can transform values
+on the way in:
+
+| Transform | Does |
+|---|---|
+| `map` | Translates codes to values (`'Webform'` → `web`); a value with no entry passes through unchanged |
+| `constant` | Writes a fixed value, ignoring the column |
+| `lookup` | Resolves a name to the related record's ID |
+| `split` | Splits one column across several fields |
+| `join` | Joins several columns into one field, skipping empty parts |
+
+A mapping that names the `javascript` transform is refused before any
+row is written — there's no server-side sandbox to run it in. Importing
+a file through a mapping declared for another format (JSON through a
+CSV mapping) is refused with both formats named; Excel files go through
+a CSV mapping. An import that names a mapping that doesn't exist is
+refused rather than falling back to matching columns by position.
+
+## Where to go next
+
+| I want to… | Read |
+|---|---|
+| Edit the imported records | [Working with records](/docs/use/records) |
+| Find a record I just imported | [Searching](/docs/use/search) |
+| Filter the list down to what I imported | [Using views](/docs/use/views) |
+| Back to the tour | [Using ObjectOS](/docs/use) |

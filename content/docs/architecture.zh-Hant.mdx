@@ -1,0 +1,186 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 架構
+seoTitle: "架構：執行什麼，資料在哪裡"
+description: 你實際在執行的是什麼 —— 寫給正在評估是否引入它的工程師。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9292459ed8a30885f3b5c660fb772187d5d1edb8ead66c12839ab7900dcbef3f
+  guide_rev: 1
+  mode: auto
+---
+
+從實用角度看部署 ObjectOS 時運行了什麼 —— 無論是用 **ObjectOS
+Enterprise** 在你自己的機器上，還是由 **ObjectOS Cloud** 為你運維 ——
+哪些資料會離開你的網路，哪些不會。
+
+心智模型是一份定義，加上一個執行它的執行時：
+
+1. **你的[本體](/docs/ontology)** —— 對業務的定義：物件和欄位、關係、
+   動作、許可權、流程，以及 Agent 與工具定義。檢視、儀表盤、應用和翻譯
+   作為它的投影在它旁邊編寫。大部分由
+   [AI Builder](/docs/build/ai-builder) 通過沙箱化的工具 API 編寫；
+   有時手工編輯；執行前總會經過校驗，並受版本控制和審計。
+2. **一個單獨的 Node.js 執行時**，從它**派生**出可工作的應用 —— 資料庫
+   模式、REST API、Console UI 以及 Agent 呼叫的 MCP 伺服器 —— 並在每次
+   呼叫時**強制執行**它：RBAC、行級和欄位級安全、共享和審計，對 REST
+   請求、Console 點選和 Agent 的工具呼叫一視同仁。全部在一個程序中，
+   與你的資料庫通訊。
+
+```text
+your ontology
+  objects · relations · actions
+  permissions · flows · agents
+  + projections: views · dashboards
+    apps · translations
+      │
+      ▼
+ObjectOS runtime
+  derives the app, enforces it
+      │
+      ├──▶ database    its schema
+      ├──▶ REST API    /api/v1/*
+      ├──▶ Console     /_console/
+      └──▶ MCP server  /api/v1/mcp
+```
+
+在"使用者描述了他們想要什麼"和"它已上線"之間，沒有程式碼生成步驟，也沒有
+部署流水線。執行時會在人工審批（HITL）通過後熱載入新的後設資料。
+
+## 你部署的是什麼 [#what-you-deploy]
+
+一個 Node.js 程序，服務一個應用。僅此而已。在 ObjectOS Community 上，
+你用開源映象自己執行這個程序（`os start`）；在 ObjectOS Cloud 上，我們
+為你執行它；在 ObjectOS Enterprise 上，你用[部署](/docs/deploy)中描述的、
+獲得許可的 Enterprise 映象來部署它。
+
+```text
+┌─────────────────────────────────────────────────────┐
+│                  ObjectOS process                   │
+│  ┌───────────────────────────────────────────────┐  │
+│  │   HTTP dispatcher  (/ · /api · /_console …)   │  │
+│  ├───────────────────────────────────────────────┤  │
+│  │   ObjectKernel — this deployment's app        │  │
+│  │   ├─ Auth (Better Auth)                       │  │
+│  │   ├─ Security (RBAC + row-level + field)      │  │
+│  │   ├─ ObjectQL (data engine, generates SQL)    │  │
+│  │   ├─ REST API generator                       │  │
+│  │   ├─ MCP server  (/api/v1/mcp, on by default) │  │
+│  │   └─ Capabilities loaded per artifact         │  │
+│  │      (audit, storage, jobs, queue, AI …)      │  │
+│  └───────────────────────────────────────────────┘  │
+└──────────┬──────────────────────────────────────────┘
+           │
+           ▼
+   Your business database
+   (Postgres / MySQL / SQLite / Turso / MongoDB)
+```
+
+它的複雜度相當於一個靜態連結的二進位制檔案。不需要 sidecar，不需要
+Kafka，也不需要單獨的快取層。等你需要時再加上它們；不必在第一天就為
+它們付費。
+
+**一個部署服務一個應用。** 用哪個應用是部署級別的決定 —— 參見
+[啟動模式](#boot-modes) —— 而且對該部署服務的每個人都是同一個應用，
+包括多個組織共享的隔牆式部署。你通過執行更多相同程序的同構副本來擴充套件
+部署，而不是把更多應用塞進一個部署；參見 [Docker](/docs/deploy/docker)。
+
+## 你的資料存放在哪裡 [#where-your-data-lives]
+
+在 **ObjectOS Enterprise** 上 —— 也就是下面這張表所描述的自管理版本 ——
+下列任何內容都不會離開你的網路。在 **ObjectOS Cloud** 上，同樣的程序
+改為執行在我們的基礎設施中；無論哪個版本，本體本身都歸你：匯出它並在
+開源的 ObjectStack 執行時上執行。[資料駐留](/docs/reference/security#data-residency)
+列出了每一類資料、它存放在哪裡，以及它是否會離開你的網路。
+
+自管理的 ObjectOS 會線上校驗許可證；Enterprise 物理隔離許可證則離線
+校驗。因此，一個完全無法訪問網際網路的部署也能繼續執行 —— 受支援的許可證
+與雲連線姿態組合見[物理隔離](/docs/deploy/air-gapped)。
+
+## 一個請求是如何被處理的 [#how-a-request-is-served]
+
+```text
+1. Ingress / TLS termination      (your load balancer)
+2. HTTP dispatcher                (security headers, request id)
+3. AuthPlugin     — session cookie, bearer token, or API key
+4. SecurityPlugin — RBAC + row-level + field-level checks
+5. Route handler  — generated REST, MCP tool call, declarative action,
+                    or custom
+6. Data driver    — ObjectQL compiles to SQL / Mongo query
+7. Response with X-Request-Id propagated
+```
+
+Agent 的呼叫走的是同一條路徑。MCP 客戶端以某個使用者的身份通過 OAuth 或
+API 金鑰進行認證，同樣的許可權檢查約束著它的工具呼叫能讀寫什麼 —— 參見
+[連線 AI 工具（MCP）](/docs/configure/mcp)。
+
+在第一個請求到達之前，應用就已經確定了：核心在啟動期間構建，程序在
+構建完成之前不會報告自己已[就緒](/docs/deploy/docker)。因此一個被處理的
+請求中沒有任何步驟去決定它屬於*哪個*應用，也沒有需要讀者規劃的按應用
+預熱 —— 一個請求的開銷就是認證、許可權檢查，以及一次編譯好的查詢。
+
+## 三個層次（只在你需要整合時才重要） [#the-three-layers-only-matters-if-youre-integrating]
+
+大多數客戶只執行 **ObjectOS**。如果你想知道產物從哪裡來，另外兩層是：
+
+| 層次 | 它是什麼 | 執行在哪裡 |
+|---|---|---|
+| **框架**（`@objectstack/*`） | 開源的核心、ObjectQL、外掛、驅動 | npm —— 在構建時引入 |
+| **控制平面**（可選） | 釋出編譯好的 `objectstack.json` 產物；你可以使用託管的 ObjectOS Cloud、自己執行一個，或者完全不用 | 你的 CI、我們的雲，或者你的筆記本 |
+| **ObjectOS** | 構建在框架之上的商業執行時環境 | **ObjectOS Cloud**（由我們運維）或**你的基礎設施**（ObjectOS Enterprise） |
+
+如果你只交付一個應用，就不需要控制平面 —— 在你的 CI 中把
+`objectstack.config.ts → dist/objectstack.json` 編譯好，然後把 JSON 放進
+映象裡交付。如果你釋出供多個部署安裝的應用，控制平面就是這個目錄所在
+的地方。
+
+## 啟動模式 [#boot-modes]
+
+正在執行的應用從哪裡來是一個決定，由部署來宣告。隨附的預設模式無需任何
+配置；其他每種模式都通過指定一個已釋出的產物來選擇，
+[環境變數](/docs/reference/environment-variables)參考中列出了每種模式的
+確切約定。
+
+| 模式 | 何時使用 | 應用如何到達 |
+|---|---|---|
+| **配置編寫（Config-authored）** | 隨附的形態。單個應用、評估、物理隔離，以及大多數生產部署 | 執行時啟動映象中編寫的後設資料，以及安裝到其中的任何內容 |
+| **產物鎖定（Artifact-pinned）** | 應用按自己的節奏釋出，與執行時映象分開 | 用一個變數通過 URL 指定一個已釋出的產物，可選附帶完整性鎖定。升級應用就是修改這個變數並重啟 |
+| **組合（Composed）** | 多個組織位於隔離牆之後，共享一個數據庫，執行一個已釋出的應用 —— 託管的單應用 SaaS 形態 | 同樣的產物引用，從部署自身的配置中讀取，以便企業外掛與它一同載入。僅限物理隔離許可證，否則會[在啟動時被拒絕](/docs/deploy/air-gapped) |
+
+部署是否還與**控制平面**通訊是另一個獨立的決定，由雲連線姿態變數決定 ——
+一個已連線的部署可以是上述任意一種模式。自管理執行時用部署**繫結**到
+控制平面時簽發的令牌向控制平面認證，而不是用貼上進檔案的金鑰；把錯誤的
+許可證模式與錯誤的雲連線姿態搭配在一起，會[在啟動時被拒絕](/docs/deploy/air-gapped)。
+
+## 效能特徵 [#performance-characteristics]
+
+**本頁不公佈任何延遲或記憶體資料。** 你執行的是一個按摘要鎖定的映象，
+針對*你的*資料庫服務*你的*應用，唯一值得用來規劃部署規模的數字，是你在
+這個環境上測得的數字。本頁能給你的是形狀 —— 每項開銷來自哪裡，以及應該
+如何測量它。
+
+| 特徵 | 它來自哪裡，以及如何測量 |
+|---|---|
+| **啟動** | 程序啟動，為本部署的應用構建核心，然後才報告就緒。把它測量為在你自己的映象和產物上，`/api/v1/ready` 返回 200 所需的時間；應用越大、載入的能力越多，它要做的事就越多。 |
+| **請求延遲** | 認證、許可權檢查，以及一次由 ObjectQL 編譯的查詢。沒有任何按請求的步驟去決定服務哪個應用，所以通常變化的是資料庫往返這一部分；用你自己的百分位、針對你自己的資料量來測量。 |
+| **記憶體** | 本部署後設資料的一份常駐副本，加上應用載入的能力 —— 它們是可選外掛，所以載入得越少的部署佔用越少 —— 再加上你的併發中正在處理的內容。在你自己的負載下測量容器的 RSS，而不是在空閒時。 |
+| **擴充套件到多個程序** | 同一程序的副本，每個都服務同一個應用。超過一個副本後，叢集驅動和相同的共享金鑰就不再是可選的了 —— 參見 [Docker](/docs/deploy/docker)。 |
+
+## 為什麼是這種形狀 [#why-this-shape]
+
+- **一個 Node 程序，沒有 sidecar** → 裝得進一個 `docker run`，裝得進一個
+  systemd 單元，裝得進一個長期執行的容器或虛擬機器。
+- **每個部署一個應用** → 後設資料在啟動時解析一次，而不是每個請求都解析，
+  所以沒有需要調對的快取大小；當多個組織共享一個部署時，它們共享這個
+  部署的應用，它們之間的隔離牆在執行時內部強制執行。
+- **在宣告的後設資料之上生成 API** → 你的 CI 中沒有程式碼生成步驟，也沒有
+  需要釋出的客戶端 SDK；API 從設計上就與你的資料模型一致。
+- **所有能力都是可選外掛** → 映象大小隨你實際使用的內容伸縮。
+
+## 下一步去哪裡 [#where-to-go-next]
+
+- [生產就緒](/docs/operate/production) —— 在把它暴露給真實流量之前的
+  檢查清單。
+- [執行時配置](/docs/configure/runtime) —— 連線資料庫、快取和金鑰。
+- [執行時能力](/docs/reference/runtime-capabilities) —— 有哪些可選包，
+  以及它們啟用了什麼。

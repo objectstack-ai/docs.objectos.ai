@@ -1,0 +1,131 @@
+---
+title: Searching
+seoTitle: "Search and the Command Palette: Find Any Record"
+description: Find any record by typing part of it — from the ⌘K palette, a list's search box, or a lookup picker — and jump anywhere in the app.
+editions: [community, cloud, enterprise]
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/search.json): search.cross-field-object-search,
+  search.field-scoped-narrowing, search.rls-both-personas,
+  search.pinyin-flag-both-sides, search.freshness-and-empty,
+  search.console-global-search, search.command-palette-navigation,
+  search.global-search-skips-unreadable.
+*/}
+
+Type part of a name, an email, a status, or a city, and ObjectOS finds
+the records that contain it. The same search runs in three places:
+
+| Where | What it searches |
+|---|---|
+| **Global search** — `⌘K` (Mac) / `Ctrl-K` (Windows/Linux), or **Search…** in the top bar | Records across every object you can read, plus the app's own menu |
+| **List search** — the magnifier in a view's toolbar | The records of the list you're on |
+| **Lookup pickers** — the **Select…** box on a field that points to another record | The records you can pick |
+
+All three send your words to the server and get the same answer, so a
+record that turns up in one turns up in the others.
+
+## How matching works
+
+| You type | It finds |
+|---|---|
+| Part of a word — `retail` | Every record with `retail` anywhere in a searched field: *Acme Retail*, or an account whose industry is *Retail* |
+| Any capitalization — `Retail`, `RETAIL` | The same records; search ignores case |
+| Several words — `retail northwind` | Records where **every** word matches some field of the same record |
+| A choice label — `In Progress` | Records whose status (or other choice field) holds that option, even though the stored value is different |
+
+Which fields are searched is set per object by whoever built the app.
+When they haven't chosen, search looks at the record's name or title,
+its text fields (including email, phone, URL and long text) and its
+choice fields — not numbers, dates, yes/no fields, files, or links to
+other records.
+
+> **Tip:** More words narrow the results. `acme invoice` finds Acme's
+> invoices, not every Acme record plus every invoice.
+
+## You only find what you can read
+
+Search runs with your permissions, the same as opening a list:
+
+- Records you can't read are never returned, and they aren't counted in
+  the total either.
+- An object you have no access to is skipped quietly — your search still
+  answers from the objects you can read.
+- Fields hidden from you are not searched, so a hit can't reveal what's
+  in them.
+
+Two people can type the same words and get different results. That's
+correct: each sees the matches they're allowed to see.
+
+## Always up to date
+
+There's no index to wait for. A record you just created is findable
+right away; after a rename the new name matches and the old one no
+longer does; a deleted record disappears from results immediately.
+
+When nothing matches you get **No results found** — not an error. Try
+fewer or shorter words.
+
+## Chinese names and pinyin
+
+When your app supports Chinese, search also matches Chinese names typed
+in pinyin: the full spelling (`zhangwei`) or the initials (`zw`) find
+**张伟**, and Chinese characters keep matching as typed. Pinyin applies
+to the record's name field.
+
+Pinyin search is on when the app lists a Chinese language among its
+languages. An administrator can switch it on or off for the whole
+deployment with the `OS_SEARCH_PINYIN_ENABLED` setting.
+
+## The command palette
+
+Press `⌘K` / `Ctrl-K` (or click **Search…**) to open the palette. It's
+a search box and a navigator in one:
+
+| You see | What it does |
+|---|---|
+| **Recently viewed** | Shown while the box is empty — the records you opened lately, one click away |
+| Records, grouped under their object's name | Type at least **two characters**; matches appear under headings such as *Accounts* and *Contacts*. **Enter** opens the highlighted record |
+| **Objects**, **Dashboards**, **Pages**, **Reports** | Items from the current app's menu whose names match — including items tucked inside menu groups |
+| **Switch App** | Your other apps; the current one is marked **Current** |
+| **Preferences** | **Light Theme**, **Dark Theme**, **System Theme** — applied immediately |
+| **Open Full Search Page** | Opens the search page (below) |
+
+The palette only offers what you could reach anyway: menu items hidden
+from you in the sidebar are hidden here too, and inactive apps don't
+appear under **Switch App**.
+
+> **Tip:** Keep your hands on the keyboard — `⌘K`, type, arrow keys,
+> **Enter**. Pressing `⌘K` again closes the palette.
+
+## The search page
+
+**Open Full Search Page** takes you to a full-page view of the same
+search: the app's objects, dashboards, pages and reports that match,
+and record matches grouped by object. Type in its box to refine.
+
+## Searching inside a list
+
+The magnifier in a view's toolbar narrows the list you're on. It works
+together with the view's filters, grouping and sort — see
+[Using views](/docs/use/views). Use it when you know *which* list; use
+`⌘K` when you don't.
+
+## For app builders
+
+An object's `searchableFields` sets the fields search scans; leave it
+out to get the name, text and choice fields described above. A view or an API
+call can narrow the scan to fewer of those fields but never widen it —
+asking for a field outside the set is refused, not ignored. A computed
+`formula` field can't be searched, because it isn't stored; copy the
+value onto a stored text field and search that.
+
+## Where to go next
+
+| I want to… | Read |
+|---|---|
+| Filter, group, and sort a list | [Using views](/docs/use/views) |
+| Open and edit the record I found | [Working with records](/docs/use/records) |
+| Understand who can see which records | [Permissions](/docs/configure/permissions) |
+| Back to the tour | [Using ObjectOS](/docs/use) |

@@ -1,0 +1,208 @@
+---
+title: Reports
+seoTitle: "Build Reports: Summary, Matrix and Joined Reports on Datasets"
+description: Grouped and cross-tab reports bound to the same datasets as your dashboards — with an optional chart and drill-through to the records behind every number.
+editions: [community, cloud, enterprise]
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/dashboards.json):
+  dashboards.dataset-report-authoring, dashboards.drill-through-range,
+  dashboards.analytics-exposure-gate-and-measure-aggregate.
+
+  Deliberately not written: saved personal reports and scheduled report
+  delivery. dashboards.saved-report-ownership and
+  dashboards.report-schedule-dispatch-delivery are retired — the saved-report
+  stack was removed (objectstack #20102), and `subscription` / `schedule` on a
+  report are refused because nothing delivers a report on a timetable. The
+  report `dateRange` and `exportOptions` keys (objectstack #26548) are not
+  documented yet either: the spec accepts them, but the report page does not
+  render them.
+*/}
+
+**A report is a table of numbers bound to a dataset.** It groups a
+dataset's measures by its dimensions — down the rows, and for a matrix
+across the columns too — and can draw a chart of the same numbers above
+the table. Because the report selects measures *by name* from the
+dataset, "revenue" in a report is the same revenue a
+[dashboard](/docs/build/interface/dashboards) shows.
+
+## Start from a dataset
+
+Reports and dashboards share one semantic layer: the **dataset** owns
+the base object, the relationships it joins, the dimensions you can
+group by, and the measures you can show. Define it once — see
+[Dashboards → Datasets first](/docs/build/interface/dashboards#datasets-first)
+— and bind as many reports and widgets to it as you like.
+
+What a dataset can't reach, neither can a report:
+
+- An object with its API turned off can't be the base of a dataset; the
+  query is refused.
+- Internal fields can't be used as a dimension, a measure or a filter —
+  for administrators too.
+- Every query runs with the viewer's permissions, so a report never
+  counts records the viewer couldn't open.
+
+## Report types
+
+| `type` | Shows | Selects |
+|---|---|---|
+| `summary` | One row per group, measures in the columns | `rows` (dimensions) and `values` (measures) |
+| `matrix` | A cross-tab: one dimension down, another across, measures in the cells | `rows`, `columns` and `values` |
+| `joined` | Several sub-reports stacked in one page, each drawn as a table | Each entry of `blocks` selects its own |
+
+A plain list of records isn't a report: build it as a list
+[view](/docs/build/interface/views) of the object instead.
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+// Estimated hours by task status.
+export const hoursByStatus = defineReport({
+  name: 'hours_by_status',
+  label: 'Hours by Status',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+})
+
+// Status down, priority across.
+export const statusByPriority = defineReport({
+  name: 'status_by_priority',
+  label: 'Status × Priority',
+  type: 'matrix',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  columns: ['priority'],
+  values: ['est_hours'],
+})
+```
+
+A `summary` or `matrix` report needs a `dataset` and at least one
+measure in `values`. `rows`, `columns` and `values` name the dataset's
+dimensions and measures, not raw object fields.
+
+### Joined reports
+
+A joined report puts several independent sub-reports on one page —
+"open work" above "finished work", say. Each block binds its own
+dataset and selects its own rows, columns and values, with its own
+`runtimeFilter`. The container selects nothing itself: a `dataset`,
+`rows`, `columns`, `values`, `order` or `chart` on a joined report is
+refused, and a block without a `dataset` is refused by name. Blocks
+can't nest another joined report.
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const taskOverview = defineReport({
+  name: 'task_overview',
+  label: 'Task Overview',
+  type: 'joined',
+  blocks: [
+    { name: 'open_block', label: 'Open Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['est_hours'],
+      runtimeFilter: { done: false } },
+    { name: 'done_block', label: 'Completed Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['task_count'],
+      runtimeFilter: { done: true } },
+  ],
+})
+```
+
+A container-level `runtimeFilter` is ANDed into every block, so a scope
+such as "this quarter" is written once.
+
+## Filtering and ordering
+
+- **`runtimeFilter`** scopes the rows the report aggregates, on top of
+  the dataset's own filter.
+- **`order`** sorts the result, most significant key first; each key
+  names a dimension or measure the report selects, and a key it doesn't
+  select is an authoring error. The sort runs on the server over the
+  whole result. A date dimension already comes back in time order, so
+  you only need `order` to sort by a measure ("biggest first"), to put
+  newest first, or to order another dimension.
+
+## Adding a chart
+
+A `summary` or `matrix` report can draw a chart above its table
+(below it, for a matrix with `columns`). The chart's axes name a
+dimension and a measure of the same dataset:
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const hoursByStatusChart = defineReport({
+  name: 'hours_by_status_chart',
+  label: 'Hours by Status (Chart)',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+  chart: { type: 'bar', xAxis: 'status', yAxis: 'est_hours' },
+})
+```
+
+The chart plots the same numbers the table shows. A joined report draws
+tables only.
+
+## Drill-through
+
+Every aggregated row or cell is clickable: it opens a side drawer
+listing the records behind that number, scoped exactly to the group —
+the bucket's date range for a date dimension, and both the row and the
+column for a matrix cell. From the drawer, click a record to open it,
+or **Open in list →** to continue in the object's full list. Turn it off
+with `drilldown: false`.
+
+A report with no matching data shows an empty state rather than a
+broken table.
+
+## Putting a report in front of people
+
+Add a `report` item to an [app's](/docs/build/interface/apps)
+navigation:
+
+```ts
+// One navigation item of an app.
+{ id: 'nav_hours_by_status', type: 'report', label: 'Hours by Status',
+  reportName: 'hours_by_status', icon: 'sigma' }
+```
+
+The report page shows the report's label and description, then the
+report. Reports are also listed under **Reports** in the `⌘K` command
+palette — see [Searching](/docs/use/search).
+
+Administrators see an **Edit** button on the report page. It opens the
+report's settings in a side panel; changes are saved as a draft that
+other people don't see until it's published.
+
+A draft is allowed to be incomplete — it may name a dataset, measure or
+dimension that doesn't exist yet. Publishing checks those references
+and refuses a report that names something missing, so a published
+report never renders blank without an error.
+
+## Dashboards or reports?
+
+| Use | When |
+|---|---|
+| A [dashboard](/docs/build/interface/dashboards) | Several numbers and charts at a glance, with dashboard-wide date and filter controls |
+| A report | One question answered in full — a grouped table or cross-tab you read row by row, with a chart of it |
+
+Both bind the same datasets and drill through the same way, so a number
+moves between them without changing meaning. Dashboard-wide date ranges
+and global filters are described in
+[Dashboards → Global date range and filters](/docs/build/interface/dashboards#global-date-range-and-filters).
+
+## Where to go next
+
+| Page | Why |
+|:--|:--|
+| [Dashboards](/docs/build/interface/dashboards) | Datasets, widgets, global filters |
+| [Views](/docs/build/interface/views) | Plain record lists, and charts inside a list |
+| [Apps](/docs/build/interface/apps) | Put reports in navigation |
+| [Permissions](/docs/configure/permissions) | The row-level security every report query applies |

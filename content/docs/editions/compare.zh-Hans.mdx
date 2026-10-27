@@ -1,0 +1,82 @@
+---
+title: 版本对比
+seoTitle: "ObjectOS 版本对比：Community、Free、Team、Enterprise"
+description: 逐行列出每个 ObjectOS 版本和套餐包含什么 —— Community、Cloud Free、Cloud Team 和 Enterprise —— 以及每项差异在哪里强制执行。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: eb15d8f8d00d8f367e2796c6b7d628074105a7ec4d98ed3a4cc27e9510db1fc1
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 是一个产品、三个版本。**ObjectOS Community** 是你自己运行的开源
+运行时。**ObjectOS Cloud** 是为你托管的同一个产品，有 **Free** 和 **Team**
+两个套餐。**ObjectOS Enterprise** 是你在自己的基础设施上运行的许可产品；
+**Business** 和 **Business Self-Managed** 是它之下的合同选项。价格与合同见
+[许可与定价](/docs/editions/license)；本页讲的是每一个有什么不同。
+
+这份文档中的每一页，标题下方都带有一排版本徽章，标明它适用于哪些版本。
+侧边栏用同样的图标标记那些并非适用于所有版本的页面和分组。
+
+## 对照表 [#the-matrix]
+
+| | **Community** | **Cloud Free** | **Cloud Team** | **Enterprise** |
+|---|---|---|---|---|
+| 交付方式 | 自管理 | 托管 | 托管 | 自管理 |
+| 价格 | 免费（Apache-2.0） | 免费 | 24 美元 / AI 席位 / 月 | 按合同 |
+| 文件存储 | 你自己的（[存储](/docs/configure/storage)） | 1 GB | 20 GB | 你自己的（[存储](/docs/configure/storage)） |
+| 开发环境 | n/d | —（仅生产环境） | n/d | n/d |
+| MCP 请求 | 由你的部署设定 | 每分钟 20 次，每天 1,000 次 | n/d | 由你的部署设定 |
+| 自定义域名 | 你自己的主机 | — | ✓ | 你自己的主机 |
+| 记录级和字段级安全 | ✓ | — | n/d | ✓ |
+| UI 内 AI（AI Builder、"问你的数据"） | 仅 MCP —— 自带模型 | 体验版 | ✓ | ✓ |
+| AI 治理（动作审计、护栏、权限范围限定） | — | — | — | ✓ |
+| 与你的身份提供商单点登录 | ✓（[身份认证](/docs/configure/authentication)） | — | — | ✓ |
+| SCIM | — | — | — | ✓ |
+| 集群 / 高可用 | — | — | — | ✓ |
+| 单个部署承载多个组织 | — | — | — | ✓ |
+| 物理隔离运行 | — | — | — | ✓ |
+| 支持 | 社区 | 社区 | 标准 | SLA + 专属 |
+
+**n/d** —— 这里尚未记录。这些单元格正在与产品核实，之后会补上；在此之前，
+请咨询 [sales@objectstack.ai](mailto:sales@objectstack.ai)。
+
+在 ObjectOS Cloud 上，单点登录和 AI 治理随 **Business** 提供，它是
+ObjectOS Enterprise 在托管服务上的一个合同选项。在自管理部署上，Community
+和 Enterprise 运行同一个运行时：Community 一列中的一切在 Enterprise 一列中
+也都有。
+
+## 每项差异在哪里强制执行 [#where-each-difference-is-enforced]
+
+对照表只列出产品会强制执行的差异。下面这些是本文档已经详细描述过的：
+
+- **许可证决定一个自管理部署是什么。** 没有许可证时，单组织部署以
+  Community 的行为运行 —— 开放的 MCP 服务器，自带 AI。有了许可证，
+  AI Builder 和"问你的数据"就会在你自己的基础设施上解锁。参见
+  [AI 服务](/docs/configure/ai)。
+- **单个部署承载多个组织需要许可证。** 没有许可证的多组织姿态会在启动时
+  被拒绝，运行时不会提供服务。参见[运行时配置](/docs/configure/runtime)
+  和[故障排查](/docs/operate/troubleshooting)。
+- **物理隔离运行是一种许可证模式。** 普通许可证会针对控制平面在线校验；
+  物理隔离许可证在本地校验，并且部署还必须声明没有控制平面。无法工作的
+  组合会在启动时被拒绝。参见[物理隔离部署](/docs/deploy/air-gapped)。
+- **许可证过期绝不会让运行时停止。** Business Self-Managed 会关闭它的付费
+  功能，保持你的数据和运行时正常工作；完整的 Enterprise 部署会保留最后
+  一个已付费的版本。参见[许可与定价](/docs/editions/license#faq)。
+
+## 这一页适用于哪个版本？ [#which-edition-is-this-page-for]
+
+| 徽章 | 含义 |
+|---|---|
+| Community | 当你自己运行 ObjectOS Community 时成立 |
+| Cloud | 在 ObjectOS Cloud 的 Free 和 Team 套餐上成立 |
+| Enterprise | 在获得许可的、自管理的 ObjectOS Enterprise 部署上成立 |
+
+部署和运维适用于两个自管理版本，Community 和 Enterprise：在 ObjectOS
+Cloud 上，部署由我们为你运行。
+
+## 下一步 [#next]
+
+- [开始](/docs/start/cloud) —— 三种入门方式：Cloud、Community 或 Enterprise。
+- [许可与定价](/docs/editions/license) —— 价格、合同和开源许可证。
+- [公开预览](/docs/editions/public-preview) —— ObjectOS Cloud 当前阶段对你的数据和集成意味着什么。

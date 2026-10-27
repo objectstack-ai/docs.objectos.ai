@@ -6,7 +6,8 @@ editions: [community, enterprise]
 
 ObjectOS itself is stateless — the runtime can be rebuilt from the
 container image. **Backups are about the data ObjectOS depends on, not
-ObjectOS itself.** Plan recovery around those datasets.
+ObjectOS itself.** Plan recovery around those datasets. Everything on this
+page holds for Community and Enterprise alike.
 
 ## What to back up
 
@@ -14,14 +15,23 @@ ObjectOS itself.** Plan recovery around those datasets.
 |---|---|---|
 | Business database | Customer | Database-native backup (PITR for managed services); test restore quarterly |
 | Compiled artifact (`objectstack.json`) | Application/release team | Store every published artifact in immutable storage; never overwrite |
-| Secrets baseline | Customer secret manager | Vendor-native backup; rotate cadence per policy |
+| Secrets baseline — `OS_SECRET_KEY` above all | Customer secret manager | Escrow the values themselves; rotate cadence per policy |
 | Object/file storage (when `storage` capability is enabled) | Customer | Bucket versioning + cross-region replication if required |
+| Uploaded files on local storage (`OS_STORAGE_LOCAL_ROOT`) | Customer | Same schedule as the database, so records and their attachments restore to the same point |
 | Customer-managed identity provider | IdP vendor | Vendor-native |
 
-ObjectOS does **not** require a separate backup of its container
-filesystem. Its runtime state lives on a declared volume and its caches are
-rebuildable — a cached artifact is re-verified against its integrity pin on
-every read, so losing the cache costs a fetch, never correctness.
+> **A database backup without `OS_SECRET_KEY` is an incomplete backup.**
+> Every stored secret — encrypted settings, `secret` fields, datasource
+> credentials — is encrypted under that one key. A database restored without
+> the original key keeps those values, unreadable, for good. Escrow the key
+> the day you generate it, and treat key and database as one backup unit.
+
+A container that sets `OS_DATABASE_URL` and `OS_SECRET_KEY` needs no backup
+of its own filesystem: its caches are rebuildable — a cached artifact is
+re-verified against its integrity pin on every read, so losing the cache
+costs a fetch, never correctness. A **single host** running on the defaults
+is different: its home directory holds the SQLite database, the uploaded
+files and the self-minted secret key, so include it in your file backups.
 
 ## Database backups
 
@@ -29,7 +39,7 @@ Match the strategy to the driver:
 
 | Driver | Recommended approach |
 |---|---|
-| PostgreSQL | Continuous WAL archiving + base backup; point-in-time restore |
+| PostgreSQL | Continuous WAL archiving + base backup; point-in-time restore. For a small database, `pg_dump --format=custom` is a workable logical backup |
 | MySQL | Binary-log archiving + full dump; point-in-time restore |
 | MongoDB | Replica-set snapshots; oplog for PITR |
 | SQLite (single-node / desktop) | WAL mode + hot snapshots via `VACUUM INTO` or the Online Backup API; optionally Litestream for continuous replication — see [SQLite deployments](#sqlite-deployments) below |
@@ -55,8 +65,10 @@ safe and the backup recipe go together:
 
 **Runtime configuration**
 
-- Enable WAL: `PRAGMA journal_mode=WAL` (readers don't block the
-  writer; crash-safe).
+- The runtime keeps file-backed SQLite in WAL mode (readers don't block
+  the writer; crash-safe). That means `app.db-wal` beside the database can
+  hold committed writes that are not in `app.db` yet — never copy `app.db`
+  on its own while the runtime runs.
 - `PRAGMA synchronous=NORMAL` is the usual desktop/single-node default
   — safe with WAL, much faster than `FULL`.
 - Keep the database file on **local disk**. Do **not** put it on NFS,
@@ -100,8 +112,9 @@ deployment needs near-zero data loss.
 **Restore**
 
 Stop the runtime, replace the database file with the chosen snapshot
-(or run `litestream restore`), start the runtime against the same
-artifact version that produced the snapshot.
+(or run `litestream restore`), make sure no stale `-wal` or `-shm` file
+is left beside it, and start the runtime against the same artifact
+version that produced the snapshot.
 
 ## Artifact versioning
 
@@ -144,12 +157,38 @@ replicas).
   application replicas roll.
 - **Artifact regression.** Roll back the artifact pointer; data is
   unaffected.
-- **Secret rotation.** Rotating `AUTH_SECRET` invalidates every
+- **Secret rotation.** Rotating `OS_AUTH_SECRET` invalidates every
   session. Run during a maintenance window or stagger across replicas.
 - **Region outage.** If the customer requires region failover, the
   business database, secret manager, and ingress all need to be
   cross-region. ObjectOS itself can run anywhere the image is
   available.
+
+## The restore drill
+
+Rehearse this on a scratch host **before** go-live, and again after any
+storage change. A backup you have not restored is a hope, not a backup.
+
+1. **Provision a clean host** with the same image version the backup was
+   taken under.
+2. **Restore the database** — the provider snapshot, or:
+
+   ```bash
+   pg_restore --clean --if-exists -d "$OS_DATABASE_URL" backup-2026-07-14.dump
+   ```
+3. **Provide the original secrets.** `OS_SECRET_KEY` and `OS_AUTH_SECRET`
+   are the escrowed originals, never freshly generated values. Restore the
+   uploaded files too, if you use local storage.
+4. **Boot against the same artifact version, and verify:**
+
+   ```bash
+   curl -fsS https://app.example.com/api/v1/health
+   curl -fsS https://app.example.com/api/v1/ready
+   ```
+
+   Then prove the restore end to end: sign in with a real account, open a
+   record that existed before the backup, and read a value from an encrypted
+   setting — that is what exercises `OS_SECRET_KEY`.
 
 ## What to capture in the runbook
 
@@ -160,3 +199,16 @@ replicas).
 - Rollback plan for both ObjectOS image and artifact version (see
   [Upgrade and Rollback](/docs/operate/upgrade)).
 - Communication template for customer-visible incidents.
+
+## Enterprise adds
+
+- **Keep the previous image digest with the backup.** A restore to a point
+  in time is a restore to the digest that was running then, and on an
+  air-gapped site the previous digest may be the only copy there is — see
+  [Air-gapped](/docs/deploy/air-gapped#getting-the-image-inside-the-network).
+- **`OS_LICENSE_KEY` belongs in the secrets baseline.** A restored
+  deployment boots with the license it is given, and a multi-organization
+  posture refuses to start without one.
+- **Restore before the replicas roll.** The bundled stack runs its one-shot
+  migration before any replica starts, so the database must be complete when
+  the stack comes up.
