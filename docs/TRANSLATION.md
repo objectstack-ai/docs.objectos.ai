@@ -23,7 +23,7 @@ Three rules hold the model together:
    correction that removes or reverses a capability assertion deletes that
    page's locale siblings in the same PR; wording and number drift (a port
    number, a timing) stay with the translation pass
-   ([ruling on #256](https://github.com/objectstack-ai/objectos/issues/256#issuecomment-5989567068)).
+   ([ruling on #256](https://github.com/objectstack-ai/docs.objectos.ai/issues/256#issuecomment-5989567068)).
 
 ## Running a pass
 
