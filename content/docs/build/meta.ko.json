@@ -7,10 +7,12 @@
     "ai-skills",
     "data",
     "interface",
+    "reports",
     "automation",
     "agents",
     "packages",
     "templates",
-    "marketplace"
+    "marketplace",
+    "extend-existing-systems"
   ]
 }

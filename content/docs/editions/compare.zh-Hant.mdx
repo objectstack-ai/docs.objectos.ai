@@ -1,0 +1,83 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 版本對比
+seoTitle: "ObjectOS 版本對比：Community、Free、Team、Enterprise"
+description: 逐行列出每個 ObjectOS 版本和套餐包含什麼 —— Community、Cloud Free、Cloud Team 和 Enterprise —— 以及每項差異在哪裡強制執行。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: eb15d8f8d00d8f367e2796c6b7d628074105a7ec4d98ed3a4cc27e9510db1fc1
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 是一個產品、三個版本。**ObjectOS Community** 是你自己執行的開源
+執行時。**ObjectOS Cloud** 是為你託管的同一個產品，有 **Free** 和 **Team**
+兩個套餐。**ObjectOS Enterprise** 是你在自己的基礎設施上執行的許可產品；
+**Business** 和 **Business Self-Managed** 是它之下的合同選項。價格與合同見
+[許可與定價](/docs/editions/license)；本頁講的是每一個有什麼不同。
+
+這份文件中的每一頁，標題下方都帶有一排版本徽章，標明它適用於哪些版本。
+側邊欄用同樣的圖示標記那些並非適用於所有版本的頁面和分組。
+
+## 對照表 [#the-matrix]
+
+| | **Community** | **Cloud Free** | **Cloud Team** | **Enterprise** |
+|---|---|---|---|---|
+| 交付方式 | 自管理 | 託管 | 託管 | 自管理 |
+| 價格 | 免費（Apache-2.0） | 免費 | 24 美元 / AI 席位 / 月 | 按合同 |
+| 檔案儲存 | 你自己的（[儲存](/docs/configure/storage)） | 1 GB | 20 GB | 你自己的（[儲存](/docs/configure/storage)） |
+| 開發環境 | n/d | —（僅生產環境） | n/d | n/d |
+| MCP 請求 | 由你的部署設定 | 每分鐘 20 次，每天 1,000 次 | n/d | 由你的部署設定 |
+| 自定義域名 | 你自己的主機 | — | ✓ | 你自己的主機 |
+| 記錄級和欄位級安全 | ✓ | — | n/d | ✓ |
+| UI 內 AI（AI Builder、"問你的資料"） | 僅 MCP —— 自帶模型 | 體驗版 | ✓ | ✓ |
+| AI 治理（動作審計、護欄、許可權範圍限定） | — | — | — | ✓ |
+| 與你的身份提供商單點登入 | ✓（[身份認證](/docs/configure/authentication)） | — | — | ✓ |
+| SCIM | — | — | — | ✓ |
+| 叢集 / 高可用 | — | — | — | ✓ |
+| 單個部署承載多個組織 | — | — | — | ✓ |
+| 物理隔離執行 | — | — | — | ✓ |
+| 支援 | 社群 | 社群 | 標準 | SLA + 專屬 |
+
+**n/d** —— 這裡尚未記錄。這些單元格正在與產品核實，之後會補上；在此之前，
+請諮詢 [sales@objectstack.ai](mailto:sales@objectstack.ai)。
+
+在 ObjectOS Cloud 上，單點登入和 AI 治理隨 **Business** 提供，它是
+ObjectOS Enterprise 在託管服務上的一個合同選項。在自管理部署上，Community
+和 Enterprise 運行同一個執行時：Community 一列中的一切在 Enterprise 一列中
+也都有。
+
+## 每項差異在哪裡強制執行 [#where-each-difference-is-enforced]
+
+對照表只列出產品會強制執行的差異。下面這些是本文件已經詳細描述過的：
+
+- **許可證決定一個自管理部署是什麼。** 沒有許可證時，單組織部署以
+  Community 的行為執行 —— 開放的 MCP 伺服器，自帶 AI。有了許可證，
+  AI Builder 和"問你的資料"就會在你自己的基礎設施上解鎖。參見
+  [AI 服務](/docs/configure/ai)。
+- **單個部署承載多個組織需要許可證。** 沒有許可證的多組織姿態會在啟動時
+  被拒絕，執行時不會提供服務。參見[執行時配置](/docs/configure/runtime)
+  和[故障排查](/docs/operate/troubleshooting)。
+- **物理隔離執行是一種許可證模式。** 普通許可證會針對控制平面線上校驗；
+  物理隔離許可證在本地校驗，並且部署還必須宣告沒有控制平面。無法工作的
+  組合會在啟動時被拒絕。參見[物理隔離部署](/docs/deploy/air-gapped)。
+- **許可證過期絕不會讓執行時停止。** Business Self-Managed 會關閉它的付費
+  功能，保持你的資料和執行時正常工作；完整的 Enterprise 部署會保留最後
+  一個已付費的版本。參見[許可與定價](/docs/editions/license#faq)。
+
+## 這一頁適用於哪個版本？ [#which-edition-is-this-page-for]
+
+| 徽章 | 含義 |
+|---|---|
+| Community | 當你自己執行 ObjectOS Community 時成立 |
+| Cloud | 在 ObjectOS Cloud 的 Free 和 Team 套餐上成立 |
+| Enterprise | 在獲得許可的、自管理的 ObjectOS Enterprise 部署上成立 |
+
+部署和運維適用於兩個自管理版本，Community 和 Enterprise：在 ObjectOS
+Cloud 上，部署由我們為你執行。
+
+## 下一步 [#next]
+
+- [開始](/docs/start/cloud) —— 三種入門方式：Cloud、Community 或 Enterprise。
+- [許可與定價](/docs/editions/license) —— 價格、合同和開源許可證。
+- [公開預覽](/docs/editions/public-preview) —— ObjectOS Cloud 當前階段對你的資料和整合意味著什麼。
