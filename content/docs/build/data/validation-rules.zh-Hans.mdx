@@ -1,0 +1,272 @@
+---
+title: 验证规则
+seoTitle: "验证规则：必填、唯一和 CEL 规则"
+description: 必填字段、唯一约束，以及由 CEL 驱动的规则 —— 在平台层面拦住错误数据，错误消息由你掌控。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 1f582742d9d1e87e240b1d6d773f281c8036338f52226387f84a0549f02bc5c1
+  guide_rev: 1
+  mode: auto
+---
+
+**校验在每一条写入路径上运行。** REST、表单、ObjectQL —— 同样的规则在
+所有地方触发，所以错误数据没有后门可走。从 16.0 起，这也包括多行更新：
+批量更新会对每一条匹配的行各评估一次规则。验证规则是作用于单条记录的
+确定性、同步、无副作用的谓词：只凭传入的写入（以及在更新时，变更前的
+记录）就能判定，不做任何 I/O。
+
+校验是分层的 —— 使用能表达该规则的最低一层：
+
+| 层 | 表达 | 示例 |
+|---|---|---|
+| **字段修饰符** | 存在性、唯一性 | `required: true`、`unique: true` |
+| **字段约束** | 单个字段的形状 | `min`、`max`、`maxLength`、`format` |
+| **条件修饰符** | 依赖上下文的存在性 | ``requiredWhen: P`record.amount > 10000` `` |
+| **对象验证规则** | 跨字段的业务逻辑 | "折扣不能超过总额" |
+| **唯一索引** | 组合 / 限定范围的唯一性 | `{ fields: ['code', 'organization'], unique: true }` |
+| **生命周期钩子** | 任意校验代码、删除守卫 | `beforeInsert` / `beforeUpdate` / `beforeDelete` |
+
+## 字段级：必填、唯一、约束 [#field-level-required-unique-constraints]
+
+通用修饰符适用于每一种字段类型：
+
+```ts
+// Fields of an object; the object around them is omitted.
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+fields: {
+  email: Field.email({ label: 'Contact Email', required: true, unique: true }),
+  quantity: Field.number({ label: 'Quantity', min: 1, max: 9999 }),
+  code: Field.text({ label: 'Code', minLength: 3, maxLength: 20 }),
+}
+```
+
+| 修饰符 | 行为 |
+|---|---|
+| `required: true` | 在运行时拒绝 `null` / `undefined` |
+| `unique: true` | 数据库级的唯一约束 —— 而不是存在竞态的应用层检查 |
+| `min` / `max` | 数值范围（number、currency、percent、rating、slider ……） |
+| `minLength` / `maxLength` | 文本类型的字符数上下限 |
+| `format` | 内置的形状检查 —— `email`、`url`、`phone` 字段类型默认自带 |
+| `readonly: true` | 在插入和更新时由服务器强制执行 —— 对该字段的非系统写入会被丢弃，并在响应的 `droppedFields` 中报告；如果写入带上了 `strictReadonlyWrites` 选项，则会被直接拒绝。要在创建时为只读字段写入初值，请以系统身份写入：种子数据、系统钩子，或 `runAs: 'system'` 的流程 |
+
+字段类型还会免费校验自身：`email` 检查 `local@domain` 的形状，`url`
+要求带协议，`select` 的值必须匹配某个选项，`lookup` 强制要求被引用的记录
+存在，`json` 必须能被解析。每种类型的默认行为见
+[字段类型参考](/docs/reference/field-types)。
+
+### 条件必填 / 只读 / 可见 [#conditional-required--read-only--visible]
+
+存在性可以通过 CEL 谓词依赖记录的其余部分：
+
+```ts
+import { P } from '@objectstack/spec';
+
+po_number: Field.text({
+  label: 'PO Number',
+  requiredWhen: P`record.amount > 10000`,
+}),
+```
+
+`visibleWhen`、`readonlyWhen` 和 `requiredWhen` 都接受一个 CEL 谓词 ——
+参见[公式](/docs/build/data/formulas)。它们只读取记录自己的字段。一个无法
+求值的 `requiredWhen` 或 `readonlyWhen` —— 字段名拼错、对 `null` 做大小
+比较、通过查找关系读取（比如 `record.account.tier`）—— 会以
+`VALIDATION_FAILED` 拒绝这次写入，而不是放行；需要读取关联记录的检查应该
+放在[验证规则](#reading-a-related-record)中。
+
+## 对象级验证规则 [#object-level-validation-rules]
+
+跨字段的业务逻辑放在对象的 `validations` 数组中：
+
+```ts
+export const Order = ObjectSchema.create({
+  name: 'order',
+  fields: {
+    amount: Field.currency({ label: 'Amount', required: true }),
+    status: Field.select({
+      label: 'Status',
+      options: [
+        { label: 'Draft', value: 'draft' },
+        { label: 'Submitted', value: 'submitted' },
+      ],
+    }),
+  },
+
+  validations: [
+    {
+      name: 'amount_positive',
+      type: 'script',
+      severity: 'error',
+      message: 'Amount must be greater than zero',
+      // CEL predicate — TRUE means the record is INVALID.
+      condition: 'record.amount <= 0',
+      events: ['insert', 'update'],
+    },
+  ],
+});
+```
+
+> **警告：** 对于 `script` 规则，`condition` 是**失败**谓词 —— 当它求值为
+> TRUE 时，校验失败。为*错误*的状态编写判断：`record.amount <= 0` 会拒绝
+> 非正数的金额。
+
+### 通用属性 [#common-properties]
+
+每种规则类型都共享这个基础结构：
+
+| 属性 | 必需 | 说明 |
+|---|---|---|
+| `name` | 是 | 唯一的规则名（`snake_case`） |
+| `message` | 是 | 面向用户的错误消息 |
+| `type` | 是 | `script`、`state_machine`、`format`、`cross_field`、`json_schema`、`conditional` |
+| `severity` | 否 | `error`（阻止保存，默认）、`warning`（允许保存）、`info` |
+| `events` | 否 | `insert`、`update` —— 默认 `['insert', 'update']`。`delete` 事件已在 16.0 中移除：求值器从未在删除时运行过（删除不携带记录内容），所以它一直是静默的空操作 —— 请用 `beforeDelete` 钩子守护删除 |
+| `priority` | 否 | 0–9999，越小越先运行（默认 100） |
+| `active` | 否 | 无需删除即可开关（默认 `true`） |
+
+### 六种规则类型 [#the-six-rule-types]
+
+| 类型 | 检查 | 关键配置 |
+|---|---|---|
+| `script` | 任意 CEL 谓词 | `condition`（TRUE = 无效） |
+| `state_machine` | 允许的状态迁移 | `field`、`transitions` 映射、可选的 `initialStates` |
+| `format` | 用正则或内置格式检查单个字段 | `field`、`regex` 或 `format: 'email' \| 'url' \| 'phone' \| 'json'` |
+| `cross_field` | 字段之间的关系 | `fields`、`condition` |
+| `json_schema` | 用 JSON Schema 检查 JSON 字段 | `field`、`schema` |
+| `conditional` | 仅当某个谓词成立时才应用嵌套规则 | `when`、`then`、可选的 `otherwise` |
+
+你会经常用到的两条规则：
+
+```ts
+// Two validation rules, entries of the object's `validations` array.
+
+// State machine — enforce the status flow
+{
+  name: 'order_status_transitions',
+  type: 'state_machine',
+  severity: 'error',
+  message: 'Invalid status transition',
+  field: 'status',
+  transitions: {
+    draft: ['submitted', 'cancelled'],
+    submitted: ['approved', 'rejected', 'cancelled'],
+    approved: ['completed'],
+    rejected: ['draft'],
+    cancelled: [],
+    completed: [],
+  },
+  initialStates: ['draft'],  // new in 16.0: states a record may be CREATED in
+  events: ['insert', 'update'],  // include 'insert' so initialStates is checked
+}
+
+// Cross-field — dates in order
+{
+  name: 'date_range_valid',
+  type: 'cross_field',
+  severity: 'error',
+  message: 'End date must be after start date',
+  fields: ['start_date', 'end_date'],
+  condition: 'record.end_date <= record.start_date',
+  events: ['insert', 'update'],
+}
+```
+
+**16.0 新增：** `state_machine` 规则可以声明 `initialStates` —— 记录可以
+在哪些状态下被*创建*。插入时如果状态字段的值不在列表中，就会被拒绝
+（`invalid_initial_state`）。`transitions` 只管更新，而 `select` 字段允许
+任何已声明的选项作为初始值，所以没有 `initialStates` 时，一条记录可能在
+流程中途出生（例如创建时就已经是 `approved`）。省略它即可保留旧行为
+（插入时不检查初始状态）。规则的 `events` 必须包含 `insert`，检查才会运行。
+
+在更新时的条件中，`previous` 保存变更前的快照 ——
+`record.stage != previous.stage` 可以检测到变化。
+
+### 读取关联记录 [#reading-a-related-record]
+
+从 ObjectStack 17.5 起，`script` 或 `cross_field` 规则可以通过 `lookup`、
+`master_detail`、`user` 或 `tree` 字段读取**一跳**：
+
+```ts
+// One validation rule, an entry of the object's `validations`
+{
+  name: 'partner_deal_cap',
+  type: 'script',
+  severity: 'error',
+  message: 'Partner deals over 10,000 need a direct contract',
+  condition: "record.account.type == 'partner' && record.amount > 10000",
+  events: ['insert', 'update'],
+}
+```
+
+引擎只加载条件中点名的关联字段，每个引用字段一次批量读取；没有规则跨越
+关系时什么也不读。第二跳（`record.account.owner.email`）会被拒绝，在跨越
+引用的同时比较该引用的 id 也会被拒绝。字段级谓词和行级安全仍然只作用于
+记录自己的字段。
+
+规则能看到 `record` 和 `previous`，仅此而已：它无法得知是谁在保存。
+`current_user.can(...)` 在别处回答 —— 参见
+[CEL → 权限检查](/docs/reference/cel#permission-checks) —— 而在验证规则中
+它无法求值，所以该规则会拒绝它运行到的每一次写入。
+
+## 唯一性：用索引，而不是规则 [#uniqueness-use-an-index-not-a-rule]
+
+**没有** `uniqueness` 校验类型 —— 这是有意为之。先 SELECT 再 INSERT 的
+检查天生存在竞态（TOCTOU）；数据库的唯一约束则不会。在数据层强制唯一性：
+
+```ts
+// Keys of an object; its name and its other fields are omitted.
+fields: {
+  // Field-level
+  email: Field.email({ label: 'Contact Email', unique: true }),
+},
+
+// Composite / scoped via indexes
+indexes: [
+  { fields: ['code', 'organization'], unique: true },
+  // add `partial` for a scoped/conditional constraint
+],
+```
+
+同样的逻辑也排除了异步 / 远程校验（那是客户端表单的事，而且会在写入路径
+上带来 SSRF 和延迟隐患）和自定义处理器 —— 任意的校验代码应该放在
+`beforeInsert` / `beforeUpdate` 生命周期钩子中，删除时的守卫放在
+`beforeDelete` 钩子中。
+
+## 自定义错误消息 [#custom-error-messages]
+
+`message` 是规则触发时用户看到的内容 —— 在表单中，也在 API 的错误响应
+中。让它可以据此行动：
+
+| 弱 | 强 |
+|---|---|
+| "Invalid input" | "Close date is required for closed deals" |
+| "Validation failed" | "Phone must match format: +1-XXX-XXX-XXXX" |
+| "Error" | "Discount cannot exceed total" |
+
+用 `severity` 来调节：`error` 阻止保存，`warning` 显示消息但允许保存，
+`info` 纯粹是提示。
+
+> **警告：** 谓词无法求值的规则（解析错误、字段名拼错、无法比较的值）
+> **失败即关闭**：这次写入会以 `VALIDATION_FAILED` 被拒绝，绝不会跳过规则
+> 而保存下来。在发布新规则之前，用真实记录测试它。
+
+## 最佳实践 [#best-practices]
+
+| 要 | 不要 |
+|---|---|
+| 在尽可能低的一层校验（字段 → 规则 → 钩子） | 用钩子做字段修饰符就能表达的事 |
+| 编写清晰、可据此行动的消息 | 在多个层重复同一项检查 |
+| 用 `priority` 让廉价的格式检查先运行 | 构建过于复杂的条件 |
+| 用真实世界的数据测试规则 | 拦住合理的边界情况 |
+
+## 下一步 [#where-to-go-next]
+
+| 页面 | 为什么 |
+|---|---|
+| [数据模型](/docs/build/data) | 这些规则所保护的对象和字段 |
+| [公式](/docs/build/data/formulas) | `condition` 和 `requiredWhen` 背后的 CEL 语言 |
+| [关系](/docs/build/data/relationships) | 跨对象的引用完整性 |
+| [CEL 参考](/docs/reference/cel) | 条件可用的完整运算符和标准库参考 |
+| [字段类型](/docs/reference/field-types) | 每种字段类型内置的校验默认值 |
+| [流程](/docs/build/automation/flows) | 用自动化响应（有效的）记录变更 |

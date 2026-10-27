@@ -1,0 +1,348 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 資料模型
+seoTitle: "資料模型：物件、欄位和關係"
+description: 物件、欄位、關係、校驗、索引 —— 向 AI 描述，或者用 TypeScript 編寫。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: dfc4b470748f9d65a343db5a45ca7627a0b01485644546deff2adcd36ffb7430
+  guide_rev: 1
+  mode: auto
+---
+
+資料模型是你應用的唯一事實來源。一個物件一旦存在，ObjectOS 就會免費給你
+REST API、一個生成的檢視、RBAC 檢查點、審計日誌記錄和 AI 工具暴露。
+
+**大多數客戶從不手寫模式。** 他們在 [AI Builder](/docs/build/ai-builder)
+中描述自己需要什麼，平臺就會建立物件、欄位、索引和翻譯。本頁描述的是底層
+的形狀 —— 讓你明白 AI 在生成什麼，並在你想要的時候直接編輯它。
+
+## 編寫路徑 [#authoring-paths]
+
+| 路徑 | 是什麼樣子 |
+|---|---|
+| **AI Builder**（首選） | *"建立一個 `support_ticket` 物件，包含 subject、description、priority、status、assignee。"* |
+| **點選構建** | **Studio → Objects → New Object** → 表單 |
+| **TypeScript（`*.object.ts`）** | 下面展示的 TS —— 通常位於一個 fork 出來的[模板](/docs/build/templates)中 |
+
+三者產出的都是同一個模式。模式是權威的；其他一切都是派生出來的。
+
+## 物件的結構 [#anatomy-of-an-object]
+
+```ts
+// src/objects/task.ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const Task = ObjectSchema.create({
+  name: 'todo_task',
+  label: 'Task',
+  pluralLabel: 'Tasks',
+  icon: 'check-square',
+  description: 'A single unit of work.',
+
+  fields: {
+    subject:     Field.text({ label: 'Subject', required: true, maxLength: 200 }),
+    description: Field.markdown({ label: 'Description' }),
+    status:      Field.select({
+      label: 'Status',
+      options: [
+        { label: 'To Do',       value: 'todo', default: true },
+        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Done',        value: 'done' },
+      ],
+    }),
+    due:         Field.date({ label: 'Due' }),
+    assignee:    Field.lookup('sys_user', { label: 'Assignee' }),
+  },
+
+  enable: {
+    trackHistory: true,    // record field changes in audit log
+    apiEnabled: true,      // expose REST endpoints (default true)
+    feeds: true,           // chatter / comments / @mentions
+  },
+});
+```
+
+在你的技術棧中註冊它：
+
+```ts
+// objectstack.config.ts
+import { defineStack } from '@objectstack/spec';
+import * as objects from './src/objects';
+
+export default defineStack({
+  manifest: { id: 'my.app', namespace: 'todo', version: '0.1.0', type: 'app', name: 'My App' },
+  objects: Object.values(objects),
+});
+```
+
+每個物件名都以技術棧的 `namespace` 加一個下劃線開頭：在 `todo` 名稱空間
+中就是 `todo_task`。你需要做的就這麼多。`os dev` 會重新編譯，然後
+`/api/v1/data/todo_task`、生成的 Task 檢視以及它的許可權行都會出現。
+
+## 欄位型別 [#field-types]
+
+ObjectStack 提供約 25 種欄位型別。最常用的有：
+
+### 標量 [#scalars]
+
+| 型別 | 儲存什麼 | 輔助函式 |
+|---|---|---|
+| `text` | 短字串 | `Field.text({ maxLength, required })` |
+| `textarea` | 長字串 | `Field.textarea(...)` |
+| `markdown` | 帶 markdown 的富文本 | `Field.markdown(...)` |
+| `number` | 數字；`scale` 設定小數位數 | `Field.number({ min, max, scale })` |
+| `currency` | 金額 | `Field.currency(...)` |
+| `boolean` | 真/假 | `Field.boolean({ defaultValue })` |
+| `date` | 日曆日期 | `Field.date(...)` |
+| `datetime` | 時間戳 | `Field.datetime(...)` |
+| `email` | 經過校驗的郵箱 | `Field.email(...)` |
+| `url` | 經過校驗的 URL | `Field.url(...)` |
+| `phone` | 經過校驗的電話 | `Field.phone(...)` |
+| `json` | 任意 JSON | `Field.json(...)` |
+
+### 選項 [#choices]
+
+| 型別 | 用於 |
+|---|---|
+| `select` | 單選（列舉） |
+| `multiselect` | 多選 |
+
+### 關係 [#relationships]
+
+| 型別 | 基數 | 輔助函式 |
+|---|---|---|
+| `lookup` | 一對多（外部索引鍵） | `Field.lookup('sys_user', { label })` |
+| `master_detail` | 帶級聯刪除的一對多 | `Field.masterDetail('order', { label })` |
+
+### 檔案與媒體 [#files--media]
+
+| 型別 | 儲存什麼 |
+|---|---|
+| `file` | 通過儲存服務儲存的一個檔案 |
+| `image` | 帶預覽的圖片檔案 |
+
+### 計算 / 派生 [#computed--derived]
+
+| 型別 | 行為 |
+|---|---|
+| `formula` | 讀取時由 CEL 表示式計算 |
+| `summary` | 相關記錄的聚合值（sum/count/avg） |
+| `autonumber` | 序列號（`INV-{000001}`） |
+| `created`、`lastModified` | 系統維護的時間戳 |
+| `createdBy`、`lastModifiedBy` | 系統維護的使用者引用 |
+
+## 必填 / 唯一 / 預設值 [#required--unique--default]
+
+每個標量欄位上的常用修飾：
+
+```ts
+Field.text({
+  label: 'Code',
+  required: true,
+  unique: true,          // unique constraint enforced at DB level
+  defaultValue: '',
+  inlineHelpText: 'Internal short code',
+})
+```
+
+## 校驗 [#validation]
+
+內聯：
+
+```ts
+Field.number({ label: 'Quantity', min: 1, max: 9999 })
+Field.text({ label: 'SKU', minLength: 8, maxLength: 8 })
+```
+
+物件級規則 —— 一條跨欄位規則，以及一條針對模式的 `format` 規則。規則的
+`condition` 描述的是無效的記錄：當它為真時，寫入會被拒絕。
+
+```ts
+ObjectSchema.create({
+  name: 'order',
+  fields: {
+    sku:      Field.text({ label: 'SKU' }),
+    discount: Field.currency({ label: 'Discount' }),
+    total:    Field.currency({ label: 'Total' }),
+  },
+  validations: [
+    {
+      type: 'cross_field',
+      name: 'discount_lt_total',
+      message: 'Discount cannot exceed total',
+      fields: ['discount', 'total'],
+      condition: 'record.discount > record.total',
+    },
+    {
+      type: 'format',
+      name: 'sku_format',
+      message: 'SKU looks like ABC-1234',
+      field: 'sku',
+      regex: '^[A-Z]{3}-[0-9]{4}$',
+    },
+  ],
+});
+```
+
+校驗在每次寫入時執行 —— REST、UI、ObjectQL —— 所以不存在"後門"。
+
+## 索引與效能 [#indexes--performance]
+
+```ts
+ObjectSchema.create({
+  name: 'order',
+  fields: { /* ... */ },
+  indexes: [
+    { fields: ['status', 'created_at'] },
+    { fields: ['account', 'created_at'], unique: false },
+  ],
+});
+```
+
+驅動會在模式同步時建立真實的資料庫索引。
+
+## 欄位分組 [#field-groups]
+
+對於很長的表單，把欄位分組：
+
+```ts
+ObjectSchema.create({
+  name: 'task',
+  fieldGroups: [
+    { key: 'core',     label: 'Task',     icon: 'check-square' },
+    { key: 'planning', label: 'Planning', icon: 'calendar' },
+    { key: 'meta',     label: 'Metadata', icon: 'info', defaultExpanded: false },
+  ],
+  fields: {
+    subject: Field.text({ label: 'Subject', group: 'core' }),
+    due:     Field.date({ label: 'Due',     group: 'planning' }),
+  },
+});
+```
+
+## 能力標誌與歸屬 [#capability-flags--ownership]
+
+```ts
+ObjectSchema.create({
+  name: 'task',
+  fields: { subject: Field.text({ label: 'Subject' }) },
+  ownership: 'user',         // 'user' (default) | 'business_unit' | 'org' | 'none'
+  sharingModel: 'private',   // OWD — custom objects default to private (v13)
+  enable: {
+    apiEnabled: true,         // generated REST endpoints (default true)
+    searchable: true,         // index records for global search (default true)
+    trackHistory: true,       // History tab + field-level diffs (opt-in, default false)
+    feeds: true,              // sys_comment / @mentions (default true)
+    activities: true,         // mirror CRUD to sys_activity timeline (default true)
+    files: false,             // Attachments panel (opt-in, default false)
+    clone: true,              // record deep cloning (default true)
+  },
+});
+```
+
+`enable` 是一套**封閉的詞彙** —— 這個塊是嚴格的，所以一個無法識別的標誌
+（像 `feedEnabled` 這樣的拼寫錯誤，或者一個曾經存在過的鍵）會成為一個
+點名該鍵的解析錯誤，而不是一個被靜默丟棄的設定。上面的七個標誌就是全部，
+外加另一個鍵：
+
+```ts
+// Keys of an object; its name and fields are omitted.
+enable: {
+  apiMethods: ['get', 'list', 'create', 'update'],  // no delete over the API
+}
+```
+
+`apiMethods` 是物件暴露哪些 API 操作的白名單。可編寫的詞彙恰好是六個基本
+操作 —— `get`、`list`、`create`、`update`、`delete`、`bulk`。省略這個鍵
+表示不受限制的訪問；`[]` 表示全部拒絕。八個遺留值（`upsert`、`import`、
+`export`、`aggregate`、`search`、`history`、`restore`、`purge`）是*派生*
+出來的有效操作，而不是你需要宣告的東西：儲存中的遺留值仍然能被解析，但會
+被剝離，並給出一條點名替代項的警告（`upsert` → `create` + `update`，
+`export`/`aggregate`/`search` → `list`，`history` → `get`；`restore` 和
+`purge` 不由任何東西派生，直接刪除）。注意一個陷阱 —— 一個*只*包含遺留值
+的白名單會被剝離成 `[]`，這會關閉該物件的 API，而不是放寬它。
+
+> **不存在軟刪除 —— `enable.trash` 已被移除。**
+> 早先的文件曾把 `enable: { trash: true }` 指為已退役的物件級 `softDelete`
+> 屬性的替代品。那是錯的，而且值得直說：`trash` 從來沒有執行時的消費者。
+> 每一次刪除始終都是硬刪除，所以一個預設為 true、承諾有回收站的標誌是一個
+> 虛假的能力 —— 作者們寫下 `trash: false`，以為自己是在退出一個從未執行過
+> 的軟刪除。這個鍵（以及它的鄰居 `enable.mru`）現在會在**解析時被拒絕**並
+> 附上指引，而不是被忽略。把它從你的原始碼中刪掉，或者執行
+> `os migrate meta --from 16` 讓它為你重寫。
+>
+> 若要可恢復性，請使用按欄位的 `trackHistory`（記錄改了什麼的審計線索）
+> 或一個 [`lifecycle`](#data-lifecycle-retention) 策略。真正的回收站目前
+> 不是已交付的能力。
+
+> **同樣已從物件表面移除的：**`softDelete`、`versioning`、`search`（改用
+> 頂層的 `searchableFields`）、`recordName`（改用一個自動編號欄位作為
+> `nameField`）、`keyPrefix`、`tags`、`active` 和 `abstract` —— 如果你
+> 傳入其中之一，`ObjectSchema.create` 會丟擲一個帶定位、點名替代項的錯誤。
+
+自 ObjectStack 14 起，`enable.*` 標誌是**強制執行的**，而不只是建議：
+`feeds: false` 會以 403 `FEEDS_DISABLED` 拒絕建立評論，`files` 必須先開啟
+才能建立 `sys_attachment` 行（否則返回 403 `FILES_DISABLED`），
+`activities` / `trackHistory` 控制時間線和 History 標籤頁。合規用的
+`sys_audit_log` 行無論標誌如何都會寫入。
+
+## 資料生命週期（保留） [#data-lifecycle-retention]
+
+高資料量的物件可以宣告一個 `lifecycle` 塊，讓平臺限制它們的增長
+（ObjectStack 14.4，ADR-0057）：
+
+```ts
+ObjectSchema.create({
+  name: 'my_event',
+  fields: { payload: Field.json({ label: 'Payload' }) },
+  lifecycle: {
+    class: 'event',               // 'record' | 'audit' | 'telemetry' | 'transient' | 'event'
+    retention: { maxAge: '14d' }, // reaper deletes rows past the window
+    // time-sharded table: 2 shards of 1 week
+    storage: { strategy: 'rotation', shards: 2, unit: 'week' },
+  },
+});
+```
+
+內建的 LifecycleService（用 `OS_LIFECYCLE_DISABLED=1` 停用）會清理過期的
+行、輪換按時間分片的表，並歸檔審計類物件。`sys_activity`（14 天）和
+`sys_audit_log`（熱資料 90 天，然後歸檔）等平臺物件自帶生命週期宣告，你可以
+通過 `lifecycle.retention_overrides` 設定按環境調整。
+
+## 系統物件（每個專案免費附帶） [#system-objects-free-with-every-project]
+
+你不需要宣告這些 —— 它們始終存在：
+
+| 物件 | 是什麼 |
+|---|---|
+| `sys_user` | 使用者賬戶 |
+| `sys_org` | 組織 / 租戶 |
+| `sys_member` | 組織成員關係 |
+| `sys_position`、`sys_permission_set` | RBAC 基本元素 |
+| `sys_audit_log` | 審計線索（載入了審計能力時） |
+| `sys_file`、`sys_attachment` | 檔案後設資料（載入了儲存時） |
+| `sys_comment`、`sys_activity` | 資訊流 / 討論（載入了資訊流時） |
+| `sys_session`、`sys_api_key` | 認證產物 |
+| `sys_webhook`、`sys_webhook_delivery` | Webhook 訂閱（啟用時） |
+
+在 `lookup` 欄位中按名稱引用它們 —— 例如 `Field.lookup('sys_user', { label: 'Owner' })`。
+
+## 多型平臺功能 [#polymorphic-platform-features]
+
+當你啟用 `feeds: true` 和 `trackHistory: true` 時，你的物件會自動參與：
+
+- `sys_comment`（thread_id = `<object>:<id>`）
+- `sys_attachment`（parent_object = `<object>`，parent_id = `<id>`）
+- `sys_activity`（時間線）
+- `sys_audit_log`（欄位級 diff）
+
+你不需要為每個物件逐一連線這些 —— 它們在平臺上是多型的。
+
+## 下一步 [#where-to-go-next]
+
+- [許可權](/docs/configure/permissions) —— 控制對你的物件的訪問
+- [流程 / 自動化](/docs/build/automation/flows) —— 響應記錄變更
+- [API 訪問](/docs/configure/api-access) —— 呼叫你生成的 REST
+- [`os explain`](/docs/reference/cli) —— 列印渲染後的模式
+- [`@objectstack/spec` 原始碼](https://github.com/objectstack-ai/objectstack/tree/main/packages/spec) —— 模式就是契約；這裡的一切都從它派生

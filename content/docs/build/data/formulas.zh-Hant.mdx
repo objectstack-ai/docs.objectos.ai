@@ -1,9 +1,11 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 公式
+seoTitle: "公式欄位、動態預設值和 CEL 邏輯"
 description: 計算欄位、動態預設值與條件邏輯 —— 後設資料需要"思考"的地方，都用同一門 CEL 表示式語言。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: e665dc6fce9b0f27d22e829919a1ec41bec1d4ea6c7f82b23a1c2a44d7d95bf0
+  source_sha: 4c94691d64eaae42bb49bfe69035aae77414eb5038b32c992efce1b2768c0aa1
   guide_rev: 1
   mode: auto
 ---
@@ -21,7 +23,7 @@ translation:
 
 本頁講構建者如何*使用*公式。完整的語言 —— 運算子、標準庫、`Expression` 信封 —— 見 [CEL 參考](/docs/reference/cel)。
 
-## 公式欄位
+## 公式欄位 [#formula-fields]
 
 公式欄位在讀取時由一條 CEL 表示式計算出它的值。它是隻讀的 —— 永遠不能直接寫入：
 
@@ -32,8 +34,8 @@ import { ObjectSchema, Field } from '@objectstack/spec/data';
 export const Invoice = ObjectSchema.create({
   name: 'invoice',
   fields: {
-    subtotal: Field.decimal({ label: 'Subtotal' }),
-    tax_rate: Field.decimal({ label: 'Tax Rate' }),
+    subtotal: Field.currency({ label: 'Subtotal' }),
+    tax_rate: Field.number({ label: 'Tax Rate', scale: 4 }),
 
     total: Field.formula({
       label: 'Total',
@@ -53,10 +55,10 @@ export const Invoice = ObjectSchema.create({
 
 > **警告：**公式欄位的 `type` 永遠是 `formula`。**不要**給 `Field.formula` 傳 `type: 'currency'` 或 `type: 'number'` —— 那會覆蓋 `type: 'formula'`，欄位就靜默地永遠不再計算。值的型別請用 `returnType` 宣告。
 
-### 日常模式
+### 日常模式 [#everyday-patterns]
 
 ```ts
-// 分档标签
+// Tiered label
 Field.formula({
   label: 'Discount Tier',
   returnType: 'text',
@@ -67,21 +69,21 @@ Field.formula({
   `,
 })
 
-// 距关闭还有几天
+// Days until close
 Field.formula({
   label: 'Days to Close',
   returnType: 'number',
   expression: 'daysBetween(record.close_date, today())',
 })
 
-// 全名 —— joinNonEmpty 会跳过空白部分
+// Full name — joinNonEmpty skips blank parts
 Field.formula({
   label: 'Full Name',
   returnType: 'text',
   expression: F`joinNonEmpty([record.salutation, record.first_name, record.last_name], ' ')`,
 })
 
-// 毛利率，保留 2 位小数
+// Gross margin with 2 decimal places
 Field.formula({
   label: 'Gross Margin %',
   returnType: 'number',
@@ -92,14 +94,14 @@ Field.formula({
 
 > **提示：**CEL 遇到 `null + string` 會拋錯，所以拼接時把可能為空的運算元包進 `coalesce(record.x, '')` —— 或者直接用 `joinNonEmpty`，省掉這套儀式。
 
-### 16.0 新增
+### 16.0 新增 [#new-in-160]
 
 - **日期與數字做算術現在是構建期錯誤。**像 `record.end_date - record.start_date + 1` 或 `today() + 30` 這樣的表示式過去總在執行時出錯（靜默求值為 null）；現在構建會直接拒絕，並在報錯中指向 `daysBetween(a, b)`（求跨度）以及 `daysFromNow(n)` / `addDays(d, n)` / `addMonths(d, n)`（移動日期）。
 - **空值守衛三元表示式可以編譯了。**`cond ? value : null` —— 例如 `record.end_date != null ? daysBetween(record.start_date, record.end_date) + 1 : null` —— 是讓公式在輸入就緒前保持空白的推薦寫法。
 - **註冊了 `floor(x)` / `ceil(x)`。**它們分別向 −∞ / +∞ 取整（所以 `floor(-1.2) == -2`）—— 不像整數除法那樣向零取整。
 - **日期與 `today()` 的相等比較現在能匹配了。**時間值會在比較前先做型別歸一，因此 `record.due_date == today()` 和 `daysBetween(today(), record.due_date) == 0` 都能按預期工作。
 
-### 公式作為記錄標題
+### 公式作為記錄標題 [#formula-as-record-title]
 
 自 ADR-0079 起，記錄的標題由 `nameField` 指定的欄位決定 —— 組合式標題可以用文本公式：
 
@@ -116,7 +118,7 @@ ObjectSchema.create({
 });
 ```
 
-## 動態預設值
+## 動態預設值 [#dynamic-defaults]
 
 包在 `` cel`...` `` 裡的 `defaultValue` 在**插入時**求值 —— 用的是使用者的時鐘和身份，不是你筆記本的：
 
@@ -133,7 +135,7 @@ due_date: Field.date({
 
 同樣的技巧也適用於種子資料：一條帶 ``close_date: cel`daysFromNow(45)` `` 的種子記錄會在包安裝時解析，因此演示資料永遠新鮮，而不是把編譯時的時間戳固化進包裡。
 
-## 條件式欄位行為
+## 條件式欄位行為 [#conditional-field-behavior]
 
 謂詞讓欄位隨記錄的其餘部分而變化：
 
@@ -146,7 +148,10 @@ po_number: Field.text({
 }),
 rating: Field.select({
   label: 'Rating',
-  options: [ /* ... */ ],
+  options: [
+    { label: 'Hot', value: 'hot' },
+    { label: 'Cold', value: 'cold' },
+  ],
   visibleWhen: P`record.status == 'qualified'`,
 }),
 notes: Field.textarea({
@@ -156,7 +161,7 @@ notes: Field.textarea({
 
 `F`（公式）、`P`（謂詞）、`cel` 這幾個標籤模板 helper 可以互換 —— 在呼叫處哪個讀起來順就用哪個。
 
-## 30 秒學會 CEL
+## 30 秒學會 CEL [#cel-in-30-seconds]
 
 | 概念 | 語法 |
 |---|---|
@@ -175,7 +180,7 @@ notes: Field.textarea({
 
 > **提示：**`has(record.x)` 只要鍵存在就為 true —— 哪怕值是 `null`。要檢查"非空白"，用 `isBlank(...)` 或 `record.x != null`。
 
-## 最佳實踐
+## 最佳實踐 [#best-practices]
 
 | 應該 | 不應該 |
 |---|---|
@@ -184,7 +189,7 @@ notes: Field.textarea({
 | 用 `coalesce` / `isBlank` 處理空值 | 把公式用在頻繁變化的資料上 |
 | 給每個公式宣告 `returnType` | 重新實現本該由驗證規則負責的邏輯 |
 
-## 用對話構建
+## 用對話構建 [#build-by-chat]
 
 你很少需要手寫公式。告訴 [AI Builder](/docs/build/ai-builder)：
 
@@ -192,7 +197,7 @@ notes: Field.textarea({
 
 它會生成 CEL，推斷並寫好 `returnType`，表示式在釋出前會先經過校驗 —— 無效的公式會帶著定位資訊使構建失敗。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 頁面 | 原因 |
 |---|---|

@@ -1,23 +1,25 @@
 ---
 title: 关系
+seoTitle: "关系：查找、主从和汇总"
 description: 用查找（lookup）与主从（master-detail）连接对象 —— 级联规则、过滤选择器、层级结构、连接对象与汇总字段。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 37812edbd83d2dffc155de2c29d7e697182eec51f002be23773e4201082bffe8
+  source_sha: 05bc53d30e7cc26ead447169d0a7c3ba0beb76be6a457d9843593253d11f0469
   guide_rev: 1
   mode: auto
 ---
 
-**关系就是一个字段。**把 `lookup` 或 `masterDetail` 字段指向另一个对象，ObjectOS 会把上层的一切都接好：外键完整性、Console 里的记录选择器、父记录页面上的相关列表，以及查询中的 `expand`。
+**关系就是一个字段。**把 `lookup` 或 `masterDetail` 字段指向另一个对象，ObjectOS 会把上层的一切都接好：外键完整性、记录选择器、父记录页面上的相关列表，以及查询中的 `expand`。
 
 | 类型 | 基数 | 删除默认行为 | 用于 |
 |---|---|---|---|
 | `lookup` | 多对一 | `set_null` | 松散引用（工单 → 负责人） |
-| `masterDetail` | 多对一、有归属 | `cascade` | 父子归属（订单 → 明细行） |
+| `master_detail` | 多对一、有归属 | `cascade` | 父子归属（订单 → 明细行） |
 | `tree` | 自引用 | — | 层级结构（分类、组织架构图） |
 | `user` | 多对一 | `set_null` | 人员选择器 —— 特化为 `sys_user` 的查找 |
 | `summary` | 汇总到父记录 | — | 聚合子记录（sum、count、avg） |
 
-## 查找（多对一）
+## 查找（多对一） [#lookup-many-to-one]
 
 主力字段。引用另一个对象中的一条记录：
 
@@ -39,7 +41,7 @@ export const Contact = ObjectSchema.create({
 
 > **提示：**按所指向的对象给字段命名 —— 用 `account`，而不是 `account_id`。这样相关列表、`expand` 和 AI Builder 读起来都更顺。
 
-### 父记录被删除时会发生什么
+### 父记录被删除时会发生什么 [#what-happens-when-the-parent-is-deleted]
 
 用 `deleteBehavior` 控制级联行为：
 
@@ -49,14 +51,14 @@ export const Contact = ObjectSchema.create({
 | `cascade` | 子记录也一并删除 |
 | `restrict` | 只要还有子记录，就阻止删除 |
 
-## 过滤查找
+## 过滤查找 [#filtered-lookups]
 
 约束选择器提供哪些记录。静态条件用 `lookupFilters`；用 `dependsOn` 让候选记录随同一记录上另一个字段的取值收窄：
 
 ```ts
 contact: Field.lookup('contact', {
   label: 'Contact',
-  dependsOn: ['account'],          // 只显示所选 account 下的联系人
+  dependsOn: ['account'],          // only contacts of the chosen account
   lookupFilters: [
     { field: 'is_active', operator: 'eq', value: true },
   ],
@@ -65,7 +67,7 @@ contact: Field.lookup('contact', {
 
 > **警告：**旧的 `referenceFilters: string[]` 属性（如 `['is_active = true']`）**已在 16.0 中移除** —— 解析时会被直接剥离；而且即使在移除之前，记录选择器 UI 也从未读取过它，它什么都不过滤。上面展示的结构化 `lookupFilters` + `dependsOn` 是唯一受支持的形式。
 
-## 主从（有归属的子记录）
+## 主从（有归属的子记录） [#master-detail-owned-children]
 
 `masterDetail` 是带归属语义的查找：子记录属于父记录，默认随父级联删除，并且可以在父表单上以明细行的形式内联编辑。
 
@@ -73,7 +75,7 @@ contact: Field.lookup('contact', {
 export const OrderLine = ObjectSchema.create({
   name: 'order_line',
   fields: {
-    order:    Field.masterDetail({ reference: 'order', label: 'Order' }),
+    order:    Field.masterDetail('order', { label: 'Order' }),
     product:  Field.lookup('product', { label: 'Product' }),
     quantity: Field.number({ label: 'Quantity', min: 1 }),
   },
@@ -89,7 +91,7 @@ export const OrderLine = ObjectSchema.create({
 
 引用是可选或共享的，用 `lookup`；子记录离开父记录就没有意义的，用 `masterDetail`。
 
-## 自引用查找与树
+## 自引用查找与树 [#self-referencing-lookups--trees]
 
 查找可以指回自己的对象，用来构建层级结构：
 
@@ -102,9 +104,9 @@ parent_account: Field.lookup('account', {
 
 对于专门的层级结构（分类、组织架构图），使用 `tree` 字段类型 —— 一个存储和展开方式与 `lookup` 相同的自引用查找。注意引擎在写入时**不做**环路检查，所以一条绕回自身的链不会被自动拒绝。
 
-> **提示：**把 `tree` / 自引用查找字段与[树形列表视图](/docs/build/interface/views)搭配使用，即可在 Console 中把层级渲染为嵌套行。
+> **提示：**把 `tree` / 自引用查找字段与[树形列表视图](/docs/build/interface/views)搭配使用，即可把层级渲染为嵌套行。
 
-## 相关列表
+## 相关列表 [#related-lists]
 
 这些是免费得到的。当查找指向父对象时，子记录会自动以相关列表的形式出现在父记录的详情页上：
 
@@ -113,41 +115,47 @@ parent_account: Field.lookup('account', {
 
 无需任何额外配置。
 
-## 多对多：连接对象
+## 多对多：连接对象 [#many-to-many-junction-objects]
 
 ObjectOS 没有直接的多对多字段 —— 用**连接对象**来建模：一个带两个关系字段的对象，各指向一侧。
 
 ```ts
-// Student ↔ Course，通过 Enrollment 连接
+// Student ↔ Course, joined by Enrollment
 export const Enrollment = ObjectSchema.create({
   name: 'enrollment',
   fields: {
-    student: Field.masterDetail({ reference: 'student', label: 'Student' }),
-    course:  Field.masterDetail({ reference: 'course',  label: 'Course' }),
-    grade:   Field.select({ label: 'Grade', options: [ /* ... */ ] }),
+    student: Field.masterDetail('student', { label: 'Student' }),
+    course:  Field.masterDetail('course',  { label: 'Course' }),
+    grade:   Field.select({
+      label: 'Grade',
+      options: [
+        { label: 'Pass', value: 'pass' },
+        { label: 'Fail', value: 'fail' },
+      ],
+    }),
   },
   indexes: [
-    { fields: ['student', 'course'], unique: true },  // 每对组合只允许一条报名记录
+    { fields: ['student', 'course'], unique: true },  // one enrollment per pair
   ],
 });
 ```
 
 两侧都会把连接记录看作一个相关列表，而连接对象本身正是存放这段配对属性（成绩、角色、加入日期）的天然位置。
 
-## 汇总（`summary` 字段）
+## 汇总（`summary` 字段） [#roll-ups-summary-fields]
 
 用 `summary` 字段把子记录聚合到父记录上。只在主对象上有效 —— 即主从关系的父侧：
 
 ```ts
-// 在 Order 对象上
+// Fields of an object — this one belongs on the Order object.
 total_lines: {
   type: 'summary',
   label: 'Line Count',
   summaryOperations: {
-    object: 'order_line',    // 要聚合的子对象
-    field: 'quantity',       // 要聚合的字段
+    object: 'order_line',    // child object to aggregate
+    field: 'quantity',       // field to aggregate
     function: 'sum',         // count | sum | min | max | avg
-    filter: { status: 'active' },  // 16.0 新增：只聚合匹配的子记录
+    filter: { status: 'active' },  // new in 16.0: aggregate only matching children
   },
 }
 ```
@@ -159,11 +167,11 @@ Summary 字段是只读的，由子记录计算得出 —— 你永远不会直�
 子记录进入或离开该谓词范围时，汇总会重新聚合。它还让多个 summary 字段
 可以对*同一个*子对象汇总出不同的总计。
 
-## 跨关系查询
+## 跨关系查询 [#querying-across-relationships]
 
 用 `expand` 在一次调用里加载关联记录 —— 查询 API 会顺着查找字段把被引用的记录内联进来，客户端不必发出 N+1 次请求。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 页面 | 原因 |
 |---|---|
