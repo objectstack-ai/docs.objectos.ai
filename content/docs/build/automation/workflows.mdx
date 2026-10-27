@@ -2,6 +2,7 @@
 title: Workflows
 seoTitle: "Workflows: Record Lifecycle as a State Machine"
 description: Model a record's lifecycle as a state machine — the states it can be in, the moves allowed between them, and nothing a flow can do better.
+editions: [community, cloud, enterprise]
 ---
 
 **A workflow models a record's lifecycle as a finite state machine: the states the record can be in and the moves allowed between them.** You declare it as a `state_machine` validation rule on the object, and every write to the state field is checked against it. Use one when the core requirement is "this object can only move through these states."

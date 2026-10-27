@@ -2,6 +2,7 @@
 title: Data Sources
 seoTitle: "Data Sources: Bind Objects to External Databases"
 description: Connect ObjectOS to your existing business databases, route objects to them, and let AI query the data — natively.
+editions: [community, enterprise]
 ---
 
 A **datasource** is a named connection to an external data store. By
@@ -155,7 +156,7 @@ export const Customer = ObjectSchema.create({
 > answering, so a replica whose database has gone away is taken out of
 > rotation instead of serving errors. Connection attempts are bounded at
 > 10 seconds. See the
-> [17.0 release notes](https://docs.objectstack.ai/docs/releases/v17).
+> [17.0 release notes](https://objectstack.ai/docs/releases/v17).
 
 ### Centralized routing with `datasourceMapping`
 
@@ -288,7 +289,7 @@ not own, with validation gates around them. It is read-only by default and
 early: expect the read path to be the mature one.
 
 It is documented once, with the framework docs that own the surface —
-[External Datasources (Federation)](https://docs.objectstack.ai/docs/data-modeling/external-datasources).
+[External Datasources (Federation)](https://objectstack.ai/docs/data-modeling/external-datasources).
 
 ## Where to go next
 

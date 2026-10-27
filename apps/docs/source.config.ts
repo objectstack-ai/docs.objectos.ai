@@ -2,6 +2,69 @@ import { defineConfig, defineDocs } from 'fumadocs-mdx/config';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
 import { rehypeCodeDefaultOptions } from 'fumadocs-core/mdx-plugins';
 import path from 'node:path';
+import { EDITIONS, isEdition } from './lib/editions';
+import { i18n } from './lib/i18n';
+
+/**
+ * A translation's file name: `foo.zh-Hans.mdx`, `foo.ja.mdx`, … — every
+ * language `lib/i18n.ts` declares except the default, which has no suffix.
+ */
+const TRANSLATION_FILE = new RegExp(
+  `\\.(?:${i18n.languages.filter((lang) => lang !== i18n.defaultLanguage).join('|')})\\.mdx$`,
+);
+
+/**
+ * `editions:` — which ObjectOS editions a page is true for (`lib/editions.ts`).
+ *
+ * Built from `pageSchema.shape.title` for the reason `seoTitle` is below: `zod`
+ * is not resolvable from this workspace. The `transform` only narrows the type
+ * to the `Edition` union; the value is unchanged.
+ */
+const editionsSchema = pageSchema.shape.title
+  .refine(isEdition, { message: `must be one of: ${EDITIONS.join(', ')}` })
+  .transform((value) => value as (typeof EDITIONS)[number])
+  .array()
+  .min(1)
+  .refine((list) => new Set(list).size === list.length, { message: 'lists an edition twice' });
+
+const docsPageSchema = pageSchema.extend({
+  /**
+   * Optional SEO title: what the `<title>` tag should say, when that is not
+   * what the H1 and the sidebar should say.
+   *
+   * `title` stays the short navigational noun ("Views") because it is what
+   * renders in the sidebar, the breadcrumb and the H1. That same noun makes
+   * a title tag carrying no query term at all, so a page may declare a
+   * longer, keyword-bearing `seoTitle` here and `generateMetadata` prefers
+   * it. Declaring nothing is the norm: the fallback is `title`, so a page
+   * that says nothing renders exactly what it rendered before.
+   *
+   * Extending is not optional bookkeeping — the base `pageSchema` is a Zod
+   * object with the default "strip" behaviour, so a `seoTitle:` in
+   * frontmatter that is not declared here is silently dropped at parse time
+   * rather than reaching `page.data`.
+   *
+   * Built from `pageSchema.shape.title` rather than a fresh `z.string()`
+   * because `zod` is a *peer* dependency of fumadocs-core and is not
+   * resolvable from this workspace — `require.resolve('zod')` fails in
+   * `apps/docs`. Reusing the shape keeps the field's type identical to
+   * `title`'s without adding a dependency to declare it.
+   *
+   * `.trim().min(1)` is deliberate: an empty or whitespace-only `seoTitle`
+   * is an authoring mistake, and rejecting it at build time is what lets
+   * the consumer use a plain `??` fallback instead of a tolerant one that
+   * would quietly paper over the empty string.
+   */
+  seoTitle: pageSchema.shape.title.trim().min(1).optional(),
+  /**
+   * Optional in the shape, required of every English page by the refinement
+   * in `defineDocs` below. A translation may omit it: the edition set is a
+   * fact about the page, not about its language, so the badge row and the
+   * sidebar mark read it from the English page on every locale route, and a
+   * translation that copied the key could only drift from it.
+   */
+  editions: editionsSchema.optional(),
+});
 
 export const docs = defineDocs({
   dir: path.resolve(process.cwd(), '../../content/docs'),
@@ -39,36 +102,20 @@ export const docs = defineDocs({
      * and `/docs/build/interface/views` under real workerd, identically.
      */
     async: true,
-    schema: pageSchema.extend({
-      /**
-       * Optional SEO title: what the `<title>` tag should say, when that is not
-       * what the H1 and the sidebar should say.
-       *
-       * `title` stays the short navigational noun ("Views") because it is what
-       * renders in the sidebar, the breadcrumb and the H1. That same noun makes
-       * a title tag carrying no query term at all, so a page may declare a
-       * longer, keyword-bearing `seoTitle` here and `generateMetadata` prefers
-       * it. Declaring nothing is the norm: the fallback is `title`, so a page
-       * that says nothing renders exactly what it rendered before.
-       *
-       * Extending is not optional bookkeeping — the base `pageSchema` is a Zod
-       * object with the default "strip" behaviour, so a `seoTitle:` in
-       * frontmatter that is not declared here is silently dropped at parse time
-       * rather than reaching `page.data`.
-       *
-       * Built from `pageSchema.shape.title` rather than a fresh `z.string()`
-       * because `zod` is a *peer* dependency of fumadocs-core and is not
-       * resolvable from this workspace — `require.resolve('zod')` fails in
-       * `apps/docs`. Reusing the shape keeps the field's type identical to
-       * `title`'s without adding a dependency to declare it.
-       *
-       * `.trim().min(1)` is deliberate: an empty or whitespace-only `seoTitle`
-       * is an authoring mistake, and rejecting it at build time is what lets
-       * the consumer use a plain `??` fallback instead of a tolerant one that
-       * would quietly paper over the empty string.
-       */
-      seoTitle: pageSchema.shape.title.trim().min(1).optional(),
-    }),
+    /**
+     * A function of the file, so the one rule that depends on which file is
+     * being read can be stated: an English page without `editions:` fails
+     * here, in `fumadocs-mdx`, which `type-check` and `build` both run. A
+     * translation (`foo.ja.mdx`) is held to the same shape but may leave the
+     * key out — see `editions` above.
+     */
+    schema: ({ path: file }) =>
+      TRANSLATION_FILE.test(file)
+        ? docsPageSchema
+        : docsPageSchema.refine((page) => page.editions !== undefined, {
+            message: `an English page must declare \`editions:\` — a list of ${EDITIONS.join(', ')} (lib/editions.ts)`,
+            path: ['editions'],
+          }),
     postprocess: {
       includeProcessedMarkdown: true,
     },

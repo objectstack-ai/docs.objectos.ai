@@ -46,6 +46,33 @@
   overscroll-behavior-x: contain;
 }
 
+/*
+ * The sidebar's edition mark (`components/editions.tsx`).
+ *
+ * It rides on the page-tree entry's name, which the breadcrumb and the
+ * previous/next footer also render. It belongs to the navigation only, so it
+ * is drawn inside the desktop sidebar and the mobile drawer and nowhere else.
+ */
+.edition-mark {
+  display: none;
+}
+
+#nd-sidebar .edition-mark,
+#nd-sidebar-mobile .edition-mark {
+  display: inline-flex;
+}
+
+/*
+ * On a group's row the mark is followed by the folder's chevron, which also
+ * pushes itself to the end with an auto margin; two auto margins split the
+ * free space and left the mark floating mid-row. The chevron keeps a fixed gap
+ * instead, so a group's mark lines up with its pages' marks.
+ */
+#nd-sidebar .edition-mark + svg,
+#nd-sidebar-mobile .edition-mark + svg {
+  margin-inline-start: 0.25rem;
+}
+
 .docs-table::-webkit-scrollbar {
   height: 6px;
 }

@@ -167,8 +167,12 @@ const TARGET_DEFAULTS = {
  *
  * The deep page is three segments down and behind a `next.config.mjs` redirect
  * table, so it exercises the part of the route tree a shallow check misses.
- * Both content pages predate the version currently serving (added 2026-05-24
- * and earlier), so this list is runnable against the pinned live version.
+ * `/docs/quickstart` is a redirect assertion too since the page moved to
+ * `/docs/start/community`: the old URL is the one every link outside this site
+ * still carries, so it has to land on the page that replaced it. Against a
+ * version from before that move it reads `final-path` and `h1-mismatch`, which
+ * is correct for the same reason as the index H1 below: the list describes the
+ * site this tree ships.
  *
  * The index H1 is `Introduction` since #171 gave `content/docs/index.mdx` a
  * real title instead of the bare brand. A version from before that change
@@ -179,7 +183,7 @@ const TARGET_DEFAULTS = {
 const TARGETS = [
   { path: '/', finalPath: '/docs', h1: /^Introduction$/i },
   { path: '/en/docs', finalPath: '/docs', h1: /^Introduction$/i },
-  { path: '/docs/quickstart', finalPath: '/docs/quickstart', h1: /^Quickstart$/i },
+  { path: '/docs/quickstart', finalPath: '/docs/start/community', h1: /^Run ObjectOS Community locally$/i },
   {
     path: '/docs/build/interface/views',
     finalPath: '/docs/build/interface/views',

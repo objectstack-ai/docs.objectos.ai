@@ -1,0 +1,5 @@
+{
+  "title": "Editions",
+  "defaultOpen": false,
+  "pages": ["compare", "license", "public-preview"]
+}

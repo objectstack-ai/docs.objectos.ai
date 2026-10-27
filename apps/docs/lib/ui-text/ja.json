@@ -25,6 +25,7 @@
   "openInClaude": "Claude で開く",
   "pageActionsOpenInLLMPrompt": "{url} を読んでください。この内容について質問したいです。",
   "notTranslated": "このページはまだ翻訳されていません。英語版を表示しています。",
+  "editionsLabel": "対応エディション",
   "legalNav": "法的情報",
   "privacy": "プライバシー",
   "terms": "利用規約",

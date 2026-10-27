@@ -15,6 +15,8 @@ import { i18n } from '@/lib/i18n';
 import { uiText } from '@/lib/ui-text';
 import type { InferPageType } from 'fumadocs-core/source';
 import type { TOCItemType } from 'fumadocs-core/toc';
+import { EditionBadges } from '@/components/editions';
+import { EDITIONS_PAGE_SLUGS } from '@/lib/editions';
 
 /**
  * The page type the loader actually produces, frontmatter schema included.
@@ -320,6 +322,13 @@ export default async function Page(props: {
   // is too long to inline into the prompt (`ViewOptions` has the measurement).
   const assistantReadUrl = contentLang === i18n.defaultLanguage ? pageMarkdownUrl : page.url;
 
+  // The editions this page is true for, read from the English page on every
+  // route: the set is a fact about the page, not its language, and a
+  // translation is not required to carry the key (`source.config.ts`). The
+  // badges link to the comparison page as this locale's reader would reach it.
+  const editions = source.getPage(page.slugs, i18n.defaultLanguage)?.data.editions;
+  const editionsUrl = source.getPage(EDITIONS_PAGE_SLUGS, params.lang)?.url;
+
   // Structured data. Emitted from the page rather than from `generateMetadata`,
   // which can only produce meta/link elements — the Metadata API has no channel
   // for a JSON-LD script. Google reads `application/ld+json` from either the
@@ -372,6 +381,9 @@ export default async function Page(props: {
         <DocsDescription lang={contentLangAttr} className="mb-0">
           {page.data.description}
         </DocsDescription>
+        {editions && editionsUrl && (
+          <EditionBadges editions={editions} label={text.editionsLabel} href={editionsUrl} />
+        )}
         <div className="flex flex-row gap-2 items-center border-b pb-6">
           <LLMCopyButton markdown={copySource} label={text.copyMarkdown} />
           <ViewOptions

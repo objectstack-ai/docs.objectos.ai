@@ -99,12 +99,13 @@ node .github/scripts/check-translations.mjs --worklist  # what the next pass wil
 - Don't write a `.cn.mdx` sibling. That locale does not exist; the file is ignored silently. Use `.zh-Hans.mdx`.
 - Don't hand-write a `.zh-Hant.mdx` sibling either. It is generated from the `.zh-Hans.mdx` file and CI fails on any hand edit.
 - Don't hand-edit a `*.<locale>.mdx` file, and don't "just fix" one while you're in there. Fix the English source instead.
+- Don't write syntax tables. This site documents product behaviour — where ObjectOS uses a format, plus a few examples; the syntax itself links to its specification on objectstack.ai/docs (see the five summary pages under `content/docs/reference/`).
 
 ## Commands
 
 From `apps/docs/`:
 - `npm run dev` — dev server on http://localhost:3000
-- `npm run type-check` — `next typegen && fumadocs-mdx && tsc --noEmit`. ⛔ Keep this order (#311): `next typegen` can exit mid-way through the un-awaited `.source/*` rewrite that `createMDX()` in `next.config.mjs` starts, leaving a truncated `.source/server.ts` that `tsc` rejects (TS2306), so the awaited `fumadocs-mdx` CLI goes after it as the last writer.
+- `npm run type-check` — `next typegen && fumadocs-mdx && tsc --noEmit && node scripts/check-frontmatter.mjs`; `check-frontmatter.mjs` runs last and fails any English page without a valid `editions:` key. ⛔ Keep this order (#311): `next typegen` can exit mid-way through the un-awaited `.source/*` rewrite that `createMDX()` in `next.config.mjs` starts, leaving a truncated `.source/server.ts` that `tsc` rejects (TS2306), so the awaited `fumadocs-mdx` CLI goes after it as the last writer.
 - `npm run build` — production build
 
 ## Turbo caching and content changes

@@ -10,7 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "next typegen && fumadocs-mdx && tsc --noEmit",
+    "type-check": "next typegen && fumadocs-mdx && tsc --noEmit && node scripts/check-frontmatter.mjs",
     "postinstall": "fumadocs-mdx",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",

@@ -1,53 +1,54 @@
 ---
 title: REST API
 seoTitle: "REST API: Generated Endpoints, Auth, OpenAPI"
-description: The HTTP surface ObjectOS exposes — generated from your metadata, scoped by permissions, OpenAPI-described.
+description: The HTTP surface ObjectOS generates from your metadata — where the product uses it, a few examples, and the full specification on objectstack.ai.
+editions: [community, cloud, enterprise]
 ---
 
-Every object you declare gets a full REST endpoint set automatically.
-Every action becomes a `POST`. Every flow can be started with a `POST` to
-`/automation/:name/trigger`. There is no separate API layer to write or
-deploy.
+**Full specification:** [REST and GraphQL APIs on objectstack.ai](https://objectstack.ai/docs/api). This page is the summary: where ObjectOS uses it, and a few examples.
 
-Base URL: `https://<your-host>/api/v1`.
-OpenAPI spec is live at [`/api/v1/openapi.json`](#discovery).
+Every object you declare gets REST endpoints, every action becomes a `POST`,
+and every flow can be started over HTTP. There is no separate API layer to
+write or deploy. The base URL is `https://<your-host>/api/v1`, and the running
+runtime describes itself at `/api/v1/openapi.json` (OpenAPI 3.0) and at
+`/api/v1` (service discovery).
 
-## Authentication
+Every route under `/api/v1` needs a signed-in session or a bearer token, except
+[public forms](#public-forms). Permissions are checked per route and per
+record: object-, record- and field-level security apply to an API caller
+exactly as they apply in the UI. See [API Access](/docs/configure/api-access)
+for keys and tokens.
 
-ObjectOS uses [Better Auth](https://www.better-auth.com/). All routes
-under `/api/v1` require an authenticated session unless explicitly
-marked **public** (see [Public forms](#public-forms)). Auth methods
-configured in `apps/<app>/auth.config.ts` — typically session cookie or
-bearer token from `/api/v1/auth/sign-in`.
+## Where ObjectOS uses it
 
-Permissions are checked **per route, per record**. Routes annotated
-below with a permission key (e.g. `ai:chat`) call
-`requirePermission(...)`; record-level access is enforced by RBAC +
-row-level security + field-level security inside the data engine.
-
-## Discovery
-
-| Path | Method | Purpose |
+| Surface | Routes | Used by |
 |:--|:--|:--|
-| `/api/v1` | GET | Service discovery — lists all registered routes, version, scoping mode |
-| `/api/v1/discovery` | GET | Explicit alias for the discovery document above |
-| `/api/v1/openapi.json` | GET | OpenAPI 3.0 spec for every endpoint in the running runtime |
-| `/api/v1/search` | GET | Full-text search across searchable fields on all objects |
+| Data | `/data/:object`, `/data/:object/:id`, `/data/:object/query` | The generated UI, your integrations, imports and exports — queries are [ObjectQL](./objectql) |
+| Actions | `/actions/:object/:action` | Buttons in the UI, and agents when the action is exposed to AI ([Actions](/docs/build/interface/actions)) |
+| Automation | `/automation/:name/trigger`, `/automation/:name/runs` | Starting a flow from another system, and reading its runs ([Flows](/docs/build/automation/flows)) |
+| Metadata | `/meta/:type/:name` | Studio, which saves through it, and tooling that reads the running metadata |
+| AI | `/ai/chat`, `/ai/pending-actions` | The [AI Builder](/docs/build/ai-builder) and its approval queue |
+| Public forms | `/forms/:slug` | A form view published for anonymous respondents |
 
-## Restricting the API surface
+## Examples
 
-The auto-generated endpoints are governed per object, in its `enable` block,
-so you can take an object off the API or make it read-only without writing
-any route code:
+**List open tickets**, newest first:
 
-- **`apiEnabled`** (boolean, **default `true`**) — set `false` to omit the
-  object from the REST surface entirely. Requests to its routes 404.
-- **`apiMethods`** (optional whitelist) — when set, only the listed operations
-  are reachable; any other operation is rejected at the REST layer. Allowed
-  values: `get`, `list`, `create`, `update`, `delete`, `bulk`. The eight
-  older values — `upsert`, `aggregate`, `history`, `search`, `restore`,
-  `purge`, `import`, `export` — are retired: a declared one is stripped at
-  parse, with a warning that names its replacement.
+```http
+GET /api/v1/data/support_ticket?where={"status":{"$eq":"open"}}&orderBy=-created_at&limit=20
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "object": "support_ticket",
+  "records": [ { "id": "...", "subject": "...", "status": "open" } ],
+  "total": 137,
+  "hasMore": true
+}
+```
+
+**Take an object off the API, or make it read-only**, in its `enable` block:
 
 ```ts
 import { ObjectSchema, Field } from '@objectstack/spec/data';
@@ -73,102 +74,37 @@ ObjectSchema.create({
 })
 ```
 
-Both are now enforced at the REST layer (ADR-0049) — earlier versions parsed
-these properties but did not apply them.
-
-## Data — `/api/v1/data/*`
-
-CRUD + advanced query for every object you declare. `:object` is the
-object's `name` (snake_case).
-
-| Path | Method | Purpose |
-|:--|:--|:--|
-| `/data/:object` | GET | List / query — pass `where`, `orderBy`, `limit`, `offset`, `expand`, `select` as query params |
-| `/data/:object/query` | POST | Advanced query — full ObjectQL body with `groupBy` + `aggregations` (see [ObjectQL](./objectql)) |
-| `/data/:object/:id` | GET | Fetch one record. Supports `?select=` and `?expand=` |
-| `/data/:object` | POST | Create. Returns `201` with the new record |
-| `/data/:object/:id` | PATCH | Update. Pass `If-Match: <version>` header (or `expectedVersion` in body) for optimistic concurrency — `409 CONCURRENT_UPDATE` on conflict. A record you cannot read answers `404 RECORD_NOT_FOUND`, the same as one that does not exist |
-| `/data/:object/:id` | DELETE | Delete. Same `If-Match` and `404` rules |
-| `/data/:object/import` | POST | Bulk import (CSV or JSON). Body: `{ format, csv? \| rows?, mapping?, dryRun? }`. Max 5,000 rows/request |
-| `/data/:object/export` | POST | Export records as `csv` / `xlsx` / `pdf` / `json` |
-| `/data/:object/:id/shares` | GET / POST | Per-record sharing — list grants, grant access |
-| `/data/:object/:id/shares/:shareId` | DELETE | Revoke a share |
-| `/data/lead/:id/convert` | POST | Salesforce-style lead conversion (CRM template). Body: `{ accountId?, contactId?, createOpportunity? }` |
-
-### Quick example
-
-```http
-GET /api/v1/data/support_ticket?where={"status":{"$eq":"open"}}&orderBy=-created_at&limit=20
-Authorization: Bearer <token>
-```
+**Branch on the error code**, never on the message:
 
 ```json
 {
-  "object": "support_ticket",
-  "records": [ { "id": "...", "subject": "...", "status": "open" } ],
-  "total": 137,
-  "hasMore": true
+  "error": {
+    "code": "PERMISSION_DENIED",
+    "message": "Missing ai:approve on conversation 01H…",
+    "httpStatus": 403,
+    "details": { "permission": "ai:approve", "subject": "01H…" }
+  }
 }
 ```
 
-Page with `limit` and `offset`, or, for a stable walk through a large set,
-with a `where` on your sort key (`{"created_at": {"$lt": "<last value read>"}}`)
-beside the same `orderBy`. There is no cursor paging: ObjectStack 17.0
-removed `cursor`, which no driver had ever implemented, so every page came
-back identical.
+## Restricting the API surface
 
-## AI — `/api/v1/ai/*`
+An object's `enable` block governs its generated endpoints. `apiEnabled: false`
+omits the object from the REST surface entirely, so its routes answer `404`.
+`apiMethods` is a whitelist of `get`, `list`, `create`, `update`, `delete` and
+`bulk`; any other operation is refused at the REST layer. Both are enforced
+(ADR-0049); earlier versions parsed them without applying them.
 
-The endpoints the [AI Builder](/docs/build/ai-builder) and your
-[agents](/docs/build/agents) ride on.
+## Public forms
 
-| Path | Method | Permission | Purpose |
-|:--|:--|:--|:--|
-| `/ai/models` | GET | `ai:chat` | List available models from the configured providers |
-| `/ai/chat` | POST | `ai:chat` | Single-shot chat completion (sync) |
-| `/ai/chat/stream` | POST | `ai:chat` | Streaming chat (SSE) |
-| `/ai/complete` | POST | `ai:chat` | Raw completion endpoint |
-| `/ai/conversations` | GET / POST | `ai:chat` | List / create persistent conversations |
-| `/ai/conversations/:id` | GET / DELETE | `ai:chat` | Read / delete a conversation |
-| `/ai/conversations/:id/messages` | POST | `ai:chat` | Append a user message and run the agent |
-| `/ai/pending-actions` | GET | `ai:read` | The HITL approval queue — mutations the AI proposed |
-| `/ai/pending-actions/:id` | GET | `ai:read` | Inspect a queued mutation |
-| `/ai/pending-actions/:id/approve` | POST | `ai:approve` | Apply the mutation |
-| `/ai/pending-actions/:id/reject` | POST | `ai:approve` | Discard it |
+The only unauthenticated routes. A form view opts in through its `sharing`,
+and all three keys are required: `enabled: true`, `allowAnonymous: true` and a
+`publicLink` slug. Since ObjectStack 17.7 a form that sets only the last two
+answers `404 FORM_NOT_FOUND` — see
+[Views → Public forms](/docs/build/interface/views#public-forms).
+`GET /forms/:slug` returns the form, `POST /forms/:slug/submit` submits it.
 
-The split between `ai:read` and `ai:approve` is the security primitive
-that makes the AI Builder safe for end users.
-
-## Actions — `/api/v1/actions/*`
-
-Every `*.action.ts` you declare becomes an endpoint.
-
-| Path | Method | Purpose |
-|:--|:--|:--|
-| `/actions/:object/:action` | POST | Invoke an action declared on an object. Body is the action's input schema. Permissions and input validation come from the action declaration |
-| `/actions/:object/:action/:recordId` | POST | The same, on one record |
-| `/actions/:action` | POST | Invoke a global action (one bound to no object) |
-
-An action is callable by AI agents only when its author opts in:
-`ai: { exposed: true }` with an `ai.description` of at least 40 characters,
-on an action that runs without a UI (`script`, `flow` or `api`). See
-[Actions](/docs/build/interface/actions) and [MCP](/docs/configure/mcp).
-An action of type `flow` answers
-with the [flow status table](#flow-status-table) below.
-
-## Automation — `/api/v1/automation/*`
-
-| Path | Method | Purpose |
-|:--|:--|:--|
-| `/automation/:name/trigger` | POST | Start a flow. Inputs go in `params`, under the names of the flow's `isInput` variables |
-| `/automation/:name/runs` | GET | List the flow's runs |
-| `/automation/:name/runs/:runId` | GET | Status and step output of one run |
-| `/automation/:name/runs/:runId/resume` | POST | Resume a paused run. The body takes only `inputs`, `variables`, `output` and `branchLabel` |
-| `/automation/:name/runs/:runId/cancel` | POST | Cancel an in-flight run. Needs platform-administrator standing; anyone else is refused `403` |
-| `/automation/:name/toggle` | POST | Switch a **packaged** flow on or off. Requires `manage_metadata`; a flow authored in the deployment is refused `409` — switch it with its own `status` instead |
-| `/automation/_status` | GET | Which flows are enabled and bound |
-
-### Flow status table
+## Flow status table
 
 The trigger route, an action of type `flow` and a declared `type: 'flow'`
 endpoint all answer the same statuses. Branch on the HTTP status, not on a
@@ -184,107 +120,21 @@ endpoint all answer the same statuses. Branch on the HTTP status, not on a
 
 ## Metadata — `/api/v1/meta/*`
 
-Introspection into the running runtime's metadata, and the door Studio
-saves through. Useful for tooling and the UI.
-
-| Path | Method | Purpose |
-|:--|:--|:--|
-| `/meta` | GET | All metadata types (`object`, `view`, `action`, `flow`, `agent`, …) |
-| `/meta/:type` | GET | List items of a type. Filter with `?package=<id>` |
-| `/meta/:type/:name` | GET | Fetch one item |
-| `/meta/:type/:name` | PUT / DELETE | Save or delete one item. Needs an authoring capability |
-| `/meta/:type/:name/layers` | GET | The item as three layers: code, overlay and effective. Replaces the deprecated `?layers=true` |
-| `/meta/:type/:name/references` | GET | Find every metadata item that references this one |
-| `/meta/:type/:name/history` | GET | Change history for that item. Needs an authoring capability |
-
-`/meta/:type/:name` is the only address of an item. Percent-encode a name
-that carries a slash: `GET /api/v1/meta/lead/views%2Fall_leads`. The
-sectioned `/meta/:type/:section/:name` routes were retired in ObjectStack
-17.3 and answer `404 ROUTE_NOT_FOUND`. Reading `datasource` or
-`external_catalog` metadata, and saving `datasource` metadata, needs
-`manage_platform_settings`.
-
-## Sharing & approvals
-
-| Path | Method | Purpose |
-|:--|:--|:--|
-| `/sharing/rules` | GET / POST / DELETE | Manage sharing rules |
-| `/sharing/rules/:idOrName/evaluate` | POST | Dry-run a rule against a context |
-| `/approvals/processes` | GET / POST | Approval process definitions |
-| `/approvals/requests` | GET / POST | Submit / list approval requests |
-| `/approvals/requests/:id/approve` | POST | Decision: approve |
-| `/approvals/requests/:id/reject` | POST | Decision: reject |
+`/meta/:type/:name` is the only address of a metadata item; percent-encode a
+name that carries a slash (`GET /api/v1/meta/lead/views%2Fall_leads`). The
+sectioned `/meta/:type/:section/:name` routes were retired in ObjectStack 17.3
+and answer `404 ROUTE_NOT_FOUND`. Saving needs an authoring capability, and
+reading or saving `datasource` metadata needs `manage_platform_settings`.
 
 ## Reports
 
 There is no saved-report API. ObjectStack 17.5 removed `/reports`,
-`/reports/:id/run` and `/reports/:id/schedule`, which now answer `404`,
-and scheduled report delivery went with them, with no replacement. A
-report is metadata, read through `/meta/report/:name`, and its numbers
-come from analytics (`POST /analytics/query`). Analytics answers
-`403 PERMISSION_DENIED` to a caller who cannot read the object, the same
-as `/data` does.
-
-## Public forms
-
-The only routes that are **unauthenticated**. A form view opts in through
-its `sharing`, and all three keys are required: `enabled: true`,
-`allowAnonymous: true`, and a `publicLink` slug. Since ObjectStack 17.7 a
-form that sets only the last two answers `404 FORM_NOT_FOUND` — see
-[Views → Public forms](/docs/build/interface/views#public-forms).
-
-| Path | Method | Auth |
-|:--|:--|:--|
-| `/forms/:slug` | GET | public — returns the form schema |
-| `/forms/:slug/submit` | POST | public — submits a response |
-
-## Utilities
-
-| Path | Method | Permission | Purpose |
-|:--|:--|:--|:--|
-| `/email/send` | POST | `email:send` | Send an email through the configured provider |
-
-## Error envelope
-
-A non-2xx response carries a machine-readable `code` and a human-readable
-message:
-
-```json
-{
-  "error": {
-    "code": "PERMISSION_DENIED",
-    "message": "Missing ai:approve on conversation 01H…",
-    "httpStatus": 403,
-    "details": { "permission": "ai:approve", "subject": "01H…" }
-  }
-}
-```
-
-Some `/data` routes answer a flatter shape, with the message in `error`
-and `code` beside it:
-
-```json
-{ "error": "Record not found: support_ticket/01H…", "code": "RECORD_NOT_FOUND" }
-```
-
-Either way, branch on the code and not on the message.
-
-`code` is one closed SCREAMING_SNAKE vocabulary. Common codes:
-`UNAUTHENTICATED`, `PERMISSION_DENIED`, `VALIDATION_FAILED` (with a
-`fields` list naming each rejected value), `RECORD_NOT_FOUND`,
-`RESOURCE_NOT_FOUND`, `CONCURRENT_UPDATE`, `RATE_LIMIT_EXCEEDED`,
-`INTERNAL_ERROR`. A code your own application throws that is not in the
-platform vocabulary arrives in `declaredCode` instead of `code`.
-
-## Versioning
-
-`/api/v1` is the **stable** API. Breaking changes go to `/api/v2` and
-both serve in parallel for one minor release. The current version and
-deprecation horizon are in `GET /api/v1`.
+`/reports/:id/run` and `/reports/:id/schedule`, which now answer `404`. A
+report is metadata, read through `/meta/report/:name`, and its numbers come
+from analytics (`POST /analytics/query`).
 
 ## See also
 
-- [ObjectQL](./objectql) — the query language used by `/data/*`
-- [Field types](./field-types) — what shapes data can take
-- [Build → Actions](/docs/build/interface/actions) — declare custom endpoints
+- [API Access](/docs/configure/api-access) — keys, tokens and who may call what
+- [ObjectQL](./objectql) — the query format `/data/*` accepts
 - [Security](./security) — what every route checks before it runs
