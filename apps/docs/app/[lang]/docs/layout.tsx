@@ -134,11 +134,11 @@ function sharedEditions(folder: PageTree.Folder, lang: string): Edition[] | unde
   return first;
 }
 
-function withEditionMark(name: ReactNode, editions: readonly Edition[], label: string): ReactNode {
+function withEditionMark(name: ReactNode, editions: readonly Edition[]): ReactNode {
   return (
     <>
       {name}
-      <EditionMark editions={editions} label={label} />
+      <EditionMark editions={editions} />
     </>
   );
 }
@@ -146,12 +146,11 @@ function withEditionMark(name: ReactNode, editions: readonly Edition[], label: s
 function markEditionsItem(
   node: PageTree.Item,
   lang: string,
-  label: string,
   scope: readonly Edition[] | undefined,
 ): PageTree.Item {
   const editions = editionsOf(node, lang);
   if (!editions || isEveryEdition(editions) || (scope && sameEditions(editions, scope))) return node;
-  return { ...node, name: withEditionMark(node.name, editions, label) };
+  return { ...node, name: withEditionMark(node.name, editions) };
 }
 
 /**
@@ -164,22 +163,17 @@ function markEditionsItem(
  * on its own. `scope` is the set the nearest marked-or-uniform ancestor
  * already stated.
  */
-function markEditions(
-  node: PageTree.Node,
-  lang: string,
-  label: string,
-  scope?: readonly Edition[],
-): PageTree.Node {
-  if (node.type === 'page') return markEditionsItem(node, lang, label, scope);
+function markEditions(node: PageTree.Node, lang: string, scope?: readonly Edition[]): PageTree.Node {
+  if (node.type === 'page') return markEditionsItem(node, lang, scope);
   if (node.type !== 'folder') return node;
   const shared = sharedEditions(node, lang);
   const mark = shared && !isEveryEdition(shared) && !(scope && sameEditions(shared, scope));
   const inner = shared ?? scope;
   return {
     ...node,
-    ...(mark ? { name: withEditionMark(node.name, shared, label) } : {}),
-    ...(node.index ? { index: markEditionsItem(node.index, lang, label, inner) } : {}),
-    children: node.children.map((child) => markEditions(child, lang, label, inner)),
+    ...(mark ? { name: withEditionMark(node.name, shared) } : {}),
+    ...(node.index ? { index: markEditionsItem(node.index, lang, inner) } : {}),
+    children: node.children.map((child) => markEditions(child, lang, inner)),
   };
 }
 
@@ -196,8 +190,7 @@ function docsTree(lang: string): PageTree.Root {
   let marked = markedTrees.get(lang);
   if (!marked) {
     const tree = treeWithLanguages(lang);
-    const label = uiText(lang).editionsLabel;
-    marked = { ...tree, children: tree.children.map((node) => markEditions(node, lang, label)) };
+    marked = { ...tree, children: tree.children.map((node) => markEditions(node, lang)) };
     markedTrees.set(lang, marked);
   }
   return marked;

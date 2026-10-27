@@ -54,26 +54,32 @@ export function EditionBadges({
 
 /**
  * The sidebar's mark on a page or group that is not for every edition: the
- * icons of the editions it is for. Sighted readers get the names as a tooltip,
- * screen readers as text.
+ * icons of the editions it is for, with their names as a tooltip.
+ *
+ * Visual shorthand only, and hidden from assistive technology on purpose. The
+ * mark sits inside the entry's link, so anything a screen reader heard there
+ * would become part of the link's name — on a locale route, a run of English
+ * product nouns spliced into a localized or English-marked title, which
+ * `check-locale-surface.mjs` rightly refuses either way. The same facts are
+ * announced once, properly, by the badge row under each page's title.
  *
  * It is appended to the page-tree entry's name, and the breadcrumb and the
  * previous/next footer render that name too. `.edition-mark` is hidden
  * everywhere except inside the two sidebars (`app/global.css`), so it marks the
  * navigation without repeating itself under every page title.
  */
-export function EditionMark({ editions, label }: { editions: readonly Edition[]; label: string }) {
+export function EditionMark({ editions }: { editions: readonly Edition[] }) {
   const ordered = inEditionOrder(editions);
-  const names = ordered.map((edition) => EDITION_NAMES[edition]).join(', ');
   return (
-    <span className="edition-mark ms-auto shrink-0 items-center gap-1 ps-2 text-fd-muted-foreground" title={names}>
+    <span
+      aria-hidden="true"
+      className="edition-mark ms-auto shrink-0 items-center gap-1 ps-2 text-fd-muted-foreground"
+      title={ordered.map((edition) => EDITION_NAMES[edition]).join(', ')}
+    >
       {ordered.map((edition) => {
         const Icon = EDITION_ICONS[edition];
-        return <Icon key={edition} aria-hidden="true" className="size-3.5" />;
+        return <Icon key={edition} className="size-3.5" />;
       })}
-      <span className="sr-only">
-        {label}: {names}
-      </span>
     </span>
   );
 }
