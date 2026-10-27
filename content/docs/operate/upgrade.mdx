@@ -5,9 +5,13 @@ editions: [community, enterprise]
 ---
 
 An upgrade is a change of the exact image you pin, and a rollback is the
-previous one. On Community that is the image's version tag; on Enterprise it
-is the image digest ([Enterprise adds](#enterprise-adds)). Everything else on
-this page is the same for both.
+previous one. On Community that is the image's exact version tag, and its
+digest if you pin one: the tag can be pushed again onto new bytes when that
+version is rebuilt, a digest never moves (see
+[Docker → Pin the image](/docs/deploy/docker#pin-the-image)). On Enterprise
+it is the digest your release notes name
+([Enterprise adds](#enterprise-adds)). Everything else on this page is the
+same for both.
 [Docker → Upgrade and rollback](/docs/deploy/docker#upgrade-and-rollback)
 documents the procedure and the reason for each step; this page repeats it as
 a checklist, and adds the steps particular releases ask for.
@@ -20,17 +24,18 @@ a checklist, and adds the steps particular releases ask for.
    move means breaking changes underneath.
 2. **Back up the database.** Schema migrations are *forward*: rolling the
    image back does not roll the schema back.
-3. Change the image to the new exact version and restart. The schema is
-   brought up to date before the runtime reports ready; a destructive change
-   refuses the boot and names itself until you apply it with
-   `os migrate apply --allow-destructive`.
+3. Change the image to the new exact version, or to its digest if you pin
+   one, and restart. The schema is brought up to date before the runtime
+   reports ready; a destructive change refuses the boot and names itself
+   until you apply it with `os migrate apply --allow-destructive`.
 4. Confirm readiness (`/api/v1/ready`) returns 200.
 
 ## Roll back
 
-Keep the **previous** version: that is what a rollback is. To roll back,
-restore it and repeat step 3 — valid as long as the version you are leaving
-made no incompatible schema change (the release notes say when it did).
+Keep the **previous** version, and its digest if you pin one: that is what
+a rollback is. To roll back, restore it and repeat step 3 — valid as long as
+the version you are leaving made no incompatible schema change (the release
+notes say when it did).
 Secrets have the same one-way edge: a secret set or rotated on ObjectStack
 17.7 or later cannot be read by a release before 17.7 (see
 [17.7](#objectstack-177) below).

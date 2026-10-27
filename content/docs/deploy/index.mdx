@@ -20,7 +20,7 @@ more.
 | | **Community** | **Enterprise** |
 |---|---|---|
 | Image | `ghcr.io/objectstack-ai/objectstack`, public | The licensed Enterprise image, from a private registry; your license comes with the registry credentials |
-| Pin it by | The exact version tag (`X.Y.Z`), which matches the ObjectStack CLI inside | The image **digest** your release notes name |
+| Pin it by | The exact version tag (`X.Y.Z`), which matches the ObjectStack CLI inside, and its **digest** wherever the bytes must not change ([why](/docs/deploy/docker#pin-the-image)) | The image **digest** your release notes name |
 | Architectures | `linux/amd64` and `linux/arm64` | `linux/amd64` only |
 | How the app arrives | Your compiled `objectstack.json` from `os build`: mounted, copied into your own image, or named by `OS_ARTIFACT_URL`. An empty runtime installs apps from the Console marketplace instead. | One of three run shapes: the app bundled in the image, a published artifact, or a published artifact composed with the image's enterprise plugins ([below](#how-the-app-gets-in)) |
 | Variables you must set | `OS_DATABASE_URL`, `OS_AUTH_SECRET`, `OS_SECRET_KEY` (the image already sets `OS_PORT=8080`) | The same, plus `OS_LICENSE_KEY` and a deliberate `OS_CLOUD_URL` |
@@ -35,7 +35,7 @@ unchanged.
 
 | Decision | What it means |
 |---|---|
-| **Which bytes run** | Pin one exact image. A rolling tag such as `latest` can be re-pointed under you; an exact version, or a digest, cannot. Keep the previous one: that is what a rollback is. |
+| **Which bytes run** | Pin one exact image. A rolling tag such as `latest` can be re-pointed under you, and so can an exact version tag when that version is rebuilt; only a digest cannot. Keep the previous one: that is what a rollback is. |
 | **Where the configuration lives** | Outside the image and the app. The database URL, the secrets and the deployment's identity are environment variables injected at runtime, never baked in. [Environment Variables](/docs/reference/environment-variables) is the contract. |
 | **Which database** | Production runs on PostgreSQL. With no `OS_DATABASE_URL` the runtime writes a SQLite file under its home directory, which suits one durable host and loses data on a container's ephemeral filesystem. |
 

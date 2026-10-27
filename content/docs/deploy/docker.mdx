@@ -1,7 +1,7 @@
 ---
 title: Docker
 seoTitle: "Docker: Run ObjectOS Community and Enterprise"
-description: Run ObjectOS with Docker — pin the image, set the three required variables, add PostgreSQL with Compose, wire the probes and the proxy, upgrade and roll back. The Enterprise image adds digest pinning, verification and a license.
+description: Run ObjectOS with Docker — pin the image, set the three required variables, add PostgreSQL with Compose, wire the probes and the proxy, upgrade and roll back. The Enterprise image adds a private registry, verification and a license.
 editions: [community, enterprise]
 ---
 
@@ -16,16 +16,42 @@ section at the end covers what changes on the licensed image.
 
 The Community image is published on every ObjectStack release. Its tags
 mirror the version of the ObjectStack CLI inside it: a release `X.Y.Z` is
-pushed as `X.Y.Z`, and moves `latest`, `X.Y` and `X` onto it. Only the exact
-tag is immutable — the rolling ones move with the next release, so a routine
-`docker compose pull` on `latest` can replace the version you run with no
-deployment event.
+pushed as `X.Y.Z`, and moves `latest`, `X.Y` and `X` onto it. The rolling
+tags move with every publish, so a routine `docker compose pull` on `latest`
+can replace the version you run with no deployment event.
+
+The exact tag fixes the version, not the bytes. The maintainers can rebuild
+a version that is already out, for example to pick up security patches in
+the `node:22-slim` base image, and the rebuild pushes the same `X.Y.Z` tag
+again, onto a new image. The ObjectStack CLI inside stays the same version;
+the base image, and the database drivers it installs by version range, are
+resolved afresh. The
+[publish workflow](https://github.com/objectstack-ai/objectstack/blob/main/.github/workflows/docker-publish.yml)
+declares that rebuild. Only a **digest** names the same bytes for good.
 
 **Run the exact version in production**, the same version as the CLI that
-built your app. Keep the previous one written down: that is what a rollback
-is. The image is published for `linux/amd64` and `linux/arm64`, runs as a
-non-root user, listens on port **8080**, and carries its own health check.
-It includes the PostgreSQL (`pg`) and MySQL (`mysql2`) drivers.
+built your app, and pin its digest wherever you need the same bytes on
+every host and after every restart. Read the digest from the registry:
+
+```bash
+docker buildx imagetools inspect ghcr.io/objectstack-ai/objectstack:X.Y.Z
+```
+
+Pin the first `Digest:` line, the one under `Name:`. It names the whole
+image, both architectures; the digests listed under `Manifests:` each name
+one platform. Reference the image by that digest, and keep the version
+beside it, since a digest does not say which release it is:
+
+```bash
+# ObjectStack X.Y.Z
+ghcr.io/objectstack-ai/objectstack@sha256:<64 hex characters>
+```
+
+Keep the previous version and its digest written down: that is what a
+rollback is. The image is published for `linux/amd64` and `linux/arm64`,
+runs as a non-root user, listens on port **8080**, and carries its own
+health check. It includes the PostgreSQL (`pg`) and MySQL (`mysql2`)
+drivers.
 
 ## The three values you set
 
@@ -241,11 +267,13 @@ Clustering and high availability are Enterprise capabilities — see
    they ask of the operator.
 2. **Back up the database.** Schema migrations go forward: rolling the image
    back does not roll the schema back.
-3. Change the image tag to the new exact version and restart. The schema is
-   brought up to date at boot, before the runtime reports ready.
+3. Change the image to the new exact version, or to its digest if you pin
+   one, and restart. The schema is brought up to date at boot, before the
+   runtime reports ready.
 4. Confirm `/api/v1/ready` answers 200.
-5. To roll back, restore the previous tag and repeat step 3 — valid as long
-   as the version you are leaving made no incompatible schema change.
+5. To roll back, restore the previous tag or digest and repeat step 3 —
+   valid as long as the version you are leaving made no incompatible schema
+   change.
 
 The app versions separately: changing `OS_ARTIFACT_URL`, or the artifact you
 mount, upgrades it without touching the image.
@@ -253,8 +281,8 @@ mount, upgrades it without touching the image.
 ## Enterprise adds
 
 The licensed Enterprise image runs the same way, and adds a private
-registry, digest pinning, supply-chain verification, a license, and
-multi-node. Your release ships a **deploy bundle** containing a Compose
+registry, supply-chain verification, a license, and multi-node; its release
+notes name the digest to pin. Your release ships a **deploy bundle** containing a Compose
 stack, an environment template per deployment shape, and a README with the
 commands for your exact version. This section is the decision map for what
 that bundle configures.

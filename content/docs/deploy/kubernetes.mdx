@@ -60,9 +60,12 @@ spec:
 
 ### The image is pinned exactly
 
-Reference an exact version, or a `@sha256:` digest — never a rolling tag. On
-an orchestrator this matters more than on a single host: a pull policy plus a
-moving tag means two pods of the "same" Deployment can run different builds.
+Reference the image by its `@sha256:` digest, with the exact version it was
+read from written beside it, and never by a rolling tag. On an orchestrator
+this matters more than on a single host: a pull policy plus a tag that moves
+means two pods of the "same" Deployment can run different builds. A rolling
+tag moves with every release, and an exact version tag moves too when that
+version is rebuilt; see [Docker → Pin the image](/docs/deploy/docker#pin-the-image).
 
 ### Probes address the right endpoints
 
