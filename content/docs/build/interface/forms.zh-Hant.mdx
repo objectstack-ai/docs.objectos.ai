@@ -1,9 +1,11 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 表單
+seoTitle: "表單：建立與編輯、區塊、提交之後"
 description: 從一份扁平欄位集派生建立與編輯表單，無漂移地把欄位分組成區塊，並控制提交後的去向。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: d295b9daee1c46f4a0d101eff8dba150a5205049a0fb1d3d004526b4389eb91c
+  source_sha: 7b91231facd6607664e7ec8baee9af1949872ed91a12abe14e7b20eb2d0c96e2
   guide_rev: 1
   mode: auto
 ---
@@ -12,7 +14,7 @@ translation:
 
 表單檢視的*型別*（`simple`、`tabbed`、`wizard`、`modal`……）與公開表單的 REST 契約在[檢視](/docs/build/interface/views)中講。本頁講佈局問題：建立與編輯、分組、排序。
 
-## 建立表單 ≠ 編輯表單
+## 建立表單 ≠ 編輯表單 [#create-form--edit-form]
 
 新建記錄的表單應該只問幾個要點；編輯表單則分割槽塊展示完整記錄。**別寫兩份表單。**建立表單的欄位子集可以從每個欄位上已有的意圖*派生*出來：
 
@@ -27,7 +29,7 @@ translation:
 
 於是合理的建立表單 —— *可編輯、必填或核心的欄位，按宣告順序* —— 零編寫就從物件里長出來了。省略即正確：什麼都不多寫，你依然得到一份完整、正確的表單。完整的編輯表單同樣是派生的，把每個 `field.group` 實體化為一個區塊。
 
-### 只在佈局或流程真的不同時，才手工塑造建立表單
+### 只在佈局或流程真的不同時，才手工塑造建立表單 [#hand-shape-the-create-form-only-when-layout-or-flow-diverges]
 
 逃生艙是把一個具名錶單檢視繫結到建立入口。把它寫成一份**稀疏覆蓋** —— 基本上只是一串欄位名：
 
@@ -40,11 +42,11 @@ export const ContactViews = defineView({
   list: {
     type: 'grid', data,
     columns: [{ field: 'name' }, { field: 'email' }, { field: 'company' }, { field: 'stage' }],
-    // 把 "+ Add record" 入口绑定到精简的创建表单：
+    // Bind the "+ Add record" entry point to the slim create form:
     addRecord: { enabled: true, mode: 'form', formView: 'create' },
   },
 
-  // 完整编辑表单 —— 按 field.group 分组；裸字符串继承字段定义。
+  // Full edit form — grouped by field.group; bare strings inherit field defs.
   form: {
     type: 'simple', data,
     sections: [
@@ -55,7 +57,7 @@ export const ContactViews = defineView({
   },
 
   formViews: {
-    // 稀疏的创建覆盖：只留核心字段，单个区块。
+    // Sparse create override: only the core fields, one section.
     create: {
       type: 'simple', data, title: 'New contact',
       sections: [
@@ -78,7 +80,7 @@ export const ContactViews = defineView({
 
 因為建立表單的欄位是編輯表單欄位的子集，*順序和分組也相同*，"快速建立 4 個欄位 → 儲存 → 落到完整記錄頁"在視覺上是連續的。派生免費保住了這一點。
 
-## 欄位分組與順序
+## 欄位分組與順序 [#field-grouping-and-order]
 
 模型是一份扁平欄位集。表格顯示扁平的列。表單需要區塊。這不矛盾 —— 是同一份扁平集合透過不同的鏡頭：
 
@@ -93,16 +95,25 @@ export const ContactViews = defineView({
 **1. 語義分組 —— `field.group`（在物件上）。**欄位的邏輯歸屬。它隨模型走，併為自動生成表單的*預設*分割槽提供種子：
 
 ```ts
+// Fields of an object; the object around them is omitted.
 fields: {
   name:  Field.text({ label: 'Full name', group: 'contact' }),
   email: Field.email({ label: 'Email',    group: 'contact' }),
-  stage: Field.select({ label: 'Stage',   group: 'status', options: [/* … */] }),
+  stage: Field.select({
+    label: 'Stage',
+    group: 'status',
+    options: [
+      { label: 'Lead', value: 'lead' },
+      { label: 'Customer', value: 'customer' },
+    ],
+  }),
 }
 ```
 
 **2. 佈局分組 —— 表單 `sections`（在檢視上）。**某個具體表單的顯式編排：哪些欄位、哪個區塊、幾個 `columns`、可否摺疊。它以 `field.group` 為預設繼承來源，需要時按表單覆蓋。
 
 ```ts
+// Keys of a view container; `data` and its other keys are omitted.
 form: {
   type: 'simple',
   sections: [
@@ -116,11 +127,12 @@ form: {
 
 > **"group" 陷阱。**表格檢視的 `groupByField` 按欄位的*值*給**記錄（行）**分組 —— 所有 `stage = qualified` 的行歸到一起。表單區塊在視覺上給**欄位（列）**分組。同一個詞，兩條互不相關的軸。表格分組永遠不會給你的表單分割槽。
 
-## 提交之後會發生什麼
+## 提交之後會發生什麼 [#what-happens-after-submit]
 
 給表單檢視加 `submitBehavior` 來控制提交後的體驗：
 
 ```ts
+// Keys of a form view; its other keys are omitted.
 submitBehavior: {
   kind: 'thank-you',
   title: 'Thanks!',
@@ -142,23 +154,23 @@ submitBehavior: {
 /console/forms/quick_create?prefill_lead_source=event_booth_2026
 ```
 
-## 記錄詳情由角色驅動，而非表單繫結
+## 記錄詳情由角色驅動，而非表單繫結 [#record-detail-is-driven-by-roles-not-a-form-binding]
 
 沒有哪個物件級鍵能把表單檢視釘到記錄詳情屏上。詳情渲染由物件的跨介面**語義角色**派生：`nameField`（顯示名）、`highlightFields`（最重要欄位組成的條帶）、`stageField`（生命週期進度條）、以及 `fieldGroups` + `Field.group`（表單、彈窗與詳情頁共享的分割槽）。當記錄頁需要的定製佈局超出這些角色所能派生的範圍時，給物件指定一個自定義[頁面](/docs/build/interface/pages)。
 
-## 反模式
+## 反模式 [#anti-patterns]
 
 - **兩份完整手寫的欄位列表**（`contact_create_form` + `contact_edit_form`）。必然漂移。
 - **在表單上覆述欄位型別 / 驗證 / 選項。**資料語義只屬於物件。
 - **在每個表單裡重新敲一遍分組。**`field.group` 宣告一次；只在真正分歧時覆蓋。
 - **為了遷就表單給資料模型加結構性巢狀。**模型保持扁平；分組交給表單。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 頁面 | 原因 |
 |:--|:--|
 | [檢視](/docs/build/interface/views) | 表單檢視型別、公開表單分享、完整的檢視 Schema |
 | [資料模型](/docs/build/data) | 欄位 —— 以及它們的意圖 —— 宣告的地方 |
-| [操作](/docs/build/interface/actions) | 啟動表單檢視的 `type: 'form'` 操作 |
+| [動作](/docs/build/interface/actions) | 啟動表單檢視的 `type: 'form'` 動作 |
 | [頁面](/docs/build/interface/pages) | 超越派生布局的自定義記錄頁 |
 | [許可權](/docs/configure/permissions) | 表單遵守的欄位級安全 |

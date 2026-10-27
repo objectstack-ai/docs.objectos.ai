@@ -1,0 +1,236 @@
+---
+title: 动作
+seoTitle: "动作：REST 端点、按钮和 AI 工具"
+description: 平台把具名操作暴露为 REST 端点、按钮和 AI 工具 —— 全部来自一次声明。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 85e291bd4a1a724fe1ba2fbbf181d61ab30004d9389a19eaee2e9ae3175b1096
+  guide_rev: 1
+  mode: auto
+---
+
+**动作（Action）**是对象上的一个具名操作。声明一次，它就会出现为：
+
+- 一个 **REST 端点**，位于 `/api/v1/actions/<object>/<action>`
+- 记录详情页上的一个**按钮**
+- 供 Agent 和 AI Builder 使用的一个 **AI 工具**（`action_<name>`）—— 前提是
+  你把它暴露给 AI（`ai.exposed`，见[下文](#from-an-ai-agent)）
+
+你不必在三个界面上重复自己。一次声明，三种调用方式。当工作需要不止一步
+时，动作还可以启动一个[流程](/docs/build/automation/flows)（`type: 'flow'`）。
+
+## 声明一个动作 [#declare-an-action]
+
+```ts
+// src/actions/approve_invoice.action.ts
+import { Action } from '@objectstack/spec/ui';
+
+export const approveInvoice = Action.create({
+  name: 'approve_invoice',          // lowercase snake_case (machine id)
+  label: 'Approve Invoice',
+  objectName: 'invoice',            // attaches to the invoice object
+  icon: 'check',
+  variant: 'primary',
+  locations: ['record_header'],     // where the button shows
+  description: 'Approve this invoice?',  // shown in the param dialog
+  successMessage: 'Invoice approved',
+  refreshAfter: true,
+
+  // collect input before running
+  params: [
+    { name: 'note', label: 'Approval note', type: 'textarea' },
+  ],
+
+  // only show the button when the record is still pending
+  visible: 'record.status == "pending"',
+
+  // expose it to agents and the AI Builder as `action_approve_invoice`
+  ai: {
+    exposed: true,
+    description: 'Approve a pending invoice, recording the approver and an optional note.',
+  },
+
+  // what it does — a sandboxed script body. `input` is the params bag;
+  // `ctx.record` is a read-only snapshot, so the write goes through `ctx.api`,
+  // which needs the `api.write` capability
+  type: 'script',
+  body: {
+    language: 'js',
+    capabilities: ['api.write'],
+    source: `
+      await ctx.api.object('invoice').update({
+        id: ctx.recordId,
+        status: 'approved',
+        approved_by: ctx.user.id,
+        approved_at: new Date().toISOString(),
+        approval_note: input.note,
+      });
+    `,
+  },
+});
+```
+
+`os dev` 重新编译之后：
+
+- `POST /api/v1/actions/invoice/approve_invoice` 可以调用
+- Invoice 记录页会显示一个 **Approve Invoice** 按钮
+- AI 助手可以调用 `action_approve_invoice` —— 它已暴露给 AI —— 只要它的
+  Skill 允许
+
+## 动作类型 [#action-types]
+
+`type` 字段决定动作做什么：
+
+| `type` | 运行什么 | 用于 |
+|---|---|---|
+| `script` | 一个 `body` —— L1 公式表达式或沙箱化的 L2 JavaScript | 大多数情况 —— 服务端逻辑，可审计，暴露后可被 AI 调用 |
+| `api` | 对 `target` 端点的 HTTP 调用（`method`、`bodyExtra`） | 复用数据 API 或平台端点 |
+| `flow` | 运行 `target` 中指定的流程 | 多步业务流程 |
+| `url` | 跳转到 `target` URL | 深链接、重定向式动作 |
+| `modal` | 打开 `target` 中指定的页面 / 弹窗 | 自定义对话框 |
+| `form` | 打开 `target` 中指定的 FormView | 引导式数据录入 |
+
+```ts
+// api type — reuse a data-API endpoint
+Action.create({
+  name: 'archive_order',
+  objectName: 'order',
+  label: 'Archive',
+  locations: ['list_item'],
+  type: 'api',
+  method: 'PATCH',
+  target: '/api/v1/data/order/{id}',
+  bodyExtra: { archived: true },
+});
+```
+
+`script` 以外的类型都需要一个 `target`。无论哪种类型，它都是一次声明 ——
+但 `url`、`modal` 和 `form` 动作只在 UI 中运行，所以它们永远不会成为
+AI 工具。
+
+## 调用动作 [#calling-an-action]
+
+### REST [#rest]
+
+```bash
+# the record id can go in the body, or in the path
+curl -X POST https://app.example.com/api/v1/actions/invoice/approve_invoice/inv_123 \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"note": "LGTM"}'
+```
+
+参数平铺在请求体中发送。记录 id 既可以作为路径末段
+（`.../approve_invoice/:recordId`）提供，也可以放在请求体中。响应是你的
+script body 的返回值（对 `api` 类型的动作则是调用结果）。
+
+### 从 UI [#from-the-ui]
+
+按钮显示在哪里，是在动作本身上声明的：`locations`（`record_header`、
+`record_more`、`list_item`、`list_toolbar` ……）和 `order`。然后由 `visible`
+谓词逐条记录地决定它是否渲染。列表视图还可以为每一行、以及为选中的多行
+指定动作：
+
+```ts
+// One list view; the container and `data` are omitted (see Views).
+{
+  type: 'grid',
+  columns: ['number', 'customer', 'amount', 'status'],
+  rowActions: ['approve_invoice', 'reject_invoice'],
+  bulkActions: ['send_to_customer'],
+}
+```
+
+### 配合流程 [#with-a-flow]
+
+没有调用动作的流程节点。反过来做：把多步逻辑放进一个流程，然后用一个
+`type: 'flow'`、`target` 为流程名的动作来启动它：
+
+```ts
+// flow type — start a flow by name
+Action.create({
+  name: 'run_invoice_approval',
+  objectName: 'invoice',
+  label: 'Run approval',
+  locations: ['record_more'],
+  type: 'flow',
+  target: 'approve_invoice',
+});
+```
+
+### 从 AI Agent [#from-an-ai-agent]
+
+只有当作者把动作暴露给 AI 时，Agent 才能触及它：在一个无需 UI 即可运行
+的类型（`script`、`flow` 或 `api`）上，设置 `ai: { exposed: true }` 并提供
+至少 40 个字符的 `ai.description`，就像上面的例子那样。暴露之后，它在
+ObjectOS 自己的 Agent 和 AI Builder 中是 `action_<name>` 工具，对
+[MCP 客户端](/docs/configure/mcp)则是 `run_action`。没有暴露的动作对
+Agent 不可见，被调用时也会被拒绝。
+
+如果 `approve_invoice` 已暴露，并且在 Agent 拥有的某个 Skill 中，LLM 就
+可以调用它。输入来自对话；适用的调用时检查与用户亲手按下按钮时相同。
+
+> *"批准发票 INV-2042，备注'已电话核实'。"*
+
+## 权限 [#permissions]
+
+谁可以运行一个动作，是在调用时以调用者身份检查的 —— 通过 REST、从按钮、
+从 Agent，方式都一样：
+
+1. **`requiredPermissions`** —— 调用者的
+   [权限集](/docs/configure/permissions/permission-sets)必须具备的能力。
+   缺少其中任何一项的调用者会得到 `403`。
+2. **目标记录** —— 以调用者身份加载。调用者读不到的记录，会被当作不存在
+   来回应。
+3. **AI 暴露** —— Agent 只能触及暴露给 AI 的动作。
+4. **UI 门控** —— `visible` 和 `disabled` 谓词（CEL，针对 `record`、
+   `os.user` 和参数求值）控制按钮是否渲染或是否置灰。
+
+动作随后所做的事情属于受信任的应用代码。`script` body 的读写以应用的权限
+运行：记录访问和字段级安全**不会**约束它们。`flow` 动作遵循流程的
+`runAs`。所以对任何敏感操作都要声明 `requiredPermissions`，并把编写动作
+当作值得代码审查的行为。
+
+## 内置动作 [#built-in-actions]
+
+每个对象都免费获得这些动作：
+
+| 动作 | 做什么 |
+|---|---|
+| `create` | 插入一条记录 |
+| `update` | 更新一条记录 |
+| `delete` | 删除（或软删除）一条记录 |
+| `restore` | 撤销软删除 |
+| `clone` | 深拷贝一条记录 |
+| `share` | 直接共享给某个用户、团队、岗位、业务单元，或某个单元及其下级 |
+
+不要重新声明它们 —— 它们遵循对象的[生命周期与能力标志](/docs/build/data)。
+
+## 审计 [#auditing]
+
+平台事件会写入 `sys_audit_log`，这是一条不可变的审计记录，字段包括：
+
+- `user_id` —— 发起操作的用户
+- `action` —— 动作名称
+- `object_name` 和 `record_id` —— 被触及的内容
+- `old_value` / `new_value` —— 变更内容
+- `ip_address` / `user_agent` —— 请求来源
+- `created_at` —— 发生时间
+
+回答*"是谁按下了按钮？"*这类问题时，先来这里查。
+
+## 用 AI Builder 生成动作 [#generating-actions-with-the-ai-builder]
+
+> *"在 `support_ticket` 上创建一个动作 `escalate_ticket`，把优先级设为
+> urgent，并把它指派给值班工程师。"*
+
+[AI Builder](/docs/build/ai-builder) 会生成动作元数据，并把变更排入队列
+等待批准。批准之后，这个动作就可以从 REST、UI 调用，而且 —— 递归地 ——
+也可以由 AI 自己调用。
+
+## 下一步 [#where-to-go-next]
+
+- [流程](/docs/build/automation/flows) —— `type: 'flow'` 动作所启动的多步逻辑
+- [Agent](/docs/build/agents) —— 把动作暴露为 AI 工具
+- [API 访问](/docs/configure/api-access) —— 从外部系统调用动作
+- [权限](/docs/configure/permissions) —— 控制谁能调用什么

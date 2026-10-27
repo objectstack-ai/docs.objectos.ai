@@ -1,8 +1,10 @@
 ---
 title: 页面
+seoTitle: "自由页面：区域、组件、文档页"
 description: 由区域、组件与本地状态组合的自由布局 —— 外加随包发布的 Markdown 文档页。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 94f72e272dd38ee2ff31de60a574f13636affad47c756bbc00b68a876374874d
+  source_sha: 4a88c0ee1ee387d77d686cf62b3d5270e2d183f2d362cd66274326205db8a3d4
   guide_rev: 1
   mode: auto
 ---
@@ -10,6 +12,7 @@ translation:
 **页面是一个自由容器。**不同于绑定到单个对象的[视图](/docs/build/interface/views)，页面组合多个组件、嵌入视图并管理本地状态 —— 你的主屏、自定义记录布局和工具面板都靠它。
 
 ```ts
+// One page.
 const homePage = {
   name: 'sales_home',
   label: 'Sales Home',
@@ -27,7 +30,7 @@ const homePage = {
 }
 ```
 
-## 页面属性
+## 页面属性 [#page-properties]
 
 | 属性 | 类型 | 必填 | 说明 |
 |:--|:--|:--|:--|
@@ -41,7 +44,7 @@ const homePage = {
 | `isDefault` | `boolean` | — | 是否为该类型的默认页面 |
 | `assignedProfiles` | `string[]` | — | 可访问此页面的简档 |
 
-### 页面类型
+### 页面类型 [#page-types]
 
 | 类型 | 用于 |
 |:--|:--|
@@ -53,11 +56,12 @@ const homePage = {
 
 只有这五种类型有效 —— 早期路线图上那些从未交付渲染器的类型已从 Schema 中移除。
 
-## 区域
+## 区域 [#regions]
 
 区域是布局分区；每个区域承载组件：
 
 ```ts
+// Keys of a page; its other keys, and the regions' components, are omitted.
 regions: [
   { name: 'sidebar', width: 'small', components: [/* … */] },
   { name: 'content', width: 'large', components: [/* … */] },
@@ -66,11 +70,12 @@ regions: [
 
 `width` 接受 `'small'`、`'medium'`、`'large'` 或 `'full'`。
 
-## 组件
+## 组件 [#components]
 
 组件是区域内部的积木：
 
 ```ts
+// One page component; the page and region around it are omitted.
 {
   type: 'chart',
   id: 'revenue_chart',
@@ -78,7 +83,7 @@ regions: [
   properties: { chartType: 'line', dataset: 'sales',
                 dimensions: ['close_month'], values: ['revenue'] },
   events: { onClick: "navigate_to('opportunity_detail', { id: $event.id })" },
-  visibility: "os.user.profile == 'sales_manager'",
+  visibleWhen: "'sales_manager' in os.user.positions",
 }
 ```
 
@@ -89,8 +94,8 @@ regions: [
 | `type` | `string` | 标准组件类型，或自定义字符串 |
 | `id` | `string` | 唯一的组件实例 id |
 | `properties` | `object` | 组件专属配置 |
-| `events` | `object` | 事件处理器（操作表达式） |
-| `visibility` | `string` | CEL 可见性谓词 |
+| `events` | `object` | 事件处理器（动作表达式） |
+| `visibleWhen` | `string` | CEL 可见性谓词 —— 只有为 TRUE 时才渲染组件。（`visibility` 是已弃用的别名，仍被接受，并会归一为 `visibleWhen`。） |
 | `style` / `className` | — | 临时 CSS |
 | `responsiveStyles` | `object` | **首选**样式通道：桌面优先、按断点的样式映射（`large` 为基础，再叠加 `medium` / `small` / `xsmall` 覆盖），编译为作用域 CSS —— 优先用 `var(--space-8)` 这样的设计令牌 |
 
@@ -107,11 +112,12 @@ regions: [
 
 组件还可以携带 `dataSource`（多对象页面中按元素绑定对象）、`responsive` 与 `aria` 配置。项目专属的组件可以使用自定义字符串类型。
 
-## 变量
+## 变量 [#variables]
 
 页面持有跨组件共享的本地状态：
 
 ```ts
+// Keys of a page; its other keys are omitted.
 variables: [
   { name: 'selected_tab', type: 'string', defaultValue: 'overview' },
   { name: 'date_range',   type: 'object', defaultValue: { start: null, end: null } },
@@ -124,14 +130,14 @@ variables: [
 
 通过 `page` 导航入口把页面挂到[应用](/docs/build/interface/apps)上，或者用 `homePageId` 把它设为应用的着陆页。
 
-## 文档页
+## 文档页 [#doc-pages]
 
-**doc** 是一页包文档：放在扁平的 `src/docs/` 目录里的纯 Markdown 文件，编译进包产物，在 Console 中渲染于 `/docs/<name>`。文档还会在 AI 助手回答关于你的包的问题时充当依据。
+**doc** 是一页包文档：放在扁平的 `src/docs/` 目录里的纯 Markdown 文件，编译进包产物，在 UI 中渲染于 `/docs/<name>`。文档还会在 AI 助手回答关于你的包的问题时充当依据。
 
 ```
 src/docs/
-  crm_index.md            → 文档名 "crm_index"
-  crm_user_guide.md       → 文档名 "crm_user_guide"
+  crm_index.md            → doc name "crm_index"
+  crm_user_guide.md       → doc name "crm_user_guide"
 ```
 
 文件名主干就是文档 `name` —— 没有目录分级，没有排序文件。扁平布局让交叉引用保持稳定：链接按 basename 解析，从不按路径。
@@ -140,7 +146,7 @@ src/docs/
 |:--|:--|
 | 命名 | `snake_case`，且构建 lint 要求**命名空间前缀**（`crm_user_guide`，而非 `user_guide`） |
 | Frontmatter | 可选；读取 `title` 和 `description`。标题解析顺序：frontmatter → 第一个 `#` 标题 → 文档名 |
-| 交叉引用 | 普通相对链接（`[overview](./crm_index.md)`）—— 在 Console 里重写为 `/docs/<target>`，在 GitHub 上原生可用。**同包内的坏链会导致构建失败** |
+| 交叉引用 | 普通相对链接（`[overview](./crm_index.md)`）—— 在 UI 里重写为 `/docs/<target>`，在 GitHub 上原生可用。**同包内的坏链会导致构建失败** |
 | Markdown | CommonMark + GFM：表格、带高亮的围栏代码、标题锚点、GitHub alerts（`> [!TIP]`） |
 | 构建时拒绝 | **MDX / 内嵌组件**（文档是数据，不是代码 —— 这是信任边界）以及**图片引用**（尚无资产服务；快速失败胜过碎图） |
 
@@ -148,7 +154,7 @@ src/docs/
 
 > 需要动态内容 —— 实时流程图、记录表格 —— 时别试图内嵌组件。用 URL 链接到元数据；平台渲染实时视图，文档只负责指向它。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 页面 | 原因 |
 |:--|:--|
@@ -156,5 +162,5 @@ src/docs/
 | [视图](/docs/build/interface/views) | 页面所嵌入的对象界面 |
 | [表单](/docs/build/interface/forms) | 角色派生的记录布局 vs 自定义记录页 |
 | [仪表盘](/docs/build/interface/dashboards) | 以分析为中心的布局，而非自由布局 |
-| [操作](/docs/build/interface/actions) | `element:button` 的目标与 `modal` 类型操作 |
+| [动作](/docs/build/interface/actions) | `element:button` 的目标与 `modal` 类型动作 |
 | [AI Builder](/docs/build/ai-builder) | 用对话生成页面元数据 |

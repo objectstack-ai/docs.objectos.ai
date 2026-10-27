@@ -1,0 +1,164 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 應用
+seoTitle: "應用：導航、品牌和受眾門控"
+description: 把物件、檢視、頁面和儀表盤打包進一個帶品牌、可導航的外殼 —— 並精確控制誰能看到什麼。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 92a61a2c5ecd3b085a106339e991600fa0fc1dc9db0194a67c257c4946b4f080
+  guide_rev: 1
+  mode: auto
+---
+
+**應用**是一個邏輯容器，它把物件、檢視、頁面和儀表盤打包成一個連貫的
+體驗。它定義導航樹、品牌，以及 —— 至關重要的 —— 誰能進來。
+
+```ts
+import { App } from '@objectstack/spec/ui'
+
+export const CrmApp = App.create({
+  name: 'crm_app',
+  label: 'CRM',
+  icon: 'briefcase',
+  branding: { primaryColor: '#2563EB' },
+  navigation: [
+    { id: 'group_sales', type: 'group', label: 'Sales', icon: 'briefcase', children: [
+      { id: 'nav_leads',    type: 'object', objectName: 'crm_lead',    label: 'Leads',    icon: 'funnel' },
+      { id: 'nav_accounts', type: 'object', objectName: 'crm_account', label: 'Accounts', icon: 'building' },
+    ]},
+  ],
+  requiredPermissions: ['crm_access'],
+})
+```
+
+## 應用屬性 [#app-properties]
+
+| 屬性 | 型別 | 必需 | 說明 |
+|:--|:--|:--|:--|
+| `name` | `string` | 是 | 機器名（`snake_case`） |
+| `label` | `string` | 是 | 顯示名稱 |
+| `icon` | `string` | — | 應用圖示（Lucide） |
+| `description` / `version` | `string` | — | 用於列表展示的後設資料 |
+| `active` | `boolean` | — | 應用是否啟用（預設 `true`） |
+| `isDefault` | `boolean` | — | 是否為預設應用 |
+| `navigation` | `NavigationItem[]` | — | 導航樹 |
+| `branding` | `AppBranding` | — | `primaryColor`、`logo`、`favicon` |
+| `requiredPermissions` | `string[]` | — | 誰有資格開啟這個應用 |
+| `homePageId` | `string` | — | 用作著陸頁的導航項 `id` |
+
+## 導航項 [#navigation-items]
+
+導航樹支援八種導航項型別。常用的五種是 `object`、`dashboard`、`page`、
+`url` 和 `group`；規範還定義了 `report`、`action` 和 `component` 導航項。
+
+| `type` | 落到 | 關鍵配置 |
+|:--|:--|:--|
+| `object` | 某個物件的列表檢視 | `objectName`，以及可選的定位（見下文） |
+| `dashboard` | 一個儀表盤 | `dashboardName` |
+| `page` | 一個自定義頁面 | `pageName`，可選的 `params` |
+| `url` | 一個外部 URL | `url`、`target: '_blank'` |
+| `group` | 可摺疊的分組 | `children`、`expanded` |
+
+每個導航項都**必須**宣告一個唯一的 `id`（小寫 `snake_case`）—— `homePageId`
+引用的就是它。共享屬性：`label`、`icon`、`order`、`badge`，以及下文的三項
+門控。
+
+### 定位物件入口 [#targeting-an-object-entry]
+
+三個可選欄位細化 `object` 入口落到哪裡，優先順序為 `recordId` → `filters`
+→ `viewName`：
+
+- `viewName` —— 把入口錨定到一個具名列表檢視。
+- `recordId` —— 深連結到單條記錄（"我的資料"）；支援 `{current_user_id}` /
+  `{current_org_id}` 模板變數。
+- `filters` —— 一次性的引數化切片：入口落到裸資料介面，每個條件都是一個
+  可移除的 URL 過濾標籤。適合不寫檢視就做出"指派給我"這類連結。它不是
+  安全功能 —— 顯示什麼仍由行級許可權決定。
+
+```ts
+// One navigation item of an app.
+{ id: 'nav_my_open', type: 'object', label: 'My Open Deals', objectName: 'opportunity',
+  filters: { owner_id: '{current_user_id}', status: 'open' }, icon: 'user-check' }
+```
+
+### 移動端導航 [#mobile-navigation]
+
+沒有專門的移動端導航塊：`mobileNavigation` 已在 ObjectStack 17.0 中移除，
+因為從來沒有渲染器讀取過它。
+
+## 按受眾門控應用 [#gating-apps-by-audience]
+
+同一批資料服務於兩類截然不同的受眾：設計模式的**構建者**，以及只錄入和
+讀取資料的**終端使用者**。預設就把這兩類介面分開 —— 不要指望每個管理員
+手工把東西藏起來。
+
+| 受眾 | 介面 | 門控方式 |
+|:--|:--|:--|
+| 終端使用者（使用者） | 一個精選應用 → `page` / `view` 入口 | `App.requiredPermissions`、導航項門控 |
+| 構建者 / 管理員 | Setup / Studio、原始物件表格 | 能力：`setup.access`、`studio.access`、`manage_metadata` |
+
+內建的許可權集已經編碼了這種劃分：`member_default` 和 `viewer_readonly`
+**不**帶 `studio.access` / `manage_metadata`，所以構建者介面對他們不可見；
+`admin_full_access` 和 `organization_admin` 則帶有。
+
+每個導航項支援三項相互獨立的門控：
+
+| 門控 | 型別 | 隱藏該導航項，除非 …… |
+|:--|:--|:--|
+| `requiredPermissions` | `string[]` | 使用者擁有該 RBAC 能力（例如 `manage_metadata`） |
+| `visible` | CEL 表示式 | 謂詞求值為 true（例如 `'org_admin' in current_user.positions`） |
+| `requiresObject` / `requiresService` | `string` | 指定的物件 / 核心服務已安裝 |
+
+```ts
+// Keys of an app; its other keys are omitted.
+navigation: [
+  { id: 'nav_contacts', type: 'object', label: 'Contacts', objectName: 'showcase_contact' },
+  // Builder-only entry — consumers never render it:
+  { id: 'nav_designer', type: 'component', label: 'Object Designer',
+    componentRef: 'metadata:resource', params: { type: 'object' },
+    requiredPermissions: ['manage_metadata'] },
+]
+```
+
+> **隱藏，而不是停用。** 一個被停用但仍可見的構建者入口依然是噪音。對於
+> 缺少該能力的使用者，被門控的導航項*根本不會渲染* —— 沒有會讓終端使用者
+> 困惑的灰色介面元素。
+
+還有兩個習慣能讓使用者的介面保持乾淨：
+
+- **給終端使用者一個頁面，而不是原始表格。** `page` 入口讓你精確策劃暴露
+  什麼 —— 選定的列、固定的視覺化、只有你啟用的過濾和動作。`object` 入口
+  給的是寬鬆的表格：可切換檢視、個人檢視、完整的工具欄。
+- **策劃資料介面本身。** 優先使用一個
+  [精選檢視](/docs/build/interface/views)，而不是授予原始物件讀取許可權，
+  再把使用者丟進一張 40 列的表格。
+
+動作門控是雙端的：UI 隱藏或停用按鈕，**同時**伺服器拒絕呼叫 —— 不存在
+"UI 攔住了但伺服器敞開"的陷阱。參見[動作](/docs/build/interface/actions)。
+
+## Setup 應用 —— 一個內建示例 [#the-setup-app--a-built-in-example]
+
+平臺自己的管理 UI，即 **Setup 應用**，本身就是由同一套應用後設資料協議渲染
+出來的 —— 導航、頁面和門控都宣告為資料，由與你的應用相同的渲染器繪製。
+它的門控方式正是你的構建者介面應有的方式：位於使用者許可權集不具備的
+`setup.access` 能力之後。如果你想要"應用即後設資料"能夠擴充套件的證據，你已經
+在用它了。
+
+## 反模式 [#anti-patterns]
+
+- **把每個終端使用者都變成構建者級別的協作者**，再一個個地隱藏標籤頁。應該
+  讓使用者 / 構建者的劃分成為預設。
+- **停用構建者入口而不是隱藏它們。** 可見但不能用的介面元素依然讓人困惑。
+- **授予原始物件讀取許可權**，而一個精選頁面本可以精確暴露終端使用者需要的
+  內容。
+
+## 下一步 [#where-to-go-next]
+
+| 頁面 | 為什麼 |
+|:--|:--|
+| [檢視](/docs/build/interface/views) | `object` 導航入口落到哪裡 |
+| [頁面](/docs/build/interface/pages) | 面向終端使用者的精選 `page` 入口 |
+| [儀表盤](/docs/build/interface/dashboards) | `dashboard` 入口渲染什麼 |
+| [動作](/docs/build/interface/actions) | 按鈕及其雙端門控 |
+| [許可權](/docs/configure/permissions) | `requiredPermissions` 背後的許可權集 |
+| [介面概覽](/docs/build/interface) | 各個部分如何組合 |

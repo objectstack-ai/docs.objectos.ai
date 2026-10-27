@@ -1,8 +1,10 @@
 ---
 title: 表单
+seoTitle: "表单：创建与编辑、区块、提交之后"
 description: 从一份扁平字段集派生创建与编辑表单，无漂移地把字段分组成区块，并控制提交后的去向。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: d295b9daee1c46f4a0d101eff8dba150a5205049a0fb1d3d004526b4389eb91c
+  source_sha: 7b91231facd6607664e7ec8baee9af1949872ed91a12abe14e7b20eb2d0c96e2
   guide_rev: 1
   mode: auto
 ---
@@ -11,7 +13,7 @@ translation:
 
 表单视图的*类型*（`simple`、`tabbed`、`wizard`、`modal`……）与公开表单的 REST 契约在[视图](/docs/build/interface/views)中讲。本页讲布局问题：创建与编辑、分组、排序。
 
-## 创建表单 ≠ 编辑表单
+## 创建表单 ≠ 编辑表单 [#create-form--edit-form]
 
 新建记录的表单应该只问几个要点；编辑表单则分区块展示完整记录。**别写两份表单。**创建表单的字段子集可以从每个字段上已有的意图*派生*出来：
 
@@ -26,7 +28,7 @@ translation:
 
 于是合理的创建表单 —— *可编辑、必填或核心的字段，按声明顺序* —— 零编写就从对象里长出来了。省略即正确：什么都不多写，你依然得到一份完整、正确的表单。完整的编辑表单同样是派生的，把每个 `field.group` 实体化为一个区块。
 
-### 只在布局或流程真的不同时，才手工塑造创建表单
+### 只在布局或流程真的不同时，才手工塑造创建表单 [#hand-shape-the-create-form-only-when-layout-or-flow-diverges]
 
 逃生舱是把一个具名表单视图绑定到创建入口。把它写成一份**稀疏覆盖** —— 基本上只是一串字段名：
 
@@ -39,11 +41,11 @@ export const ContactViews = defineView({
   list: {
     type: 'grid', data,
     columns: [{ field: 'name' }, { field: 'email' }, { field: 'company' }, { field: 'stage' }],
-    // 把 "+ Add record" 入口绑定到精简的创建表单：
+    // Bind the "+ Add record" entry point to the slim create form:
     addRecord: { enabled: true, mode: 'form', formView: 'create' },
   },
 
-  // 完整编辑表单 —— 按 field.group 分组；裸字符串继承字段定义。
+  // Full edit form — grouped by field.group; bare strings inherit field defs.
   form: {
     type: 'simple', data,
     sections: [
@@ -54,7 +56,7 @@ export const ContactViews = defineView({
   },
 
   formViews: {
-    // 稀疏的创建覆盖：只留核心字段，单个区块。
+    // Sparse create override: only the core fields, one section.
     create: {
       type: 'simple', data, title: 'New contact',
       sections: [
@@ -77,7 +79,7 @@ export const ContactViews = defineView({
 
 因为创建表单的字段是编辑表单字段的子集，*顺序和分组也相同*，"快速创建 4 个字段 → 保存 → 落到完整记录页"在视觉上是连续的。派生免费保住了这一点。
 
-## 字段分组与顺序
+## 字段分组与顺序 [#field-grouping-and-order]
 
 模型是一份扁平字段集。表格显示扁平的列。表单需要区块。这不矛盾 —— 是同一份扁平集合透过不同的镜头：
 
@@ -92,16 +94,25 @@ export const ContactViews = defineView({
 **1. 语义分组 —— `field.group`（在对象上）。**字段的逻辑归属。它随模型走，并为自动生成表单的*默认*分区提供种子：
 
 ```ts
+// Fields of an object; the object around them is omitted.
 fields: {
   name:  Field.text({ label: 'Full name', group: 'contact' }),
   email: Field.email({ label: 'Email',    group: 'contact' }),
-  stage: Field.select({ label: 'Stage',   group: 'status', options: [/* … */] }),
+  stage: Field.select({
+    label: 'Stage',
+    group: 'status',
+    options: [
+      { label: 'Lead', value: 'lead' },
+      { label: 'Customer', value: 'customer' },
+    ],
+  }),
 }
 ```
 
 **2. 布局分组 —— 表单 `sections`（在视图上）。**某个具体表单的显式编排：哪些字段、哪个区块、几个 `columns`、可否折叠。它以 `field.group` 为默认继承来源，需要时按表单覆盖。
 
 ```ts
+// Keys of a view container; `data` and its other keys are omitted.
 form: {
   type: 'simple',
   sections: [
@@ -115,11 +126,12 @@ form: {
 
 > **"group" 陷阱。**表格视图的 `groupByField` 按字段的*值*给**记录（行）**分组 —— 所有 `stage = qualified` 的行归到一起。表单区块在视觉上给**字段（列）**分组。同一个词，两条互不相关的轴。表格分组永远不会给你的表单分区。
 
-## 提交之后会发生什么
+## 提交之后会发生什么 [#what-happens-after-submit]
 
 给表单视图加 `submitBehavior` 来控制提交后的体验：
 
 ```ts
+// Keys of a form view; its other keys are omitted.
 submitBehavior: {
   kind: 'thank-you',
   title: 'Thanks!',
@@ -141,23 +153,23 @@ submitBehavior: {
 /console/forms/quick_create?prefill_lead_source=event_booth_2026
 ```
 
-## 记录详情由角色驱动，而非表单绑定
+## 记录详情由角色驱动，而非表单绑定 [#record-detail-is-driven-by-roles-not-a-form-binding]
 
 没有哪个对象级键能把表单视图钉到记录详情屏上。详情渲染由对象的跨界面**语义角色**派生：`nameField`（显示名）、`highlightFields`（最重要字段组成的条带）、`stageField`（生命周期进度条）、以及 `fieldGroups` + `Field.group`（表单、弹窗与详情页共享的分区）。当记录页需要的定制布局超出这些角色所能派生的范围时，给对象指定一个自定义[页面](/docs/build/interface/pages)。
 
-## 反模式
+## 反模式 [#anti-patterns]
 
 - **两份完整手写的字段列表**（`contact_create_form` + `contact_edit_form`）。必然漂移。
 - **在表单上复述字段类型 / 验证 / 选项。**数据语义只属于对象。
 - **在每个表单里重新敲一遍分组。**`field.group` 声明一次；只在真正分歧时覆盖。
 - **为了迁就表单给数据模型加结构性嵌套。**模型保持扁平；分组交给表单。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 页面 | 原因 |
 |:--|:--|
 | [视图](/docs/build/interface/views) | 表单视图类型、公开表单分享、完整的视图 Schema |
 | [数据模型](/docs/build/data) | 字段 —— 以及它们的意图 —— 声明的地方 |
-| [操作](/docs/build/interface/actions) | 启动表单视图的 `type: 'form'` 操作 |
+| [动作](/docs/build/interface/actions) | 启动表单视图的 `type: 'form'` 动作 |
 | [页面](/docs/build/interface/pages) | 超越派生布局的自定义记录页 |
 | [权限](/docs/configure/permissions) | 表单遵守的字段级安全 |

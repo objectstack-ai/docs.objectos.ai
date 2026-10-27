@@ -1,9 +1,11 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 頁面
+seoTitle: "自由頁面：區域、元件、文件頁"
 description: 由區域、元件與本地狀態組合的自由佈局 —— 外加隨包釋出的 Markdown 文件頁。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 94f72e272dd38ee2ff31de60a574f13636affad47c756bbc00b68a876374874d
+  source_sha: 4a88c0ee1ee387d77d686cf62b3d5270e2d183f2d362cd66274326205db8a3d4
   guide_rev: 1
   mode: auto
 ---
@@ -11,6 +13,7 @@ translation:
 **頁面是一個自由容器。**不同於繫結到單個物件的[檢視](/docs/build/interface/views)，頁面組合多個元件、嵌入檢視並管理本地狀態 —— 你的主屏、自定義記錄佈局和工具面板都靠它。
 
 ```ts
+// One page.
 const homePage = {
   name: 'sales_home',
   label: 'Sales Home',
@@ -28,7 +31,7 @@ const homePage = {
 }
 ```
 
-## 頁面屬性
+## 頁面屬性 [#page-properties]
 
 | 屬性 | 型別 | 必填 | 說明 |
 |:--|:--|:--|:--|
@@ -42,7 +45,7 @@ const homePage = {
 | `isDefault` | `boolean` | — | 是否為該型別的預設頁面 |
 | `assignedProfiles` | `string[]` | — | 可訪問此頁面的簡檔 |
 
-### 頁面型別
+### 頁面型別 [#page-types]
 
 | 型別 | 用於 |
 |:--|:--|
@@ -54,11 +57,12 @@ const homePage = {
 
 只有這五種型別有效 —— 早期路線圖上那些從未交付渲染器的型別已從 Schema 中移除。
 
-## 區域
+## 區域 [#regions]
 
 區域是佈局分割槽；每個區域承載元件：
 
 ```ts
+// Keys of a page; its other keys, and the regions' components, are omitted.
 regions: [
   { name: 'sidebar', width: 'small', components: [/* … */] },
   { name: 'content', width: 'large', components: [/* … */] },
@@ -67,11 +71,12 @@ regions: [
 
 `width` 接受 `'small'`、`'medium'`、`'large'` 或 `'full'`。
 
-## 元件
+## 元件 [#components]
 
 元件是區域內部的積木：
 
 ```ts
+// One page component; the page and region around it are omitted.
 {
   type: 'chart',
   id: 'revenue_chart',
@@ -79,7 +84,7 @@ regions: [
   properties: { chartType: 'line', dataset: 'sales',
                 dimensions: ['close_month'], values: ['revenue'] },
   events: { onClick: "navigate_to('opportunity_detail', { id: $event.id })" },
-  visibility: "os.user.profile == 'sales_manager'",
+  visibleWhen: "'sales_manager' in os.user.positions",
 }
 ```
 
@@ -90,8 +95,8 @@ regions: [
 | `type` | `string` | 標準組件型別，或自定義字串 |
 | `id` | `string` | 唯一的元件例項 id |
 | `properties` | `object` | 元件專屬配置 |
-| `events` | `object` | 事件處理器（操作表示式） |
-| `visibility` | `string` | CEL 可見性謂詞 |
+| `events` | `object` | 事件處理器（動作表示式） |
+| `visibleWhen` | `string` | CEL 可見性謂詞 —— 只有為 TRUE 時才渲染元件。（`visibility` 是已棄用的別名，仍被接受，並會歸一為 `visibleWhen`。） |
 | `style` / `className` | — | 臨時 CSS |
 | `responsiveStyles` | `object` | **首選**樣式通道：桌面優先、按斷點的樣式對映（`large` 為基礎，再疊加 `medium` / `small` / `xsmall` 覆蓋），編譯為作用域 CSS —— 優先用 `var(--space-8)` 這樣的設計令牌 |
 
@@ -108,11 +113,12 @@ regions: [
 
 元件還可以攜帶 `dataSource`（多物件頁面中按元素繫結物件）、`responsive` 與 `aria` 配置。專案專屬的元件可以使用自定義字串型別。
 
-## 變數
+## 變數 [#variables]
 
 頁面持有跨元件共享的本地狀態：
 
 ```ts
+// Keys of a page; its other keys are omitted.
 variables: [
   { name: 'selected_tab', type: 'string', defaultValue: 'overview' },
   { name: 'date_range',   type: 'object', defaultValue: { start: null, end: null } },
@@ -125,14 +131,14 @@ variables: [
 
 通過 `page` 導航入口把頁面掛到[應用](/docs/build/interface/apps)上，或者用 `homePageId` 把它設為應用的著陸頁。
 
-## 文件頁
+## 文件頁 [#doc-pages]
 
-**doc** 是一頁包文件：放在扁平的 `src/docs/` 目錄裡的純 Markdown 檔案，編譯進包產物，在 Console 中渲染於 `/docs/<name>`。文件還會在 AI 助手回答關於你的包的問題時充當依據。
+**doc** 是一頁包文件：放在扁平的 `src/docs/` 目錄裡的純 Markdown 檔案，編譯進包產物，在 UI 中渲染於 `/docs/<name>`。文件還會在 AI 助手回答關於你的包的問題時充當依據。
 
 ```
 src/docs/
-  crm_index.md            → 文档名 "crm_index"
-  crm_user_guide.md       → 文档名 "crm_user_guide"
+  crm_index.md            → doc name "crm_index"
+  crm_user_guide.md       → doc name "crm_user_guide"
 ```
 
 檔名主幹就是文件 `name` —— 沒有目錄分級，沒有排序檔案。扁平佈局讓交叉引用保持穩定：連結按 basename 解析，從不按路徑。
@@ -141,7 +147,7 @@ src/docs/
 |:--|:--|
 | 命名 | `snake_case`，且構建 lint 要求**名稱空間字首**（`crm_user_guide`，而非 `user_guide`） |
 | Frontmatter | 可選；讀取 `title` 和 `description`。標題解析順序：frontmatter → 第一個 `#` 標題 → 文件名 |
-| 交叉引用 | 普通相對連結（`[overview](./crm_index.md)`）—— 在 Console 裡重寫為 `/docs/<target>`，在 GitHub 上原生可用。**同包內的壞鏈會導致構建失敗** |
+| 交叉引用 | 普通相對連結（`[overview](./crm_index.md)`）—— 在 UI 裡重寫為 `/docs/<target>`，在 GitHub 上原生可用。**同包內的壞鏈會導致構建失敗** |
 | Markdown | CommonMark + GFM：表格、帶高亮的圍欄程式碼、標題錨點、GitHub alerts（`> [!TIP]`） |
 | 構建時拒絕 | **MDX / 內嵌元件**（文件是資料，不是程式碼 —— 這是信任邊界）以及**圖片引用**（尚無資產服務；快速失敗勝過碎圖） |
 
@@ -149,7 +155,7 @@ src/docs/
 
 > 需要動態內容 —— 即時流程圖、記錄表格 —— 時別試圖內嵌元件。用 URL 連結到後設資料；平臺渲染即時檢視，文件只負責指向它。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 頁面 | 原因 |
 |:--|:--|
@@ -157,5 +163,5 @@ src/docs/
 | [檢視](/docs/build/interface/views) | 頁面所嵌入的物件介面 |
 | [表單](/docs/build/interface/forms) | 角色派生的記錄佈局 vs 自定義記錄頁 |
 | [儀表盤](/docs/build/interface/dashboards) | 以分析為中心的佈局，而非自由佈局 |
-| [操作](/docs/build/interface/actions) | `element:button` 的目標與 `modal` 型別操作 |
+| [動作](/docs/build/interface/actions) | `element:button` 的目標與 `modal` 型別動作 |
 | [AI Builder](/docs/build/ai-builder) | 用對話生成頁面後設資料 |
