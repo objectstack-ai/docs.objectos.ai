@@ -13,8 +13,9 @@ write or deploy. The base URL is `https://<your-host>/api/v1`, and the running
 runtime describes itself at `/api/v1/openapi.json` (OpenAPI 3.0) and at
 `/api/v1` (service discovery).
 
-Every route under `/api/v1` needs a signed-in session or a bearer token, except
-[public forms](#public-forms). Permissions are checked per route and per
+Every route under `/api/v1` needs a signed-in session or a bearer token unless
+a declaration opens it to anonymous callers, as [public forms](#public-forms)
+and [share links](#share-links) do. Permissions are checked per route and per
 record: object-, record- and field-level security apply to an API caller
 exactly as they apply in the UI. See [API Access](/docs/configure/api-access)
 for keys and tokens.
@@ -97,12 +98,23 @@ omits the object from the REST surface entirely, so its routes answer `404`.
 
 ## Public forms
 
-The only unauthenticated routes. A form view opts in through its `sharing`,
+Answered without a session. A form view opts in through its `sharing`,
 and all three keys are required: `enabled: true`, `allowAnonymous: true` and a
 `publicLink` slug. Since ObjectStack 17.7 a form that sets only the last two
 answers `404 FORM_NOT_FOUND` — see
 [Views → Public forms](/docs/build/interface/views#public-forms).
 `GET /forms/:slug` returns the form, `POST /forms/:slug/submit` submits it.
+
+## Share links
+
+Also answered without a session: the token in the link is the authorization.
+`GET /share-links/:token/resolve` returns the one record the link shares,
+without the fields the link hides. A link limited to signed-in users answers
+`401 SIGN_IN_REQUIRED` to a caller without a session, and a password-protected
+one answers `401 NEEDS_PASSWORD` until the password is sent. Creating, listing
+and revoking links (`POST /share-links`, `GET /share-links`,
+`DELETE /share-links/:idOrToken`) need a session — see
+[Share links: anyone with the link](/docs/use/collaboration#share-links-anyone-with-the-link).
 
 ## Flow status table
 
