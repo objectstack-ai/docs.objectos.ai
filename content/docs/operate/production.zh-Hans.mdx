@@ -1,0 +1,136 @@
+---
+title: 生产就绪
+seoTitle: "生产就绪：加固、密钥、CORS、上线"
+description: 在生产环境中安全运行自管理 ObjectOS 部署的检查清单 —— 响应头、密钥、速率限制、CORS、启动守卫、定时任务和保留期。
+editions: [community, enterprise]
+translation:
+  source_sha: 0d1f08122f21ab1bab4439881d84e8ef4cd8c08c847bfc56516c59fbcc0d48c2
+  guide_rev: 1
+  mode: auto
+---
+
+在把 ObjectOS 暴露给生产流量之前，使用这份检查清单。它同样适用于 Community 和
+Enterprise；末尾的[企业版额外提供](#enterprise-adds)一节列出了需许可证的镜像随之
+带来的条目。
+
+## HTTP 加固 [#http-hardening]
+
+运行时默认在其路由上发送保守的安全响应头。请在经过任何会改写响应头的代理之后，
+检查最终的响应：
+
+- `Content-Security-Policy`；
+- `X-Content-Type-Options`；
+- `X-Frame-Options`；
+- `Referrer-Policy`；
+- `Permissions-Policy`；
+- `Cross-Origin-Resource-Policy`；
+- HSTS，运行时默认不发送它：在确认 TLS 正常后，在你的代理上添加。
+
+```bash
+curl -I https://app.example.com
+```
+
+## 密钥 [#secrets]
+
+把这些保存在密钥管理器中，并在运行时注入：
+
+| 密钥 | 用途 |
+|---|---|
+| `OS_AUTH_SECRET` | 会话签名的基础密钥。**每个副本上都完全相同** —— 取值不同的副本会互相拒绝对方的会话。 |
+| `OS_SECRET_KEY` | 每个存储的密钥都用它加密。在容器中是必需的，因为自行生成的密钥会随文件系统一起消失。**把它与数据库一起备份**：缺了其中一个，另一个什么都解密不了。 |
+| 数据库凭据 | 访问业务数据库 |
+| OIDC 客户端密钥 | 单点登录 |
+| 提供商 API 密钥 | 邮件、存储、AI、集成 |
+
+绝不要把密钥烘焙进产物或镜像。
+
+**绑定**到控制平面的部署还持有一个运行时令牌，但那不是你要配置的密钥：它在绑定时
+签发，并由运行时持久保存。它没有需要分发的部署级 API 密钥。
+
+## 速率限制 [#rate-limiting]
+
+运行时内置一个令牌桶速率限制器，**在应用声明预算之前是关闭的**（在其技术栈中的
+`server.security.rateLimit`）。超出预算的调用者会收到带有 `Retry-After` 的 `429`。
+令牌桶以已登录用户为键，匿名流量则以调用者地址为键。
+
+在反向代理之后，调用者的地址就是代理的地址，除非应用设置了
+`server.trustProxy: true` —— 并且只有在代理会在每个请求上覆盖 `X-Forwarded-For`
+时才这样设置，否则调用者就能自己选择地址。计数器保存在内存中，按进程计算。登录
+可以在 **Setup → Authentication** 中设置它自己更严格的预算。
+
+如果限制应该放在边缘 —— 入口或网关 —— 可以从这样的预算开始：
+
+| 流量 | 示例限制 |
+|---|---:|
+| 认证端点 | 10/分钟/IP |
+| 写入请求 | 60/分钟/IP |
+| 读取请求 | 600/分钟/IP |
+
+## CORS [#cors]
+
+没有 `OS_CORS_ORIGIN` 时，运行时**不接纳**任何跨源调用者 —— 只要 Console 和 API
+共享同一个公网源，也不需要接纳。从另一个源提供的前端要显式列出，以逗号分隔：
+
+```bash
+OS_CORS_ORIGIN=https://portal.example.com,https://admin.example.com
+```
+
+在开启凭据时，`*` 会在启动时被拒绝。
+
+## 启动守卫保持开启 [#boot-guards-stay-on]
+
+有两个为开发准备的应急开关。它们都不应出现在生产环境中：
+
+- **`OS_ALLOW_DRIVER_CONNECT_FAILURE` 未设置。**启动时无法连接的数据库会拒绝启动，
+  所以错误的 `OS_DATABASE_URL`、轮换过的密码或被关闭的网络路径都是一次失败的部署
+  —— 而不是一个"已启动"、却对每个请求都返回 500 的服务器。这个开关会在没有数据库
+  的情况下启动，并且永远不会重新连接。
+- **`OS_ALLOW_DEGRADED_TENANCY` 未设置。**一个要求多个组织、却没有组织运行时的部署
+  会拒绝启动；这个开关让它在缺少隔离的情况下启动。
+
+## 定时任务是一项决策 [#scheduled-work-is-a-decision]
+
+应用和包所声明的定时任务 —— 时间触发的流程和打包的 cron 作业 —— 在部署设置
+`OS_AUTOMATION_SCHEDULED_WORK_ENABLED=true` 之前都是**关闭的**。一个期望摘要、清理
+或提醒按时触发的部署必须开启它。保持关闭也是一个合理的答案；但要有意为之。用
+`os doctor` 确认生效的值，并阅读启动摘要：其中被列为 *disabled by deployment
+policy* 的任务并没有坏掉，只是被关掉了。参见
+[环境变量](/docs/reference/environment-variables#runtime-services)。
+
+## 在上线前设定保留期 [#retention-is-set-before-go-live]
+
+平台会按计划删除遥测数据：活动在 14 天后删除，作业运行记录在 30 天后，通知在 90
+天后，审计记录在 90 天后离开热存储。如果你的合规制度需要更长的保留期，请在上线
+**之前**通过 `lifecycle.retention_overrides` 设置延长这些时间窗口 —— 按策略删除的
+数据，在之后制作的每一份备份中都不会存在。
+
+## 上线检查清单 [#go-live-checklist]
+
+- [ ] TLS 在边缘或入口终止。
+- [ ] 最终响应中带有安全响应头。
+- [ ] 在验证 TLS 之后启用了 HSTS。
+- [ ] `OS_AUTH_URL` 和 `OS_TRUSTED_ORIGINS` 与公网地址一致。
+- [ ] CORS 恰好接纳你所提供的跨源前端。
+- [ ] 速率限制保护着登录和写入端点。
+- [ ] `OS_AUTH_SECRET` 和 `OS_SECRET_KEY` 足够强，作为密钥存储，并已托管备份。
+- [ ] 第一个管理员在地址被分享之前已经注册。
+- [ ] OIDC 回调 URL 与公网域名一致。
+- [ ] `OS_ALLOW_DRIVER_CONNECT_FAILURE` 和 `OS_ALLOW_DEGRADED_TENANCY` 未设置。
+- [ ] `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` 是某人做出的决策。
+- [ ] 保留期窗口符合你的策略。
+- [ ] 业务数据库的备份和恢复已经测试过 —— 参见[备份](/docs/operate/backup#the-restore-drill)。
+- [ ] 审计日志按你的策略保留。
+- [ ] 监控会对 5xx 比率和就绪状态告警 —— 参见[可观测性](/docs/operate/observability)。
+- [ ] 回滚计划同时覆盖镜像版本和应用产物版本。
+
+## 企业版额外提供 [#enterprise-adds]
+
+- [ ] `OS_LICENSE_KEY` —— 部署的授权 —— 作为密钥存储。
+- [ ] 已声明 `OS_CLOUD_URL`，并且它与许可证模式相符。普通许可证搭配 `off` 会在
+      启动时被拒绝；参见[物理隔离](/docs/deploy/air-gapped#the-supported-combinations)。
+- [ ] 镜像按摘要固定，并且已校验其签名、SBOM 和溯源
+      （[Docker](/docs/deploy/docker#verify-the-image-before-production)）。
+- [ ] 在多个副本上，`OS_AUTH_SECRET` 和 `OS_SECRET_KEY` 在每个副本上都完全相同。
+- [ ] 在多组织姿态下：已声明成员资格策略和挂载的 AI Agent，
+      `OS_PLATFORM_OWNER_EMAIL` 指定了不止一个已验证的管理员，并且跨组织的负向
+      访问测试通过。

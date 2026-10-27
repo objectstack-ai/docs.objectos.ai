@@ -1,0 +1,58 @@
+---
+title: skills CLI
+seoTitle: "skills CLI：把 Skills 安装进你的编码 Agent"
+description: 把 ObjectStack Skills 安装进你的编码 Agent 的 npx 命令 —— ObjectOS 在哪里使用它、几个示例，以及 objectstack.ai 上的完整 Skill 参考。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 26df3bfe697fc1dcc37dc143c85b53c43d842b6b8a5801ad85e00738000a6399
+  guide_rev: 1
+  mode: auto
+---
+
+**完整规范：**[objectstack.ai 上的 AI Skill 参考](https://objectstack.ai/docs/ai/skills-reference)。本页是摘要：ObjectOS 在哪里使用它，以及几个示例。
+
+[`skills`](https://www.npmjs.com/package/skills) CLI（来自
+[vercel-labs/skills](https://github.com/vercel-labs/skills)）会把按领域划分的
+指令安装进 AI 编码 Agent。ObjectStack Skills 教 Claude Code、Cursor、Copilot、
+Codex 等依据真实的 schema 编写 ObjectOS 运行的元数据 —— 对象、视图、流程、权限、
+查询、CEL —— 所以 Agent 写出的内容能够编译通过。
+
+## ObjectOS 在哪里使用它 [#where-objectos-uses-it]
+
+- **在你的 IDE 中手工编写应用。**浏览器内的 [AI Builder](/docs/build/ai-builder)
+  会在 ObjectOS 中为你编写元数据；当你改在代码仓库中工作时，这些 Skills 会给你自己
+  的编码 Agent 同样的词汇。参见[构建 → IDE Skills](/docs/build/ai-skills)。
+- **让 Agent 保持最新。**这些 Skills 位于
+  [objectstack 仓库](https://github.com/objectstack-ai/objectstack/tree/main/skills)中，
+  与它们所描述的 schema 放在一起，所以升级后重新安装即可让 Agent 跟上最新版本。
+
+## 示例 [#examples]
+
+把 Skills **安装**到当前项目中。CLI 会检测项目使用哪些 Agent，并为每一个写入其
+原生格式（`.claude/skills/`、`.cursor/rules/`、`AGENTS.md`……）：
+
+```bash
+npx skills add objectstack-ai/objectstack/skills
+```
+
+为可重现的 CI **固定一个版本**：
+
+```bash
+npx skills add https://github.com/objectstack-ai/objectstack/tree/<commit-sha>/skills
+```
+
+**查看和管理**已安装的内容：
+
+```bash
+npx skills detect                  # show which agents the CLI will write to
+npx skills list                    # list installed skills
+npx skills remove <name>           # remove a skill
+```
+
+**提交输出。**Skills 是你的整个团队 —— 包括 CI Agent —— 都应共享的 markdown，而
+CLI 写入的路径本来就是你会签入的路径。
+
+## 另请参阅 [#see-also]
+
+- [构建 → IDE Skills](/docs/build/ai-skills) —— 与 AI Builder 并列的 Skills
+- [vercel-labs/skills](https://github.com/vercel-labs/skills) —— 上游 CLI

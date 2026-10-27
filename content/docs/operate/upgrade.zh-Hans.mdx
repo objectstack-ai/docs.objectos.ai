@@ -1,0 +1,227 @@
+---
+title: 升级与回滚
+description: 在备份数据库之后，通过更换固定的确切镜像来升级或回滚自管理的 ObjectOS 部署 —— 以及每个 ObjectStack 版本要求运维人员执行的步骤。
+editions: [community, enterprise]
+translation:
+  source_sha: 98d9f60a7e174ca49ba4e63e570cba5e24d158bd80e44ddfc9cc8d36d2fb0d5d
+  guide_rev: 1
+  mode: auto
+---
+
+升级就是更换你所固定的确切镜像，回滚就是换回上一个。在 Community 上，那是镜像的
+确切版本标签，如果你固定了摘要，还包括它的摘要：该版本被重新构建时，标签可能被
+再次推送到新的字节上，而摘要永远不会移动（参见
+[Docker → 固定镜像](/docs/deploy/docker#pin-the-image)）。在 Enterprise 上，那是
+你的发布说明中点名的摘要（[企业版额外提供](#enterprise-adds)）。本页的其他内容对
+两者都相同。[Docker → 升级与回滚](/docs/deploy/docker#upgrade-and-rollback)
+记录了操作流程以及每一步的原因；本页把它重述为一份检查清单，并加上特定版本所要求的
+步骤。
+
+## 升级 [#upgrade]
+
+1. 阅读你正在运行的版本与目标版本之间每个 ObjectStack 版本的说明，并逐一完成下文
+   中它的[特定版本步骤](#version-specific-steps)。主版本的变化意味着底层有破坏性
+   变更。
+2. **备份数据库。**模式迁移是*单向向前*的：回滚镜像并不会回滚模式。
+3. 把镜像改为新的确切版本，如果你固定了摘要，就改为它的摘要，然后重启。模式会在
+   运行时报告就绪之前更新到最新；破坏性的变更会拒绝启动并点名自身，直到你用 `os migrate apply --allow-destructive` 应用它。
+4. 确认就绪端点（`/api/v1/ready`）返回 200。
+
+## 回滚 [#roll-back]
+
+保留**上一个**版本，如果你固定了摘要，还要保留它的摘要：那就是回滚。要回滚，就恢复它并重复第 3 步 —— 只要你要离开的
+版本没有做不兼容的模式变更，这就是有效的（发布说明会说明何时做了这样的变更）。密钥
+也有同样的单向边界：在 ObjectStack 17.7 或更高版本上设置或轮换的密钥，17.7 之前
+的版本无法读取（参见下文的 [17.7](#objectstack-177)）。
+
+## 应用单独进行版本管理 [#the-app-versions-separately]
+
+应用本身如果以已发布产物的形式交付，则独立于镜像进行版本管理 —— 参见
+[部署 → 应用如何进入](/docs/deploy#how-the-app-gets-in)。把已发布的产物视为不可变
+的：如果你原地覆盖一个产物，即使数据库备份完美无缺，你也会失去干净回滚的能力
+（[备份 → 产物版本管理](/docs/operate/backup#artifact-versioning)）。
+
+## 特定版本步骤 [#version-specific-steps]
+
+上面的步骤对每个版本都相同。ObjectOS 底层的一些 ObjectStack 版本还要求运维人员
+采取行动：在新镜像启动之前设置一个变量、运行一次数据迁移、轮换一个凭据。Community
+镜像的版本**就是** ObjectStack 版本；在 Enterprise 上，镜像的
+[发布清单](/docs/deploy/docker#the-image-can-tell-you-what-it-is)说明了它内嵌的是
+哪个 ObjectStack 版本。按从旧到新的顺序，结合上面的步骤，逐一完成你所跨越的每个
+版本的小节。
+
+每个小节都是该版本升级检查清单中属于运维人员的部分，并链接到完整的清单；一个版本
+对你所运行的应用（它的元数据和代码）做了哪些改变，写在同一份清单和
+[更新日志](/docs/resources/changelog)中。`os migrate` 命令是新镜像内嵌版本的
+ObjectStack CLI。它们会启动应用来读取其元数据，所以要用部署启动时的同一套环境
+运行它们 —— 同一个数据库和同一个应用 —— 参见
+[CLI → 数据库迁移](/docs/reference/cli#database-migrations--os-migrate)。
+
+> **先在副本上演练。**发布说明把大多数检查清单条目标记为 *not exercised*：它们
+> 源自变更本身，而不是来自一次实际走过的升级。先针对数据库的副本运行每一步，并在
+> 对真实数据库操作之前做好备份。
+
+### ObjectStack 17.0 [#objectstack-170]
+
+- **运行这两项数据迁移。**`os migrate files-to-references`，然后加 `--apply` 再
+  运行一次；以及 `os migrate value-shapes`，等它不再报告任何内容后，再加 `--apply`
+  运行一次。在各自记录下标志之前，17.0 之前创建的数据库会继续接受格式错误的文件和
+  引用值，并给出警告；之后则会拒绝它们。对于来不及修复的集成，参见
+  [应急开关](/docs/reference/environment-variables#data-contract-escape-hatches)。
+- **应用所绑定的每个数据源都必须能连接。**无法连接的数据源会让启动失败，并且只要
+  有一个停止响应，`/api/v1/ready` 就返回 `503`。
+
+完整清单：[17.0.0](https://objectstack.ai/docs/releases/v17/17-0#upgrade-checklist)。
+
+### ObjectStack 17.1 [#objectstack-171]
+
+- **在升级之前，列出已关闭的权限集和岗位**（`active: false`）。从 17.1 起它们不再
+  授权，点名了已停用岗位的共享规则会被撤销其共享。重新启用那些仍应授权的。
+- **在 `isolated` 下重新签发 API 密钥。**17.1 之前签发的密钥不带组织，在
+  `OS_TENANCY_POSTURE=isolated` 下会被拒绝。
+- **导出按对象授予。**出厂的管理员权限集不再导出每个对象；在需要导出的地方，在
+  应用自己的权限集中授予 `allowExport`。
+
+完整清单：[17.1.0](https://objectstack.ai/docs/releases/v17/17-1#upgrade-checklist)。
+
+### ObjectStack 17.2 [#objectstack-172]
+
+- **把基于 `http_request_errors_total` 的监控重新指向别处。**这个序列已经退役，
+  读数恒为零，看起来就像一个健康的服务器。使用 `http_requests_total{status=~"5.."}`。
+- **授予 `manage_platform_settings` 或 `manage_metadata`** 给任何调用外部数据源
+  路由的凭据；这些路由现在会以 `403` 拒绝其他调用者。
+
+完整清单：[17.2.0](https://objectstack.ai/docs/releases/v17/17-2#upgrade-checklist)。
+
+### ObjectStack 17.3 [#objectstack-173]
+
+- **隔离墙式姿态：在新镜像启动之前设置 `OS_PLATFORM_OWNER_EMAIL`**，否则它会
+  拒绝启动。参见
+  [环境变量](/docs/reference/environment-variables#multi-organization-deployments)。
+- **在新的唯一索引能够建立之前，对自动编号去重。**运行 `os migrate duplicates`，
+  修复它报告的重复项，然后重新运行 `os migrate plan`。在你完成之前，索引不会建立，
+  唯一性也不会强制执行；启动只会记录这一点，所以干净的启动并不能证明索引存在。
+- **回填 `sys_record_share`。**17.3 之前写入的共享授权不带组织，按租户范围的读取
+  会找不到它们。ObjectStack 以 `@objectstack/plugin-sharing` 的两个函数提供这项
+  回填 —— `planSysRecordShareOrganizationBackfill`（试运行）和
+  `runSysRecordShareOrganizationBackfill` —— 而不是一个 `os` 命令，启动时也不会
+  有任何东西运行它。
+- **开放注册现在必须声明。**没有声明受众姿态的应用只接受邀请：除非该地址持有一份
+  待处理的邀请，否则自行注册会以 `403 SELF_REGISTRATION_CLOSED` 被拒绝（全新安装
+  上的第一个账户不受此限）。
+
+完整清单：[17.3.0](https://objectstack.ai/docs/releases/v17/17-3#upgrade-checklist)。
+
+### ObjectStack 17.4 [#objectstack-174]
+
+- **在 `isolated` 下，重新签发不带组织的 API 密钥。**它们会从 `200` 变为 `401`。
+  在 `group` 下，这样的密钥仍然可用。
+- **在授权存储不可达时，预期存储下载和设置路由返回 `503`**，而它们过去会悄悄
+  降级。
+
+完整清单：[17.4.0](https://objectstack.ai/docs/releases/v17/17-4#upgrade-checklist)。
+
+### ObjectStack 17.5 [#objectstack-175]
+
+升级之前：
+
+- **隔离墙式姿态：在 `OS_PLATFORM_OWNER_EMAIL` 中列出每一位平台管理员**（逗号
+  分隔，已验证的地址）。`admin_full_access` 授权不再赋予这一身份，没有声明的部署
+  启动后会没有任何平台管理员。
+- **对定时任务做出决定。**除非部署设置了 `OS_AUTOMATION_SCHEDULED_WORK_ENABLED=true`，
+  否则时间触发的流程和打包的 cron 作业会停止运行。在 `isolated` 下，先给每个定时
+  流程的开始节点指定它以哪个 `organization` 身份运行，并排空它被挂起的运行。参见
+  [流程](/docs/build/automation/flows#scheduled-run-on-a-clock)。
+- **预检账户身份变更。**运行 `os migrate account-issuer`（只读；只要有两个账户会
+  冲突，它就以非零状态退出），并解决它报告的每一个冲突：冲突的行永远不会替你合并。
+
+进入这个版本：
+
+```bash
+os migrate account-issuer                     # expect: safe to drop
+os migrate plan                               # read every destructive change first
+os migrate apply --allow-destructive          # drops sys_account.issuer, after a backup
+os migrate account-issuer                     # again: expect zero collisions
+```
+
+`--allow-destructive` 会应用计划中列出的每一项破坏性变更，而不只是这一项 —— 这
+就是要先看计划的原因。
+
+之后：
+
+- 匿名的 `GET /api/v1/auth/get-session` 返回 `401`，不再是带 `null` 的 `200`。
+- 分析会以 `403` 拒绝无法读取该对象的调用者。
+- 失败的通知投递记录保留 7 天，而不是 90 天。
+
+完整清单：[17.5.0](https://objectstack.ai/docs/releases/v17/17-5#upgrade-checklist)。
+
+### ObjectStack 17.6 [#objectstack-176]
+
+- **如果应用声明了读取或写入对象的匿名端点**（`authRequired: false`），**先暂缓
+  升级**。从 17.6 起，它对每个对象都会被拒绝，而且没有任何受支持的渠道会给匿名
+  调用者授予权限集，17.7 中也是如此。公开表单是另一扇门，会继续正常工作。
+- **授予 `manage_platform_settings`** 给每个通过 `/api/v1/meta` 读取
+  `datasource` 或 `external_catalog` 元数据、或保存 `datasource` 元数据的用户或
+  集成。
+- **找出与打包流程同名的存储流程**（启动日志会对每一个发出警告）。从 17.6 起，
+  打包的流程优先，存储的那个会停止运行；把你需要的那个以新名称克隆一份。
+- **重写静态存储的元数据正文副本：**`os migrate audit-metadata-bodies`，然后加
+  `--apply` 再运行一次。⚠️ 在 17.6.0 上，即使是试运行也会写入数据库 —— 请针对
+  副本运行。
+- **找出早于公元 1000 年的 `datetime` 值**并改写它们；升级之后，任何携带这种值的
+  写入都会被拒绝。
+
+完整清单：[17.6.0](https://objectstack.ai/docs/releases/v17/17-6#upgrade-checklist)。
+
+### ObjectStack 17.7 [#objectstack-177]
+
+升级之前：
+
+- **在已退役字段仍被声明时，运行任何需要读取其残留列的转换。**升级之后，没有任何
+  运行时入口会返回该列；只有 `os migrate unmapped-columns --object NAME` 能读取它。
+- **给每个必须保持公开的公开表单加上 `sharing.enabled: true`**，在应用中和存储的
+  覆盖层中都要加。没有它，表单会返回 `404 FORM_NOT_FOUND`。
+- **如果你可能需要回滚到 17.7 之前，请保留重新设置每个密钥的途径。**在 17.7 上
+  设置、轮换或重新封装的密钥会以更早的版本无法打开的格式写入。
+- **替换内存中的启动存储**（`OS_DATABASE_DRIVER=memory`，或 `memory://` URL）：
+  它会被拒绝。
+
+进入这个版本：运行 `os migrate audit-metadata-bodies`，然后加 `--apply` 再运行
+一次，以从审计和活动副本中删除存储的内容哈希。17.7 的试运行不再写入。升级之前持有
+的元数据版本令牌会返回一次 `409 METADATA_CONFLICT`；重新读取该项即可获得新的令牌。
+
+首次启动之后：
+
+- **轮换每个流程密钥** —— 入站钩子的 `secret` 和 `http` 节点的 `signingSecret` ——
+  在启动日志报告它已迁移到 `sys_flow_credential` 之后进行，并把新值交给负责签名或
+  校验的一方。
+- **轮换 JWT 签名密钥，并撤销和重新签发必须保持私密的分享链接。**它们之前的值可能
+  在审计轨迹中留有副本，而升级不会改写审计轨迹。
+- **恢复、取消或清除升级前暂停的流程运行。**它们存储的变量中仍以明文保存着凭据。
+- **可选，并且只在你不会回滚到 17.7 之前时执行：**`os secret rewrap`，然后加
+  `--apply` 再运行一次，以新格式重新封装较旧的密钥。升级路径上没有任何东西会运行它。
+- **从任何写入 `/api/settings/localization` 的客户端中删除已退役的本地化键：**
+  `date_format`、`time_format`、`number_format`、`first_day_of_week`。点名其中任何
+  一个的请求会被整体以 `400` 拒绝。
+- **对未验证的本地邮箱地址的外部登录会被拒绝**（`account_not_linked`）；它不再
+  悄悄地关联到那个账户。
+
+完整清单：[17.7.0](https://objectstack.ai/docs/releases/v17/17-7#upgrade-checklist)。
+
+## 企业版额外提供 [#enterprise-adds]
+
+企业版镜像按**摘要**固定，从不按标签，所以升级就是更换摘要，回滚就是换回上一个。
+
+1. 从发布说明中取得**新的摘要**，并在上线之前阅读镜像的
+   [发布清单](/docs/deploy/docker#the-image-can-tell-you-what-it-is)：确认产品
+   主版本线是你所在的那一条，并检查内嵌运行时的兼容范围是否移动了。
+2. 备份数据库，然后修改镜像摘要并重启技术栈。迁移会在新副本接收流量之前运行到
+   完成。
+3. 确认就绪端点返回 200，且副本报告为健康。保留上一个摘要以便回滚。
+
+- **Kubernetes** —— 升级同样是更换镜像摘要，并让迁移 Job 在新副本提供服务之前
+  运行到完成。参见
+  [Kubernetes → 滚动升级就是更换摘要](/docs/deploy/kubernetes#rolling-upgrades-change-the-digest)。
+- **物理隔离** —— 在外部校验新的摘要，把它传入内部，修改固定的摘要，然后重启。
+  保留上一个摘要：在物理隔离的网络中，它可能是你唯一能回滚到的副本。参见
+  [物理隔离 → 把镜像带进网络内部](/docs/deploy/air-gapped#getting-the-image-inside-the-network)。

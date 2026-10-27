@@ -1,0 +1,76 @@
+---
+title: 运行时能力
+seoTitle: "运行时能力：基础包和可选包"
+description: ObjectOS 可以从 ObjectStack 框架包中加载的能力。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3beb96f0a63636343e3b8750462e6b3051b331b4addc65c3e2c18c93c9ec4d4e
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 为每个项目加载一个基础运行时，然后安装应用产物所声明的可选能力。
+
+## 基础运行时 [#base-runtime]
+
+基础项目内核包括：
+
+- ObjectKernel 生命周期和服务注册表；
+- ObjectQL 数据引擎；
+- 配置的数据驱动；
+- 元数据服务；
+- 应用产物注册；
+- 配置了 `OS_AUTH_SECRET` 时的认证；
+- 用于 RBAC、行级安全和字段安全的安全插件；
+- i18n 服务。
+
+## 可选能力 [#optional-capabilities]
+
+产物可以在其 `requires` 列表中声明能力。当镜像中存在匹配的框架包时，ObjectOS 会
+加载它们。
+
+| 能力 | 包 | 用途 |
+|---|---|---|
+| `automation` | `@objectstack/service-automation` | 流程/DAG 执行和自动化节点 |
+| `ai` | 不是框架包：AI 运行时随 ObjectOS 一起提供（[AI 服务](/docs/configure/ai)） | LLM 适配器、对话、工具、SSE 路由 |
+| `analytics` | `@objectstack/service-analytics` | 多维数据集、分析查询、报表数据 |
+| `audit` | `@objectstack/plugin-audit` | 审计日志对象和审计轨迹 |
+| `cache` | `@objectstack/service-cache` | 缓存抽象和适配器 |
+| `storage` | `@objectstack/service-storage` | 文件/对象存储服务 |
+| `queue` | `@objectstack/service-queue` | 队列抽象和工作进程 |
+| `job` | `@objectstack/service-job` | 定时/后台作业 |
+| `realtime` | `@objectstack/service-realtime` | WebSocket 和发布/订阅实时通信 |
+| `settings` | `@objectstack/service-settings` | 设置清单和 K/V 解析器 |
+
+如果请求了某项能力，但镜像中不包含对应的包，**ObjectOS 会记录一条警告，并在禁用
+该能力的情况下继续运行。**这是有意为之 —— 它让运行时在开发期间缺少某个可选包时
+仍可启动 —— 但在**生产环境中这是一个真实的风险**：
+
+- 一个要求审计的应用，如果被加载到不含 `@objectstack/plugin-audit` 的镜像中，会
+  干净地启动，**却不写任何审计日志**。合规证据会在没有任何错误的情况下缺失。
+- 一个依赖作业的应用，如果被加载到不含 `@objectstack/service-job` 的镜像中，会
+  干净地启动，**却悄悄地永远不运行定时任务**。
+
+**生产检查清单：**
+
+1. 把能力警告视为部署失败。在启动日志中 grep `capability not loaded`（或你的
+   等效信息），一旦出现就让就绪探针 / 发布失败。
+2. 把 ObjectOS 运行时镜像固定为包含你的产物在 `requires` 中声明的每个包的那一个。
+3. 发布产物时，随附记录它的 `requires` 列表，以便运维人员核对匹配的镜像。
+
+## API 界面 [#api-surface]
+
+ObjectOS 通常会暴露：
+
+- 生成的 REST API；
+- `/api/v1/auth/*` 下的认证端点；
+- 元数据和 i18n 端点；
+- 已启用能力的服务端点。
+
+OData 是一项框架级能力，只有在所部署的运行时包包含并启用它时，才应在文档中写为
+受支持。
+
+**GraphQL 不在其中。**GraphQL 界面已在 ObjectStack 17.0 中移除 —— 该端点在路由
+背后从未被实现过，`/graphql` 现在返回 404。不要在文档中把它写成任何运行时包可用的
+或可选的能力。（`graphql` 仍是**外部数据源**上的有效协议，那是 ObjectOS 去查询的
+系统，而不是它提供的界面。）

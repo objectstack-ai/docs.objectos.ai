@@ -1,0 +1,106 @@
+---
+title: 字段类型
+seoTitle: "字段类型：每个字段存储和显示什么"
+description: 字段类型在 ObjectOS 中决定什么 —— 列、API、表单控件，以及 AI Builder 会询问什么 —— 附几个示例，完整的目录见 objectstack.ai。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: d8cf773f496622e8a3d84f80d1e3e96dbcc89f6f2892ef7cf6847d049db4a2ca
+  guide_rev: 1
+  mode: auto
+---
+
+**完整规范：**[objectstack.ai 上的字段类型](https://objectstack.ai/docs/data-modeling/field-types)。本页是摘要：ObjectOS 在哪里使用它，以及几个示例。
+
+字段的类型决定它存储什么，以及每个界面如何对待它。共有 48 种内置类型 —— 文本、
+数字、日期、选择、关系、计算值、媒体、结构化数据，以及地址、评分和签名等更丰富的
+输入 —— 每个对象还带有你不需要声明的系统字段（`id`、`created_at`、`updated_at`、
+`created_by`、`updated_by`）。
+
+## ObjectOS 在哪里使用它 [#where-objectos-uses-it]
+
+一个字段定义驱动以下所有内容：
+
+```
+*.object.ts (field spec)
+   │
+   ├─► Postgres / MySQL / SQLite column + index + constraint
+   ├─► REST: validated on POST/PATCH, exposed on GET
+   ├─► UI: form widget + list column
+   ├─► AI Builder: tool argument schema (so the AI knows what to ask)
+   └─► Audit: change-tracked if `trackHistory: true`
+```
+
+- **数据库**会得到一列，以及它的索引和约束。
+- **REST API** 在每次写入时校验该字段，并在读取时返回它（[REST API](./rest-api)）。
+- **UI** 根据类型选择表单控件和列表列。
+- **AI Builder** 知道该询问什么，因为类型就是其工具的参数 schema。
+- **审计**在开启 `trackHistory` 时记录该字段的变更。
+
+## 示例 [#examples]
+
+**选择** —— `select` 字段的选项：
+
+```ts
+// Keys of a `select` field; its other keys are omitted.
+options: [
+  { value: 'low',    label: 'Low' },
+  { value: 'high',   label: 'High',   color: '#e02' },
+  { value: 'urgent', label: 'Urgent', color: '#c00' }
+]
+```
+
+**关系** —— 指向客户的查找，选择器收窄为活动的客户：
+
+```ts
+// One field.
+{
+  type: 'lookup',
+  reference: 'account',                       // target object name
+  lookupFilters: [                            // narrow the lookup picker
+    { field: 'status', operator: 'eq', value: 'active' }
+  ],
+  deleteBehavior: 'set_null'                  // 'set_null' | 'cascade' | 'restrict'
+}
+```
+
+**计算值** —— 用 [CEL](./cel) 编写的公式字段：
+
+```ts
+// One field.
+{
+  name: 'profit_margin',
+  type: 'formula',
+  expression: F`(record.revenue - record.cost) / record.revenue * 100`
+}
+```
+
+**附件** —— 在服务器上检查的文件：
+
+```ts
+// One field.
+{
+  type: 'file',
+  multiple: true,                             // store an array of attachments
+  accept: ['image/png', 'image/jpeg'],        // MIME types / extensions
+  maxSize: 10_000_000                         // bytes
+}
+```
+
+## 媒体 [#media]
+
+媒体字段存储的是一个**不透明的 `sys_file` id** —— 不是 URL，也不是内联的元数据
+块。你读取记录时看到的 `{ url, name, size, mimeType, … }` 对象是展开后的形式，由
+所属的 `sys_file` 记录推导而来；`url` 来自 `/files/:fileId` 解析器。
+
+由于字节由平台持有，`accept` 和 `maxSize` 不只是给浏览器文件选择器的提示：服务器
+会依据它们重新检查每一次记录写入，所以直接调用 API 的调用者也无法绕过它们。下载
+会带有真实的文件名和内容类型，读取访问则委托给所属的对象。现有部署用
+`os migrate files-to-references` 进行转换；字节存放在哪里，参见
+[存储](/docs/configure/storage)，迁移则参见
+[17.0 发布说明](https://objectstack.ai/docs/releases/v17)。
+
+## 另请参阅 [#see-also]
+
+- [构建 → 数据模型](/docs/build/data) —— 把字段组合成对象
+- [关系](/docs/build/data/relationships) —— 查找和主从
+- [ObjectQL](./objectql) —— 查询这些字段
