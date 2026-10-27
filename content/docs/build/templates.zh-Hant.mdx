@@ -1,0 +1,108 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 模板
+seoTitle: "應用模板：可 fork 的 Helpdesk、Contracts、Todo"
+description: 可 fork 的入門包 —— `todo`、`contracts`、`procurement`、`helpdesk` 等等。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 463d4f0100a6c89aa409bc10e01a61663dd4d3c6937fe19376fbc7a0e24145f8
+  guide_rev: 1
+  mode: auto
+---
+
+模板是**可 fork 的入門包**。每一個都是一個真實的、成形的應用，你可以從
+市場一鍵安裝，也可以用 CLI 克隆下來，得到一個可供擴充套件的 TypeScript 程式碼庫。
+
+模板的存在有兩個原因：
+
+1. **展示，而不是講述** —— 一個能用的多物件應用比文件讀起來更快。
+2. **給工程團隊一個起點** —— 當你想把程式碼納入原始碼管理，而不只是資料庫裡
+   由 AI 生成的後設資料時。
+
+## 預設目錄中包含什麼 [#what-ships-in-the-default-catalog]
+
+| 模板 | 領域 | 可 fork 作為……的起點 |
+|---|---|---|
+| **`todo`** | 任務與專案 | 任何"要做的事，以某種方式分組"的工具 |
+| **`contracts`** | 帶 AI 條款提取的合同生命週期管理 | 審批 + 文件 AI |
+| **`procurement`** | 供應商、採購訂單、三單匹配 | 審批鏈 + 收貨 |
+| **`compliance`** | SOC 2 / ISO 27001 控制項 | 證據收集流程 |
+| **`helpdesk`** | AI 優先的客戶支援 | 工單 + SLA + AI 副駕駛 |
+| **`content`** | 編輯日曆 + 渠道 ROI | 生命週期 + 指標 |
+| **`hr`** | 通訊錄、組織架構圖、休假 | 以人為中心的應用 |
+| **`project`** | 專案 / 任務 / 里程碑跟蹤 | 專案管理工具 |
+
+原始碼：[github.com/objectstack-ai/templates](https://github.com/objectstack-ai/templates)。
+Apache-2.0。無需詢問即可 fork。
+
+## 30 秒安裝（零程式碼） [#install-in-30-seconds-zero-code]
+
+在 ObjectOS 中：
+
+1. 開啟 **Marketplace**（市場）→ 搜尋該模板。
+2. 點選 **Install**（安裝）。
+3. 重新整理 —— 新應用會出現在你的導航中。
+
+完成。記錄、檢視、流程、許可權 —— 全部上線。
+
+## 作為程式碼庫 fork（面向工程師） [#fork-as-a-codebase-for-engineers]
+
+```bash
+npm create objectstack@latest my-app
+cd my-app
+pnpm install
+pnpm dev
+```
+
+腳手架會讓每個專案都從它的 `blank` 模板開始。它不再按名稱拉取內容模板：
+在 ObjectStack 17.7 上，`--template todo` 會因已退役而被拒絕。
+
+專案是一個自包含的 pnpm 包 —— `*.object.ts`、`*.view.ts`、`*.flow.ts`
+檔案，你可以編輯、lint、測試、提交。當你滿意時：
+
+```bash
+pnpm build
+os package publish   # → your marketplace
+```
+
+安裝你的 fork 的客戶得到的是**你的**品牌和**你的**修改。
+
+## 模板章程（社會契約） [#template-charter-the-social-contract]
+
+每個模板都附帶一份 `CHARTER.md`，宣告它的範圍和硬性限制 —— 通常是：
+≤ 6 個業務物件、`src/` 下 ≤ 2,500 行程式碼、一個應用、一種預設語言。這份
+章程的存在是為了讓模板保持為**模板**，而不是半成品。如果一個 fork 超出了
+這些限制，就把它作為一個新模板釋出，而不要讓已有的模板膨脹。
+
+檔案字尾協議（`*.object.ts`、`*.state.ts`、`*.hook.ts` ……）、編寫順序
+（物件 → 狀態 → 鉤子 → 檢視 → 流程 → ……），以及你應該複用而不是重新發明
+的多型平臺服務（`sys_comment`、`sys_attachment`、`sys_audit_log`），見上游
+的 [TEMPLATE_GUIDE.md](https://github.com/objectstack-ai/templates/blob/main/TEMPLATE_GUIDE.md)。
+
+## 選擇一個起點 [#pick-a-starting-point]
+
+| 如果你在構建…… | Fork 這個 | 為什麼 |
+|---|---|---|
+| 任何跟蹤"東西"的內部工具 | `todo` | 最小、最乾淨地展示了所有基本元素 |
+| 任何帶審批鏈的東西 | `procurement` 或 `contracts` | 接好了真實的審批流程 |
+| 任何面向客戶且帶 AI 的東西 | `helpdesk` | Agent + 工單副駕駛模式 |
+| 受監管行業的業務流程 | `compliance` | 審計 + 證據 + 控制對映 |
+| 人員 / 組織架構應用 | `hr` | 通訊錄 + 彙報結構 |
+
+## AI Builder 與模板配合使用 [#ai-builder--templates-together]
+
+你可以 fork 一個模板，**仍然**在它之上使用 AI Builder。安裝 `helpdesk`，
+然後說：
+
+> *"給 `hd_ticket` 新增一個 `csat_score` 整數字段，範圍 1–5，在關閉時
+> 詢問。"*
+
+AI 會就地擴充套件已安裝的包。這個變更是你部署中的即時後設資料，像任何其他
+AI Builder 變更一樣經過批准；它不會自己迴流到模板的原始碼倉庫。
+
+## 下一步 [#where-to-go-next]
+
+- [AI Builder](/docs/build/ai-builder) —— 通過對話擴充套件任何模板
+- [包](/docs/build/packages) —— 模板實際上是什麼
+- [市場](/docs/build/marketplace) —— 分發你的 fork
+- [在本地執行 ObjectOS Community](/docs/start/community) —— 開發者路徑的完整端到端演示

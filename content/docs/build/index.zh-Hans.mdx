@@ -1,0 +1,68 @@
+---
+title: 构建
+seoTitle: "构建应用：AI 对话、Studio 表单或模板"
+description: 应用在 ObjectOS 中是如何诞生的 —— 与 AI 对话、在 Studio 中点选表单，或者 fork 一个模板。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: a4c1dc21dbbfcf386995724063bb871474f3f5487259af000a7779e9e21c4916
+  guide_rev: 1
+  mode: auto
+---
+
+在 ObjectOS 中构建，就是编写你的[本体](/docs/ontology) —— 它的核心（对象
+和字段、关系、动作、权限、流程、Agent），以及人们借以看到它的投影（视图、
+仪表盘、应用）。大多数人并不手写这些元数据：**他们描述自己想要什么，由
+AI Builder 来编写。** 共有三条路径，按大多数人实际使用平台的方式排序：
+
+| 路径 | 面向谁 | 产出 |
+|---|---|---|
+| **[AI Builder](/docs/build/ai-builder)**（首选） | 业务用户、产品负责人，任何人 | 你租户中的实时元数据，排队等待批准 |
+| **点选构建**（备选） | 更喜欢 Studio 表单的管理员 | 同样的实时元数据 |
+| **[模板 fork](/docs/build/templates)**（开发者路径） | 想把代码纳入源码管理的工程师 | 通过市场交付的 TypeScript 包 |
+
+三条路径编写的都是**同一个本体** —— 同样的对象、字段、关系、动作、权限和
+流程，以及同样的投影 —— 而且每条路径在任何东西运行之前都要通过同一道
+校验关口：`@objectstack/spec` 模式和 `os validate` 运行的编写规则，运行时
+也会把它们应用到来自 AI Builder 或 Studio 的每一次元数据写入上。参见
+ObjectStack 文档中的
+[校验元数据](https://objectstack.ai/docs/deployment/validating-metadata)。
+
+## 平台词汇 [#the-platform-vocabulary]
+
+每个应用都由同一组基本元素组成。学一次就够了。
+
+| 概念 | 它是什么 | 文档 |
+|---|---|---|
+| **[包](/docs/build/packages)** | 组织单元 —— `com.acme.crm`，有版本、可安装 | 包 |
+| **[数据模型](/docs/build/data)** | 对象 + 字段 + 关系 + 状态机 | 数据模型 |
+| **[界面](/docs/build/interface)** | 应用、视图、表单、仪表盘和页面 —— 你的用户看到的东西 | 界面 |
+| **[动作](/docs/build/interface/actions)** | 具名的操作 —— 可以从 REST 和按钮调用，在你暴露之后也可以由 AI Agent 调用；一个动作可以启动一个流程 | 动作 |
+| **[权限](/docs/configure/permissions)** | 谁可以读取、创建、编辑和删除什么 —— 权限集、记录访问、字段级安全 | 权限 |
+| **[流程](/docs/build/automation/flows)** | 声明式的业务逻辑（自动启动 / 计划 / 手动） | 流程 |
+| **[Agent](/docs/build/agents)** | 面向终端用户的 AI 助手 —— Agent → Skill → Tool | Agent |
+| **[市场](/docs/build/marketplace)** | 任何人都能一键安装的现成包 | 市场 |
+
+## 从哪里开始 [#where-to-start]
+
+1. **只是随便看看？** → 打开 ObjectOS，启动 [AI Builder](/docs/build/ai-builder)，
+   说 *"我需要跟踪带优先级、状态和负责人的客户支持工单。"*
+   不到 30 秒你就会有一个能用的对象。
+
+2. **要在上面构建一个真正的产品？** → 阅读[包](/docs/build/packages)
+   和[数据模型](/docs/build/data)，弄明白 AI 在生成什么。用 AI 起草，再手工
+   或通过对话细化，然后提交结果。
+
+3. **要替换一个 Salesforce/Retool 应用？** → Fork 最接近的
+   [市场模板](/docs/build/marketplace)，删掉你不需要的，再让 AI 补上缺口。
+
+## 你永远不需要做的事 [#what-youll-never-have-to-do]
+
+- 编写 REST 端点。平台会为每个对象生成一个。
+- 手工连接 Studio 表单。表单由模式渲染出来。
+- 编写 RBAC 检查。权限是声明出来的，而不是写代码实现的。
+- 构建管理 UI。Setup 和 Account 涵盖了系统管理和登录。
+- 生成类型。`@objectstack/spec` 从模式中派生它们。
+
+ObjectOS 在这一点上是刻意有主见的：**一旦元数据存在，每一个界面（REST、
+UI、ObjectQL、审计、AI 工具）都会免费出现。** 这就是 AI Builder 能工作的
+原因 —— 它只需要产出元数据，其余的由平台处理。

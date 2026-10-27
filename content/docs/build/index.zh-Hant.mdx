@@ -1,0 +1,69 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 構建
+seoTitle: "構建應用：AI 對話、Studio 表單或模板"
+description: 應用在 ObjectOS 中是如何誕生的 —— 與 AI 對話、在 Studio 中點選表單，或者 fork 一個模板。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: a4c1dc21dbbfcf386995724063bb871474f3f5487259af000a7779e9e21c4916
+  guide_rev: 1
+  mode: auto
+---
+
+在 ObjectOS 中構建，就是編寫你的[本體](/docs/ontology) —— 它的核心（物件
+和欄位、關係、動作、許可權、流程、Agent），以及人們藉以看到它的投影（檢視、
+儀表盤、應用）。大多數人並不手寫這些後設資料：**他們描述自己想要什麼，由
+AI Builder 來編寫。** 共有三條路徑，按大多數人實際使用平臺的方式排序：
+
+| 路徑 | 面向誰 | 產出 |
+|---|---|---|
+| **[AI Builder](/docs/build/ai-builder)**（首選） | 業務使用者、產品負責人，任何人 | 你租戶中的即時後設資料，排隊等待批准 |
+| **點選構建**（備選） | 更喜歡 Studio 表單的管理員 | 同樣的即時後設資料 |
+| **[模板 fork](/docs/build/templates)**（開發者路徑） | 想把程式碼納入原始碼管理的工程師 | 通過市場交付的 TypeScript 包 |
+
+三條路徑編寫的都是**同一個本體** —— 同樣的物件、欄位、關係、動作、許可權和
+流程，以及同樣的投影 —— 而且每條路徑在任何東西執行之前都要通過同一道
+校驗關口：`@objectstack/spec` 模式和 `os validate` 執行的編寫規則，執行時
+也會把它們應用到來自 AI Builder 或 Studio 的每一次後設資料寫入上。參見
+ObjectStack 文件中的
+[校驗後設資料](https://objectstack.ai/docs/deployment/validating-metadata)。
+
+## 平臺詞彙 [#the-platform-vocabulary]
+
+每個應用都由同一組基本元素組成。學一次就夠了。
+
+| 概念 | 它是什麼 | 文件 |
+|---|---|---|
+| **[包](/docs/build/packages)** | 組織單元 —— `com.acme.crm`，有版本、可安裝 | 包 |
+| **[資料模型](/docs/build/data)** | 物件 + 欄位 + 關係 + 狀態機 | 資料模型 |
+| **[介面](/docs/build/interface)** | 應用、檢視、表單、儀表盤和頁面 —— 你的使用者看到的東西 | 介面 |
+| **[動作](/docs/build/interface/actions)** | 具名的操作 —— 可以從 REST 和按鈕呼叫，在你暴露之後也可以由 AI Agent 呼叫；一個動作可以啟動一個流程 | 動作 |
+| **[許可權](/docs/configure/permissions)** | 誰可以讀取、建立、編輯和刪除什麼 —— 許可權集、記錄訪問、欄位級安全 | 許可權 |
+| **[流程](/docs/build/automation/flows)** | 宣告式的業務邏輯（自動啟動 / 計劃 / 手動） | 流程 |
+| **[Agent](/docs/build/agents)** | 面向終端使用者的 AI 助手 —— Agent → Skill → Tool | Agent |
+| **[市場](/docs/build/marketplace)** | 任何人都能一鍵安裝的現成包 | 市場 |
+
+## 從哪裡開始 [#where-to-start]
+
+1. **只是隨便看看？** → 開啟 ObjectOS，啟動 [AI Builder](/docs/build/ai-builder)，
+   說 *"我需要跟蹤帶優先順序、狀態和負責人的客戶支援工單。"*
+   不到 30 秒你就會有一個能用的物件。
+
+2. **要在上面構建一個真正的產品？** → 閱讀[包](/docs/build/packages)
+   和[資料模型](/docs/build/data)，弄明白 AI 在生成什麼。用 AI 起草，再手工
+   或通過對話細化，然後提交結果。
+
+3. **要替換一個 Salesforce/Retool 應用？** → Fork 最接近的
+   [市場模板](/docs/build/marketplace)，刪掉你不需要的，再讓 AI 補上缺口。
+
+## 你永遠不需要做的事 [#what-youll-never-have-to-do]
+
+- 編寫 REST 端點。平臺會為每個物件生成一個。
+- 手工連線 Studio 表單。表單由模式渲染出來。
+- 編寫 RBAC 檢查。許可權是宣告出來的，而不是寫程式碼實現的。
+- 構建管理 UI。Setup 和 Account 涵蓋了系統管理和登入。
+- 生成型別。`@objectstack/spec` 從模式中派生它們。
+
+ObjectOS 在這一點上是刻意有主見的：**一旦後設資料存在，每一個介面（REST、
+UI、ObjectQL、審計、AI 工具）都會免費出現。** 這就是 AI Builder 能工作的
+原因 —— 它只需要產出後設資料，其餘的由平臺處理。

@@ -1,0 +1,179 @@
+---
+title: AI Builder
+seoTitle: "AI Builder：用自然语言对话构建应用"
+description: 内置的对话助手，把自然语言描述的需求变成可运行的元数据。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 4a5f486349b0a22089aeb196c15539432e0e527743574d6b16a309b6dd874891
+  guide_rev: 1
+  mode: auto
+---
+
+AI Builder 是**客户扩展 ObjectOS 的首要方式**。打开 ObjectOS，用自然语言
+与助手对话，它就会为你构建元数据 —— 包、对象、字段、动作、流程。每次
+变更在上线之前都会排进一个人工审批（Human-in-the-Loop，HITL）列表。
+
+## 30 秒试一试 [#try-it-in-30-seconds]
+
+```
+You: I need to track customer support tickets.
+     Each ticket has a subject, description, priority (low/medium/high/urgent),
+     status (new/open/pending/resolved/closed), and assignee.
+
+AI:  I'll create that for you. Here's the plan:
+     • Create package `com.you.support` (v0.1.0)
+     • Create object `support_ticket` with 5 fields
+     • Add a kanban view grouped by status
+     • Add 3 permission sets: agent, manager, viewer
+
+     Approve? [Yes] [Modify] [Cancel]
+
+You: [Yes]
+
+AI:  ✓ Package created
+     ✓ Object created with 5 fields and 12 indexes
+     ✓ Kanban view registered
+     ✓ Permission sets created
+     Done. Try it: /support_ticket
+```
+
+现在你就有了一个能用的工单应用 —— REST 端点、生成的视图、审计日志记录、
+权限检查点，应有尽有。没有编辑任何文件；也没有发生重启。
+
+## AI 能做什么 [#what-the-ai-can-do]
+
+助手可以使用一组**内置的元数据工具**，它们全部带有命名空间，并按
+`@objectstack/spec` 进行校验：
+
+| 类别 | 工具 | 它做什么 |
+|---|---|---|
+| **包** | `create_package` | 新建一个带清单和版本的容器 |
+| | `list_packages` | 浏览已有的包 |
+| | `get_package` / `get_active_package` | 查看内容 |
+| | `set_active_package` | 为本次对话选择工作包 |
+| **对象** | `create_object` | 新建一个带初始字段的对象 |
+| | `list_objects` | 浏览当前包中的对象 |
+| | `describe_object` | 打印模式、字段、关系 |
+| **字段** | `add_field` | 添加一个有类型的字段（常见的[字段类型](/docs/reference/field-types)） |
+| | `modify_field` | 修改标签、选项列表、校验 |
+| | `delete_field` | 删除一个字段（带安全检查） |
+| **数据** | `query_data` | 通过 ObjectQL 读取记录 |
+| **动作 / 知识** | `action_<name>`、`search_knowledge` | 调用暴露给 AI 的动作、对文档做 RAG |
+
+此外，作者**暴露给 AI** 的每个动作都会对应一个 `action_<name>` 工具 ——
+条件是 `ai: { exposed: true }`、`ai.description` 至少 40 个字符，并且类型是
+无需 UI 即可运行的（`script`、`flow` 或 `api`）。动作一旦被暴露，AI 就能像
+调用任何内置工具一样调用它；没有被暴露的动作永远不会成为工具。参见
+[动作](/docs/build/interface/actions#from-an-ai-agent)。
+
+运行时查看完整的工具目录：`GET /api/v1/ai/tools`。
+
+## 人工审批（Human-in-the-Loop） [#human-in-the-loop-approval]
+
+会**修改元数据**的工具调用会经过一个待处理动作队列。审批人员在点击
+*Approve* 之前会看到所提议变更的 diff。
+
+| 端点 | 用途 |
+|---|---|
+| `GET  /api/v1/ai/pending-actions` | 列出排队中的动作（可按状态过滤） |
+| `GET  /api/v1/ai/pending-actions/:id` | 单个提议动作的 diff |
+| `POST /api/v1/ai/pending-actions/:id/approve` | 应用变更 |
+| `POST /api/v1/ai/pending-actions/:id/reject` | 附上理由并丢弃 |
+
+所需权限：
+
+| 操作 | 权限 |
+|---|---|
+| 读取队列 | `ai:read` |
+| 批准 / 拒绝 | `ai:approve` |
+
+默认情况下，只有 **Setup Administrator** 的成员拥有 `ai:approve`。你可以在
+[权限集](/docs/configure/permissions/permission-sets)中进一步细分 —— 例如
+"产品负责人可以在 `com.acme.crm` 中批准，其他人都不行。"
+
+这个队列是可审计的：每一次批准/拒绝都会连同发起对话的 id 记入
+`sys_audit_log`。
+
+## 对话与上下文 [#conversations-and-context]
+
+每次聊天都是一条 `ai_conversations` 记录。平台会跟踪：
+
+- **当前包** —— 由 `set_active_package` 设置。新的对象 / 字段会落在这里。
+- **技能** —— 当前上下文可用的工具子集（例如在 `support_ticket` 详情页
+  中，AI 可能启用了针对 `support_ticket` 的技能）。
+- **知识** —— 附加在对话上的 RAG 主题和索引。
+
+```text
+POST /api/v1/ai/assistant/chat
+{
+  "messages": [{ "role": "user", "content": "Add a tags field to support_ticket" }],
+  "context":  { "objectName": "support_ticket", "recordId": "tkt_123" }
+}
+```
+
+平台会为当前应用解析出默认的 Agent，按上下文过滤技能集，然后让 LLM 选择
+调用哪个工具。你不需要把 Agent 预先接到特定的 UI 上 —— Agent 会根据
+元数据自行挂载。
+
+## 你可以提出什么要求 [#what-you-can-ask-for]
+
+经过验证的模式，每个配一句提示：
+
+| 目标 | 提示 |
+|---|---|
+| 新对象 | *"创建一个 `product` 对象，包含 name、sku、price、category。"* |
+| 添加字段 | *"给 `order` 添加一个 `discount` 小数字段，最大 50。"* |
+| 修改选项列表 | *"在 `task.status` 上，在 'open' 和 'done' 之间加入 'blocked'。"* |
+| 索引 | *"为仪表盘给 `order` 按 status + created_at 建索引。"* |
+| 关系 | *"让 `order_line` 与 `order` 建立主从关系。"* |
+| 校验 | *"在 `invoice` 上，折扣不能超过小计。"* |
+| 流程 | *"当一个高优先级工单在 'new' 状态停留 30 分钟时，通知经理。"* |
+| 动作 | *"创建一个动作 `approve_invoice`，把状态设为 approved。"* |
+| 权限集 | *"创建 `agent` 权限集，对 support_ticket 有读/建/改权限，对 customer 有读权限。"* |
+| 翻译 | *"把 support_ticket 的标签和选项列表翻译成西班牙语。"* |
+
+如果 AI 做不到，它会直说 —— 并给你指出手动的路径（通常是一个 30 行的
+`*.ts` 文件或一个表单）。
+
+## 实时预览 [#live-preview]
+
+每次批准变更之后，ObjectOS 会就地重新渲染受影响的视图。无需刷新。运行时
+会热加载被改动的包的新元数据；之后的请求都会使用它。
+
+## 回滚 [#roll-back]
+
+待处理动作记录保留了**变更前的状态**。如果某次变更出了问题，拒绝所有
+进行中的事项，然后对 AI 说：
+
+```
+You: Roll back the last 3 changes to support_ticket.
+AI:  Found 3 mutations from conversation conv_abc (3 minutes ago).
+     Restoring 'support_ticket' to its state at 13:42:11.
+     Approve? [Yes]
+```
+
+对于更大规模的回滚，针对你最后一个已知良好的产物使用
+[`os diff`](/docs/reference/cli)，并应用反向的 diff。
+
+## 局限（目前） [#limitations-today]
+
+- **数据访问遵循操作者自己的权限。** 助手以已登录用户的身份运行，所以它
+  只能读写该用户本来就被允许接触的记录。大多数团队让助手专注于元数据，
+  只让它查询 —— 而不修改 —— 客户数据。
+- **跨包的修改需要明确确认。** 要求 AI 修改系统包（`sys_*`）会得到一条
+  拒绝消息 —— 平台在原则上拒绝这样做。
+- **长时间运行的多步计划**（例如"从零构建一个完整的 HR 应用"）可以
+  工作，但最好拆成一系列较小的对话，每次落地一两个对象。
+
+## 超越构建期的 AI [#going-beyond-build-time-ai]
+
+同一套 AI 基础设施也为你的终端用户驱动**运行时 Agent** —— 支持助手、
+销售副驾驶、内部问答机器人 —— 它们构建在同样的 Agent → Skill → Tool
+架构上。参见 [Agent](/docs/build/agents)。
+
+## 下一步 [#where-to-go-next]
+
+- [Agent](/docs/build/agents) —— 构建在你的数据之上的终端用户助手
+- [数据模型](/docs/build/data) —— AI 实际上在生成什么
+- [动作](/docs/build/interface/actions) —— AI 作为运行时工具暴露的单元
+- [AI 服务](/docs/configure/ai) —— 提供商配置（OpenAI / Anthropic / Google / DeepSeek / ……）
