@@ -100,6 +100,10 @@ node .github/scripts/check-translations.mjs --worklist  # what the next pass wil
 - Don't hand-write a `.zh-Hant.mdx` sibling either. It is generated from the `.zh-Hans.mdx` file and CI fails on any hand edit.
 - Don't hand-edit a `*.<locale>.mdx` file, and don't "just fix" one while you're in there. Fix the English source instead.
 
+## Upstream pins
+
+`.objectstack-sha` and `.cloud-sha` at the repository root each hold one full commit SHA: the commit of `objectstack-ai/objectstack` and of `objectstack-ai/cloud` this site was last aligned to. The objectstack pin moves when an `@objectstack/cli` release is published, to the commit its release tag names; the cloud pin moves after a successful cloud production deploy, to the commit that deploy serves — never on a merge to cloud's `main`. ⛔ Don't edit a pin by hand: `.github/workflows/bump-upstream-docs.yml` (run by hand, or a `repository_dispatch` of type `bump-upstream-docs` with `{ upstream, sha }`) moves one pin and opens a PR whose body lists the upstream commits and changed paths since the previous pin — objectstack: `content/docs`, `docs/releases`, `CHANGELOG.md`; cloud: `CHANGELOG.md`, `.changeset/`. That list is the alignment review's input: update the English pages it affects before the pin lands. `.cloud-sha` holds the placeholder `unpinned` until its first bump, which records a commit and lists nothing. The rules live in the header of `.github/scripts/bump-upstream-pin.mjs`.
+
 ## Commands
 
 From `apps/docs/`:
