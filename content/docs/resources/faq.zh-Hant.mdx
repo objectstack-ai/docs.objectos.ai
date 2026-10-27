@@ -1,0 +1,249 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 常見問題
+seoTitle: "常見問題：上手、多租戶、定價和許可"
+description: 關於 ObjectOS 的常見問題 —— 上手、資料庫與多租戶、遷移、許可權、整合、運維、定價和許可。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: a04083fa1854e4094b8d7487ba533efd4b0fdc6a14425451ab84b21f739465d7
+  guide_rev: 1
+  mode: auto
+---
+
+## 上手 [#getting-started]
+
+### 試用 ObjectOS 最快的方式是什麼？ [#whats-the-absolute-fastest-way-to-try-objectos]
+
+登入 [ObjectOS Cloud](https://www.objectos.ai) —— 託管在瀏覽器中，無需安裝任何東西。
+如果要改為在你自己的機器上執行開源的 ObjectStack 執行時，執行
+`npm i -g @objectstack/cli && os start`，然後開啟 http://localhost:3000。參見
+[在本地執行 ObjectOS Community](/docs/start/community)。
+
+### 我需要 Docker 嗎？ [#do-i-need-docker]
+
+不需要。ObjectOS Cloud 不需要安裝任何東西。對於開放的執行時，Node 22+ 和 CLI 就
+足夠了；Docker 是自管理生產部署的推薦形態。
+
+### 我需要資料庫嗎？ [#do-i-need-a-database]
+
+不需要，至少開始時不需要 —— ObjectOS Cloud 由我們為你管理，開放的執行時預設使用
+本地 SQLite。自管理的部署在進入生產環境時換用 Postgres / MySQL / Turso / Mongo。
+
+### 我需要賬戶 / 雲服務嗎？ [#do-i-need-an-account--cloud-service]
+
+ObjectOS Cloud *就是*賬戶：登入即可構建。ObjectOS Enterprise 是自管理的，執行時
+不需要任何雲服務 —— 把它連線到控制平面是可選的。開源的 ObjectStack 執行時則完全
+不需要賬戶。
+
+## 本體 [#the-ontology]
+
+### ObjectOS 所說的本體是什麼意思？ [#what-does-objectos-mean-by-ontology]
+
+你的應用的定義：它的物件和欄位、關係、動作、許可權、流程，以及 Agent 和工具的定義，
+作為一個由執行時執行的、帶型別且有版本的 ObjectStack 後設資料整體。檢視、儀表盤、
+應用和翻譯是它的投影，而不是它的一部分。它是可執行的 —— 先校驗，再執行 —— 而不是
+帶有繼承、公理和推理機的知識本體。參見[ObjectOS 中你的本體](/docs/ontology)。
+
+### ObjectOS 是語義層嗎？ [#is-objectos-a-semantic-layer]
+
+不是。語義層對映已經存在的系統，以便查詢它們；它描述業務，卻不執行業務。ObjectOS
+執行你的本體：資料庫、REST API、UI 和 Agent 工具都由它推導而來。你可以把一個已在
+執行的資料庫連線為外部資料來源 —— 預設只讀，且仍處於早期階段 —— 那個記錄系統會留在
+原處。參見[擴充套件現有系統](/docs/build/extend-existing-systems)，以及並排比較的
+[How ObjectStack compares](https://objectstack.ai/docs/concepts/compare)。
+
+## 架構 [#architecture]
+
+### 我可以使用 Postgres / MySQL / MongoDB 嗎？ [#can-i-use-postgres--mysql--mongodb]
+
+可以 —— Postgres、MySQL、SQLite、Turso/libSQL 和 MongoDB 都是受支援的驅動。參見
+[執行時配置](/docs/configure/runtime)。
+
+### 我可以停用 UI / Account 門戶，只使用 REST API 嗎？ [#can-i-disable-the-ui--account-portals-and-use-only-the-rest-api]
+
+可以。執行 `os start --no-ui` 或設定相應的引數。無論是否掛載 UI，REST API 都是
+一樣的。
+
+### 我可以用自己的前端代替生成的 UI 嗎？ [#can-i-use-my-own-front-end-instead-of-the-generated-ui]
+
+可以。生成的 UI 使用的就是你會在自己程式碼中呼叫的 `/api/v1/*` 端點。使用
+`@objectstack/client` SDK 或任何 HTTP 客戶端即可。
+
+### ObjectOS 支援 GraphQL 嗎？ [#does-objectos-support-graphql]
+
+不支援。REST 是 API 介面。GraphQL 端點已在 ObjectStack 17.0 中移除 —— 它在路由
+背後從未被實現過，`/graphql` 現在返回 404。請使用生成的 REST API 配合
+[ObjectQL](/docs/reference/objectql) 查詢語言（通過 `?filter=` / `?sort=` /
+`?expand=`），它覆蓋了同樣的場景。說 GraphQL 的第三方系統不受影響：`graphql` 仍是
+*外部*資料來源的有效協議，那是對別人的 API 的客戶端，而不是 ObjectOS 提供的介面。
+
+### 多租戶是如何處理的？ [#how-is-multi-tenancy-handled]
+
+一個部署針對一個數據庫提供一個應用 —— 參見[架構](/docs/architecture)。多個組織可以
+共享這個部署：**隔離牆式**租戶姿態（`OS_TENANCY_POSTURE`）會豎起按組織隔離的
+隔離牆，它是一項需許可證的能力，沒有許可證時執行時會拒絕啟動。隔離牆隔開的是各組織
+的資料和成員資格，而不是後設資料 —— 模式的作用域是部署，而不是組織，這就是為什麼
+隔離牆式部署還必須宣告掛載哪些 AI Agent。比隔離牆更強的隔離就是部署分離：必須擁有
+自己資料庫的客戶，就得到自己的部署。參見
+[多組織部署](/docs/reference/environment-variables#multi-organization-deployments)。
+
+### ObjectOS 能在 serverless / Lambda 環境中執行嗎？ [#can-objectos-run-in-a-serverless--lambda-environment]
+
+執行時是一個長期執行的 Node 程序 —— 為容器或虛擬機器設計，而不是無狀態函式。核心在
+啟動時構建，程序在那之後才報告就緒；這種預熱的程序內狀態以及 Better Auth 的會話
+模型，正是按呼叫執行的函式無法保留的。
+
+### 它能水平擴充套件嗎？ [#does-it-scale-horizontally]
+
+可以。在負載均衡器後面執行多個例項。會話存放在資料庫中（而不是記憶體中），所以任何
+例項都能處理任何請求。如果你啟用了共享速率限制和佇列能力，請使用 Redis。
+
+## 資料與遷移 [#data--migrations]
+
+### 模式遷移是如何處理的？ [#how-are-schema-migrations-handled]
+
+驅動在啟動時把資料庫模式同步到你宣告的物件。對於 Postgres，就是 `CREATE TABLE` /
+`ALTER TABLE` 語句。對於受監管環境中需要受控的遷移，設定 `OS_SKIP_SCHEMA_SYNC=1`
+並自行管理 DDL。
+
+### 重新命名欄位時資料會怎樣？ [#what-happens-to-data-when-i-rename-a-field]
+
+重新命名在資料層是一種破壞性變更（看起來像"刪除舊列、新增新列"）。用 `os diff` 檢測
+它，並新增一個遷移步驟（在部署新產物之前在資料庫中重新命名列）。
+
+### 我可以從 CSV / Excel / Salesforce 匯入資料嗎？ [#can-i-import-data-from-csv--excel--salesforce]
+
+CSV：可以，通過迴圈呼叫 `os data create`，或使用 UI 中的批次上傳。Salesforce：目前
+最好的路徑是匯出為 CSV 再匯入。原生聯結器已在路線圖上。
+
+### 升級 ObjectOS 會丟失我的資料嗎？ [#will-upgrading-objectos-lose-my-data]
+
+不會。補丁和次版本升級是非破壞性的。主版本升級（例如 4 → 5）會明確記錄所需的
+遷移。先備份 —— [備份與災難恢復](/docs/operate/backup)。
+
+## 許可權與多租戶 [#permissions--multi-tenancy]
+
+### 如何實現行級安全？ [#how-do-i-do-row-level-security]
+
+在物件的 `recordAccess` 配置上宣告一條共享規則（宣告式的，類似 Salesforce）或一個
+CEL 謂詞。安全外掛會在每個查詢上注入相應的過濾條件。參見
+[許可權](/docs/configure/permissions)。
+
+### 我可以讓某些欄位對特定使用者不可見嗎？ [#can-i-make-some-fields-invisible-to-certain-users]
+
+可以 —— 使用許可權集中的欄位級安全。按欄位、按許可權集設為隱藏或只讀。在 REST、
+ObjectQL 和 UI 中統一強制執行。參見[許可權集](/docs/configure/permissions/permission-sets)。
+
+### 如何整合 Okta / Entra / Keycloak？ [#how-do-i-integrate-okta--entra--keycloak]
+
+使用 OIDC。在 **Setup → Authentication** 中（或通過環境變數）配置發現 URL + 客戶端
+id/金鑰。提供商回撥 URL 為 `/api/v1/auth/oauth2/callback/<provider-id>`。參見
+[認證](/docs/configure/authentication)。
+
+## 整合 [#integrations]
+
+### 我可以傳送 webhook 嗎？ [#can-i-send-webhooks]
+
+可以 —— 在 `requires` 中啟用 `webhooks`。ObjectOS 使用帶 HMAC-SHA256 簽名的持久化
+發件箱。參見 [Webhook](/docs/configure/webhooks)。
+
+### 我可以與 Zapier / Make / n8n 整合嗎？ [#can-i-integrate-with-zapier--make--n8n]
+
+可以 —— 出站用 webhook，入站用 REST API + API 金鑰。面向常用 iPaaS 工具的原生連線
+器已在路線圖上。
+
+### AI Agent 可以呼叫我的 ObjectOS 嗎？ [#can-ai-agents-call-my-objectos]
+
+可以。每個 ObjectOS 部署都是位於 `/api/v1/mcp` 的 MCP 伺服器，預設開啟：每個物件都
+是一個工具，其作者暴露給 AI（`ai.exposed`）的每個動作也是。Claude Code、Claude
+Desktop、IDE 或任何其他 MCP 客戶端都以某個使用者的身份連線，每次呼叫都以該使用者的身份
+執行，受與人相同的許可權和審計約束。開源的 ObjectStack 執行時提供同樣的 MCP 介面，
+使用你自己的模型；ObjectOS 增加了產品內 AI —— AI Builder 以及與你的使用者對話的
+助手。參見[接入 AI 工具（MCP）](/docs/configure/mcp)。
+
+## 定製 [#customization]
+
+### 我可以編寫自定義外掛嗎？ [#can-i-write-custom-plugins]
+
+可以 —— 外掛遵循簡單的 DI + 生命週期模式（`init → start → destroy`）。示例參見
+GitHub 上的 `@objectstack/plugin-*` 包。
+
+### 我可以定製 ObjectOS 的外觀嗎？ [#can-i-customize-how-objectos-looks]
+
+品牌（logo、強調色、預設主題）位於 **Setup → System Settings**。深度的 UI 定製意味著
+fork `@objectstack/client-react`，或基於 REST API 構建你自己的前端。
+
+### 我可以新增英語以外的語言嗎？ [#can-i-add-languages-other-than-english]
+
+可以 —— i18n 是一等功能。使用 `os i18n extract` / `os i18n check`，併發佈一個翻譯包。
+
+## 運維 [#operations]
+
+### 推薦的生產部署是什麼？ [#whats-the-recommended-production-deployment]
+
+Docker（多 Pod 時用 Kubernetes）+ 託管的 Postgres + 用於檔案的 S3 或 R2 + 存放
+`OS_AUTH_SECRET` 的金鑰管理器。參見[生產就緒](/docs/operate/production)。
+
+### ObjectOS 有狀態頁嗎？ [#does-objectos-have-a-status-page]
+
+對於自管理（Enterprise）部署，狀態由你負責 —— 把你的監控指向 `/api/v1/health` 做
+存活檢查，指向 `/api/v1/ready` 做就緒檢查，也就是 [Docker](/docs/deploy/docker) 和
+[Kubernetes](/docs/deploy/kubernetes) 所接好的那一對端點。託管服務參見
+[status.objectstack.ai](https://status.objectstack.ai)。
+
+### 我應該監控哪些指標？ [#what-metrics-should-i-monitor]
+
+5xx 比率、p95 延遲、就緒狀態（`/api/v1/ready`）。沒有可以監控的認證失敗指標 —— 請改
+為在 Setup 的 `Auth` 審計檢視中審查登入活動。最簡的 Prometheus 示例見
+[可觀測性](/docs/operate/observability)。
+
+### 如何做備份？ [#how-do-i-take-a-backup]
+
+備份**資料庫**和**儲存桶** —— 它們儲存著所有客戶資料。ObjectOS 本身是無狀態的。參見
+[備份](/docs/operate/backup)。
+
+## 定價與法律 [#pricing--legal]
+
+### ObjectOS 免費嗎？ [#is-objectos-free]
+
+**ObjectOS Community** 是免費的：開源的執行時和 Console，構建在
+**[ObjectStack 框架](https://github.com/objectstack-ai/objectstack)**（Apache-2.0）
+之上 —— 沒有席位，沒有用量檔位，沒有許可證伺服器 —— 通過 MCP 使用 AI（自帶你自己的
+模型）。**ObjectOS Cloud**（有免費檔位可以起步）和 **ObjectOS Enterprise** 增加了
+嵌入式的 **UI 內 AI** + 治理以及官方運維，而你只需為 **AI 席位**付費（檢視者和不使用
+AI 的使用者免費）。參見[版本](/docs/editions/license#editions)。
+
+### 我可以在我出售的商業產品中使用它嗎？ [#can-i-use-it-in-a-commercial-product-i-sell]
+
+**ObjectStack 框架**和 **ObjectOS Community** —— 可以，Apache-2.0 允許商業使用，
+無需支付版稅。再分發 **ObjectOS Cloud 或 Enterprise**，或任何以 ObjectOS 名義的構建，
+需要 OEM 協議。參見[許可證與定價](/docs/editions/license)。
+
+### 你們收集遙測資料嗎？ [#do-you-collect-telemetry]
+
+除非你自己配置（OIDC、郵件、AI、webhook），ObjectOS Community 不會發起任何出站呼叫。
+ObjectOS Enterprise 線上校驗其許可證；企業版物理隔離許可證在離線狀態下校驗。參見
+[安全與合規](/docs/reference/security#data-residency)。
+
+### ObjectOS 符合 SOC 2 / ISO 27001 / HIPAA / GDPR 嗎？ [#is-objectos-soc-2--iso-27001--hipaa--gdpr-compliant]
+
+ObjectOS 提供每個框架都要求的**原語**（RBAC、審計、可加密、資料駐留）。認證是你的
+**部署**的屬性，而不是二進位制檔案的屬性。許多 ObjectOS 部署已經通過認證。參見
+[安全與合規](/docs/reference/security#compliance-frameworks)。
+
+## 擺脫困境 [#getting-unstuck]
+
+### 出問題了 —— 我從哪裡開始？ [#somethings-broken--where-do-i-start]
+
+`os doctor`。它自己就能捕獲 80% 的錯誤配置。之後再看[故障排查](/docs/operate/troubleshooting)。
+
+### 我在哪裡報告缺陷？ [#where-do-i-report-a-bug]
+
+[GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) —— 唯一的公開
+問題跟蹤器，適用於每個 ObjectOS 版本。請附上 `os doctor` 的輸出。安全問題：
+**security@objectstack.ai**。
+
+### 我在哪裡能得到真人的幫助？ [#where-do-i-get-help-from-humans]
+
+[GitHub Issues](https://github.com/objectstack-ai/objectstack/issues)、社群 Discord，
+或者聯絡 **sales@objectstack.ai** 獲取商業支援。

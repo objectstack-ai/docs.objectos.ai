@@ -1,0 +1,274 @@
+---
+title: 术语表
+seoTitle: "术语表：平台术语，各有一个定义"
+description: ObjectOS 和 ObjectStack 中使用的词汇 —— 每个术语一个定义。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 926190d46d41bff6cbbc425cf9ccf45e6fb26dfadfb12a7d791e2606e71163c2
+  guide_rev: 1
+  mode: auto
+---
+
+本文档中使用的每个术语都有唯一的规范定义。
+
+### 动作（Action） [#action]
+
+在元数据中声明的具名操作，可以通过 REST（`/api/v1/actions/<object>/<action>`）、
+UI 中的按钮调用，并且 —— 一旦其作者把它暴露给 AI（`ai.exposed`）—— 也可以由 Agent
+调用。调用者能否调用它，以调用者的身份检查；随后 `script` 主体作为可信的应用代码
+运行。参见[动作](/docs/build/interface/actions)。
+
+### 适配器（Adapter） [#adapter]
+
+把 ObjectStack 与宿主运行时集成的框架包 —— Express、Fastify、Hono、Next.js、
+Nuxt、SvelteKit、NestJS。大多数 ObjectOS 部署不需要它；ObjectOS 自带 HTTP 服务器。
+
+### AI 席位（AI seat） [#ai-seat]
+
+ObjectOS 的计价单位，也是每个版本中唯一计费的席位。查看者、不使用产品内 AI 的应用
+用户，以及通过 MCP 构建的开发者都是免费的。参见
+[许可证与定价](/docs/editions/license#editions)。
+
+### 应用（App） [#app]
+
+一组对象 + 视图 + 权限，呈现为一个可导航的应用。一个运行时中可以并存多个应用（例如
+CRM + Helpdesk + Setup）。
+
+### 产物（Artifact） [#artifact]
+
+一个编译后的 `objectstack.json` 文件。对应用的自包含、不可变的描述 —— 清单、对象、
+视图、应用、流程、权限、翻译。由 `os compile` 产出。ObjectOS 实际执行的就是它。
+
+### Better Auth [#better-auth]
+
+驱动 `@objectstack/plugin-auth` 的认证库。你不需要直接配置 Better Auth；插件封装
+了它。
+
+### 业务本体（Business ontology） [#business-ontology]
+
+你的应用的定义 —— 对象和字段、关系、动作、权限、流程，以及 Agent 和工具的定义 ——
+作为一个可执行、有版本的整体：以带类型的 ObjectStack 元数据编写，经过校验而不是
+推理，并由运行时运行，运行时从中推导出数据库、REST API、UI 和 MCP 工具。视图、
+仪表盘、应用和翻译是它的[投影](#projection)，而不是它的一部分。
+
+它是可执行的，而不是知识本体：没有对象继承，没有公理，没有推理机。它也不是语义层
+—— 那是覆盖在现有系统之上的只读映射，描述业务却不运行业务。无论在哪个 ObjectOS
+版本上它都属于你：导出它，就能在开源的 ObjectStack 运行时上运行。在本站参见
+[ObjectOS 中你的本体](/docs/ontology)；完整的阐述见 ObjectStack 文档中的
+[Business Ontology](https://objectstack.ai/docs/concepts/ontology)。
+
+### 能力（Capability） [#capability]
+
+产物在其 `requires` 列表中声明的可选运行时功能。对应一个包 —— 例如 `audit` →
+`@objectstack/plugin-audit`。由 ObjectOS 按需加载。参见
+[运行时能力](/docs/reference/runtime-capabilities)。
+
+### CEL [#cel]
+
+[Common Expression Language](https://github.com/google/cel-spec) —— Google 的
+安全、沙箱化的表达式语法。用于公式、验证规则、权限谓词、共享规则和流程条件。
+
+### 控制平面（Control Plane） [#control-plane]
+
+一项可选服务，向 ObjectOS 实例发布有版本的产物。以 ObjectOS Cloud 的形式托管，或
+自托管。大多数部署不需要它 —— 基于文件的模式足以支撑单应用的生产环境。
+
+### 驱动（Driver） [#driver]
+
+数据后端的实现：`driver-sql`（Postgres、MySQL、SQLite、Turso/libSQL）、
+`driver-mongodb`、`driver-memory`。在启动时通过数据库 URL 选定。
+
+### 嵌入器（Embedder） [#embedder]
+
+为 RAG / 语义搜索把文本转换为向量的服务。可在多个提供商之间插拔（OpenAI、Azure、
+硅基流动、Ollama……）。参见 [AI 服务](/docs/configure/ai)。
+
+### 环境（Environment） [#environment]
+
+部署自身的身份 —— 它以 `OS_ENVIRONMENT_ID` 报告的 id，在云绑定完成后持久保存。
+自管理的 ObjectOS 是一个**单环境**运行时：一个进程、一个环境、一个应用。持有多个
+环境，并为每个环境发布一个产物，是控制平面做的事。参见
+[环境变量](/docs/reference/environment-variables)。
+
+### 字段（Field） [#field]
+
+对象上的带类型属性。约 48 种内置类型：`text`、`select`、`lookup`、`markdown`、
+`file`、`formula`、`summary` 等。参见[数据模型](/docs/build/data)。
+
+### 流程（Flow） [#flow]
+
+声明式的业务逻辑 —— 自动启动（记录触发）、定时（cron）或手动（按钮 / API）。以带有
+条件/循环/重试/并行原语的 DAG 形式执行。参见
+[流程与自动化](/docs/build/automation/flows)。
+
+### 公式字段（Formula field） [#formula-field]
+
+一种计算字段，其值是在读取时求值的 CEL 表达式。不存储。
+
+### 钩子（Hook） [#hook]
+
+注入到对象生命周期中的函数（`beforeInsert`、`afterUpdate`……）。用 TypeScript
+编写。与流程不同：钩子是一等的代码；流程是元数据。
+
+### 内核（Kernel） [#kernel]
+
+ObjectOS 内部的微内核，负责加载插件、持有 DI 容器、分发事件，并提供部署的元数据。
+一个进程在启动时构建一个内核，在构建完成之前不会报告[就绪](/docs/deploy/docker)
+—— 所以不会有任何按请求的逻辑去决定提供哪份元数据。
+
+### 清单（Manifest） [#manifest]
+
+位于产物开头的顶层元数据：`id`、`namespace`、`version`、`type`（`app` / `plugin` /
+`service`）、`name`、`description`、`requires` 列表。
+
+### 市场（Marketplace） [#marketplace]
+
+内置的可安装应用目录。由可配置的包注册表支撑。参见[市场](/docs/build/marketplace)。
+
+### MCP（Model Context Protocol） [#mcp-model-context-protocol]
+
+一个让 AI Agent 发现和调用工具的开放协议。每个 ObjectOS 部署都是位于 `/api/v1/mcp`
+的 MCP 服务器，默认开启：每个对象都是一个工具，其作者暴露给 AI（`ai.exposed`）的
+每个动作也是。每次调用都以调用者的身份运行。参见
+[接入 AI 工具（MCP）](/docs/configure/mcp)。
+
+### 对象（Object） [#object]
+
+一个带类型的业务实体 —— `task`、`account`、`invoice`。以 TypeScript schema 声明；
+自动生成 REST API、视图、审计条目和 RBAC 检查点。参见[数据模型](/docs/build/data)。
+
+### ObjectOS [#objectos]
+
+构建在 ObjectStack 之上的运行环境，一个产品、三个版本：**ObjectOS Community** ——
+开源的运行时和 Console，在 Apache-2.0 下免费，在 objectstack 仓库中开发；
+**ObjectOS Cloud** —— 托管在浏览器中，无需安装任何东西；以及 **ObjectOS
+Enterprise** —— 需许可证，在你自己的基础设施上自管理。Cloud 和 Enterprise 按 AI
+席位计价，无论在哪个版本上，你都可以导出你的本体并在开放的运行时上运行它。
+**本文档站点是关于 ObjectOS 的。**
+
+### ObjectQL [#objectql]
+
+数据层协议和查询引擎。把声明式查询编译为原生的 SQL / Mongo 查询。REST 端点、UI、
+流程都使用它 —— 全部是同一个引擎。
+
+### ObjectStack [#objectstack]
+
+开放的技术栈，Apache-2.0：执行业务本体的协议、微内核、SDK、CLI 和生产运行时 ——
+即 `@objectstack/*` npm 包和运行时镜像。ObjectOS 是构建在它之上的运行环境：
+ObjectOS Community 就是这个开放的运行时和 Console，采用同样的 Apache-2.0 许可，
+而 ObjectOS Cloud 和 ObjectOS Enterprise 是建立在其上的商业版本。
+
+### ObjectUI [#objectui]
+
+视图层协议 —— 应用、视图、页面、仪表盘、动作、图表、导航。ObjectOS 渲染 ObjectUI
+声明。
+
+### 权限集（Permission Set） [#permission-set]
+
+一组授权 —— 对象权限、字段权限、系统权限。直接附加到用户，或通过岗位附加。是主要的
+授权单元。参见[权限](/docs/configure/permissions)。
+
+### 插件（Plugin） [#plugin]
+
+用一项能力扩展运行时的框架包 —— `plugin-auth`、`plugin-security`、
+`plugin-audit`、`plugin-webhooks`、`mcp` 等。通过 DI + 生命周期钩子
+（`init → start → destroy`）激活。
+
+### 岗位（Position） [#position]
+
+用户所担任的职能 —— "Sales Manager"、"Support Agent"、"Auditor"。从 ObjectStack
+13 起唯一的人员分组概念，并且有意设计为扁平的：汇报结构改为放在业务单元树上。岗位
+把应用和标签页定向到某个受众、指定审批人，并把权限集分配给担任它的每个人。参见
+[岗位](/docs/configure/permissions/positions)。
+
+### 项目（Project） [#project]
+
+**环境**的旧名称。它仍保留在继承来的配置和框架内部的标识符中；ObjectOS 文档使用
+*环境*。
+
+### 投影（Projection） [#projection]
+
+视图、仪表盘、应用或翻译：与[业务本体](#business-ontology)并列编写、经过同一道
+[校验关卡](#validation-gate)检查的元数据，但不是本体的一部分。投影呈现核心 —— 网格
+上的对象字段、图表上对对象的查询、某个语言区域中的每个标签。修改核心，它的投影会
+随之变化；移除一个投影，它所展示的业务不会改变。参见
+[ObjectOS 中你的本体](/docs/ontology#the-projections)。
+
+### 记录共享（Record Share） [#record-share]
+
+针对特定记录、授予一个接收方的直接访问 —— 一个用户（`user`）、一个团队（`team`）、
+一个岗位（`position`）、一个业务单元（`business_unit`），或者一个业务单元连同其下
+的每个单元（`unit_and_subordinates`）。存储为 `sys_record_share` 行，其
+`recipient_type` 列恰好取这五个值。不同于共享规则（声明式条件）。
+
+### Setup [#setup]
+
+内置的管理应用，位于 `/_console/` 所提供的 UI 中的 `/apps/setup`，由 `setup.access`
+权限门控。管理用户、业务单元、团队、岗位、权限集、共享规则、记录共享和 API 密钥，
+以及配置、诊断和集成。参见[配置](/docs/configure)。
+
+### 共享规则（Sharing Rule） [#sharing-rule]
+
+一种基于条件授予记录访问的声明式规则（"区域经理可以看到其所在区域的记录"）。在查询
+时求值，编译为行级过滤条件。**没有**条件而存储的规则什么都不共享 —— 它并不匹配
+全部。参见[记录访问](/docs/configure/permissions/record-access#both-switches-fail-closed)。
+
+### Studio [#studio]
+
+内置的元数据编写界面，位于 `/_console/` 所提供的 UI 中的 `/studio`，由
+`studio.access` 权限门控。元数据本身在这里被*设计* —— 包、对象、应用、流程和权限集
+—— 每次一个包，分为四个支柱：Data、Automations、Interfaces、Access。它与 **Setup**
+并列，而不是 Setup 的一部分：Setup 运营一个运行中的部署（它的人员、他们的授权、它的
+配置），Studio 编写这个部署所运行的内容 —— 因此**权限在 Studio 中设计，在 Setup 中
+分配**。与 Setup 不同，它不是 `/apps/` 下的应用；UI 把它作为独立的路由子树提供。
+参见[配置](/docs/configure#setup-and-studio)。
+
+### 界面入口（Surface） [#surface]
+
+运行中的 ObjectOS 暴露的 HTTP 入口之一：`/`（REST API）和 `/_console/`（UI）。是
+两个，不是三个 —— 账户**不是**一个独立的入口。登录、注册和账户自助服务都是 UI 内部
+的路由：
+
+| 账户界面 | 位于 |
+|---|---|
+| 登录 | `/_console/login` —— 你未登录时，每个受保护的页面都会把你送到这里 |
+| 注册 | `/_console/register` —— 除非部署禁用了自助注册 |
+| 账户自助服务 | `/_console/apps/account` —— Account 应用，与位于 `/_console/apps/setup` 的 Setup 并列 |
+
+没有 `/_account/` 入口。独立的账户门户被移除时，它也随之退役，这些 URL 现在返回 404。
+
+### 系统上下文（System Context） [#system-context]
+
+插件、钩子和种子脚本在需要绕过安全检查时使用的内部执行模式。可审计；不暴露给用户
+代码。
+
+### 租户（Tenant） [#tenant]
+
+共享同一个部署的各组织之间的隔离边界。隔离墙式租户姿态会竖起这道墙，它是一项需
+许可证的能力。这些组织仍然共享部署的应用、数据库和元数据，所以这道墙隔开的是它们的
+数据和成员资格，而不是它们的模式。参见
+[多组织部署](/docs/reference/environment-variables#multi-organization-deployments)。
+
+### 触发器（Trigger） [#trigger]
+
+触发流程的条件 —— 记录事件（`after_insert`）、定时（cron）或手动调用。
+
+### 校验关卡（Validation gate） [#validation-gate]
+
+所有元数据在运行之前都要通过的同一套检查：`@objectstack/spec` 的 schema，以及那些
+捕获能通过类型检查、却会在运行时静默失败的问题的编写规则 —— 错误的 CEL 谓词、对
+不存在之物的引用。`os validate` 和 `os compile` 在仓库源码上运行它，运行时也会对每
+一次上线的元数据写入应用同一道关卡，无论它来自 AI Builder、Studio 还是元数据 API。
+参见 ObjectStack 文档中的
+[Validating Metadata](https://objectstack.ai/docs/deployment/validating-metadata)。
+
+### 视图（View） [#view]
+
+声明式的 UI 配置 —— 列表、表单、看板、日历、甘特图 —— 附加在对象上。ObjectOS 渲染
+它；你不需要编写组件。
+
+### Zod schema [#zod-schema]
+
+`@objectstack/spec` 使用的运行时 + 编译时类型系统。每个对象、字段、视图、应用、流程
+都由一个 Zod schema 解析和校验。JSON Schema、TypeScript 类型和 REST 请求校验器都
+派生自同一组 Zod 定义。
