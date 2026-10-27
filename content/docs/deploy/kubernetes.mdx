@@ -1,30 +1,121 @@
 ---
 title: Kubernetes
-seoTitle: "Kubernetes: Digest Pinning, Migrations, Probes"
-description: What any orchestrator must preserve to run the ObjectOS Enterprise image — digest pinning, migration ordering, probes, and what multi-replica makes mandatory.
+seoTitle: "Kubernetes: Probes, Secrets, Pinning, Migrations"
+description: Run the ObjectOS image on Kubernetes — a reference Deployment, the right probe on the right endpoint, secrets from a Secret, and what multi-replica Enterprise deployments must preserve.
 editions: [community, enterprise]
 ---
 
-**We ship a Compose stack, not a Helm chart or Kubernetes manifests.** The
-deploy bundle in your release is the supported, tested configuration. If you
-run ObjectOS on Kubernetes, you are assembling the manifests yourself — so
-this page states the properties that stack has, each of which the runtime
-either depends on or enforces. Reproduce the properties; the YAML around them
-is yours.
+**There is no Helm chart and no official manifest set.** The image works
+unchanged on Kubernetes, so this page gives a minimal reference and the
+properties your manifests must preserve — each one is something the runtime
+either depends on or enforces. Everything on [Docker](/docs/deploy/docker)
+applies: the same image, the same variables, the same upgrade rules.
 
-Everything on [Docker](/docs/deploy/docker) applies unchanged: same image,
-same license rules, same cloud posture rules. Nothing about the orchestrator
-changes what the deployment is entitled to.
+## A reference Deployment
+
+One replica of the Community image, secrets from a `Secret`, each probe on
+its own endpoint:
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: objectos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: objectos }
+  template:
+    metadata:
+      labels: { app: objectos }
+    spec:
+      containers:
+        - name: objectos
+          image: registry.example.com/crm:2.2.2   # your image FROM ghcr.io/objectstack-ai/objectstack:X.Y.Z
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: objectos-secrets   # OS_DATABASE_URL, OS_AUTH_SECRET, OS_SECRET_KEY
+          livenessProbe:
+            httpGet: { path: /api/v1/health, port: 8080 }
+            periodSeconds: 30
+          readinessProbe:
+            httpGet: { path: /api/v1/ready, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: objectos
+spec:
+  selector: { app: objectos }
+  ports:
+    - port: 80
+      targetPort: 8080
+```
 
 ## Properties to preserve
 
+### The image is pinned exactly
+
+Reference an exact version, or a `@sha256:` digest — never a rolling tag. On
+an orchestrator this matters more than on a single host: a pull policy plus a
+moving tag means two pods of the "same" Deployment can run different builds.
+
+### Probes address the right endpoints
+
+`/api/v1/health` is liveness. `/api/v1/ready` is readiness. Readiness answers
+**503** while the runtime is booting, while it shuts down, and whenever a data
+driver stops answering — so rolling restarts drain cleanly, and a pod that
+lost its database leaves the Service endpoints instead of serving errors.
+
+Keep readiness off the liveness probe. A database outage would otherwise
+restart every pod at once, which cannot bring the database back, and a
+configuration fault would show up as `CrashLoopBackOff` instead of the fault
+itself. Pods recover on their own when the database returns: the readiness
+probe drains them while it is away and re-admits them afterwards.
+
+### Secrets come from a Secret
+
+`OS_AUTH_SECRET` and `OS_SECRET_KEY` belong in a `Secret`, generated once and
+mounted by every pod — never generated per pod, never baked into the image.
+A pod that mints its own secret key loses it on the next reschedule, and
+every secret encrypted under it with it.
+
+### Business data lives outside the cluster
+
+Point the deployment at a managed PostgreSQL. Persistent volumes inside the
+cluster are not the intended home for business data.
+
+### One replica on Community
+
+Coordination on Community is in-process, so keep `replicas: 1`. Declaring
+more (`OS_CLUSTER_REPLICAS` above 1) refuses the boot without a license.
+Multi-replica is an Enterprise capability — below.
+
+### Ingress
+
+Terminate TLS at the edge, and set `OS_AUTH_URL` and `OS_TRUSTED_ORIGINS` to
+the public address. List cross-origin front ends explicitly in
+`OS_CORS_ORIGIN`; never combine wildcard origins with credentialed requests.
+When the runtime sits behind a proxy, make sure the proxy replaces any
+client-supplied forwarded-for header with its own — rate limiting and audit
+trails depend on the caller identity being trustworthy.
+
+## Enterprise adds
+
+**We ship a Compose stack, not a Helm chart or Kubernetes manifests.** The
+deploy bundle in your release is the supported, tested configuration. On
+Kubernetes you are assembling the manifests yourself, so reproduce these
+properties of that stack too. Nothing about the orchestrator changes what the
+deployment is entitled to.
+
 ### The image is pinned by digest
 
-Reference the image by `@sha256:` digest in the pod spec, not by tag. On an
-orchestrator this matters more than on a single host: an image pull policy
-plus a moving tag means two replicas of the "same" deployment can be running
-different builds. Pulling needs a pull secret holding your licensed registry
-credentials.
+Reference the Enterprise image by `@sha256:` digest in the pod spec. Pulling
+needs a pull secret holding your licensed registry credentials.
 
 ### Migrations run once, to completion, before replicas serve
 
@@ -34,19 +125,6 @@ pre-serve hook), not an init container on every replica — the point is that
 schema changes run **once**, not once per replica in parallel. The image
 supports a migrate-and-exit mode for exactly this; the bundle names the
 variable.
-
-### Probes address the right endpoints
-
-`/api/v1/ready` is readiness. `/api/v1/health` is liveness. They answer
-different questions, and using one for both means either routing traffic at a
-replica that is not ready, or restarting a replica that is merely busy.
-
-Since ObjectStack 17.0 readiness is backed by the data layer:
-`/api/v1/ready` answers **503** when a data driver stops answering, so a
-readiness probe pointed at it will correctly pull a replica out of the
-Service endpoints when its database goes away. Keep it off the liveness
-probe for exactly that reason — a shared database outage would otherwise
-restart every replica at once instead of draining traffic.
 
 ### Every replica gets identical secrets
 
@@ -59,9 +137,6 @@ Multi-replica is not a matter of raising the replica count:
   replica.
 - The **auth secret** must likewise be identical across replicas.
 
-So the secret material belongs in a `Secret` mounted identically by every
-pod — never generated per pod, never templated from a pod-unique value.
-
 ### License and cloud posture are deployment-wide
 
 The license key, the license mode, and the cloud-posture setting are part of
@@ -70,14 +145,6 @@ supported combinations are checked **at startup** — a mismatched pod does not
 run degraded, it exits. See [Air-gapped](/docs/deploy/air-gapped) for the
 combinations.
 
-Multi-node and high availability are Enterprise capabilities — see
-[License & Pricing](/docs/editions/license).
-
-### Business data lives outside the cluster
-
-Point the deployment at a managed PostgreSQL (and Redis). Persistent volumes
-inside the cluster are not the intended home for business data.
-
 ### Rolling upgrades change the digest
 
 Upgrading is a change of image digest, with the migration Job running to
@@ -85,12 +152,4 @@ completion before the new replicas serve. Schema migrations are forward-only:
 rolling the image back does not roll the schema back, so take a backup first
 and keep the previous digest to roll back to. The app itself, when it is
 delivered as a published artifact, versions independently of the image — see
-the run shapes on [Deployment](/docs/deploy).
-
-## Ingress
-
-Terminate TLS at the edge. Configure CORS explicitly for the front-end origins
-you serve; do not combine wildcard origins with credentialed requests. When
-the runtime sits behind a proxy, make sure the proxy replaces any
-client-supplied forwarded-for header with its own — rate limiting and audit
-trails depend on the caller identity being trustworthy.
+the run shapes on [Deployment](/docs/deploy#three-run-shapes).

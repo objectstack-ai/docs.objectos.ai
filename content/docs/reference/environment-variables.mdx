@@ -1,7 +1,7 @@
 ---
 title: Environment Variables
 seoTitle: "Environment Variables for Self-Hosted Deployments"
-description: The environment contract of a self-hosted ObjectOS deployment — what each variable decides, which combinations fail at startup, and which names are retired.
+description: The environment contract of a self-managed ObjectOS deployment, Community or Enterprise — what each variable decides, which edition reads it, which combinations fail at startup, and which names are retired.
 editions: [community, enterprise]
 ---
 
@@ -11,10 +11,18 @@ Anything a tenant or an administrator should be able to change while the
 deployment is running belongs in system settings instead.
 
 This page is the **contract** — what each variable decides, and what happens
-when two of them disagree. The **values you copy** live in the deploy bundle
-that ships with your release: an annotated template you copy to `.env` and
-edit. That template is pinned to your release; this page is not. Where the two
-differ, the template shipped with your image wins.
+when two of them disagree. The **Edition** column says which image reads it:
+
+- **Both** — the open Community image, `ghcr.io/objectstack-ai/objectstack`,
+  and the licensed Enterprise image alike.
+- **Enterprise** — only the Enterprise image, or the deploy bundle that ships
+  with it.
+
+On Community, [Docker](/docs/deploy/docker) shows the values to set. On
+Enterprise, the **values you copy** live in the deploy bundle that ships with
+your release: an annotated template you copy to `.env` and edit. That
+template is pinned to your release; this page is not. Where the two differ,
+the template shipped with your image wins.
 
 > **Naming.** ObjectOS-owned variables use the `OS_` prefix. A few pre-1.0
 > unprefixed names still work and emit a one-shot deprecation warning — see
@@ -25,13 +33,14 @@ differ, the template shipped with your image wins.
 
 ## The decisions every deployment makes
 
-| Variable | Decides |
-|---|---|
-| `OS_EE_IMAGE` | Which image runs. Read by the bundled Compose stack, not by the runtime. Pin the **digest**, never a tag — see [Docker](/docs/deploy/docker). |
-| `OS_AUTH_SECRET` | The base secret sessions are signed from. Must be **identical on every replica**. Rotating it invalidates every existing session. |
-| `OS_DATABASE_URL` | The database the deployment runs on. In production, point this at your managed PostgreSQL and remove the bundled database service. |
-| `OS_DB_USER`, `OS_DB_PASSWORD`, `OS_DB_NAME` | Provision the **bundled** database service in the shipped Compose stack. The credentials inside `OS_DATABASE_URL` must match them. Irrelevant once you use a managed database. |
-| `AI_GATEWAY_API_KEY` | The AI provider credential behind the "ask your data" agent. |
+| Variable | Edition | Decides |
+|---|---|---|
+| `OS_EE_IMAGE` | Enterprise | Which image runs. Read by the bundled Compose stack, not by the runtime. Pin the **digest**, never a tag — see [Docker](/docs/deploy/docker). |
+| `OS_AUTH_SECRET` | Both | The base secret sessions are signed from. Unset, the sign-in endpoints are skipped and the server runs with no authentication. Must be **identical on every replica**. Rotating it invalidates every existing session. |
+| `OS_DATABASE_URL` | Both | The database the deployment runs on. Unset, the runtime writes a SQLite file under its home directory, which a container loses with its filesystem. In production, point this at your managed PostgreSQL — and on Enterprise, remove the bundled database service. |
+| `OS_SECRET_KEY` | Both | The key every stored secret is encrypted under: encrypted settings, `secret` fields, datasource credentials. Unset, the runtime mints one and keeps it on its own filesystem, which a container loses on restart. Set it to a 32-byte value (`openssl rand -hex 32`), keep it in your secret manager, and back it up with the database. On several replicas it is **required** and must be the *same* value on every one — see [Multi-node](#multi-node). |
+| `OS_DB_USER`, `OS_DB_PASSWORD`, `OS_DB_NAME` | Enterprise | Provision the **bundled** database service in the shipped Compose stack. The credentials inside `OS_DATABASE_URL` must match them. Irrelevant once you use a managed database. |
+| `AI_GATEWAY_API_KEY` | Enterprise | The AI provider credential behind the "ask your data" agent. |
 
 ## License and cloud posture
 
@@ -39,15 +48,17 @@ These two are a pair. Setting one without reading the other is the most
 expensive mistake on this page, because unsupported pairings are **refused at
 startup** rather than degraded.
 
-| Variable | Decides |
-|---|---|
-| `OS_LICENSE_KEY` | The deployment's entitlement. A license also has a **mode** — ordinary licenses are validated online against a control plane; air-gap licenses are verified locally with no network traffic at all. The mode is a property of the license you were issued, not something you configure here. |
-| `OS_CLOUD_URL` | Whether this deployment has a control plane, and which one. `off` (and its aliases `none`, `local`, `disabled`) means **no control plane**: no marketplace, and no license validation either. |
+| Variable | Edition | Decides |
+|---|---|---|
+| `OS_LICENSE_KEY` | Enterprise | The deployment's entitlement. A license also has a **mode** — ordinary licenses are validated online against a control plane; air-gap licenses are verified locally with no network traffic at all. The mode is a property of the license you were issued, not something you configure here. |
+| `OS_CLOUD_URL` | Both | Whether this deployment has a control plane, and which one. `off` (and its aliases `none`, `local`, `disabled`) means **no control plane**: no marketplace, and no license validation either. |
 
-Two consequences follow, and both surprise people:
+On Community there is no license, so `OS_CLOUD_URL` decides only whether the
+deployment connects to a control plane. On Enterprise the two variables are a
+pair, and two consequences follow — both surprise people:
 
-- **Unset is not "off".** An unset `OS_CLOUD_URL` resolves to the *public*
-  control plane. It was never a neutral value — it selects the connected
+- **Unset is not "off"** — on either edition. An unset `OS_CLOUD_URL`
+  resolves to the *public* control plane. It was never a neutral value — it selects the connected
   behaviour. A deployment meant to talk to nobody must say `off` out loud.
 - **An ordinary license with `off` is refused at startup**, naming both
   variables. It is not a degraded state but an impossible one: an online
@@ -66,12 +77,12 @@ a licensed capability, and it makes three further decisions mandatory: the
 runtime refuses to start until each is declared. Declaring any available
 value is accepted; not deciding is not.
 
-| Variable | Decides |
-|---|---|
-| `OS_TENANCY_POSTURE` | Whether organizations are isolated from one another. The walled values are `isolated` and `group`. A walled posture **requires a license**: without one the runtime exits at startup rather than serve traffic while pretending to be isolated. |
-| `OS_AUTH_MEMBERSHIP_POLICY` | What a fresh sign-up joins. `auto` binds every new user to the deployment's default organization — right for a single-organization box, wrong where a membership *is* the tenant boundary. `invite-only` grants membership only by an explicit act: creating a workspace, accepting an invitation, an admin, or SSO provisioning. Also settable in **Setup → Authentication → Membership**; setting it here pins it and makes the Setup field read-only. |
-| `OS_AI_STUDIO_AGENTS` | Which AI agents are mounted, as a comma-separated subset of `ask` and `build`. Unset mounts **both**. `ask` reads; `build` **authors metadata** — and metadata is scoped to the deployment, not to an organization, so on a shared database one customer's `build` turn rewrites the schema every other customer runs on. The AI seat does not cover this: it is one flag for both agents. A misspelled value fails the boot rather than quietly falling back to mounting both. |
-| `OS_PLATFORM_OWNER_EMAIL` | Who the deployment's platform administrators are: one email address, or a comma-separated list. Under a walled posture it is the **only** source of platform-administrator standing — since ObjectStack 17.5 an `admin_full_access` grant no longer confers it there — and unset or blank, the runtime refuses to start. A listed account holds the standing only once its address is **verified**, so the deployment needs a way to verify it: an email transport, or a trusted federated sign-in. One unparseable entry voids the whole list. A change takes effect on restart. |
+| Variable | Edition | Decides |
+|---|---|---|
+| `OS_TENANCY_POSTURE` | Both; walled values Enterprise | Whether organizations are isolated from one another. Unset, or `single`, is one organization. The walled values are `isolated` and `group`. A walled posture **requires a license**: without one the runtime exits at startup rather than serve traffic while pretending to be isolated. |
+| `OS_AUTH_MEMBERSHIP_POLICY` | Both | What a fresh sign-up joins. `auto` binds every new user to the deployment's default organization — right for a single-organization box, wrong where a membership *is* the tenant boundary. `invite-only` grants membership only by an explicit act: creating a workspace, accepting an invitation, an admin, or SSO provisioning. Also settable in **Setup → Authentication → Membership**; setting it here pins it and makes the Setup field read-only. |
+| `OS_AI_STUDIO_AGENTS` | Enterprise | Which AI agents are mounted, as a comma-separated subset of `ask` and `build`. Unset mounts **both**. `ask` reads; `build` **authors metadata** — and metadata is scoped to the deployment, not to an organization, so on a shared database one customer's `build` turn rewrites the schema every other customer runs on. The AI seat does not cover this: it is one flag for both agents. A misspelled value fails the boot rather than quietly falling back to mounting both. |
+| `OS_PLATFORM_OWNER_EMAIL` | Both | Who the deployment's platform administrators are: one email address, or a comma-separated list. Under a walled posture it is the **only** source of platform-administrator standing — since ObjectStack 17.5 an `admin_full_access` grant no longer confers it there — and unset or blank, the runtime refuses to start. A listed account holds the standing only once its address is **verified**, so the deployment needs a way to verify it: an email transport, or a trusted federated sign-in. One unparseable entry voids the whole list. A change takes effect on restart. |
 
 A single-organization deployment sees none of these checks. It may leave
 the last three unset: the first account to register becomes the platform
@@ -80,14 +91,22 @@ that verified account does.
 
 ## Multi-node
 
-Scaling past one replica changes what is mandatory.
+Multi-node is an Enterprise capability. A Community deployment runs one
+replica, and declaring more — `OS_CLUSTER_REPLICAS` above 1 — refuses the
+boot rather than run replicas on per-process locks. Scaling past one replica
+changes what is mandatory: a cluster driver, and the same `OS_SECRET_KEY` and
+`OS_AUTH_SECRET` on every replica.
 
-| Variable | Decides |
-|---|---|
-| `OS_CLUSTER_DRIVER` | Turns on the shared coordinator. Unset means one replica on the built-in in-memory coordinator. |
-| `OS_REDIS_URL` | Where that coordinator lives. |
-| `OS_SECRET_KEY` | **Becomes required** once a cluster driver is set, and must be the *same* value on every replica. With no cluster driver each replica mints and persists its own key; across replicas those keys would silently diverge, so the runtime refuses to boot instead of serving with inconsistent crypto. |
-| `OS_CLUSTER_REPLICAS` | How many application replicas the bundled stack starts. |
+| Variable | Edition | Decides |
+|---|---|---|
+| `OS_CLUSTER_DRIVER` | Enterprise | Turns on the shared coordinator. Unset means one replica on the built-in in-memory coordinator. |
+| `OS_REDIS_URL` | Enterprise | Where that coordinator lives. |
+| `OS_CLUSTER_REPLICAS` | Enterprise | How many application replicas the bundled stack starts. The runtime reads it too, as the topology you declared: above 1 without a multi-node license, the boot is refused. |
+
+`OS_SECRET_KEY` **becomes required** once a cluster driver is set. With no
+cluster driver each replica mints and persists its own key; across replicas
+those keys would silently diverge, so the runtime refuses to boot instead of
+serving with inconsistent crypto.
 
 ## Running a published app
 
@@ -95,10 +114,10 @@ The runtime image and the app it serves are independent release axes: one
 variable names a published artifact, and upgrading the app is a change to that
 variable plus a restart — no image rebuild.
 
-| Variable | Decides |
-|---|---|
-| `OS_ARTIFACT_URL` | **The one variable that selects the app.** An absolute `https://`, `http://` or `file://` URL naming a built `objectstack.json`, with an optional SRI-style integrity pin in the URL fragment (`#sha256=` followed by 64 hex characters). A pinned artifact whose bytes do not match **refuses the boot**, naming the expected and the actual digest. Resolved before any configuration is read, so the image's own enterprise wiring is not loaded on this path. |
-| `OS_COMPOSED_ARTIFACT_URL` | Selects the app for the **composed** shape — a published app booted together with the image's enterprise plugins, several organizations sharing one database. That shape has its own template in the deploy bundle, is air-gap-licensed only, and requires `OS_CLOUD_URL=off`; both are enforced at startup. Setting both this and `OS_ARTIFACT_URL` refuses the boot. |
+| Variable | Edition | Decides |
+|---|---|---|
+| `OS_ARTIFACT_URL` | Both | **The one variable that selects the app.** An absolute `https://`, `http://` or `file://` URL naming a built `objectstack.json`, with an optional SRI-style integrity pin in the URL fragment (`#sha256=` followed by 64 hex characters). A pinned artifact whose bytes do not match **refuses the boot**, naming the expected and the actual digest. Overrides the artifact the Community image looks for at `/srv/app/objectstack.json`. On the Enterprise image it is resolved before any configuration is read, so the image's own enterprise wiring is not loaded on this path. |
+| `OS_COMPOSED_ARTIFACT_URL` | Enterprise | Selects the app for the **composed** shape — a published app booted together with the image's enterprise plugins, several organizations sharing one database. That shape has its own template in the deploy bundle, is air-gap-licensed only, and requires `OS_CLOUD_URL=off`; both are enforced at startup. Setting both this and `OS_ARTIFACT_URL` refuses the boot. |
 
 There is deliberately no companion variable for the integrity hash. The pin
 lives in the URL fragment, so there is one value to copy and one to rotate, and
@@ -111,35 +130,38 @@ the older URL — actually work.
 
 ## Runtime services
 
-| Variable | Decides |
-|---|---|
-| `OS_PORT` | The HTTP port the runtime listens on. Legacy alias: `PORT`. |
-| `OS_ENVIRONMENT_ID` | The environment id a single-environment runtime reports as its own. A completed cloud binding persists this, after which a self-hosted runtime does not need it set. |
-| `OS_TRUSTED_ORIGINS` | Additional trusted origins, comma-separated. |
-| `OS_ROOT_DOMAIN` | Root domain used to trust subdomains in platform-SSO deployments. |
-| `OS_DATABASE_DRIVER` | Overrides the driver otherwise inferred from the `OS_DATABASE_URL` scheme. Set it only when the scheme cannot be inferred; an unsupported value fails rather than falling back. Since ObjectStack 17.7 the in-memory engine is refused as a boot store, whether it is named here (`memory`) or by a `memory://` URL. |
-| `OS_DATABASE_AUTH_TOKEN` | Auth token for managed drivers that use one. |
-| `OS_SKIP_SCHEMA_SYNC` | Set to `1` to skip the boot-time schema sync. Use when schema is managed out of band — the shipped stack already runs migrations as a separate one-shot step before any replica starts. |
-| `OS_TELEMETRY_DB` | A dedicated datasource for lifecycle-classed system data. Set to `0` to opt out, or to a path or URL to opt in. |
-| `OS_LIFECYCLE_DISABLED` | Set to `1` to disable the lifecycle service (retention reaper, table rotation, audit archiver). Retention windows themselves are tuned through the `lifecycle.retention_overrides` setting, not through environment variables. |
-| `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` | Whether the deployment runs scheduled work that apps and packages declare: time-triggered [flows](/docs/build/automation/flows#scheduled-run-on-a-clock) (a schedule, or a time-relative sweep) and packaged `defineJob` cron jobs. Only `true`, `1`, `on` or `yes` turn it on; **unset is off**, the ObjectStack runtime's default since 17.5, in every tenancy posture. While it is off, nothing on a clock arms, and each such flow is reported as disabled by deployment policy. The platform's own scheduled work (approval escalation, retention, message dispatch) is not gated. Under `isolated`, a scheduled flow or job must also declare the organization it runs as. ⚠️ Whether your ObjectOS image or the deploy-bundle template sets this for you is not something this page can promise: set it explicitly if your app depends on scheduled flows, and read the effective value with `os doctor`. |
-| `OS_MCP_SERVER_ENABLED` | Governs the Model Context Protocol server over HTTP at `/api/v1/mcp`, and only that surface. **On by default**: set an explicit falsy value (`false`, `0`, `off`, `no`) to disable it. An authenticated principal is always required. |
-| `OS_MCP_STDIO_ENABLED` | Set to a truthy value to auto-start the long-lived **stdio** MCP transport. Off by default, and independent of the HTTP surface above. |
-| `OS_MCP_STDIO_API_KEY` | The API key that stdio transport is principal-bound to, resolved through the same authorization chain as HTTP MCP, so record- and field-level security still apply. Fails closed: with stdio enabled and no resolvable key, the transport does not start. |
+| Variable | Edition | Decides |
+|---|---|---|
+| `OS_PORT` | Both | The HTTP port the runtime listens on. The Community image sets `8080`. `os start` never moves to another port: a busy one fails the boot. Legacy alias: `PORT`. |
+| `OS_AUTH_URL` | Both | The public base URL of the sign-in server: callbacks and the cookie origin. Required behind a proxy and in production. |
+| `OS_CORS_ORIGIN` | Both | Origins admitted to cross-origin requests, comma-separated. Unset, none is admitted — and none needs to be while the Console and the API share the public origin. `*` is refused at boot while credentials are on. |
+| `OS_ENVIRONMENT_ID` | Both | The environment id a single-environment runtime reports as its own. A completed cloud binding persists this, after which a self-hosted runtime does not need it set. |
+| `OS_TRUSTED_ORIGINS` | Both | Additional trusted origins, comma-separated. |
+| `OS_ROOT_DOMAIN` | Both | Root domain used to trust subdomains in platform-SSO deployments. |
+| `OS_DATABASE_DRIVER` | Both | Overrides the driver otherwise inferred from the `OS_DATABASE_URL` scheme. Set it only when the scheme cannot be inferred; an unsupported value fails rather than falling back. Since ObjectStack 17.7 the in-memory engine is refused as a boot store, whether it is named here (`memory`) or by a `memory://` URL. |
+| `OS_DATABASE_AUTH_TOKEN` | Both | Auth token for managed drivers that use one. |
+| `OS_SKIP_SCHEMA_SYNC` | Both | Set to `1` to skip the boot-time schema sync. Use when schema is managed out of band — the Enterprise deploy bundle's stack already runs migrations as a separate one-shot step before any replica starts. |
+| `OS_TELEMETRY_DB` | Both | A dedicated datasource for lifecycle-classed system data. Set to `0` to opt out, or to a path or URL to opt in. |
+| `OS_STORAGE_LOCAL_ROOT` | Both | Where the local file-storage adapter keeps uploads, relative to the working directory (default `./.objectstack/data/uploads`). Back it up with the database. Setting it pins **Setup → Settings → File Storage → Root directory**. |
+| `OS_LIFECYCLE_DISABLED` | Both | Set to `1` to disable the lifecycle service (retention reaper, table rotation, audit archiver). Retention windows themselves are tuned through the `lifecycle.retention_overrides` setting, not through environment variables. |
+| `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` | Both | Whether the deployment runs scheduled work that apps and packages declare: time-triggered [flows](/docs/build/automation/flows#scheduled-run-on-a-clock) (a schedule, or a time-relative sweep) and packaged `defineJob` cron jobs. Only `true`, `1`, `on` or `yes` turn it on; **unset is off**, the ObjectStack runtime's default since 17.5, in every tenancy posture. While it is off, nothing on a clock arms, and each such flow is reported as disabled by deployment policy. The platform's own scheduled work (approval escalation, retention, message dispatch) is not gated. Under `isolated`, a scheduled flow or job must also declare the organization it runs as. ⚠️ Whether your ObjectOS image or the deploy-bundle template sets this for you is not something this page can promise: set it explicitly if your app depends on scheduled flows, and read the effective value with `os doctor`. |
+| `OS_MCP_SERVER_ENABLED` | Both | Governs the Model Context Protocol server over HTTP at `/api/v1/mcp`, and only that surface. **On by default**: set an explicit falsy value (`false`, `0`, `off`, `no`) to disable it. An authenticated principal is always required. |
+| `OS_MCP_STDIO_ENABLED` | Both | Set to a truthy value to auto-start the long-lived **stdio** MCP transport. Off by default, and independent of the HTTP surface above. |
+| `OS_MCP_STDIO_API_KEY` | Both | The API key that stdio transport is principal-bound to, resolved through the same authorization chain as HTTP MCP, so record- and field-level security still apply. Fails closed: with stdio enabled and no resolvable key, the transport does not start. |
 
 ## Observability
 
 Export is opt-in. The exporter defaults to `noop`, so a deployment emits
 nothing until you select one — **setting an endpoint alone does nothing.**
 
-| Variable | Default | Decides |
-|---|---:|---|
-| `OS_OBS_EXPORTER` | `noop` | `noop`, `console`, `json` or `otlp`. Use `console` or `json` for local debugging and `otlp` for a collector. |
-| `OS_OTLP_ENDPOINT` | — | OTLP/HTTP root URL. Required when the exporter is `otlp`; if it is empty the runtime warns and falls back to `noop`. |
-| `OS_OTLP_HEADERS` | — | Extra OTLP headers, as comma-separated `key=value` pairs. |
-| `OS_OBS_SERVICE_NAME` | — | The `service.name` resource attribute on emitted spans and metrics. |
-| `OS_OBS_DEPLOYMENT_ENV` | `production` | The `deployment.environment` resource attribute. |
-| `OS_OTLP_FLUSH_MS` | — | Flush interval for the OTLP exporter, in milliseconds. |
+| Variable | Edition | Default | Decides |
+|---|---|---:|---|
+| `OS_OBS_EXPORTER` | Both | `noop` | `noop`, `console`, `json` or `otlp`. Use `console` or `json` for local debugging and `otlp` for a collector. |
+| `OS_OTLP_ENDPOINT` | Both | — | OTLP/HTTP root URL. Required when the exporter is `otlp`; if it is empty the runtime warns and falls back to `noop`. |
+| `OS_OTLP_HEADERS` | Both | — | Extra OTLP headers, as comma-separated `key=value` pairs. |
+| `OS_OBS_SERVICE_NAME` | Both | — | The `service.name` resource attribute on emitted metrics. |
+| `OS_OBS_DEPLOYMENT_ENV` | Both | `production` | The `deployment.environment` resource attribute. |
+| `OS_OTLP_FLUSH_MS` | Both | — | Flush interval for the OTLP exporter, in milliseconds. |
 
 ## Data-contract escape hatches
 
@@ -149,11 +171,11 @@ old behaviour **temporarily**, for an integration you cannot fix today. Each
 takes exactly `1`; anything else leaves the strict behaviour on. The
 violation is still logged, so the drift stays visible.
 
-| Variable | Re-opens |
-|---|---|
-| `OS_ALLOW_LAX_ACTION_PARAMS` | An action call whose `params` miss a required parameter, break its `options` / `multiple` / `reference` declaration, or carry an undeclared key. Without it, such a call answers `400 VALIDATION_FAILED`. |
-| `OS_ALLOW_LAX_MEDIA_VALUES` | A malformed `file` / `image` / `avatar` / `video` / `audio` value, where those values are checked strictly. |
-| `OS_ALLOW_LAX_VALUE_SHAPES` | A malformed reference (`lookup`, `master_detail`, `user`, `tree`) or structured JSON value (`location`, `address`, …), where those values are checked strictly. |
+| Variable | Edition | Re-opens |
+|---|---|---|
+| `OS_ALLOW_LAX_ACTION_PARAMS` | Both | An action call whose `params` miss a required parameter, break its `options` / `multiple` / `reference` declaration, or carry an undeclared key. Without it, such a call answers `400 VALIDATION_FAILED`. |
+| `OS_ALLOW_LAX_MEDIA_VALUES` | Both | A malformed `file` / `image` / `avatar` / `video` / `audio` value, where those values are checked strictly. |
+| `OS_ALLOW_LAX_VALUE_SHAPES` | Both | A malformed reference (`lookup`, `master_detail`, `user`, `tree`) or structured JSON value (`location`, `address`, …), where those values are checked strictly. |
 
 Media and value shapes are checked strictly on a database the 17.x runtime
 created. A database upgraded from an earlier major is checked strictly only
@@ -179,12 +201,13 @@ Google sign-in, configurable in **Setup → Authentication**, also reads
 
 These names appeared in earlier ObjectOS documentation. They are listed here so
 that a configuration file you inherited can be read and corrected — **not** so
-they can be used.
+they can be used. Each is retired on both editions, except where its row says
+otherwise.
 
 | Retired name | What to use instead |
 |---|---|
 | `OS_ARTIFACT_FILE` | `OS_ARTIFACT_URL`. Nothing in the shipped runtime reads `OS_ARTIFACT_FILE`; a deployment that sets it gets the boot it would have got with nothing set, and no error naming the mistake. A local file is `file://` on the replacement, and the replacement carries the integrity pin. |
-| `OS_ARTIFACT_PATH` | `OS_ARTIFACT_URL`. **The ObjectOS runtime image refuses a boot that carries a non-default `OS_ARTIFACT_PATH`**, naming the replacement. Two spellings for "which artifact do I boot" is one dialect too many, and the retired one never carried an integrity pin. |
+| `OS_ARTIFACT_PATH` | `OS_ARTIFACT_URL`. **The Enterprise image refuses a boot that carries a non-default `OS_ARTIFACT_PATH`**, naming the replacement. Two spellings for "which artifact do I boot" is one dialect too many, and the retired one never carried an integrity pin. The Community image still sets it to `/srv/app/objectstack.json`, the path it looks for: leave it alone, mount the artifact there, and name any other artifact with `OS_ARTIFACT_URL`. |
 | `OS_BUSINESS_DB_URL` | `OS_DATABASE_URL`, or a datasource declared in the artifact. Nothing reads `OS_BUSINESS_DB_URL`; a deployment that sets it and nothing else has no database configured at all. |
 | `OS_LOCALIZATION_DATE_FORMAT`, `OS_LOCALIZATION_TIME_FORMAT`, `OS_LOCALIZATION_NUMBER_FORMAT`, `OS_LOCALIZATION_FIRST_DAY_OF_WEEK` | Nothing: ObjectStack 17.7 retired the settings they pinned, and dates, times, numbers and the week start now follow the language. See [Localization](/docs/configure/localization#dates-times-and-numbers-follow-the-language). |
 
@@ -198,7 +221,7 @@ to that control plane, not a key you paste into a file.
 
 ## Legacy names
 
-These still resolve, but the canonical name is preferred and the legacy one may
+These still resolve on both editions, but the canonical name is preferred and the legacy one may
 be removed in a future major version.
 
 | Canonical | Legacy | Note |

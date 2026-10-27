@@ -1,16 +1,19 @@
 ---
 title: Production Readiness
-seoTitle: "Production Readiness: Hardening, Secrets, CORS"
-description: Checklist for running ObjectOS safely in production.
+seoTitle: "Production Readiness: Hardening, Secrets, CORS, Go-live"
+description: The checklist for running a self-managed ObjectOS deployment safely in production — headers, secrets, rate limits, CORS, boot guards, scheduled work and retention.
 editions: [community, enterprise]
 ---
 
-Use this checklist before exposing ObjectOS to production traffic.
+Use this checklist before exposing ObjectOS to production traffic. It holds
+for Community and Enterprise alike; the
+[Enterprise adds](#enterprise-adds) section at the end lists the items the
+licensed image brings with it.
 
 ## HTTP hardening
 
-ObjectStack runtime provides conservative security headers for dispatcher
-routes. Production deployments should verify:
+The runtime sends conservative security headers on its routes by default.
+Verify the final response, after any proxy that rewrites headers:
 
 - `Content-Security-Policy`;
 - `X-Content-Type-Options`;
@@ -18,9 +21,8 @@ routes. Production deployments should verify:
 - `Referrer-Policy`;
 - `Permissions-Policy`;
 - `Cross-Origin-Resource-Policy`;
-- HSTS after TLS is confirmed.
-
-If a reverse proxy owns headers, verify the final response with:
+- HSTS, which the runtime does not send by default: add it at your proxy
+  once TLS is confirmed.
 
 ```bash
 curl -I https://app.example.com
@@ -28,15 +30,14 @@ curl -I https://app.example.com
 
 ## Secrets
 
-Store these in a secret manager:
+Store these in a secret manager, and inject them at runtime:
 
 | Secret | Purpose |
 |---|---|
 | `OS_AUTH_SECRET` | Session signing base secret. **Identical on every replica** — replicas with different values reject each other's sessions. |
-| `OS_SECRET_KEY` | Required once you run more than one replica, and likewise identical across all of them. |
-| `OS_LICENSE_KEY` | The deployment's entitlement. |
+| `OS_SECRET_KEY` | The key every stored secret is encrypted under. Required in a container, where a self-minted key dies with the filesystem. **Back it up with the database**: one without the other cannot decrypt anything. |
 | Database credentials | Business database access |
-| OIDC client secret | Enterprise SSO |
+| OIDC client secret | Single sign-on |
 | Provider API keys | Email, storage, AI, integrations |
 
 Never bake secrets into artifacts or images.
@@ -48,11 +49,19 @@ for it.
 
 ## Rate limiting
 
-The framework exposes a token-bucket rate limiter. Wire rate limiting at
-the adapter, ingress, or gateway layer where caller IP and authenticated
-identity are trustworthy.
+The runtime has a built-in token-bucket rate limiter, **off until the app
+declares a budget** (`server.security.rateLimit` in its stack). An
+over-budget caller is answered `429` with `Retry-After`. The bucket is keyed
+by the signed-in user, and by the caller's address for anonymous traffic.
 
-Recommended buckets:
+Behind a reverse proxy, the caller's address is the proxy's unless the app
+sets `server.trustProxy: true` — and set that only behind a proxy that
+overwrites `X-Forwarded-For` on every request, or callers can choose their
+own address. The counters are kept in memory, per process. Sign-in can take
+its own, tighter budget in **Setup → Authentication**.
+
+Where the limit belongs at the edge instead — an ingress or gateway — start
+from budgets like these:
 
 | Traffic | Example limit |
 |---|---:|
@@ -60,29 +69,79 @@ Recommended buckets:
 | Write requests | 60/min/IP |
 | Read requests | 600/min/IP |
 
-Use a shared backend such as Redis for multi-pod deployments.
-
 ## CORS
 
-Configure explicit origins:
+With no `OS_CORS_ORIGIN`, the runtime admits **no** cross-origin caller —
+and needs none while the Console and the API share the public origin. A
+front end served from another origin is listed explicitly, comma-separated:
 
-```text
-https://app.example.com
-https://admin.example.com
+```bash
+OS_CORS_ORIGIN=https://portal.example.com,https://admin.example.com
 ```
 
-Do not use wildcard origins with credentialed requests.
+`*` is refused at boot while credentials are on.
+
+## Boot guards stay on
+
+Two escape hatches exist for development. Neither belongs in production:
+
+- **`OS_ALLOW_DRIVER_CONNECT_FAILURE` is unset.** A database that cannot
+  connect at startup refuses the boot, so a bad `OS_DATABASE_URL`, a rotated
+  password or a closed network path is a failed deploy — not a "started"
+  server that answers 500 to every request. The flag boots without the
+  database and never reconnects.
+- **`OS_ALLOW_DEGRADED_TENANCY` is unset.** A deployment that asks for
+  several organizations without the organizations runtime refuses to boot;
+  this flag lets it boot with the isolation missing.
+
+## Scheduled work is a decision
+
+Scheduled work that apps and packages declare — time-triggered flows and
+packaged cron jobs — is **off** until the deployment sets
+`OS_AUTOMATION_SCHEDULED_WORK_ENABLED=true`. A deployment that expects a
+digest, a sweep or a reminder to fire must turn it on. Leaving it off is a
+legitimate answer too; make it on purpose. Confirm the effective value with
+`os doctor`, and read the startup summary: work listed there as *disabled by
+deployment policy* is not broken, it is switched off. See
+[Environment Variables](/docs/reference/environment-variables#runtime-services).
+
+## Retention is set before go-live
+
+The platform deletes telemetry on a schedule: activity after 14 days, job
+runs after 30, notifications after 90, and audit records leave hot storage
+after 90. If your compliance regime needs longer, extend the windows through
+the `lifecycle.retention_overrides` setting **before** go-live — data deleted
+by policy is gone from every backup taken afterwards.
 
 ## Go-live checklist
 
 - [ ] TLS is terminated at the edge or ingress.
-- [ ] Security headers are present.
+- [ ] Security headers are present on the final response.
 - [ ] HSTS is enabled after TLS validation.
-- [ ] CORS origins are explicit.
-- [ ] Rate limits protect auth and write endpoints.
-- [ ] `OS_AUTH_SECRET` is strong and stored as a secret.
+- [ ] `OS_AUTH_URL` and `OS_TRUSTED_ORIGINS` match the public address.
+- [ ] CORS admits exactly the cross-origin front ends you serve.
+- [ ] Rate limits protect sign-in and write endpoints.
+- [ ] `OS_AUTH_SECRET` and `OS_SECRET_KEY` are strong, stored as secrets, and escrowed.
+- [ ] The first administrator registered before the address was shared.
 - [ ] OIDC callback URLs match the public domain.
-- [ ] Business database backup and restore are tested.
-- [ ] Audit logs are retained according to customer policy.
-- [ ] Cross-organization negative access tests pass.
-- [ ] Rollback plan covers both ObjectOS image and artifact version.
+- [ ] `OS_ALLOW_DRIVER_CONNECT_FAILURE` and `OS_ALLOW_DEGRADED_TENANCY` are unset.
+- [ ] `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` is a decision somebody made.
+- [ ] Retention windows match your policy.
+- [ ] Business database backup and restore are tested — see [Backup](/docs/operate/backup#the-restore-drill).
+- [ ] Audit logs are retained according to your policy.
+- [ ] Monitoring alerts on 5xx rate and readiness — see [Observability](/docs/operate/observability).
+- [ ] Rollback plan covers both the image version and the app artifact version.
+
+## Enterprise adds
+
+- [ ] `OS_LICENSE_KEY` — the deployment's entitlement — is stored as a secret.
+- [ ] `OS_CLOUD_URL` is declared, and it matches the license mode. An
+      ordinary license with `off` is refused at startup; see
+      [Air-gapped](/docs/deploy/air-gapped#the-supported-combinations).
+- [ ] The image is pinned by digest, and its signature, SBOM and provenance
+      were verified ([Docker](/docs/deploy/docker#verify-the-image-before-production)).
+- [ ] On several replicas, `OS_AUTH_SECRET` and `OS_SECRET_KEY` are identical
+      on every one of them.
+- [ ] On a multi-organization posture: the membership policy and the mounted
+      AI agents are declared, `OS_PLATFORM_OWNER_EMAIL` names more than one
+      verified administrator, and cross-organization negative access tests pass.
