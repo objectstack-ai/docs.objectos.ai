@@ -1,0 +1,237 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 動作
+seoTitle: "動作：REST 端點、按鈕和 AI 工具"
+description: 平臺把具名操作暴露為 REST 端點、按鈕和 AI 工具 —— 全部來自一次宣告。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 85e291bd4a1a724fe1ba2fbbf181d61ab30004d9389a19eaee2e9ae3175b1096
+  guide_rev: 1
+  mode: auto
+---
+
+**動作（Action）**是物件上的一個具名操作。宣告一次，它就會出現為：
+
+- 一個 **REST 端點**，位於 `/api/v1/actions/<object>/<action>`
+- 記錄詳情頁上的一個**按鈕**
+- 供 Agent 和 AI Builder 使用的一個 **AI 工具**（`action_<name>`）—— 前提是
+  你把它暴露給 AI（`ai.exposed`，見[下文](#from-an-ai-agent)）
+
+你不必在三個介面上重複自己。一次宣告，三種呼叫方式。當工作需要不止一步
+時，動作還可以啟動一個[流程](/docs/build/automation/flows)（`type: 'flow'`）。
+
+## 宣告一個動作 [#declare-an-action]
+
+```ts
+// src/actions/approve_invoice.action.ts
+import { Action } from '@objectstack/spec/ui';
+
+export const approveInvoice = Action.create({
+  name: 'approve_invoice',          // lowercase snake_case (machine id)
+  label: 'Approve Invoice',
+  objectName: 'invoice',            // attaches to the invoice object
+  icon: 'check',
+  variant: 'primary',
+  locations: ['record_header'],     // where the button shows
+  description: 'Approve this invoice?',  // shown in the param dialog
+  successMessage: 'Invoice approved',
+  refreshAfter: true,
+
+  // collect input before running
+  params: [
+    { name: 'note', label: 'Approval note', type: 'textarea' },
+  ],
+
+  // only show the button when the record is still pending
+  visible: 'record.status == "pending"',
+
+  // expose it to agents and the AI Builder as `action_approve_invoice`
+  ai: {
+    exposed: true,
+    description: 'Approve a pending invoice, recording the approver and an optional note.',
+  },
+
+  // what it does — a sandboxed script body. `input` is the params bag;
+  // `ctx.record` is a read-only snapshot, so the write goes through `ctx.api`,
+  // which needs the `api.write` capability
+  type: 'script',
+  body: {
+    language: 'js',
+    capabilities: ['api.write'],
+    source: `
+      await ctx.api.object('invoice').update({
+        id: ctx.recordId,
+        status: 'approved',
+        approved_by: ctx.user.id,
+        approved_at: new Date().toISOString(),
+        approval_note: input.note,
+      });
+    `,
+  },
+});
+```
+
+`os dev` 重新編譯之後：
+
+- `POST /api/v1/actions/invoice/approve_invoice` 可以呼叫
+- Invoice 記錄頁會顯示一個 **Approve Invoice** 按鈕
+- AI 助手可以呼叫 `action_approve_invoice` —— 它已暴露給 AI —— 只要它的
+  Skill 允許
+
+## 動作型別 [#action-types]
+
+`type` 欄位決定動作做什麼：
+
+| `type` | 執行什麼 | 用於 |
+|---|---|---|
+| `script` | 一個 `body` —— L1 公式表示式或沙箱化的 L2 JavaScript | 大多數情況 —— 服務端邏輯，可審計，暴露後可被 AI 呼叫 |
+| `api` | 對 `target` 端點的 HTTP 呼叫（`method`、`bodyExtra`） | 複用資料 API 或平臺端點 |
+| `flow` | 執行 `target` 中指定的流程 | 多步業務流程 |
+| `url` | 跳轉到 `target` URL | 深連結、重定向式動作 |
+| `modal` | 開啟 `target` 中指定的頁面 / 彈窗 | 自定義對話方塊 |
+| `form` | 開啟 `target` 中指定的 FormView | 引導式資料錄入 |
+
+```ts
+// api type — reuse a data-API endpoint
+Action.create({
+  name: 'archive_order',
+  objectName: 'order',
+  label: 'Archive',
+  locations: ['list_item'],
+  type: 'api',
+  method: 'PATCH',
+  target: '/api/v1/data/order/{id}',
+  bodyExtra: { archived: true },
+});
+```
+
+`script` 以外的型別都需要一個 `target`。無論哪種型別，它都是一次宣告 ——
+但 `url`、`modal` 和 `form` 動作只在 UI 中執行，所以它們永遠不會成為
+AI 工具。
+
+## 呼叫動作 [#calling-an-action]
+
+### REST [#rest]
+
+```bash
+# the record id can go in the body, or in the path
+curl -X POST https://app.example.com/api/v1/actions/invoice/approve_invoice/inv_123 \
+  -H 'Authorization: Bearer <token>' \
+  -H 'Content-Type: application/json' \
+  -d '{"note": "LGTM"}'
+```
+
+引數平鋪在請求體中傳送。記錄 id 既可以作為路徑末段
+（`.../approve_invoice/:recordId`）提供，也可以放在請求體中。響應是你的
+script body 的返回值（對 `api` 型別的動作則是呼叫結果）。
+
+### 從 UI [#from-the-ui]
+
+按鈕顯示在哪裡，是在動作本身上宣告的：`locations`（`record_header`、
+`record_more`、`list_item`、`list_toolbar` ……）和 `order`。然後由 `visible`
+謂詞逐條記錄地決定它是否渲染。列表檢視還可以為每一行、以及為選中的多行
+指定動作：
+
+```ts
+// One list view; the container and `data` are omitted (see Views).
+{
+  type: 'grid',
+  columns: ['number', 'customer', 'amount', 'status'],
+  rowActions: ['approve_invoice', 'reject_invoice'],
+  bulkActions: ['send_to_customer'],
+}
+```
+
+### 配合流程 [#with-a-flow]
+
+沒有呼叫動作的流程節點。反過來做：把多步邏輯放進一個流程，然後用一個
+`type: 'flow'`、`target` 為流程名的動作來啟動它：
+
+```ts
+// flow type — start a flow by name
+Action.create({
+  name: 'run_invoice_approval',
+  objectName: 'invoice',
+  label: 'Run approval',
+  locations: ['record_more'],
+  type: 'flow',
+  target: 'approve_invoice',
+});
+```
+
+### 從 AI Agent [#from-an-ai-agent]
+
+只有當作者把動作暴露給 AI 時，Agent 才能觸及它：在一個無需 UI 即可執行
+的型別（`script`、`flow` 或 `api`）上，設定 `ai: { exposed: true }` 並提供
+至少 40 個字元的 `ai.description`，就像上面的例子那樣。暴露之後，它在
+ObjectOS 自己的 Agent 和 AI Builder 中是 `action_<name>` 工具，對
+[MCP 客戶端](/docs/configure/mcp)則是 `run_action`。沒有暴露的動作對
+Agent 不可見，被呼叫時也會被拒絕。
+
+如果 `approve_invoice` 已暴露，並且在 Agent 擁有的某個 Skill 中，LLM 就
+可以呼叫它。輸入來自對話；適用的呼叫時檢查與使用者親手按下按鈕時相同。
+
+> *"批准發票 INV-2042，備註'已電話核實'。"*
+
+## 許可權 [#permissions]
+
+誰可以執行一個動作，是在呼叫時以呼叫者身份檢查的 —— 通過 REST、從按鈕、
+從 Agent，方式都一樣：
+
+1. **`requiredPermissions`** —— 呼叫者的
+   [許可權集](/docs/configure/permissions/permission-sets)必須具備的能力。
+   缺少其中任何一項的呼叫者會得到 `403`。
+2. **目標記錄** —— 以呼叫者身份載入。呼叫者讀不到的記錄，會被當作不存在
+   來回應。
+3. **AI 暴露** —— Agent 只能觸及暴露給 AI 的動作。
+4. **UI 門控** —— `visible` 和 `disabled` 謂詞（CEL，針對 `record`、
+   `os.user` 和引數求值）控制按鈕是否渲染或是否置灰。
+
+動作隨後所做的事情屬於受信任的應用程式碼。`script` body 的讀寫以應用的許可權
+執行：記錄訪問和欄位級安全**不會**約束它們。`flow` 動作遵循流程的
+`runAs`。所以對任何敏感操作都要宣告 `requiredPermissions`，並把編寫動作
+當作值得程式碼審查的行為。
+
+## 內建動作 [#built-in-actions]
+
+每個物件都免費獲得這些動作：
+
+| 動作 | 做什麼 |
+|---|---|
+| `create` | 插入一條記錄 |
+| `update` | 更新一條記錄 |
+| `delete` | 刪除（或軟刪除）一條記錄 |
+| `restore` | 撤銷軟刪除 |
+| `clone` | 深複製一條記錄 |
+| `share` | 直接共享給某個使用者、團隊、崗位、業務單元，或某個單元及其下級 |
+
+不要重新宣告它們 —— 它們遵循物件的[生命週期與能力標誌](/docs/build/data)。
+
+## 審計 [#auditing]
+
+平臺事件會寫入 `sys_audit_log`，這是一條不可變的審計記錄，欄位包括：
+
+- `user_id` —— 發起操作的使用者
+- `action` —— 動作名稱
+- `object_name` 和 `record_id` —— 被觸及的內容
+- `old_value` / `new_value` —— 變更內容
+- `ip_address` / `user_agent` —— 請求來源
+- `created_at` —— 發生時間
+
+回答*"是誰按下了按鈕？"*這類問題時，先來這裡查。
+
+## 用 AI Builder 生成動作 [#generating-actions-with-the-ai-builder]
+
+> *"在 `support_ticket` 上建立一個動作 `escalate_ticket`，把優先順序設為
+> urgent，並把它指派給值班工程師。"*
+
+[AI Builder](/docs/build/ai-builder) 會生成動作後設資料，並把變更排入佇列
+等待批准。批准之後，這個動作就可以從 REST、UI 呼叫，而且 —— 遞迴地 ——
+也可以由 AI 自己呼叫。
+
+## 下一步 [#where-to-go-next]
+
+- [流程](/docs/build/automation/flows) —— `type: 'flow'` 動作所啟動的多步邏輯
+- [Agent](/docs/build/agents) —— 把動作暴露為 AI 工具
+- [API 訪問](/docs/configure/api-access) —— 從外部系統呼叫動作
+- [許可權](/docs/configure/permissions) —— 控制誰能呼叫什麼

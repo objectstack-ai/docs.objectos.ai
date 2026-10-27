@@ -1,8 +1,10 @@
 ---
 title: 界面
-description: 应用、视图、表单、仪表盘、页面与操作 —— 每个面向用户的界面都声明为元数据，由 Console 渲染。
+seoTitle: "界面：应用、视图、表单、仪表盘、页面"
+description: 应用、视图、表单、仪表盘、页面与动作 —— 每个面向用户的界面都声明为元数据，由 ObjectOS 渲染。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 332948a259655570e3641d08c4bc41270a95f6af1a7b13fdd690177ee9fe07e3
+  source_sha: b5a75aba85c279c1de7f1e2e11254b300b51906392cfaa0a5f4e1f50a803e61c
   guide_rev: 1
   mode: auto
 ---
@@ -17,9 +19,9 @@ translation:
 4. 打开或创建记录时渲染**表单** —— 区块由字段元数据派生，可按模式覆盖。
 5. **仪表盘**把同样的数据聚合成绑定到具名数据集的图表组件。
 6. **页面**完全跳出对象框架 —— 由组件和区域组合的自由布局。
-7. **操作**给上述一切装上按钮 —— 一次声明，可从 Console、REST、流程和 AI Agents 调用。
+7. **动作**给上述一切装上按钮 —— 一次声明，可从 UI、REST、流程和 AI Agent 调用。
 
-## 核心概念
+## 核心概念 [#the-concepts]
 
 | 概念 | 声明什么 | 页面 |
 |:--|:--|:--|
@@ -28,13 +30,13 @@ translation:
 | 表单 | 创建 / 编辑布局、区块、字段分组 | [表单](/docs/build/interface/forms) |
 | 仪表盘 | 图表组件、全局筛选、下钻 | [仪表盘](/docs/build/interface/dashboards) |
 | 页面 | 自由组件布局；随包发布的文档页 | [页面](/docs/build/interface/pages) |
-| 操作 | 处处以按钮形式呈现的具名操作 | [操作](/docs/build/interface/actions) |
+| 动作 | 处处以按钮形式呈现的具名操作 | [动作](/docs/build/interface/actions) |
 
 因为 UI 是数据，它遵守与其所展示的记录相同的[权限](/docs/configure/permissions)；而 [AI Builder](/docs/build/ai-builder) 可以通过同一个类型化接口生成或修改其中任何部分 —— 描述你想要的界面，审阅 diff，批准。
 
 > 从数据开始。视图和表单会从你的[对象定义](/docs/build/data)派生出合理的默认值 —— 只有当默认不是你想要的时，才需要写界面元数据。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 页面 | 原因 |
 |:--|:--|
@@ -43,5 +45,5 @@ translation:
 | [表单](/docs/build/interface/forms) | 塑造创建与编辑体验 |
 | [仪表盘](/docs/build/interface/dashboards) | 添加分析组件 |
 | [页面](/docs/build/interface/pages) | 组合自由布局 |
-| [操作](/docs/build/interface/actions) | 把操作放到按钮后面 |
+| [动作](/docs/build/interface/actions) | 把操作放到按钮后面 |
 | [数据模型](/docs/build/data) | 每个界面读取的对象 |

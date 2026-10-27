@@ -1,0 +1,229 @@
+---
+title: 仪表盘
+seoTitle: "构建仪表盘：数据集、组件和下钻"
+description: 由绑定到具名数据集的图表组件构成的分析页面 —— 带有全局过滤、自动刷新，以及到底层记录的下钻。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: c67b6877ef40bb832312c2b13597c8aa27a0351ad3ce7bd72469323bdef0ddc6
+  guide_rev: 1
+  mode: auto
+---
+
+**仪表盘是一格格组件组成的网格；每个组件都绑定一个数据集。** 数据集是
+语义层：它拥有基础对象、关联、维度和度量。组件按名称选择这些内容，所以
+"收入"在每个使用它的仪表盘和报表上含义都相同。
+
+```ts
+// One dashboard, bound to the `sales` dataset defined below.
+const salesDashboard = {
+  name: 'sales_overview',
+  label: 'Sales Overview',
+  description: 'Key sales metrics and pipeline analysis',
+  refreshIntervalSeconds: 300,            // auto-refresh every 5 minutes
+
+  dateRange: {
+    field: 'close_date',
+    defaultRange: 'this_quarter',
+    allowCustomRange: true,
+  },
+
+  widgets: [
+    { id: 'total_revenue',     title: 'Total Revenue',     type: 'metric',
+      dataset: 'sales', values: ['revenue'],
+      layout: { x: 0, y: 0, w: 3, h: 2 } },
+    { id: 'revenue_by_region', title: 'Revenue by Region', type: 'bar',
+      dataset: 'sales', dimensions: ['region'], values: ['revenue'],
+      layout: { x: 3, y: 0, w: 6, h: 4 } },
+    { id: 'deals_by_month',    title: 'Deals by Month',    type: 'pie',
+      dataset: 'sales', dimensions: ['close_month'], values: ['deal_count'],
+      layout: { x: 9, y: 0, w: 3, h: 4 } },
+  ],
+}
+```
+
+## 仪表盘属性 [#dashboard-properties]
+
+| 属性 | 类型 | 必需 | 说明 |
+|:--|:--|:--|:--|
+| `name` | `string` | 是 | 机器名（`snake_case`） |
+| `label` | `string` | 是 | 显示标签 |
+| `description` | `string` | — | 仪表盘描述 |
+| `widgets` | `DashboardWidget[]` | 是 | 图表和指标组件 |
+| `refreshIntervalSeconds` | `number` | — | 自动刷新间隔，单位为秒 |
+| `dateRange` | `object` | — | 全局日期范围过滤 |
+| `globalFilters` | `GlobalFilter[]` | — | 交互式过滤控件 |
+
+## 先有数据集 [#datasets-first]
+
+定义一次数据集；把每个组件都绑定到它上面：
+
+```ts
+import { defineDataset } from '@objectstack/spec/ui'
+
+export const salesDataset = defineDataset({
+  name: 'sales',
+  label: 'Sales',
+  object: 'opportunity',
+  include: ['account'],
+  dimensions: [
+    { name: 'region',      field: 'account.region', type: 'string' },
+    { name: 'close_month', field: 'close_date',     type: 'date', dateGranularity: 'month' },
+  ],
+  measures: [
+    { name: 'revenue',    field: 'amount', aggregate: 'sum' },
+    { name: 'deal_count', aggregate: 'count' },
+  ],
+})
+```
+
+聚合方式定义在数据集的度量上（`aggregate`），而不是在组件上：`count`、
+`sum`、`avg`、`min`、`max`、`count_distinct`、`array_agg`、`string_agg`。
+组件的 `dimensions` 和 `values` 必须引用它所绑定的数据集上声明的名称。
+
+在运行时，数据集查询经由分析服务执行，并自动对基础对象和关联对象应用
+调用者的行级安全范围 —— 仪表盘永远不会向用户展示其
+[权限](/docs/configure/permissions)不允许看到的记录。
+
+> 从 16.0 起，组件的 schema 是**严格的**：一个未声明的顶层键 —— 拼写错误、
+> 凭空编造的键，或已移除的内联查询键（`object` + `categoryField` +
+> `valueField` + `aggregate`，透视表的 `rowField` / `columnField`）—— 都是
+> **会点名出错键的解析错误**，并指向数据集的形态，而不再被悄悄剥离成一个
+> 什么也不渲染的组件。定义一个数据集并把组件绑定到它；`options` 仍然是
+> 用于渲染器特有附加项的自由逃生舱。
+
+## 组件 [#widgets]
+
+| 属性 | 类型 | 必需 | 说明 |
+|:--|:--|:--|:--|
+| `id` | `string` | 是 | 唯一的组件 id（`snake_case`） |
+| `dataset` | `string` | 是 | 要绑定的数据集名称 |
+| `values` | `string[]` | 是 | 度量名称（至少一个） |
+| `dimensions` | `string[]` | — | 维度名称 —— X 轴 / 分组 / 拆分 |
+| `type` | `ChartType` | — | 可视化类型（默认 `metric`） |
+| `title` / `description` | `string` | — | 显示标题和副标题 |
+| `filter` | `FilterCondition` | — | 展示范围的过滤条件 |
+| `layout` | `object` | — | 网格位置（省略时自动排布） |
+| `colorVariant` | `enum` | — | KPI / 卡片的强调色 |
+| `compareTo` | `enum \| object` | — | 同期对比的时间窗口 |
+| `filterBindings` | `object` | — | 按组件的全局过滤映射（见下文） |
+
+### 图表类型 [#chart-types]
+
+| 类型 | 最适合 |
+|:--|:--|
+| `metric` *（默认）* | 单个数字的 KPI —— 收入、数量、百分比 |
+| `bar` / `horizontal-bar` / `column` | 类别比较 |
+| `line` | 随时间的趋势 |
+| `pie` / `donut` | 分布 |
+| `area` | 随时间的总量 |
+| `scatter` | 相关性 |
+| `radar` | 多维比较 |
+| `funnel` | 转化阶段 |
+| `gauge` / `solid-gauge` / `bullet` / `kpi` | 目标完成进度 |
+| `treemap` / `sankey` | 层级占比 / 流向 |
+| `table` | 明细记录 —— **可下钻** |
+| `pivot` | 交叉汇总 —— **可下钻** |
+
+### 布局 [#layout]
+
+组件放在一个 12 列的网格上：
+
+```ts
+// Keys of a dashboard widget; its other keys are omitted.
+layout: {
+  x: 0,    // column position (0-11)
+  y: 0,    // row position
+  w: 6,    // width in columns (1-12)
+  h: 4,    // height in rows
+}
+```
+
+## 下钻 [#drill-down]
+
+`table` 和 `pivot` 组件**可下钻**：点击一个聚合行或单元格，会打开一个侧边
+抽屉，列出该分组背后的*底层记录*。数据集保留了原始的分组键，所以抽屉的
+过滤条件精确匹配那些记录 —— 不需要从标签去猜 id。点击抽屉中的任意一行
+即可打开该记录的详情：完整的**分组 → 记录列表 → 记录**链路。
+
+抽屉还提供一个 **"Open in list →"** 出口，把这次快速查看升级为该对象的
+完整列表页（排序、批量选择、导出、可分享的 URL），范围仍由同一个下钻
+过滤条件限定。
+
+图表组件的下钻方式相同：点击一根柱子、一个点或一块扇区，抽屉就会列出该
+分桶中的记录 —— 对日期维度，精确限定为该分桶的日期范围。只要数据集暴露了
+基础对象、且组件至少按一个维度分组，下钻就是自动的 —— 不需要按组件配置。
+`metric` 卡片只显示聚合值。[报表](/docs/build/reports)的下钻方式也一样。
+
+## 全局日期范围和过滤条件 [#global-date-range-and-filters]
+
+全局时间过滤作用于所有组件：
+
+```ts
+// Keys of a dashboard; its other keys are omitted.
+dateRange: { field: 'created_at', defaultRange: 'this_month', allowCustomRange: true }
+```
+
+预设范围：`today`、`yesterday`、`this_week`、`last_week`、`this_month`、
+`last_month`、`this_quarter`、`last_quarter`、`this_year`、`last_year`、
+`last_7_days`、`last_30_days`、`last_90_days`、`custom`。
+
+交互式全局过滤的工作方式相同：
+
+```ts
+// Keys of a dashboard; its other keys are omitted.
+globalFilters: [
+  { name: 'region', field: 'region', label: 'Region',    type: 'select' },
+  { field: 'owner',                  label: 'Sales Rep', type: 'lookup' },
+]
+```
+
+每个过滤条件的 `name`（默认为 `field`）是它稳定的身份 —— 组件在
+`filterBindings` 中引用的就是这个键，它也是在组件表达式中可以通过
+`page.<name>` 读取的仪表盘级变量。名称 `dateRange` 保留给内置的日期范围。
+
+### 按组件的过滤绑定 [#per-widget-filter-bindings]
+
+默认情况下，一个过滤条件会作用于每个组件上它自己的 `field`。当某个组件
+把这个概念存放在另一个字段下 —— 或者应该忽略某个过滤条件 —— 时，声明
+`filterBindings`：
+
+```ts
+// Keys of a dashboard; each widget's dataset, values and title are omitted (`/* … */`).
+widgets: [
+  // Default binding: dateRange → created_at, region → region.
+  { id: 'invoices_by_status', /* … */ },
+  // This widget's fields differ — map each filter explicitly.
+  { id: 'accounts_signed',
+    filterBindings: { dateRange: 'signed_at', region: 'sales_region' }, /* … */ },
+  // Opt out of a filter with `false`.
+  { id: 'total_invoices', filterBindings: { region: false }, /* … */ },
+]
+```
+
+> 优先级：显式的 `filterBindings` 条目（字符串覆盖或 `false` 退出）→ 过滤
+> 条件旧有的 `targetWidgets` 允许列表 → 过滤条件自己的 `field`。
+
+## 把仪表盘呈现出来 [#surfacing-a-dashboard]
+
+在一个[应用](/docs/build/interface/apps)中添加一个 `dashboard` 导航入口：
+
+```ts
+// One navigation item of an app.
+{ id: 'nav_analytics', type: 'dashboard', label: 'Analytics',
+  dashboardName: 'sales_overview', icon: 'bar-chart' }
+```
+
+或者向 [AI Builder](/docs/build/ai-builder) 描述它 —— *"一个销售概览
+仪表盘，包含按区域的收入和每月成交趋势"* —— 并在批准前审阅生成的数据集
+和仪表盘元数据。
+
+## 下一步 [#where-to-go-next]
+
+| 页面 | 为什么 |
+|:--|:--|
+| [报表](/docs/build/reports) | 基于同一批数据集的分组报表和交叉报表 |
+| [应用](/docs/build/interface/apps) | 把仪表盘放进导航 |
+| [视图](/docs/build/interface/views) | 基于同一批数据集的内嵌 `chart` 列表视图 |
+| [页面](/docs/build/interface/pages) | 组件网格不够用时的自由布局 |
+| [数据模型](/docs/build/data) | 你的数据集所聚合的对象 |
+| [权限](/docs/configure/permissions) | 仪表盘继承的行级安全 |

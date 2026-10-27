@@ -1,80 +1,134 @@
 ---
 title: 视图
-description: List、Form、Kanban、Calendar、Gantt 等等 —— Console 中每个对象表面是如何声明的。
+seoTitle: "视图：列表、看板、日历、甘特图和表单"
+description: 列表、表单、看板、日历、甘特图等 —— 每个对象界面是如何声明的。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 7fe2a7f72a3951df0b657558e4d93a551d264827b33a6041988fefaefd2ec24c
+  source_sha: f7208e0810feac70de2d69b3c01e2700665308487ccc26ac2e84bd3f0357fc0d
   guide_rev: 1
   mode: auto
 ---
 
-**view** 是用户在 Console 中查看和编辑记录的方式。视图是声明式元数据 —— 生命周期与对象相同：声明一次,随你的 package 发布,在任何地方渲染。
+**视图**是用户查看和编辑记录的方式。视图是声明式元数据 —— 与对象同一套
+生命周期：声明一次，随包发布，在任何地方渲染。
 
-两类：
+分两类：
 
-- **List 视图** —— 可视化多条记录(grid、kanban、calendar……)
-- **Form 视图** —— 查看 / 编辑单条记录(simple、tabbed、wizard……)
+- **列表视图** —— 可视化多条记录（表格、看板、日历 ……）
+- **表单视图** —— 查看 / 编辑单条记录（simple、tabbed、wizard ……）
 
-Schema 来源：[`packages/spec/src/ui/view.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/ui/view.zod.ts)。
+Schema 源码：
+[`packages/spec/src/ui/view.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/ui/view.zod.ts)。
 
-## 最短声明
+## 最短的声明 [#the-shortest-possible-declaration]
 
-即使你不声明视图,每个对象也会自动获得一个默认的网格 list + simple form。加上 `view` 即可覆盖或扩展：
+即使你一个视图都不声明，每个对象也会自动获得一个默认的表格列表和一个
+simple 表单。要覆盖或扩展它们，就在一个 `defineView` 容器里声明该对象的
+视图，放在对象旁边而不是对象内部：`list` 是默认列表，`form` 是默认表单，
+每个视图都通过 `data` 指定它的对象。
 
 ```ts
-import { defineObject, F, P } from '@objectstack/spec'
+// src/ui/views/support_ticket.view.ts
+import { defineView } from '@objectstack/spec';
 
-export default defineObject({
-  name: 'support_ticket',
-  fields: [ /* ... */ ],
+const data = { provider: 'object' as const, object: 'support_ticket' };
 
-  view: {
-    list: { type: 'grid', columns: ['subject', 'status', 'priority', 'assignee'] },
-    form: { sections: [ { label: 'Details', fields: ['subject','description','priority','status','assignee'] } ] }
-  }
-})
+export const SupportTicketViews = defineView({
+  list: {
+    type: 'grid',
+    data,
+    columns: ['subject', 'status', 'priority', 'assignee'],
+  },
+  form: {
+    type: 'simple',
+    data,
+    sections: [
+      { name: 'details', label: 'Details', fields: ['subject', 'description', 'priority', 'status', 'assignee'] },
+    ],
+  },
+});
 ```
 
-对多视图对象(例如对同一份数据既有 Kanban 又有日历)使用命名变体：
+把容器注册到技术栈上，紧挨着它所描述的对象：
 
 ```ts
-view: {
+// objectstack.config.ts
+export default defineStack({
+  // ...
+  views: [SupportTicketViews],
+});
+```
+
+对于有多个视图的对象（例如同一批数据上既有看板*又*有日历），在同一个
+容器里添加具名视图：`listViews` 供视图切换器使用，`formViews` 是按名称
+打开的表单。每个列表视图都保留一个顶层的 `columns`，无论它是什么类型：
+
+```ts
+export const SupportTicketViews = defineView({
+  list: { type: 'grid', data, columns: ['subject', 'status', 'priority', 'assignee'] },
   listViews: {
-    by_status:  { type: 'kanban',   kanban:   { groupByField: 'status' }, columns: ['subject','priority'] },
-    schedule:   { type: 'calendar', calendar: { startDateField: 'due_at', titleField: 'subject' } },
-    by_owner:   { type: 'grid', columns: ['subject','status','priority'], filterableFields: ['assignee'] }
+    by_status: {
+      label: 'By status', type: 'kanban', data, columns: ['subject', 'priority'],
+      kanban: { groupByField: 'status', columns: ['subject', 'priority'] },
+    },
+    schedule: {
+      label: 'Schedule', type: 'calendar', data, columns: ['subject', 'due_at'],
+      calendar: { startDateField: 'due_at', titleField: 'subject' },
+    },
+    by_owner: {
+      label: 'By owner', type: 'grid', data, columns: ['assignee', 'subject', 'status', 'priority'],
+      sort: [{ field: 'assignee', order: 'asc' }],
+    },
   },
   formViews: {
-    quick:    { type: 'modal',  sections: [ /* ... */ ] },
-    full:     { type: 'tabbed', sections: [ /* ... */ ] }
-  }
-}
+    quick: { type: 'modal', data, sections: [{ name: 'quick', label: 'Quick edit', fields: ['status', 'priority', 'assignee'] }] },
+    full: {
+      type: 'tabbed', data,
+      sections: [
+        { name: 'details', label: 'Details', fields: ['subject', 'description'] },
+        { name: 'triage', label: 'Triage', fields: ['status', 'priority', 'assignee'] },
+      ],
+    },
+  },
+});
 ```
 
-## List 视图类型
+这个容器及其规则在 ObjectStack 的
+[View metadata](https://objectstack.ai/docs/ui/views) 中有完整说明。
 
-| `type` | 渲染 | 必填配置 |
-|:--|:--|:--|
-| `grid` | 数据表(默认) | `columns` |
-| `kanban` | 列式看板 | `kanban: { groupByField }` |
-| `gallery` | 卡片堆 | `gallery: { imageField, titleField }` |
-| `calendar` | 月 / 周 / 日 | `calendar: { startDateField, titleField }` |
-| `timeline` | 按时间顺序的 feed | `timeline: { dateField, titleField }` |
-| `gantt` | 项目时间线 + 依赖 | `gantt: { startDateField, endDateField, titleField }` |
-| `map` | 地理 pin | `map: { locationField }` |
-| `tree` | 自引用层级 | `tree: { parentField, labelField }` |
-| `chart` | 嵌入式图表 | `chart: { chartType, dataset }` |
+## 列表视图类型 [#list-view-types]
 
-### 通用 list 选项
+每个列表视图都需要一个顶层的 `columns`，无论它是什么类型。某个类型的其余
+设置放在以该类型命名的配置块中：
+
+| `type` | 渲染为 | 配置块及其必需的键 | 常用的可选键 |
+|:--|:--|:--|:--|
+| `grid` | 数据表格（默认） | — | |
+| `kanban` | 分列的看板 | `kanban: { groupByField, columns }` | `summarizeField`、`titleField` |
+| `gallery` | 卡片墙 | `gallery`（无必需键） | `coverField`、`titleField` |
+| `calendar` | 月 / 周 / 日 | `calendar: { startDateField }` | `endDateField`、`titleField`、`colorField` |
+| `timeline` | 按时间排列的信息流 | `timeline: { startDateField, titleField }` | `endDateField`、`groupByField` |
+| `gantt` | 项目时间线 + 依赖 | `gantt: { startDateField, endDateField, titleField }` | `progressField`、`dependenciesField` |
+| `map` | 地理位置标记 | `map`（无必需键） | `locationField`，或 `latitudeField` + `longitudeField` |
+| `tree` | 自引用的层级 | `tree`（无必需键） | `parentField`、`labelField` |
+| `chart` | 内嵌图表 | `chart: { dataset, values }` | `chartType`、`dimensions` |
+
+下面的片段都是单个列表视图。每个都放在一个 `defineView` 容器中 —— 作为它
+的 `list`，或作为 `listViews` 的一个条目 —— 并像上面那样用 `data` 指定它的
+对象。
+
+### 常用列表选项 [#common-list-options]
 
 ```ts
+// One list view; the container and `data` are omitted (see above).
+// P is the predicate template tag: import { P } from '@objectstack/spec'
 {
   type: 'grid',
   columns: ['subject','status','priority','assignee','created_at'],
 
-  filter: [ { field: 'archived', operator: '$eq', value: false } ],
+  filter: [ { field: 'archived', operator: 'equals', value: false } ],
   sort:   [ { field: 'created_at', order: 'desc' } ],
-  pagination: { pageSize: 25, mode: 'cursor' },         // 'cursor' | 'offset'
-  expand: ['assignee'],
+  pagination: { pageSize: 25 },
   searchableFields:   ['subject','description'],
   filterableFields:   ['status','priority','assignee'],
 
@@ -85,7 +139,7 @@ view: {
   bulkActions: ['bulk_close','bulk_export'],
 
   conditionalFormatting: [
-    { condition: P`record.priority == 'urgent'`, style: { background: '#fef2f2', fontWeight: 600 } }
+    { condition: P`record.priority == 'urgent'`, style: { background: '#fef2f2', fontWeight: '600' } }   // style values are strings
   ],
 
   exportOptions: ['csv','xlsx'],
@@ -93,62 +147,70 @@ view: {
 }
 ```
 
-`filter` 与 `sort` 编译为 [ObjectQL](/docs/reference/objectql);`rowActions` 与 `bulkActions` 按名称引用 [Action](./actions)。
+`filter` 和 `sort` 会编译为 [ObjectQL](/docs/reference/objectql)；
+`rowActions` 和 `bulkActions` 按名称引用[动作](./actions)。
 
-### Kanban
+### 看板 [#kanban]
 
 ```ts
+// One list view; the container and `data` are omitted (see above).
 {
   type: 'kanban',
-  columns: ['subject','priority','assignee'],
+  columns: ['subject', 'priority', 'assignee'],  // still required at the top level
   kanban: {
-    groupByField: 'status',                  // 离散字段 —— 通常是 select
-    summarizeField: 'amount',                // 可选,按列汇总
-    columns: [                               // 显式顺序 + 颜色
-      { value: 'new',      label: 'New',      color: '#3b82f6' },
-      { value: 'open',     label: 'Open',     color: '#f59e0b' },
-      { value: 'resolved', label: 'Resolved', color: '#10b981' }
-    ]
+    groupByField:   'status',                // discrete field — usually a select
+    summarizeField: 'amount',                // optional total per column
+    columns: ['subject', 'priority', 'assignee']  // fields shown on each card
   }
 }
 ```
 
-跨列拖放会发出一条 `UPDATE`,把分组字段改成新值 —— 权限规则与手动编辑相同。
+看板的列来自 `groupByField` 的取值；列的顺序和颜色取自该字段的 `select`
+选项定义。
 
-### Calendar
+在列之间拖放会发出一次更新，设置被分组的字段 —— 与手动编辑适用同样的权限
+规则。
+
+### 日历 [#calendar]
 
 ```ts
+// One list view; the container and `data` are omitted (see above).
 {
   type: 'calendar',
+  columns: ['subject', 'start_at', 'end_at', 'priority'],
   calendar: {
     startDateField: 'start_at',
-    endDateField:   'end_at',                // 可选 —— 省略则单点事件
+    endDateField:   'end_at',                // optional — single-point if omitted
     titleField:     'subject',
-    colorField:     'priority'               // 可选 —— 按值给事件着色
+    colorField:     'priority'               // optional — colours events by value
   }
 }
 ```
 
-### Gantt
+### 甘特图 [#gantt]
 
 ```ts
+// One list view; the container and `data` are omitted (see above).
 {
   type: 'gantt',
+  columns: ['name', 'start_at', 'due_at', 'percent_complete'],
   gantt: {
     startDateField:    'start_at',
     endDateField:      'due_at',
     titleField:        'name',
-    progressField:     'percent_complete',   // 可选,驱动进度条
-    dependenciesField: 'depends_on'          // 可选 —— 指向同对象的多选 lookup
+    progressField:     'percent_complete',   // optional, drives the progress bar
+    dependenciesField: 'depends_on'          // optional — multiselect lookup to same object
   }
 }
 ```
 
-### Tree
+### 树 [#tree]
 
 ```ts
+// One list view; the container and `data` are omitted (see above).
 {
   type: 'tree',
+  columns: ['name'],
   tree: {
     parentField: 'parent_id',                // self-lookup that builds the hierarchy
     labelField:  'name',                     // shown indented in the first column
@@ -157,15 +219,20 @@ view: {
 }
 ```
 
-对于自引用对象(分类、BOM、组织单元、嵌套评论),树形表格会按 `parentField` 指针把行嵌套展示。
+对于自引用的对象（分类、BOM、组织单元、嵌套评论），树形表格会按 `parentField`
+指针把行嵌套起来。
 
-### Chart(内联)
+### 图表（内嵌） [#chart-inline]
 
-`chart` 列表视图绑定一个具名 **dataset**(语义分析层,ADR-0021),并**按名称**选择它的维度和度量。度量只定义一次,绑定同一个 dataset 的每个图表、仪表板和报表都保持一致:
+`chart` 列表视图绑定一个具名**数据集** —— 语义分析层（ADR-0021）—— 并
+**按名称**选择它的维度和度量。指标定义一次，绑定到同一个数据集的每个图表、
+仪表盘和报表就保持一致：
 
 ```ts
+// One list view; the container and `data` are omitted (see above).
 {
   type: 'chart',
+  columns: ['status'],
   chart: {
     chartType:  'bar',                       // 'bar' | 'line' | 'pie' | 'area' | 'scatter'
     dataset:    'tickets_by_status',         // a dataset declared with defineDataset(...)
@@ -175,20 +242,23 @@ view: {
 }
 ```
 
-内联的 `xAxisField` / `yAxisFields` / `aggregation` / `groupByField` 形式已在 9.0 中移除 —— 现在每个图表、仪表板小组件和报表都绑定 dataset。完整的跨对象分析请使用专用的 reports 表面。
+内联的 `xAxisField` / `yAxisFields` / `aggregation` / `groupByField` 形态已在
+9.0 中移除 —— 现在每个图表、仪表盘组件和报表都绑定一个数据集。更丰富的
+跨对象分析请使用专门的报表界面。
 
-## Form 视图类型
+## 表单视图类型 [#form-view-types]
 
 | `type` | 布局 |
 |:--|:--|
-| `simple` | 单列或分区(默认) |
-| `tabbed` | 分页签 |
-| `wizard` | 逐步引导 |
-| `split` | 主-详情双栏 |
-| `drawer` | 侧滑面板表单 |
+| `simple` | 单列或分区块（默认） |
+| `tabbed` | 标签页式区块 |
+| `wizard` | 分步流程 |
+| `split` | 主从双栏 |
+| `drawer` | 侧边面板表单 |
 | `modal` | 对话框表单 |
 
 ```ts
+// One form view; the container and `data` are omitted (see above).
 {
   type: 'tabbed',
   sections: [
@@ -200,45 +270,51 @@ view: {
 }
 ```
 
-### 公共表单
+### 公开表单 [#public-forms]
 
-表单可设为匿名可访问：
+表单可以设为允许匿名访问：
 
 ```ts
+// One form view; the container and `data` are omitted (see above).
 {
   type: 'simple',
   sections: [ { fields: ['name','email','message'] } ],
   sharing: {
-    type: 'collaborative',
-    publicSlug: 'contact-us',
+    enabled: true,
+    publicLink: 'contact-us',                // slug under /forms/
     allowAnonymous: true
   },
   submitBehavior: { kind: 'thank-you' }
 }
 ```
 
-这会自动暴露 `GET /api/v1/forms/contact-us` 与 `POST /api/v1/forms/contact-us/submit` —— 是仅有的不需要鉴权的两个 REST 路由。见 [REST API → Public forms](/docs/reference/rest-api#public-forms)。
+这会自动暴露 `GET /api/v1/forms/contact-us` 和
+`POST /api/v1/forms/contact-us/submit` —— 不需要认证的公开表单路由。参见
+[REST API → 公开表单](/docs/reference/rest-api#public-forms)。
 
-## 可见性、ARIA、主题
+## 可见性、ARIA、主题 [#visibility-aria-theming]
 
-每个视图都支持：
+- `visibleOn: P\`...\`` —— 用在表单的**区块**和**字段**上，根据用户 / 记录 /
+  环境隐藏它们（CEL 谓词）
+- `aria: { label, description, ... }` —— 供屏幕阅读器使用的 ARIA 属性
+  （列表视图和表单视图）
+- `appearance: { showDescription, allowedVisualizations: [...] }` —— 用在列表
+  视图上，限制最终用户可以切换到哪些列表类型
 
-- `visibleIf: P\`...\`` —— 按用户 / 记录 / 环境隐藏视图
-- `aria: { label, description, ... }` —— 给屏幕阅读器的 ARIA 属性
-- `appearance: { showDescription, allowedVisualizations: [...] }` —— 限制终端用户能切换到哪些 list 类型
+## 用对话构建 [#build-by-chat]
 
-## 用聊天构建
+你通常不需要手写视图元数据。告诉 AI Builder：
 
-通常你不会手写视图元数据。对 AI Builder 说：
+> *"为 support_ticket 对象添加一个按状态分组的看板视图，卡片显示主题和
+> 优先级。按状态把列标成红 / 黄 / 绿。"*
 
-> *"给 support_ticket 对象加一个按 status 分组的 kanban 视图，卡片显示 subject 和 priority。按 status 把列着色为红 / 黄 / 绿。"*
+它会调用元数据工具、把 diff 排入队列，你批准之后视图就会出现。参见
+[AI Builder](/docs/build/ai-builder)。
 
-它会调用元数据工具,把 diff 入队,审批后视图就在 Console 中出现了。见 [AI Builder](/docs/build/ai-builder)。
-
-## 另见
+## 另请参阅 [#see-also]
 
 - [数据模型](/docs/build/data) —— 视图读取的对象
-- [Actions](./actions) —— `rowActions` / `bulkActions` 引用的内容
-- [ObjectQL](/docs/reference/objectql) —— `filter` / `sort` 编译到什么
-- [CEL](/docs/reference/cel) —— `conditionalFormatting`、`visibleIf`
+- [动作](./actions) —— `rowActions` / `bulkActions` 引用的内容
+- [ObjectQL](/docs/reference/objectql) —— `filter` / `sort` 编译成什么
+- [CEL](/docs/reference/cel) —— `conditionalFormatting`、`visibleOn`
 - [`@objectstack/spec/ui/view.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/ui/view.zod.ts) —— Schema
