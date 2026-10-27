@@ -1,0 +1,110 @@
+---
+title: Files and attachments
+seoTitle: "Files and Attachments: Upload, Download, Permissions"
+description: Attach files to a record or upload them into a file field — who can see, add, and remove them, and how long removed files are kept.
+editions: [community, cloud, enterprise]
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/attachments-storage.json):
+  attachments-storage.presigned-upload-roundtrip,
+  attachments-storage.download-authz-both-sides,
+  attachments-storage.read-inherits-parent-rls,
+  attachments-storage.attach-requires-parent-edit,
+  attachments-storage.sys-file-status-pipeline,
+  attachments-storage.orphan-tombstone-reap,
+  attachments-storage.inline-grid-receipt-cells,
+  attachments-storage.field-accept-maxsize-server-enforced,
+  attachments-storage.upload-limits-scope-and-ownership.
+*/}
+
+Files reach a record in two ways:
+
+| Way | Looks like | Use it for |
+|---|---|---|
+| **Attachments** | An **Attachments** tab on the record page, listing any number of files | Contracts, photos, correspondence — anything that belongs with the record |
+| **File and image fields** | An upload control inside the form, sometimes in each row of a line-item table | A specific document the record needs — a receipt per expense line, a product photo |
+
+Both keep the file itself in storage and the record pointing at it, so
+the same rules decide who may open it.
+
+## The Attachments tab
+
+Objects whose builder turned on attachments show an **Attachments** tab
+on every record page.
+
+| Control | What it does |
+|---|---|
+| **Upload** | Pick one or more files from your computer |
+| File list | Every file attached to this record |
+| **Download** | Opens the file |
+| **Delete attachment** | Removes the file from this record, after you confirm |
+
+A record with nothing attached says **No attachments yet. Upload a file
+to get started.**
+
+## Who can do what
+
+Attachments follow the record they belong to:
+
+| To… | You need |
+|---|---|
+| See the attachments and download them | Read access to the record |
+| Upload an attachment | **Edit** access to the record — reading isn't enough |
+| Delete an attachment | To be the person who uploaded it, or edit access to the record |
+
+The person who uploaded a file can always download it and remove it.
+
+If you can't read a record, its attachments don't exist for you: they
+don't show up in any list or count. When something is refused
+you get a plain message, such as *You don't have access to attach files
+to this record.* or *Only the uploader or someone who can edit this
+record may delete this attachment.*
+
+## File and image fields
+
+A file or image field shows an upload control in the form. Pick a file
+and it uploads straight away, then shows as a chip with the file name
+that you can remove before saving. In a line-item table (an invoice's
+lines, say) each row has its own upload cell.
+
+A field can limit which file types it takes and how large a file may
+be. The server checks those limits again when you save — a file that
+breaks them is refused with a message naming the field, and nothing is
+saved.
+
+## Downloads are short-lived links
+
+**Download** asks the server for a link that works for a few minutes
+(five by default). If you copy that link and
+open it later, it will have expired — download again from the record.
+Someone without access to the record can't get a working link at all.
+
+## Size limits
+
+A single file can be up to **100 MB** unless your administrator set a
+different limit (**Max upload size (MB)** under the storage settings'
+**Limits**). A
+file over the limit is refused before any of it is stored.
+
+## What happens to removed files
+
+Deleting an attachment removes it from **that record**. The file itself
+is cleaned up in stages, so a mistake doesn't destroy data on the spot:
+
+| State | What happens |
+|---|---|
+| Attached to another record too | It stays, as long as any record still holds it |
+| No longer attached anywhere | Kept for **30 days**, then its storage is reclaimed |
+| An upload that was started but never finished | Removed after **7 days** |
+
+## Where to go next
+
+| I want to… | Read |
+|---|---|
+| Open and edit the record the files belong to | [Working with records](/docs/use/records) |
+| Discuss a record with my team | [Collaborating on records](/docs/use/collaboration) |
+| Bring in many records from a spreadsheet | [Importing data](/docs/use/import) |
+| Set up where files are stored | [Storage](/docs/configure/storage) |
+| Back to the tour | [Using ObjectOS](/docs/use) |

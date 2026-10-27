@@ -1,0 +1,161 @@
+---
+title: Collaborating on records
+seoTitle: "Record Discussions, @Mentions, History, Share Links and Public Forms"
+description: Discuss a record with your team, @mention people, see what changed and who changed it — and what share links and public forms open to people outside.
+editions: [community, cloud, enterprise]
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/records-forms.json and access-security.json):
+  records-forms.record-discussion-mentions,
+  records-forms.comment-reactions-and-edit-stamps,
+  records-forms.field-history-tracking,
+  access-security.share-link-capability-tokens,
+  access-security.share-link-landing-page,
+  access-security.share-link-combined-gates,
+  access-security.public-form-intake,
+  access-security.public-form-withdrawal-layers.
+*/}
+
+Work on a record rarely happens alone. Every record page can carry the
+conversation about it, a trail of what changed, and — when the app is
+set up for it — a way to show the record or collect data from people
+who don't sign in.
+
+## The discussion
+
+Below the tabs of a record page sits its **Discussion**: comments and
+the record's activity in one feed, oldest first. (It appears on objects
+whose builder turned discussions on.)
+
+| You can | How |
+|---|---|
+| Comment | Type in **Write a comment…** and press **Send** or `Ctrl+Enter`. Bold, italic, lists and inline code are in the toolbar, with **Preview** |
+| Mention someone | Type `@` and pick a person from the suggestions (or **Mention someone**) |
+| Reply | Reply under a comment to keep a thread together |
+| React | Add an emoji reaction to a comment |
+| Edit or delete | Your own comments only. An edited comment is marked **(edited)** — the server sets that mark, so it can't be hidden |
+| Follow the record | **Subscribe to notifications** to hear about this record's updates |
+
+A comment appears the moment you send it, then settles into the saved
+copy without a duplicate.
+
+### Filtering the feed
+
+The feed mixes comments with the record's activity. Narrow it with the
+filter:
+
+| Filter | Shows |
+|---|---|
+| **All Activity** | Everything |
+| **Comments Only** | Comments and replies |
+| **Field Changes** | Edits to the record's fields |
+| **Tasks Only** | Task entries |
+
+An empty filter just means the record has nothing of that kind yet.
+
+## @mentions
+
+When you `@mention` someone, they get a notification in their bell with
+a preview of the comment and a link straight to the record.
+
+A mention never reaches further than the discussion itself: the person
+is notified only if they can read the record and the comment. Mentioning
+someone does **not** give them access. The author of the comment isn't
+notified about their own mention, and nobody who wasn't mentioned is.
+
+## What changed, and who changed it
+
+| Where | What it shows |
+|---|---|
+| The discussion feed | For the fields the app's builder chose to track, a line such as **Industry: Technology → Finance**, using the labels you see in the form |
+| The **History** tab | The record's full change history. It appears on objects whose builder turned history tracking on |
+
+Changes to fields that aren't tracked don't get a before-and-after line
+in the feed.
+
+## Sharing a record with your team
+
+**Share** in the record's `⋯` menu copies the record's address (or opens
+your device's share sheet). It doesn't grant anything: the person who
+opens it still needs access to the record — see
+[Permissions](/docs/configure/permissions).
+
+## Share links: anyone with the link
+
+For objects where the app's builder enabled public sharing, a record can
+also have **share links** — a link that shows that one record to people
+who don't have an account, or who have one but no access to the record.
+
+A share link is created for one record through the API
+(`POST /api/v1/share-links`) by someone who can see that record. Each
+link can carry its own limits:
+
+| Limit | Effect |
+|---|---|
+| **Password** | The page asks for it: **Password required**, then **Wrong password.** until it's right |
+| **Signed-in users only** | Visitors without a session see **Sign in required** and a **Sign in** link back to the same page |
+| **Email allow-list** | Only signed-in people with a listed email address see the record |
+| **Expiry date** | The link stops working on that date |
+| **Hidden fields** | Fields left out of what the link shows, on top of the fields the object always hides from share links |
+
+The person who opens the link sees a page outside the app — no menu, no
+sign-in unless the link requires one — with the record's fields, read-only.
+If fields were hidden, the page says **Some fields are hidden by the
+owner** and names them.
+
+### Revoking, and what a link never exposes
+
+- **Revoke** a link (`DELETE /api/v1/share-links/…`) and it stops
+  working at once: the page shows **This link has expired or was
+  revoked.** So does a link past its expiry date.
+- **Delete the record** and every link to it answers **This link is
+  invalid or no longer available.** — the same answer as a made-up
+  link, so a link never confirms whether a record exists.
+- **Hidden fields are removed on the server.** They never reach the
+  visitor's browser, not just the screen.
+- **One record only.** A link opens exactly the record it was made for,
+  never related records or the rest of the list.
+- **The password stays on the server.** It's stored hashed and no
+  response ever carries it back.
+- **Nothing is cached.** Pages served through a link tell browsers and
+  proxies not to keep a copy, so the next person on a shared computer
+  can't see a password-protected record.
+- **You see only your own links.** Listing links returns the ones you
+  created, not anyone else's.
+
+If the app's builder turns public sharing off for the object, every link
+on it stops working until it's turned back on.
+
+## Public forms: collecting data from outside
+
+A **public form** is a form the app's builder published at a link such
+as `/forms/contact-us`, for people who aren't signed in — a contact
+form, a web-to-lead or a support request. Visitors fill it in and see
+the form's confirmation (a thank-you message, for example); each
+submission becomes a record your team works on like any other.
+
+What a public form never opens up:
+
+- **Only the listed fields.** Visitors see and can fill only the fields
+  the form shows — not the rest of the object.
+- **No looking things up.** A public form has no fields that search
+  your records (no lookup or people pickers), whatever the form declares.
+- **No forged ownership.** A visitor can't set who owns the record,
+  which organization it belongs to, or fields such as its status;
+  values sent for those are dropped and the server sets them.
+
+To **close** a public form, the builder unpublishes it or turns off
+anonymous access. The link then answers as if the form doesn't exist,
+and submissions stop immediately.
+
+## Where to go next
+
+| I want to… | Read |
+|---|---|
+| Attach files to the record | [Files and attachments](/docs/use/files) |
+| Control which notifications reach me | [Notifications](/docs/use/notifications) |
+| Understand who can see a record | [Permissions](/docs/configure/permissions) |
+| Build a public form | [Views → Public forms](/docs/build/interface/views#public-forms) |
+| Back to the tour | [Using ObjectOS](/docs/use) |
