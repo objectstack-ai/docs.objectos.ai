@@ -148,7 +148,7 @@ const KEEP = ['標籤', '書籤'];
 const KEEP_BASE = 0xe000;
 
 function convert(text) {
-  if (/[-]/.test(text)) {
+  if (/[\uE000-\uF8FF]/.test(text)) {
     // A private-use character in the source would collide with the stand-ins.
     throw new Error('source contains a private-use code point (U+E000..U+F8FF)');
   }
