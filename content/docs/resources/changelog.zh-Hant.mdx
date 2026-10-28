@@ -1,0 +1,585 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 更新日誌與版本管理
+description: ObjectOS 如何進行版本管理、版本之間有哪些變化，以及支援哪些版本。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 323046628fabcce6da190adf852a2f76c7c2b603056f600290b8dbf3ef64dfd3
+  guide_rev: 1
+  mode: auto
+---
+
+## 版本管理策略 [#versioning-policy]
+
+ObjectOS 版本採用 **[語義化版本](https://semver.org/)** 的形式 `MAJOR.MINOR.PATCH`，
+但有一個例外，如下表所述：在 v17 線上，次版本也可能包含破壞性變更。
+
+| 版本變化 | 含義 | 你要做什麼 |
+|---|---|---|
+| **補丁版本**（`14.7.0 → 14.7.1`） | 缺陷修復，沒有行為變化 | 直接升級，無需修改應用 |
+| **次版本**（`17.4 → 17.5`） | 新功能 —— 在 v17 線上還包括破壞性的修正。每個 17.x 版本的釋出說明都用同樣的話說明這一點：它是"按版本號而言的次版本，而不是按影響範圍而言" | 在升級之前，閱讀該版本的升級檢查清單和[特定版本步驟](/docs/operate/upgrade#version-specific-steps) |
+| **主版本**（`13 → 14`） | 在釋出說明中記錄的破壞性變更 | 升級前閱讀遷移指南 |
+
+所有 `@objectstack/*` 包以同步的版本號一起釋出 —— 它們作為一個矩陣一起測試，而不是
+各自獨立測試。
+
+## 相容性矩陣 [#compatibility-matrix]
+
+| 元件 | 相容規則 |
+|---|---|
+| ObjectOS 映象 ↔ 編譯後的產物 | 相同的次版本。14.7.x 映象執行 14.7.x 產物；14.7 產物可能使用 14.0 映象中不可用的功能。協議握手（`PROTOCOL_VERSION`，12.0+）會在安裝時拒絕不相容的包。 |
+| ObjectOS ↔ CLI | 推薦使用相同的次版本。通過 `npm i -g` 安裝的 CLI 會生成固定在它自身版本上的腳手架。 |
+| ObjectOS ↔ 資料庫驅動 | 驅動由映象構建固定；需確認 Postgres ≥ 13 / MongoDB ≥ 5 / Turso（任何當前版本）。 |
+| Node.js | **22 或更新** —— 從 17.0 起，每個已釋出的 `@objectstack/*` 包的 `engines.node` 都是 `>=22.0.0`。Node 20 已於 2026-04-30 結束生命週期。 |
+
+## 支援視窗 [#support-windows]
+
+支援是**相對於當前主版本**定義的，而不是針對固定的日曆：
+
+| 分支 | 狀態 |
+|---|---|
+| 當前主版本（目前為 17.x） | 活躍開發；新功能和修復 |
+| 上一個主版本（目前為 16.x） | 僅安全修復 |
+| 更早的主版本 | 不再支援 |
+
+關鍵的安全修復會向後移植到當前和上一個主版本。其他所有修復都落在 `main` 上。與某個
+具體主版本相關的日期，會隨該主版本的[釋出說明](https://objectstack.ai/docs/releases)
+一起公佈。
+
+## 釋出說明 [#release-notes]
+
+已釋出的 ObjectOS 版本及其 CHANGELOG 條目釋出在：
+
+- **npm**：[`@objectstack/runtime`](https://www.npmjs.com/package/@objectstack/runtime)
+- **GitHub**：[github.com/objectstack-ai/objectstack/releases](https://github.com/objectstack-ai/objectstack/releases)
+- **原始碼 CHANGELOG**：[`CHANGELOG.md`](https://github.com/objectstack-ai/objectstack/blob/main/CHANGELOG.md)
+- **長篇釋出說明**：每個版本一頁，附帶其升級檢查清單，位於 [objectstack.ai/docs/releases](https://objectstack.ai/docs/releases) —— v17 線見 [v17](https://objectstack.ai/docs/releases/v17)
+
+要接收通知，請在 GitHub 上 watch
+[github.com/objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack)
+→ Releases。
+
+## 近期要點 [#recent-highlights]
+
+下面的每個 17.x 次版本都會改變執行中部署的行為。每份升級檢查清單中屬於運維人員的
+部分，見[升級與回滾 → 特定版本步驟](/docs/operate/upgrade#version-specific-steps)。
+
+### 17.7 [#177]
+
+`@objectstack` **17.7.0**（釋出於 2026-10-06）是 v17 線的當前版本。它把憑據從此前
+被複制進去的副本中移出，並讓一行你看不到的資料表現得像一行不存在的資料。完整說明：
+[objectstack.ai/docs/releases/v17/17-7](https://objectstack.ai/docs/releases/v17/17-7)。
+
+> **警告：**升級之後，請輪換每個流程金鑰和 JWT 簽名金鑰，並重新簽發私密的分享連結：
+> 升級之前製作的副本仍留在審計軌跡中。在 17.7 上設定的金鑰，更早的版本無法讀取，
+> 所以規劃回滾時要考慮到這一點。參見
+> [升級與回滾 → 17.7](/docs/operate/upgrade#objectstack-177)。
+
+變化了什麼：
+
+- **憑據不再隨副本傳播**（安全）—— 流程的入站 `secret` 和 `http` 節點的
+  `signingSecret` 遷移到一個只寫儲存中，審計軌跡不再記錄憑據欄位，憑據欄位在每個
+  寫入響應、記錄事件、webhook 正文和流程觸發記錄中都會被掩碼。
+- **公開表單只在顯式開關開啟時才公開**（破壞性）—— 只有當表單的 `sharing` 在
+  `allowAnonymous` 和 `publicLink` 之外還設定了 `enabled: true` 時，才會匿名提供該
+  表單。只設置了後兩者的表單會返回 `404 FORM_NOT_FOUND`。參見
+  [檢視](/docs/build/interface/views#public-forms)。
+- **你無法讀取的行就是不存在的** —— 對呼叫者無法讀取的行按 id 更新或刪除，會返回
+  `404 RECORD_NOT_FOUND`，按過濾條件更新或刪除只會觸及可讀的行。
+- **讀取和寫入只返回已宣告的欄位** —— 沒有任何後設資料宣告的列，例如已退役欄位的殘留
+  列，不再被返回；轉換可用 `os migrate unmapped-columns` 讀取它。參見
+  [CLI](/docs/reference/cli#database-migrations--os-migrate)。
+- **應用程式碼只能通過後設資料 API 訪問儲存的後設資料** —— 鉤子、動作和作業的程式碼不再
+  直接讀寫 `sys_metadata`，寫入它的流程節點會被拒絕。
+- **日期、時間和數字跟隨語言** —— 四項格式設定已退役，點名其中之一的設定寫入會返回
+  `400`。參見[本地化](/docs/configure/localization)。
+- **記憶體引擎不再能作為啟動儲存**，外部登入也不再自行關聯到郵箱未驗證的本地賬戶。
+- **Console（Studio）** —— 五次 objectui 固定版本移動；第一次修復了 17.6 中四個已知
+  的 console 問題。
+
+### 17.6 [#176]
+
+`@objectstack` **17.6.0**（釋出於 2026-10-02）在每一扇門上以同樣的方式判定訪問：
+沒有許可權集的呼叫者什麼都得不到，欄位級安全覆蓋每一個查詢。完整說明：
+[objectstack.ai/docs/releases/v17/17-6](https://objectstack.ai/docs/releases/v17/17-6)。
+
+變化了什麼：
+
+- **解析不到任何許可權集的呼叫者對每個物件都會被拒絕**（破壞性，安全）—— 過去它會
+  被准入每一個沒有任何許可權集授予的物件。應用宣告的匿名端點（`authRequired: false`）
+  不能再讀寫物件，也沒有任何受支援的渠道會給匿名呼叫者授予許可權集。公開表單繼續正常
+  工作。
+- **欄位級安全覆蓋每一個查詢入口** —— 跨欄位比較、活動流、審計軌跡、審批快照和
+  分析。審計軌跡和活動流只向非系統讀者（包括管理員）顯示關於該讀者能讀取的記錄的行；
+  17.7 的 `view_all_audit_log` 能力（平臺管理員預設持有）把刪除和登出軌跡還給了他們。
+  參見[審計日誌](/docs/operate/audit-logs)。
+- **打包的流程擁有它的名稱** —— 在部署中以打包流程的名稱儲存的流程會停止執行，開/關
+  切換隻作用於打包的流程。參見[流程](/docs/build/automation/flows#visual-builder)。
+- **儲存的後設資料正文在每一處副本中都會被脫敏** —— 對靜態儲存的副本執行
+  `os migrate audit-metadata-bodies --apply`。`/api/v1/meta` 上的資料來源後設資料需要
+  `manage_platform_settings`。
+- **「is empty」也會匹配 `''` 和 `[]`**，在共享規則和檢視中，作用於文本和多值欄位。
+- **日期在每一扇門上都遵循同一條規則** —— `datetime` 的年份必須在 1000 到 9999 之間，
+  匯入只按 ISO 8601、匯出自身的格式或年份在前的格式讀取日期單元格。
+- **共享選項列表** —— 一種新的 `picklist` 後設資料型別，欄位按名稱引用它，其他包可以
+  擴充套件它。
+
+### 17.5 [#175]
+
+`@objectstack` **17.5.0**（釋出於 2026-09-29）把若干預設值轉向安全的一側：定時任務
+在部署要求之前保持關閉，行級安全、分析和記錄寫入會拒絕它們無法兌現的內容。完整說明：
+[objectstack.ai/docs/releases/v17/17-5](https://objectstack.ai/docs/releases/v17/17-5)。
+
+> **警告：**一個升級後什麼都不做的部署，不會執行任何定時流程，也不會執行任何打包的
+> cron 作業；隔離牆式部署在 `OS_PLATFORM_OWNER_EMAIL` 指定管理員之前沒有任何平臺
+> 管理員。參見[升級與回滾 → 17.5](/docs/operate/upgrade#objectstack-175)。
+
+變化了什麼：
+
+- **定時任務在部署開啟之前保持關閉**（破壞性）——
+  `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` 門控每一個時間觸發的流程和打包的 cron
+  作業。參見[環境變數](/docs/reference/environment-variables#runtime-services)。
+- **隔離牆式部署只從 `OS_PLATFORM_OWNER_EMAIL` 獲取平臺管理員身份**（破壞性）——
+  `admin_full_access` 授權不再賦予這一身份。
+- **已儲存報表的整套機制被移除**（破壞性）—— `/api/v1/reports` 和定時報表投遞，
+  沒有後繼者。`report` 後設資料型別、資料集和分析保持不變。參見
+  [REST API](/docs/reference/rest-api#reports)。
+- **行級安全在遇到無法強制執行的謂詞時失敗即關閉**，沒有 `check` 的策略現在會用它的
+  `using` 約束插入和更新。
+- **分析只回答可以讀取該物件的呼叫者** —— 其他人會被以 `403` 拒絕，與 `/data` 上
+  相同。
+- **決策節點走第一個匹配的分支** —— `mode: 'inclusive'` 會執行每一個為真的分支。從
+  Studio 儲存的決策節點在升級後採用新的含義。參見
+  [流程](/docs/build/automation/flows#conditions-and-branches)。
+- **寫入的值必須符合其宣告的型別** —— `date` 為 `YYYY-MM-DD`，`datetime` 為
+  ISO 8601，數字為其 JSON 寫法；其他任何形式都是 `400 VALIDATION_FAILED`。
+- **驗證規則可以通過查詢讀取一跳之外的記錄**，CEL 增加了
+  `current_user.can(object, verb)`。參見
+  [驗證規則](/docs/build/data/validation-rules#reading-a-related-record)和
+  [CEL](/docs/reference/cel#permission-checks)。
+- **沒有宣告頁大小的檢視顯示 50 行**，而不是 25 行。
+
+### 17.4 [#174]
+
+`@objectstack` **17.4.0**（釋出於 2026-09-09）把每個時長鍵重新命名為帶有其單位，並關閉
+了兩條悄無聲息的寫入路徑。完整說明：
+[objectstack.ai/docs/releases/v17/17-4](https://objectstack.ai/docs/releases/v17/17-4)。
+
+變化了什麼：
+
+- **只讀欄位會從非系統的建立中剝離**，而不只是從更新中剝離 —— 在 `droppedFields`
+  中報告。要預置這樣的欄位，請以系統身份進行。參見
+  [驗證規則](/docs/build/data/validation-rules)。
+- **每個時長鍵的名稱都帶有其單位**（破壞性）—— `timeout` 變為 `timeoutMs`，
+  `refreshInterval` 變為 `refreshIntervalSeconds`，依此類推，沒有別名：舊寫法會在
+  解析時被拒絕，並點名該鍵。
+- **會話上的 `positions` 是安全維度** —— 按崗位收窄的 Console 門控現在會為擔任該
+  崗位的人生效。
+- **流程可以帶著理由拒絕** —— 一個 `outcome: 'refused'` 的 `end` 節點，加上按記錄
+  的 `message`。參見
+  [流程](/docs/build/automation/flows#ending-a-run-completed-or-refused)。
+- **分析的日期範圍是一個封閉的詞彙表** —— 一個宣告的預設或一對 `[start, end]`；
+  其他任何形式都是 `400`。
+- **多組織執行時開源了** —— `@objectstack/organizations` 是一個已釋出的包。
+
+### 17.3 [#173]
+
+`@objectstack` **17.3.0**（釋出於 2026-09-04）是 v17 線上最大的一個版本。完整說明：
+[objectstack.ai/docs/releases/v17/17-3](https://objectstack.ai/docs/releases/v17/17-3)。
+
+變化了什麼：
+
+- **開放的自助註冊必須宣告**（破壞性）—— 沒有宣告受眾姿態的應用只接受邀請，沒有
+  待處理邀請的註冊會以 `403 SELF_REGISTRATION_CLOSED` 被拒絕（全新安裝上的第一個
+  賬戶不受此限）。
+- **共享授權按租戶劃定範圍** —— 17.3 之前寫入的 `sys_record_share` 行需要由運維人員
+  執行回填。參見[升級與回滾 → 17.3](/docs/operate/upgrade#objectstack-173)。
+- **許可權儲存故障會明確地失敗**（`503`），而不是被解析為一個沒有任何能力的使用者。
+- **自動編號在每個組織內唯一**，現有的重複項會阻止新索引的建立：先執行
+  `os migrate duplicates`。
+- **複合後設資料定址已退役** —— `/api/v1/meta/:type/:section/:name` 返回
+  `404 ROUTE_NOT_FOUND`。參見[REST API](/docs/reference/rest-api#metadata--apiv1meta)。
+- **開關流程需要 `manage_metadata`。**
+- **SDK** —— `client.projects.*` 變為 `client.environments.*`，沒有別名。
+
+### 17.2 [#172]
+
+`@objectstack` **17.2.0**（釋出於 2026-08-23）不再讓那些聲明瞭一個無人求值的條件的
+寫入看起來像條件寫入。完整說明：
+[objectstack.ai/docs/releases/v17/17-2](https://objectstack.ai/docs/releases/v17/17-2)。
+
+變化了什麼：
+
+- **按 id 寫入不再丟棄謂詞**（破壞性）—— 如果按 id 更新或刪除的 `where` 點名了
+  `id` 之外的內容，除非聲明瞭 `multi: true`，否則會被拒絕；`data.id` 與 `where.id`
+  不一致的寫入會返回 `400 UPDATE_ID_MISMATCH`。
+- **`http_request_errors_total` 已退役** —— 基於它的面板讀數恆為零；請使用
+  `http_requests_total{status=~"5.."}`。
+- **外部資料來源路由需要一項能力** —— `manage_platform_settings` 或
+  `manage_metadata`。
+- **`os g agent` 已退役** —— 改為編寫 Skill。
+
+### 17.1 [#171]
+
+`@objectstack` **17.1.0**（釋出於 2026-08-20）是 v17 線的第一個次版本。17.0 讓*可編寫的
+表面*變得響亮，17.1 則讓執行時的回答變得響亮：承諾撤銷訪問許可權的標誌現在真的會撤銷，
+失敗的讀取不再被當作空讀取返回，從未派發的流程不再被報告為一次失敗的執行，從來不應
+可讀的憑據也不再被返回。完整說明：
+[objectstack.ai/docs/releases/v17/17-1](https://objectstack.ai/docs/releases/v17/17-1)。
+
+> **警告：**17.1.0 按版本號而言是次版本，按影響範圍而言卻不是。它的若干安全修正會
+> 改變現有部署上誰能讀、誰能寫，而且沒有任何遷移步驟來提醒你。前滾之前，請逐項完成
+> 完整說明中的 17.1.0 升級檢查清單。
+
+變化了什麼：
+
+- **停用一個許可權集或崗位，現在真的會停止授予訪問許可權**（安全）—— 這兩種物件都帶有
+  一個停用動作，其對話方塊承諾訪問會停止，但從來沒有任何東西讀取這一列：一個以
+  `active: false` 預置的崗位仍會授予它的許可權集，一個以 `active: false` 預置的許可權集
+  仍會返回平臺管理員姿態。共享規則通過第二條路徑觸達使用者，而這條路徑從不經過那個
+  檢查點，所以一條把記錄共享給已停用崗位的規則會繼續共享 —— 這些共享會在下一次
+  協調時被撤銷。`active` 列缺失或為 NULL 的行不受影響。如果一個部署曾以為這個開關
+  不起作用而使用它，那麼這是對線上資料的一次真實撤銷，所以請先稽核你已停用的行。
+  參見[許可權集](/docs/configure/permissions/permission-sets)。
+- **隨附的管理員許可權集不再在 `*` 萬用字元上授予匯出**（破壞性）—— `admin_full_access`、
+  `organization_admin` 以及派生出的 `organization_admin_no_bypass` 帶有
+  `objects['*'].allowExport: true`，這讓 17.0 的匯出維度無法被拒絕：應用可以宣告某個
+  物件誰都不能匯出，平臺卻照樣匯出。匯出現在按物件授予，寫在應用自己的許可權集中；
+  我們有意不提供自動替代。讀取不受影響 —— 這隻收窄了批次外流。
+- **部分欄位脫敏** —— `FieldSchema` 宣告 `maskingRule`：封閉的預設列舉 `phone` /
+  `id_card` / `bank_account` / `email` / `name`，外加一個 `{ keepHead, keepTail }` 的
+  兜底寫法。聲明瞭規則的欄位會以脫敏但仍可辨認的形式（`138****5678`）返回給每個非
+  系統呼叫方，欄位的 `requiredPermissions` 就是解除脫敏的門檻。脫敏走唯一的執行時
+  通道，所以 API 呼叫方、瀏覽器使用者和 CSV/XLSX 匯出路由看到的是同一個值；被脫敏的
+  呼叫方無法在該欄位上篩選、排序、分組或聚合。參見
+  [欄位級安全](/docs/configure/permissions/field-level-security)。
+- **兩項 ObjectOS 不暴露的開放執行時能力** —— 17.1 新增了記錄檢視審計
+  （`sys_audit_log` 中的 `read` 動作），以及一個只讀層級，讓記錄的讀者能看到它的審批
+  請求。兩者都只能通過建構函式選項開啟 —— `AuditPlugin` 的 `readAudit`、審批服務的
+  `recordReaderVisibleObjects` —— 而 ObjectOS 執行時沒有設定它們，所以在 ObjectOS
+  部署上兩者都不可用。
+- **三個流程入口共用一張如實的狀態表** —— 被拒絕的派發不再被報告為一次失敗的執行：
+  `404` 未找到，`409` `FLOW_DISABLED`，`422` `FLOW_NO_START_NODE`，`400`
+  `FLOW_FAILED` 則表示一次確實運行了但被拒絕的執行。自動化的 `trigger` 路由、動作
+  入口，以及宣告為 `type: 'flow'` 的端點，現在讀取同一份共享定義，而不是三份各自的
+  副本，`outputMapping` 也不再應用於失敗的結果。呼叫方應根據 HTTP 狀態分支，而不是
+  根據內部的 `success` 標誌。參見[流程](/docs/build/automation/flows)。
+- **`error.code` 在每個入口都是封閉詞彙** —— 丟擲的程式碼如果不在平臺的標準集合中，
+  就不再進入 `error.code`；它改由新的可選欄位 `declaredCode` 承載，這樣應用自己的
+  拼寫得以保留，而不會擴大平臺的詞彙。
+- **失敗的讀取不再讀作空讀取** —— 這是在後設資料協議、彙總索引，以及級聯刪除和登錄檔
+  探測中一併關閉的一類反覆出現的問題：一次*失敗*的讀取過去與一次確實什麼都沒找到的
+  讀取無法區分，於是 upsert 的預載入會把每次更新都變成插入，而"刪除這個會破壞什麼"
+  的回答是"什麼都不會"。沒有移除任何 `catch` —— 每一個都按錯誤型別加以區分，所以
+  尚未開通的表仍是無害的，其他一切都會暴露出來。
+- **編寫時的門控延伸到執行時釋出入口** —— 過去只有 `os build` / `os validate` 執行的
+  規則，現在也會判定執行時寫入，所以 Studio 和後設資料 API 無法寫入 CLI 拒絕的內容。
+  升級之後請重新執行 `os build` / `os validate`：若干新的拒絕可能會讓在 17.0 上
+  構建乾淨的 stack 失敗，包括未知的 stack 頂層鍵、目標不是已宣告頁面的儀表盤頁頭
+  `modal` 動作，以及點名了公式欄位或根本沒有點名欄位的列表檢視 `sort`。
+- **Console（Studio）** —— 兩次 objectui 固定版本移動，帶來了儀表盤元件的重新鍵控、
+  動作上結構化 `confirm` 物件的退役、指標小部件上的 `I18nLabel`，以及為掛載在子路徑
+  下的控制台由宿主執行的 `submitBehavior.url` 重定向。
+
+### 17.0 [#170]
+
+`@objectstack` **17.0.0**（釋出於 2026-08-14）是一個說真話的版本：16.0 讓*已宣告的
+後設資料*變得誠實，17.0 則對它周圍的表面做了同樣的事。完整說明：
+[objectstack.ai/docs/releases/v17/17-0](https://objectstack.ai/docs/releases/v17/17-0)。
+變化了什麼：
+
+- **Node.js 22 是下限**（破壞性）—— 在全部 50 個已釋出的清單中，`engines.node` 從
+  `>=18.0.0` 改為 `>=22.0.0`。CI、釋出流水線和每個隨附的 Docker 映象本來就執行在 22
+  上；現在承諾與事實一致了。在 Node 22+ 上沒有任何變化。如果你的 CI 固定了 Node
+  版本，請把它固定為 22。
+- **批次匯出是一項獨立的特權**（破壞性）—— `allowExport` 未設定過去表示"繼承讀取"；
+  現在它表示**拒絕**，`viewAllRecords` / `modifyAllRecords` 也不再授予它。包隨附的
+  許可權集會在升級時重新預置，所以 `admin_full_access` 和 `organization_admin` 仍能匯出
+  —— **在環境中編寫的許可權集則不會**。請為其使用者需要匯出的每個自定義許可權集新增
+  `allowExport: true`。參見[許可權集](/docs/configure/permissions/permission-sets)。
+- **檔案是一條記錄，而不是列中的一個 blob** —— 媒體欄位
+  （`file`/`image`/`avatar`/`video`/`audio`）儲存一個不透明的 `sys_file` id；
+  `{ url, name, size, … }` 物件變為*讀取*（展開）形式。由於位元組由平臺掌管，
+  `accept` / `maxSize` 可以宣告**並由伺服器強制執行**，而不只是瀏覽器端的提示。
+  `os migrate files-to-references` 執行這一轉換。參見
+  [欄位型別](/docs/reference/field-types#media)。
+- **GraphQL 表面已移除**（破壞性）—— 它從第一天起就只有 schema：由於該服務從未被
+  分配，處理程序無條件返回 501。`/graphql` 現在返回 404。不受影響的是：把 `graphql`
+  作為**外部**資料來源的協議，那是別人的 API，而不是 ObjectOS 提供的 API。
+- **沒有條件的共享規則什麼都不共享，被停用的 RLS 策略就是停用的**（破壞性，安全）——
+  一條沒有條件的已儲存規則過去會被求值為*該物件的每一條記錄*，而一個用
+  `enabled: false` 關閉的 RLS 策略仍會貢獻它的 OR 分支授權。現在兩者都會失敗關閉。
+  參見[記錄訪問](/docs/configure/permissions/record-access)。
+- **審批請求對其參與者可見**（安全）—— `getRequest` / `listRequests` /
+  `countRequests` 只應用了可見性規則中的租戶那一半，所以任何已認證使用者都能讀取其租戶
+  中的任何請求：載荷快照、決策歷史和附件。
+- **審批人可以動態路由** —— 審批節點新增 `expression` 審批人（基於 `current.*` /
+  `trigger.*` / `vars.*` 的 CEL）、節點級的 `onEmptyApprovers` 策略，以及作者宣告的
+  決策輸出，它們會以 `<nodeId>.<key>` 流程變數的形式恢復執行。參見
+  [審批](/docs/build/automation/approvals)。
+- **出問題的資料來源會在啟動時大聲報錯** —— 有物件繫結的資料來源必須連線成功，否則啟動
+  失敗；`objectql.init()` 拒絕在失效的資料驅動上啟動；當某個資料來源不再響應時，
+  `/api/v1/ready` 返回 503。過去這樣的啟動會乾淨地完成、以零退出，然後讓繫結物件的
+  每一次讀寫都失敗。
+- **`enable.apiMethods` 縮減為六個原語**（破壞性）—— 可編寫的列舉正好是 `get`、
+  `list`、`create`、`update`、`delete`、`bulk`。八個舊值是*派生的*有效操作；已儲存
+  的舊值會在解析時被剔除，並給出一條點名其替代項的警告。
+- **失效後設資料的清理仍在繼續**（破壞性）—— `object.enable.trash` 和 `enable.mru`、
+  `tool.requiresConfirmation`、`agent.tools[]`、`agent.knowledge`、
+  `SkillSchema.permissions`、報表的 `aria` / `performance`、`flow.active`，以及一長串
+  被解析卻被忽略的鍵都已移除。每一個都會在解析時拒絕，並給出升級處方，而不是被悄悄
+  剔除。執行 `os migrate meta --from 16` 來重寫你的原始檔。
+- **可編寫的表面已封閉** —— 現在每一種可編寫的後設資料型別都會以點名的處方拒絕未知鍵，
+  在解析路徑上也是如此，而不只是在 `create()` 中。一個拼寫錯誤會成為一個定位明確的
+  錯誤，而不是一個悄悄從未生效的設定。
+
+### 16.0 [#160]
+
+`@objectstack` **16.0.0** 收攏了開發者表面，並讓已宣告的後設資料變得誠實：呼叫方組織
+只有一個認可的名字，真正的多審批人治理，真正會觸發的相對時間自動化，以及一次全平臺的
+清理，把被悄悄忽略的後設資料變成編寫時的響亮錯誤。完整說明：
+[objectstack.ai/docs/releases](https://objectstack.ai/docs/releases)。
+變化了什麼：
+
+- **鉤子/動作 `ctx` 上的 `tenantId` 別名已移除**（16.0，破壞性）—— 在每個
+  `*.hook.ts` / `*.action.ts` 主體中，以 `ctx.user.organizationId` /
+  `ctx.session.organizationId` 讀取呼叫方的組織（值不變；對於系統寫入，`ctx.user` 為
+  `undefined`）。驅動層的租戶維度（`ExecutionContext.tenantId`）是一個不同的概念，
+  不受影響。
+- **審批：法定人數、按組會簽，以及後設資料驅動的收件箱** —— 審批步驟支援 M-of-N 法定
+  人數（`minApprovals`），以及每組各需一位審批人的步驟，依據開啟時的快照計票，並支援
+  外出（OOO）替代；一次駁回仍然一票否決，閾值會被鉗制，因此錯誤配置永遠不會造成死鎖。
+  決策可以攜帶檔案附件，進度（"2 of 3 · finance pending"）在服務端計算，而批准 /
+  駁回 / 轉派 / 退回 / 要求補充資訊 / 催辦 / 撤回 / 重新提交都是
+  `sys_approval_request` 上宣告的 `type:'api'` 動作 —— 審批收件箱通過其通用動作
+  執行時來渲染它們，而不是靠手寫的按鈕。
+- **相對時間自動化** —— 流程開始節點可以宣告 `timeRelative`（`offsetDays: [60, 30, 7]`
+  或 `withinDays`）；每日掃描會為每條匹配的記錄啟動一次流程，所以"在合同結束前 60 天
+  提醒我"終於可以直接實現 —— 不再需要只有在碰巧編輯時才會觸發的日期相等條件。
+- **帶篩選的彙總** —— `summaryOperations.filter` 讓父記錄的合計只聚合匹配的子行，並在
+  子行進入或離開該謂詞時重新聚合。
+- **嚴格的儀表盤小部件**（16.0，破壞性）—— `DashboardWidgetSchema` 是 `.strict()`：
+  未宣告的鍵（拼寫錯誤或已移除的內聯分析鍵）會成為一個解析錯誤，點名該鍵並指向資料集
+  形態（`dataset` + `dimensions` + `values`），而不是悄悄地什麼都不渲染。
+- **MCP：stdio 有了身份，Agent 有了檢查器** —— stdio 自動啟動改由獨立的
+  `OS_MCP_STDIO_ENABLED` 開關控制（預設關閉），並需要一個 `OS_MCP_STDIO_API_KEY=osk_...`
+  主體，失敗關閉，經過與 HTTP 相同的授權鏈解析（RLS/FLS/租戶都會應用；沒有 `system`
+  繞過）。新的 `validate_expression` 工具讓 Agent 在儲存公式之前，先對照真實的物件
+  schema 檢查它。
+- **強制執行或移除的清理**（16.0，破壞性）—— 已宣告卻未強制執行的後設資料現在會大聲
+  報錯：失效的欄位/物件/Agent 屬性被移除，或被標記為墓碑並附帶指引；鉤子事件從 18 個
+  合併為 8 個；驗證規則失去了從未被求值的 `'delete'` 事件；webhook 的 `undelete` /
+  `api` 觸發器被移除；未知的 `requires` 能力標記會在編寫時被拒絕（`aiStudio` /
+  `aiSeat` 別名已不復存在 —— 請使用 kebab-case 的 `ai-studio` / `ai-seat`）。
+- **引擎掌管的系統行通過通用資料 API 只讀**（ADR-0103）—— 作業、通知、審批執行時行、
+  共享行、審計軌跡、機密等都被鎖定為 `get`/`list`，一個失敗關閉的守衛會拒絕通過
+  `/data` 進行的使用者上下文寫入。確實需要接受使用者寫入的第三方 `system` 物件必須宣告
+  `userActions`。
+- **日期邏輯不再說謊** —— `record.due_date == today()` 現在能夠匹配（時間相等比較會被
+  改寫，以強制轉換欄位運算元），而公式中的日期*算術*（`end - start + 1`、
+  `today() + 30`）變為構建時錯誤，並指向 `daysBetween` / `daysFromNow` / `addDays` /
+  `addMonths` —— 那些表示式在執行時本來就總是出錯並得到 `null`。
+- **批次匯入使用者預設使用 `passwordPolicy: 'auto'`** —— 有可送達渠道的行（真實郵箱 +
+  已接入的郵件服務，或手機號 + 簡訊邀請路徑）會收到邀請；只有無法觸達的行才會得到一個
+  一次性臨時密碼（`must_change_password`）。如需舊的僅身份行為，請顯式傳入
+  `passwordPolicy: 'none'`；每行的結果見 `rows[].delivery`。
+
+### 14.x [#14x]
+
+ObjectOS One 和捆綁的伺服器基於 `@objectstack` **14.7.0** 釋出。執行時的啟動契約沒有
+變化 —— `createStandaloneStack` 接受同樣的產物、環境和資料庫設定 —— 但 13.0 和 14.0
+都在授權詞彙上帶來了破壞性變更，所以**從 ≤ 12.x 前滾之前，請審查你的許可權後設資料**。
+完整說明：[objectstack.ai/docs/releases](https://objectstack.ai/docs/releases)。
+14.x 中變化了什麼：
+
+- **ADR-0090 詞彙收攏完成**（14.0，破壞性）—— `book.audience` 以
+  `{ permissionSet }` 門控（原為 `{ profile }`），`PortalSchema.profiles` →
+  `positions`，`RLSUserContextSchema.role` → `positions`（字串陣列），
+  `sys_record_share.recipient_type: 'role'` → `'position'`。
+- **物件能力標誌得到強制執行**（14.0，近乎破壞性）—— `enable.*` 標誌從被解析卻不使用
+  變成了真正的門控。`activities` 和 `feeds` 是預設開啟、可以關閉的（預設 `true`；
+  `feeds: false` 會以 403 `FEEDS_DISABLED` 拒絕評論），`trackHistory` 驅動"歷史"
+  選項卡，`files` 需要主動開啟（在 `enable: { files: true }` 之前返回 403
+  `FILES_DISABLED`）。
+- **成員基線失去了刪除許可權**（14.2，破壞性）—— `member_default` 不再授予記錄刪除；請
+  通過按崗位分配的許可權集，逐個物件重新授予。
+- **管理員使用者管理與手機認證**（14.3）—— 直接建立使用者
+  （`POST /api/v1/auth/admin/create-user`，一次性密碼並強制輪換）、批次匯入
+  （行/CSV/XLSX，試執行，upsert）、通過 `@objectstack/plugin-sms`（阿里雲 / Twilio）
+  以簡訊 OTP 進行的可選手機登入，以及一個 `sms` 通知渠道。
+- **資料生命週期契約**（14.4，ADR-0057）—— 物件宣告 `lifecycle`（類別、保留、輪轉、
+  歸檔）；預設開啟的 LifecycleService 會清理、輪轉和歸檔平臺數據（`sys_activity` 14
+  天，`sys_audit_log` 熱儲存 90 天）。用 `OS_LIFECYCLE_DISABLED=1` 關閉；通過
+  `lifecycle.retention_overrides` 調整。14.5 移除了各外掛的 `retentionDays` /
+  `retentionSweepMs` 選項（`JobRunRetention`、`NotificationRetention`），改用
+  生命週期宣告，並把帶有生命週期類別的系統資料拆分到一個專用的遙測資料來源
+  （`OS_TELEMETRY_DB`）；`os db clean` 可回收 SQLite 空間。
+- **按生效日期的授權與委派**（14.4，ADR-0091）—— 崗位和許可權集分配支援
+  `valid_from` / `valid_until` 時間視窗（失敗關閉，沒有後臺作業），`delegatable`
+  崗位允許擔任者在有限的時間視窗內自行委派（≤ 30 天，需要填寫原因，絕不包括管理員
+  範圍）。
+- **MCP 範圍上限**（14.5，ADR-0090 D10）—— 通過 OAuth 連線的 Agent 以
+  `effective_permission = scope_ceiling ∩ user_grants` 執行（`data:read` /
+  `data:write` / `actions:execute`），失敗關閉。
+- **安全修復**（14.4–14.5）—— FLS 鍵必須帶物件限定（裸鍵會悄悄地什麼都匹配不到；現在
+  會被檢查拒絕並提供自動修復）；設定和分享連結路由不再信任可偽造的 `x-user-id` 一類
+  請求頭；分析查詢的範圍限定在呼叫方的讀取篩選器之內。
+
+### 13.x —— 許可權模型 v2 [#13x--permission-model-v2]
+
+`@objectstack` **13.0** 重構了授權（ADR-0090）。破壞性變更：
+
+- **角色和簡檔收攏為崗位** —— `sys_role*` 表、`RoleSchema` / `defineRole`、後設資料
+  種類 `role` / `profile`，以及 `ExecutionContext.roles[]` 都已不復存在；崗位是扁平
+  的，層級移到了業務單元樹上。共享接收方已重新命名（`role` → `position`，
+  `role_and_subordinates` → `unit_and_subordinates`）。
+- **自定義物件預設私有** —— 一個帶有所有者、卻沒有顯式 `sharingModel` 的物件現在是
+  私有的；`read` / `read_write` / `full` 這幾個 OWD 別名已移除。宣告 `sharingModel:
+  'public_read_write'` 可恢復之前的行為。
+- **RBAC 關聯表的寫入受到門控** —— 對 `sys_user_position`、
+  `sys_position_permission_set`、`sys_user_permission_set` 和 `sys_permission_set`
+  的寫入需要租戶管理員或委派管理範圍。
+
+新增的還有：`everyone` / `guest` 受眾錨點、委派管理（`PermissionSet.adminScope`）、
+帶有逐層歸因的 `explain()` 引擎、`os compile` 的訪問矩陣快照門控、面向 MCP 客戶端的
+自助 OAuth 2.1、編寫時的安全檢查（`validateSecurityPosture`）、按操作劃分的
+`Object.requiredPermissions` 對映，以及包名稱空間字首的強制執行。從未被強制執行的
+schema（合規 / 脫敏 / 全域性 RLS 配置）被直接移除。
+
+### 12.x [#12x]
+
+`@objectstack` **12.0** 加固了 API 的預設姿態：
+
+- **預設拒絕匿名資料訪問**（破壞性）—— `api.requireAuth` 現在預設為 `true`；匿名的
+  `/data/*` 請求會得到 401。提供公開資料的部署必須用 `api: { requireAuth: false }`
+  顯式退出（啟動時會有警告）。分享連結、公開表單、`/auth` 和 `/health` 不受影響。
+- **強制執行的協議握手** —— `PROTOCOL_VERSION` + `checkProtocolCompat()` 會在安裝時
+  拒絕不相容的包。
+- **自適應的記錄介面** —— 記錄根據欄位複雜度推匯出以頁面還是以模態框/抽屜顯示；
+  `FormField.span` 變為響應式（`'auto'` / `'full'`）；相關列表獲得 `'primary'`
+  選項卡提升。
+- **包隨附的許可權** —— 包宣告預設許可權集，它們在啟動時實體化，並帶有來源追蹤。
+- **構建時檢查** —— `lint-view-refs`、`validateListViewMode`、`validateFormLayout`
+  以及破壞性操作的 RBAC 對映會對編譯進行門控。
+
+### 10.x [#10x]
+
+10.x 系列基於 `@objectstack` **10.0 – 10.2** 釋出。每一項破壞性變更都落在多組織租戶層，
+所以單租戶的 ObjectOS 部署無需任何配置變更即可從 9.x 前滾。變化了什麼：
+
+- **行級組織範圍拆分為獨立外掛**（10.0，破壞性）—— `organization_id` 自動標記、按組織
+  重放種子資料以及預設組織引導，從 `@objectstack/plugin-security` 移到了需主動啟用的
+  [`@objectstack/plugin-org-scoping`](https://www.npmjs.com/package/@objectstack/plugin-org-scoping)。
+  單組織部署更精簡（不再需要在每次查詢時剝離通配 RLS），而 `OS_MULTI_TENANT=true`
+  仍會把該外掛自動註冊在 `plugin-security` 之前，所以由 CLI 驅動的專案無需修改程式碼。
+  按照 ADR-0002，*租戶*是物理隔離（一個環境 = 一個數據庫）；`organization_id` 是同一
+  資料庫內的*邏輯*範圍劃分，所以它值得擁有自己的外掛。
+- **不再自動建立個人工作區**（10.0，破壞性）—— `plugin-security` 不再為每個新使用者建立
+  一個"`<User>'s Workspace`"組織。使用者現在要接受邀請，或顯式建立自己的第一個組織
+  （Slack / Linear / GitHub-Orgs 的模式）。第一個註冊的使用者 —— 會被自動提升為平臺
+  管理員 —— 在多租戶模式下仍會得到一個 `Default Organization`，以便其會話能夠解析
+  RLS；單租戶部署不會建立任何組織。
+- **`record` 表單欄位型別**（ADR-0014）—— `Record<string, X>` 屬性（例如物件的
+  `fields` 對映）現在可以在 Studio 中作為一等表單欄位編輯，而不是以原始 JSON 的形式
+  洩露出來，物件預覽窗格也會掛載真正的 `ObjectGrid` 渲染器 —— 你預覽到的就是將要
+  交付的。
+- **通過 `IEmbedder` 實現可插拔的嵌入** —— 一個新的嵌入器協議，外加
+  [`@objectstack/embedder-openai`](https://www.npmjs.com/package/@objectstack/embedder-openai)；
+  知識庫 / RAG 介面卡現在使用 `IEmbedder`，並被重新命名以去掉 `plugin-` 字首。
+- **公開表單** —— 在 `/f/:slug` 提供的匿名 Web-to-Lead / Web-to-Case 表單，一個統一的
+  FormPage（公開的 `/f/:slug` + 內部的 `/forms/:name`），一個 `type: 'form'` 動作
+  變體，以及 `ObjectSchema` 上的 `defaultDetailForm`。
+- **雲端身份拆分** —— `os cloud login` 現在與 `os login` 分開，雲端控制平面移到了一個
+  私有倉庫（開源執行時因此更精簡），`objectstack init` 生成的專案又能構建和啟動了。
+
+### 9.x [#9x]
+
+9.x 系列在 10.0 切換之前運行於 `@objectstack` **9.0 – 9.11**。執行時的啟動契約與 8.0
+相同 —— `createStandaloneStack` 仍接受同樣的產物、環境和資料庫設定 —— 所以 8.0 部署
+無需修改配置即可前滾。變化的是面向作者的表面：
+
+- **分析資料集是唯一的作者表面**（9.0，破壞性）—— 儀表盤小部件、報表和列表圖表現在
+  繫結一個語義化的 `dataset`（`defineDataset(...)`），並**按名稱**選擇維度/度量。舊的
+  內聯查詢欄位（小部件上的 `object`/`valueField`/`aggregate`，報表上的
+  `objectName`/`columns`/`groupingsDown`，列表圖表上的 `xAxisField`/`yAxisFields`）
+  已被移除。遷移方法：把內聯查詢移入一個 `defineDataset`，並按名稱引用它。
+  `ChartTypeSchema` 還去掉了 8 個只會按其基礎型別渲染的變體型別
+  （`stacked-bar`→`bar`、`spline`→`line`、`bubble`→`scatter`，……）。
+- **更嚴格的構建時驗證**（9.6–9.7）—— `os compile` 現在遇到裸欄位引用（用 `amount`
+  而不是 `record.amount`）、未知的 CEL 函式和錯誤的流程值插值語法時會**失敗**，並
+  各自附帶"你是不是想寫"的提示。過去"能構建但悄悄出錯"的 stack 現在會大聲失敗 ——
+  升級後請重新執行 `os compile` 並修復它標出的問題。
+- **數字欄位公式能計算混合算術**（9.7）—— `record.amount / 100` 和
+  `record.price * 2` 現在會求值，而不是悄悄得到 `null`；不再需要 `/ 100.0` 這種浮點
+  字面量的變通寫法。
+- **物件級 REST 門控，現已強制執行**（ADR-0049）—— 物件的 `apiEnabled: false` 會把它
+  從 REST 表面移除，`apiMethods` 白名單則限制可以訪問哪些操作。此前這些會被解析，
+  但不會被強制執行。
+- **包文件即後設資料 + `book` 導航**（9.3–9.6）—— `src/docs/*.md` 註冊為 `doc` 後設資料；
+  `book` 元素（ADR-0046）宣告一條按派生成員關係組織的導航主幹，在
+  `GET /api/v1/meta/book/:name/tree` 提供，並帶有受眾門控。
+- **`os package install`**（9.3）—— 從目錄 id 或內聯的物理隔離產物向執行中的執行時
+  安裝包，用 `--email` / `--password` 進行認證。
+- **審批**（9.3）—— 退回修改（`maxRevisions`，預設 3）、由作業支撐的 SLA 自動升級、
+  列表搜尋/分頁，以及無需會話的雙語批准/駁回確認連結。
+- **入站 webhook 流程觸發器**（9.3）—— `type: 'api'` 流程會掛載一個經 HMAC 驗證的
+  `POST /api/v1/automation/hooks/:flowName/:hookId` 端點，提供冪等的、由佇列支撐的
+  接收。
+- **通知保留預設開啟**（9.5）—— 通知歷史在 **90 天**後自動清理；把訊息模組的
+  `retentionDays` 設為 `0` 可永久保留歷史。
+- **CLI 捆綁 AI 提供商 SDK**（9.0）—— 相容 OpenAI 的提供商（DeepSeek、DashScope、
+  SiliconFlow、OpenRouter、Cloudflare）在全域性安裝的 CLI 上開箱即用。
+
+需要注意一項流程編寫行為的變化：`create_record` 節點的 `outputVariable` 現在儲存的是
+**創建出的記錄物件**（原為單純的 id），所以請把期望得到 id 的 `{var}` 引用更新為
+`{var.id}`。
+
+### 8.0.x [#80x]
+
+ObjectOS One 和捆綁的伺服器基於 `@objectstack` **8.0.1** 釋出。
+
+- **基於 Streamable HTTP 的 MCP** —— 每個部署都可以充當一個可通過網路訪問的
+  [Model Context Protocol](https://modelcontextprotocol.io) 伺服器。用
+  `OS_MCP_SERVER_ENABLED=true` 開啟；端點位於 `/api/v1/mcp`，認證失敗關閉（匿名請求
+  會被拒絕）。外掛由 `@objectstack/plugin-mcp-server` 重新命名為 `@objectstack/mcp`。
+- **自助 API 金鑰** —— `POST /api/v1/keys` 會生成一個只顯示一次的 `sys_api_key`。
+  REST 資料和後設資料 API（`/api/v1/data`、`/api/v1/meta`）現在通過與 MCP 相同的驗證器
+  認證 API 金鑰，並以金鑰所有者的許可權和記錄級安全執行。
+- **欄位級條件規則** —— `visibleWhen`、`readonlyWhen` 和 `requiredWhen` 由 ObjectQL
+  在服務端強制執行，而不只是在表單介面中。
+- **可複用的 RLS 讀取篩選器** —— `security.getReadFilter(object, context)` 暴露了
+  記錄訪問的讀取範圍；分析資料集、儀表盤和報表都橋接到它，並在無法應用該範圍時失敗
+  關閉。
+- **獨立宿主 stack** —— 執行時隨附一個單租戶的 `createStandaloneStack` 宿主；7.x 中
+  連線雲端、按主機名路由的 `createObjectOSStack` 包裝器已被移除。從那時起，執行單獨
+  釋出的應用的部署通過 **URL** 指定那個產物。如今負責這件事的變數，以及不再起作用的
+  已退役拼寫，參見[環境變數](/docs/reference/environment-variables#retired-names)。
+
+### 5.0 —— `project` → `environment` 重新命名（已釋出） [#50--project--environment-rename-shipped]
+
+原先稱為*專案*的執行時概念已被全面重新命名為*環境*。受影響的有：
+
+- CLI 標誌：`--environment` / `-e`
+- HTTP 路徑：`/api/v1/environments/:environmentId/...`
+- 請求頭：`X-Environment-Id`
+- 環境變數：`OS_ENVIRONMENT_ID`（`OS_PROJECT_ID` 當時作為已棄用的別名保留；現在已不再
+  讀取）
+- 資料庫列：`environment_id`
+- JSON schema：`EnvironmentArtifact`
+
+## 升級 [#upgrading]
+
+機械步驟參見[升級與回滾](/docs/operate/upgrade)，你跨越的每個版本參見它的
+[特定版本步驟](/docs/operate/upgrade#version-specific-steps)。升級前的檢查：
+
+1. 閱讀從當前版本到目標版本之間每個次版本的 CHANGELOG 條目。
+2. 執行 `os diff <old-artifact> <new-artifact>`，找出破壞性的 schema 變更。
+3. 針對目標版本執行 `os doctor`。
+4. 在滾動整個叢集之前，先啟動一個金絲雀例項。
+5. 為映象標籤和產物版本都準備好回滾計劃（兩者獨立滾動）。
+
+## 報告迴歸問題 [#reporting-regressions]
+
+如果某個補丁版本或次版本破壞了原本正常的功能，請在
+[github.com/objectstack-ai/objectstack/issues](https://github.com/objectstack-ai/objectstack/issues)
+提交缺陷，並寫明你從哪個版本升級到哪個版本。我們把迴歸問題視為最高優先順序的缺陷類別。

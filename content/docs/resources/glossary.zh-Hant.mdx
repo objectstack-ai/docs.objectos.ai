@@ -1,0 +1,275 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 術語表
+seoTitle: "術語表：平臺術語，各有一個定義"
+description: ObjectOS 和 ObjectStack 中使用的詞彙 —— 每個術語一個定義。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 926190d46d41bff6cbbc425cf9ccf45e6fb26dfadfb12a7d791e2606e71163c2
+  guide_rev: 1
+  mode: auto
+---
+
+本文件中使用的每個術語都有唯一的規範定義。
+
+### 動作（Action） [#action]
+
+在後設資料中宣告的具名操作，可以通過 REST（`/api/v1/actions/<object>/<action>`）、
+UI 中的按鈕呼叫，並且 —— 一旦其作者把它暴露給 AI（`ai.exposed`）—— 也可以由 Agent
+呼叫。呼叫者能否呼叫它，以呼叫者的身份檢查；隨後 `script` 主體作為可信的應用程式碼
+執行。參見[動作](/docs/build/interface/actions)。
+
+### 介面卡（Adapter） [#adapter]
+
+把 ObjectStack 與宿主執行時整合的框架包 —— Express、Fastify、Hono、Next.js、
+Nuxt、SvelteKit、NestJS。大多數 ObjectOS 部署不需要它；ObjectOS 自帶 HTTP 伺服器。
+
+### AI 席位（AI seat） [#ai-seat]
+
+ObjectOS 的計價單位，也是每個版本中唯一計費的席位。檢視者、不使用產品內 AI 的應用
+使用者，以及通過 MCP 構建的開發者都是免費的。參見
+[許可證與定價](/docs/editions/license#editions)。
+
+### 應用（App） [#app]
+
+一組物件 + 檢視 + 許可權，呈現為一個可導航的應用。一個執行時中可以並存多個應用（例如
+CRM + Helpdesk + Setup）。
+
+### 產物（Artifact） [#artifact]
+
+一個編譯後的 `objectstack.json` 檔案。對應用的自包含、不可變的描述 —— 清單、物件、
+檢視、應用、流程、許可權、翻譯。由 `os compile` 產出。ObjectOS 實際執行的就是它。
+
+### Better Auth [#better-auth]
+
+驅動 `@objectstack/plugin-auth` 的認證庫。你不需要直接配置 Better Auth；外掛封裝
+了它。
+
+### 業務本體（Business ontology） [#business-ontology]
+
+你的應用的定義 —— 物件和欄位、關係、動作、許可權、流程，以及 Agent 和工具的定義 ——
+作為一個可執行、有版本的整體：以帶型別的 ObjectStack 後設資料編寫，經過校驗而不是
+推理，並由執行時執行，執行時從中推匯出資料庫、REST API、UI 和 MCP 工具。檢視、
+儀表盤、應用和翻譯是它的[投影](#projection)，而不是它的一部分。
+
+它是可執行的，而不是知識本體：沒有物件繼承，沒有公理，沒有推理機。它也不是語義層
+—— 那是覆蓋在現有系統之上的只讀對映，描述業務卻不執行業務。無論在哪個 ObjectOS
+版本上它都屬於你：匯出它，就能在開源的 ObjectStack 執行時上執行。在本站參見
+[ObjectOS 中你的本體](/docs/ontology)；完整的闡述見 ObjectStack 文件中的
+[Business Ontology](https://objectstack.ai/docs/concepts/ontology)。
+
+### 能力（Capability） [#capability]
+
+產物在其 `requires` 列表中宣告的可選執行時功能。對應一個包 —— 例如 `audit` →
+`@objectstack/plugin-audit`。由 ObjectOS 按需載入。參見
+[執行時能力](/docs/reference/runtime-capabilities)。
+
+### CEL [#cel]
+
+[Common Expression Language](https://github.com/google/cel-spec) —— Google 的
+安全、沙箱化的表示式語法。用於公式、驗證規則、許可權謂詞、共享規則和流程條件。
+
+### 控制平面（Control Plane） [#control-plane]
+
+一項可選服務，向 ObjectOS 例項釋出有版本的產物。以 ObjectOS Cloud 的形式託管，或
+自託管。大多數部署不需要它 —— 基於檔案的模式足以支撐單應用的生產環境。
+
+### 驅動（Driver） [#driver]
+
+資料後端的實現：`driver-sql`（Postgres、MySQL、SQLite、Turso/libSQL）、
+`driver-mongodb`、`driver-memory`。在啟動時通過資料庫 URL 選定。
+
+### 嵌入器（Embedder） [#embedder]
+
+為 RAG / 語義搜尋把文本轉換為向量的服務。可在多個提供商之間插拔（OpenAI、Azure、
+矽基流動、Ollama……）。參見 [AI 服務](/docs/configure/ai)。
+
+### 環境（Environment） [#environment]
+
+部署自身的身份 —— 它以 `OS_ENVIRONMENT_ID` 報告的 id，在雲繫結完成後持久儲存。
+自管理的 ObjectOS 是一個**單環境**執行時：一個程序、一個環境、一個應用。持有多個
+環境，併為每個環境釋出一個產物，是控制平面做的事。參見
+[環境變數](/docs/reference/environment-variables)。
+
+### 欄位（Field） [#field]
+
+物件上的帶型別屬性。約 48 種內建型別：`text`、`select`、`lookup`、`markdown`、
+`file`、`formula`、`summary` 等。參見[資料模型](/docs/build/data)。
+
+### 流程（Flow） [#flow]
+
+宣告式的業務邏輯 —— 自動啟動（記錄觸發）、定時（cron）或手動（按鈕 / API）。以帶有
+條件/迴圈/重試/並行原語的 DAG 形式執行。參見
+[流程與自動化](/docs/build/automation/flows)。
+
+### 公式欄位（Formula field） [#formula-field]
+
+一種計算欄位，其值是在讀取時求值的 CEL 表示式。不儲存。
+
+### 鉤子（Hook） [#hook]
+
+注入到物件生命週期中的函式（`beforeInsert`、`afterUpdate`……）。用 TypeScript
+編寫。與流程不同：鉤子是一等的程式碼；流程是後設資料。
+
+### 核心（Kernel） [#kernel]
+
+ObjectOS 內部的微核心，負責載入外掛、持有 DI 容器、分發事件，並提供部署的後設資料。
+一個程序在啟動時構建一個核心，在構建完成之前不會報告[就緒](/docs/deploy/docker)
+—— 所以不會有任何按請求的邏輯去決定提供哪份後設資料。
+
+### 清單（Manifest） [#manifest]
+
+位於產物開頭的頂層後設資料：`id`、`namespace`、`version`、`type`（`app` / `plugin` /
+`service`）、`name`、`description`、`requires` 列表。
+
+### 市場（Marketplace） [#marketplace]
+
+內建的可安裝應用目錄。由可配置的包登錄檔支撐。參見[市場](/docs/build/marketplace)。
+
+### MCP（Model Context Protocol） [#mcp-model-context-protocol]
+
+一個讓 AI Agent 發現和呼叫工具的開放協議。每個 ObjectOS 部署都是位於 `/api/v1/mcp`
+的 MCP 伺服器，預設開啟：每個物件都是一個工具，其作者暴露給 AI（`ai.exposed`）的
+每個動作也是。每次呼叫都以呼叫者的身份執行。參見
+[接入 AI 工具（MCP）](/docs/configure/mcp)。
+
+### 物件（Object） [#object]
+
+一個帶型別的業務實體 —— `task`、`account`、`invoice`。以 TypeScript schema 宣告；
+自動生成 REST API、檢視、審計條目和 RBAC 檢查點。參見[資料模型](/docs/build/data)。
+
+### ObjectOS [#objectos]
+
+構建在 ObjectStack 之上的執行環境，一個產品、三個版本：**ObjectOS Community** ——
+開源的執行時和 Console，在 Apache-2.0 下免費，在 objectstack 倉庫中開發；
+**ObjectOS Cloud** —— 託管在瀏覽器中，無需安裝任何東西；以及 **ObjectOS
+Enterprise** —— 需許可證，在你自己的基礎設施上自管理。Cloud 和 Enterprise 按 AI
+席位計價，無論在哪個版本上，你都可以匯出你的本體並在開放的執行時上執行它。
+**本文件站點是關於 ObjectOS 的。**
+
+### ObjectQL [#objectql]
+
+資料層協議和查詢引擎。把宣告式查詢編譯為原生的 SQL / Mongo 查詢。REST 端點、UI、
+流程都使用它 —— 全部是同一個引擎。
+
+### ObjectStack [#objectstack]
+
+開放的技術棧，Apache-2.0：執行業務本體的協議、微核心、SDK、CLI 和生產執行時 ——
+即 `@objectstack/*` npm 包和執行時映象。ObjectOS 是構建在它之上的執行環境：
+ObjectOS Community 就是這個開放的執行時和 Console，採用同樣的 Apache-2.0 許可，
+而 ObjectOS Cloud 和 ObjectOS Enterprise 是建立在其上的商業版本。
+
+### ObjectUI [#objectui]
+
+檢視層協議 —— 應用、檢視、頁面、儀表盤、動作、圖表、導航。ObjectOS 渲染 ObjectUI
+宣告。
+
+### 許可權集（Permission Set） [#permission-set]
+
+一組授權 —— 物件許可權、欄位許可權、系統許可權。直接附加到使用者，或通過崗位附加。是主要的
+授權單元。參見[許可權](/docs/configure/permissions)。
+
+### 外掛（Plugin） [#plugin]
+
+用一項能力擴充套件執行時的框架包 —— `plugin-auth`、`plugin-security`、
+`plugin-audit`、`plugin-webhooks`、`mcp` 等。通過 DI + 生命週期鉤子
+（`init → start → destroy`）啟用。
+
+### 崗位（Position） [#position]
+
+使用者所擔任的職能 —— "Sales Manager"、"Support Agent"、"Auditor"。從 ObjectStack
+13 起唯一的人員分組概念，並且有意設計為扁平的：彙報結構改為放在業務單元樹上。崗位
+把應用和標籤頁定向到某個受眾、指定審批人，並把許可權集分配給擔任它的每個人。參見
+[崗位](/docs/configure/permissions/positions)。
+
+### 專案（Project） [#project]
+
+**環境**的舊名稱。它仍保留在繼承來的配置和框架內部的識別符號中；ObjectOS 文件使用
+*環境*。
+
+### 投影（Projection） [#projection]
+
+檢視、儀表盤、應用或翻譯：與[業務本體](#business-ontology)並列編寫、經過同一道
+[校驗關卡](#validation-gate)檢查的後設資料，但不是本體的一部分。投影呈現核心 —— 網格
+上的物件欄位、圖表上對物件的查詢、某個語言區域中的每個標籤。修改核心，它的投影會
+隨之變化；移除一個投影，它所展示的業務不會改變。參見
+[ObjectOS 中你的本體](/docs/ontology#the-projections)。
+
+### 記錄共享（Record Share） [#record-share]
+
+針對特定記錄、授予一個接收方的直接訪問 —— 一個使用者（`user`）、一個團隊（`team`）、
+一個崗位（`position`）、一個業務單元（`business_unit`），或者一個業務單元連同其下
+的每個單元（`unit_and_subordinates`）。儲存為 `sys_record_share` 行，其
+`recipient_type` 列恰好取這五個值。不同於共享規則（宣告式條件）。
+
+### Setup [#setup]
+
+內建的管理應用，位於 `/_console/` 所提供的 UI 中的 `/apps/setup`，由 `setup.access`
+許可權門控。管理使用者、業務單元、團隊、崗位、許可權集、共享規則、記錄共享和 API 金鑰，
+以及配置、診斷和整合。參見[配置](/docs/configure)。
+
+### 共享規則（Sharing Rule） [#sharing-rule]
+
+一種基於條件授予記錄訪問的宣告式規則（"區域經理可以看到其所在區域的記錄"）。在查詢
+時求值，編譯為行級過濾條件。**沒有**條件而儲存的規則什麼都不共享 —— 它並不匹配
+全部。參見[記錄訪問](/docs/configure/permissions/record-access#both-switches-fail-closed)。
+
+### Studio [#studio]
+
+內建的後設資料編寫介面，位於 `/_console/` 所提供的 UI 中的 `/studio`，由
+`studio.access` 許可權門控。後設資料本身在這裡被*設計* —— 包、物件、應用、流程和許可權集
+—— 每次一個包，分為四個支柱：Data、Automations、Interfaces、Access。它與 **Setup**
+並列，而不是 Setup 的一部分：Setup 運營一個執行中的部署（它的人員、他們的授權、它的
+配置），Studio 編寫這個部署所執行的內容 —— 因此**許可權在 Studio 中設計，在 Setup 中
+分配**。與 Setup 不同，它不是 `/apps/` 下的應用；UI 把它作為獨立的路由子樹提供。
+參見[配置](/docs/configure#setup-and-studio)。
+
+### 介面入口（Surface） [#surface]
+
+執行中的 ObjectOS 暴露的 HTTP 入口之一：`/`（REST API）和 `/_console/`（UI）。是
+兩個，不是三個 —— 賬戶**不是**一個獨立的入口。登入、註冊和賬戶自助服務都是 UI 內部
+的路由：
+
+| 賬戶介面 | 位於 |
+|---|---|
+| 登入 | `/_console/login` —— 你未登入時，每個受保護的頁面都會把你送到這裡 |
+| 註冊 | `/_console/register` —— 除非部署停用了自助註冊 |
+| 賬戶自助服務 | `/_console/apps/account` —— Account 應用，與位於 `/_console/apps/setup` 的 Setup 並列 |
+
+沒有 `/_account/` 入口。獨立的賬戶門戶被移除時，它也隨之退役，這些 URL 現在返回 404。
+
+### 系統上下文（System Context） [#system-context]
+
+外掛、鉤子和種子指令碼在需要繞過安全檢查時使用的內部執行模式。可審計；不暴露給使用者
+程式碼。
+
+### 租戶（Tenant） [#tenant]
+
+共享同一個部署的各組織之間的隔離邊界。隔離牆式租戶姿態會豎起這道牆，它是一項需
+許可證的能力。這些組織仍然共享部署的應用、資料庫和後設資料，所以這道牆隔開的是它們的
+資料和成員資格，而不是它們的模式。參見
+[多組織部署](/docs/reference/environment-variables#multi-organization-deployments)。
+
+### 觸發器（Trigger） [#trigger]
+
+觸發流程的條件 —— 記錄事件（`after_insert`）、定時（cron）或手動呼叫。
+
+### 校驗關卡（Validation gate） [#validation-gate]
+
+所有後設資料在執行之前都要通過的同一套檢查：`@objectstack/spec` 的 schema，以及那些
+捕獲能通過型別檢查、卻會在執行時靜默失敗的問題的編寫規則 —— 錯誤的 CEL 謂詞、對
+不存在之物的引用。`os validate` 和 `os compile` 在倉庫原始碼上執行它，執行時也會對每
+一次上線的後設資料寫入應用同一道關卡，無論它來自 AI Builder、Studio 還是後設資料 API。
+參見 ObjectStack 文件中的
+[Validating Metadata](https://objectstack.ai/docs/deployment/validating-metadata)。
+
+### 檢視（View） [#view]
+
+宣告式的 UI 配置 —— 列表、表單、看板、日曆、甘特圖 —— 附加在物件上。ObjectOS 渲染
+它；你不需要編寫元件。
+
+### Zod schema [#zod-schema]
+
+`@objectstack/spec` 使用的執行時 + 編譯時型別系統。每個物件、欄位、檢視、應用、流程
+都由一個 Zod schema 解析和校驗。JSON Schema、TypeScript 型別和 REST 請求校驗器都
+派生自同一組 Zod 定義。
