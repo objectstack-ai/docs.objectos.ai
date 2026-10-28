@@ -1,34 +1,36 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: Webhooks
-description: 出站 webhook 投遞、簽名與重試。
+seoTitle: "Webhooks：至少一次投遞、HMAC、重試"
+description: ObjectOS 通過持久化 outbox 發出的出站 webhook —— 至少一次投遞、HMAC 簽名、有界重試，以及接收方必須處理的事項。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 2340439a0cc171b6947e5e3bafdfa52f4dc5420de43807d081095feb9bd0b33e
+  source_sha: 2ee03cd61fb199bf53a062ec6aaa901ef3542135e0616c669c40ac4d7a1c57fd
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 為出站 webhook 採用持久化的 **outbox** 模型。當 webhook 外掛啟用時，業務變更會將一條投遞記錄入隊，由後臺 dispatcher 帶重試地完成投遞——因此響應緩慢或不可用的接收方永遠不會阻塞發起方事務。
 
-## 啟用 webhooks
+## 啟用 webhooks [#enabling-webhooks]
 
 Webhooks 是一項可選能力。部署的 ObjectOS 映象必須包含 `@objectstack/plugin-webhooks`，並且應用 artifact 必須註冊 webhook 訂閱（通常作為 `sys_webhook` 物件的記錄）。
 
-啟用後，Console 中會出現兩個物件：
+啟用後，Setup 中會出現兩個物件：
 
 | 物件 | 用途 |
 |---|---|
 | `sys_webhook` | Webhook 訂閱（目標 URL、事件過濾器、secret、狀態） |
 | `sys_webhook_delivery` | 投遞日誌（URL、響應碼、嘗試次數、重試時間戳） |
 
-## 投遞語義
+## 投遞語義 [#delivery-semantics]
 
 - **至少一次。** 投遞在發生瞬時失敗後可能被重試；接收方必須是冪等的。
 - **持久化。** 投遞記錄會在 ObjectOS 重啟後保留，因為它們儲存在業務資料庫中。
 - **分割槽。** 每個 dispatcher worker 認領 outbox 的一個分割槽，使部署能夠橫向擴充套件投遞而不會重複投遞。
 - **有界重試。** 失敗的投遞會以退避策略重試，直至達到可配置的上限；耗盡重試的記錄會保留在 `sys_webhook_delivery` 中以供檢查。
 
-## 簽名
+## 簽名 [#signing]
 
 每次投遞都攜帶標識性請求頭，使接收方能夠路由、去重並校驗它：
 
@@ -57,22 +59,22 @@ function verify(body, signatureHeader, secret) {
 
 輪換 secret 的方式：使用新 secret 建立一個新訂閱，在過渡期同時執行兩者，然後停用舊訂閱。
 
-## 對接收方的要求
+## 對接收方的要求 [#receiver-expectations]
 
 - 在數秒內返回 `2xx`。`408`、`429` 或 `5xx` 響應（或超時/傳輸錯誤）是可重試的，會以退避策略重試。任何其他 `4xx` 都被視為永久性失敗，並在不再重試的情況下轉入 `dead`。
 - 在看到 `2xx` 之前，dispatcher **不會**將投遞標記為成功，因此失敗的接收方會使該記錄保留在 `sys_webhook_delivery` 中，以供檢查或重新投遞。
 - 保持冪等——基於 `X-Objectstack-Delivery` 請求頭（delivery id）或你自己在載荷中的 event id 去重。
 
-## 失敗處理
+## 失敗處理 [#failure-handling]
 
 出錯時：
 
 1. 檢查 `sys_webhook_delivery` 中的記錄——`status`、`response_code`、`response_body` 與 `attempts` 均有記錄。
 2. 確認從 ObjectOS 到接收方的出站網路可達。
-3. 如果接收方永久變更了，更新訂閱 URL 並從 Console 重新投遞該記錄。
+3. 如果接收方永久變更了，更新訂閱 URL 並從 Setup 重新投遞該記錄。
 4. 用於事件覆盤：審計日誌（`sys_audit_log`）記錄訂閱編輯，但不記錄載荷——載荷保留在 outbox 中。
 
-## 運維建議
+## 運維建議 [#operational-tips]
 
 - 不要把 secret 放進 webhook URL（query string 會被記錄）。
 - 使用獨立的接收方主機名，便於在邊緣遮蔽以解除安裝流量時不影響主應用。

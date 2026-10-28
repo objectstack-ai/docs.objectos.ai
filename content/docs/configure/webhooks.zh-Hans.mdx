@@ -1,33 +1,35 @@
 ---
 title: Webhooks
-description: 出站 webhook 投递、签名与重试。
+seoTitle: "Webhooks：至少一次投递、HMAC、重试"
+description: ObjectOS 通过持久化 outbox 发出的出站 webhook —— 至少一次投递、HMAC 签名、有界重试，以及接收方必须处理的事项。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 2340439a0cc171b6947e5e3bafdfa52f4dc5420de43807d081095feb9bd0b33e
+  source_sha: 2ee03cd61fb199bf53a062ec6aaa901ef3542135e0616c669c40ac4d7a1c57fd
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 为出站 webhook 采用持久化的 **outbox** 模型。当 webhook 插件启用时，业务变更会将一条投递记录入队，由后台 dispatcher 带重试地完成投递——因此响应缓慢或不可用的接收方永远不会阻塞发起方事务。
 
-## 启用 webhooks
+## 启用 webhooks [#enabling-webhooks]
 
 Webhooks 是一项可选能力。部署的 ObjectOS 镜像必须包含 `@objectstack/plugin-webhooks`，并且应用 artifact 必须注册 webhook 订阅（通常作为 `sys_webhook` 对象的记录）。
 
-启用后，Console 中会出现两个对象：
+启用后，Setup 中会出现两个对象：
 
 | 对象 | 用途 |
 |---|---|
 | `sys_webhook` | Webhook 订阅（目标 URL、事件过滤器、secret、状态） |
 | `sys_webhook_delivery` | 投递日志（URL、响应码、尝试次数、重试时间戳） |
 
-## 投递语义
+## 投递语义 [#delivery-semantics]
 
 - **至少一次。** 投递在发生瞬时失败后可能被重试；接收方必须是幂等的。
 - **持久化。** 投递记录会在 ObjectOS 重启后保留，因为它们存储在业务数据库中。
 - **分区。** 每个 dispatcher worker 认领 outbox 的一个分区，使部署能够横向扩展投递而不会重复投递。
 - **有界重试。** 失败的投递会以退避策略重试，直至达到可配置的上限；耗尽重试的记录会保留在 `sys_webhook_delivery` 中以供检查。
 
-## 签名
+## 签名 [#signing]
 
 每次投递都携带标识性请求头，使接收方能够路由、去重并校验它：
 
@@ -56,22 +58,22 @@ function verify(body, signatureHeader, secret) {
 
 轮换 secret 的方式：使用新 secret 创建一个新订阅，在过渡期同时运行两者，然后停用旧订阅。
 
-## 对接收方的要求
+## 对接收方的要求 [#receiver-expectations]
 
 - 在数秒内返回 `2xx`。`408`、`429` 或 `5xx` 响应（或超时/传输错误）是可重试的，会以退避策略重试。任何其他 `4xx` 都被视为永久性失败，并在不再重试的情况下转入 `dead`。
 - 在看到 `2xx` 之前，dispatcher **不会**将投递标记为成功，因此失败的接收方会使该记录保留在 `sys_webhook_delivery` 中，以供检查或重新投递。
 - 保持幂等——基于 `X-Objectstack-Delivery` 请求头（delivery id）或你自己在载荷中的 event id 去重。
 
-## 失败处理
+## 失败处理 [#failure-handling]
 
 出错时：
 
 1. 检查 `sys_webhook_delivery` 中的记录——`status`、`response_code`、`response_body` 与 `attempts` 均有记录。
 2. 确认从 ObjectOS 到接收方的出站网络可达。
-3. 如果接收方永久变更了，更新订阅 URL 并从 Console 重新投递该记录。
+3. 如果接收方永久变更了，更新订阅 URL 并从 Setup 重新投递该记录。
 4. 用于事件复盘：审计日志（`sys_audit_log`）记录订阅编辑，但不记录载荷——载荷保留在 outbox 中。
 
-## 运维建议
+## 运维建议 [#operational-tips]
 
 - 不要把 secret 放进 webhook URL（query string 会被记录）。
 - 使用独立的接收方主机名，便于在边缘屏蔽以卸载流量时不影响主应用。

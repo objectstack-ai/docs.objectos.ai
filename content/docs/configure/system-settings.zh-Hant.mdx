@@ -1,23 +1,25 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 系統設定
+seoTitle: "系統設定：品牌、功能開關、金鑰"
 description: 通過清單（manifest）和共享的 K/V 儲存配置租戶與使用者設定。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 1afa5ad1338dfcd2fe2139176d52b73679507a78ffc3c169f38620a87c6c59ac
+  source_sha: 61207542689619b2c68ae9534fa57297ca2d5796e8075a5a304434c60891b695
   guide_rev: 1
   mode: auto
 ---
 
 ObjectStack 包含一個用於執行時和外掛設定的設定服務。
-當應用工件需要設定能力時，ObjectOS 會通過 Console 暴露這些設定。
+當應用工件需要設定能力時，ObjectOS 會通過 Setup 暴露這些設定。
 
-## 設定模型
+## 設定模型 [#settings-model]
 
 設定由程式碼宣告，並以值的形式儲存：
 
 | 層級 | 用途 |
 |---|---|
-| Settings Manifest | 定義欄位、標籤、預設值、校驗、可見性以及操作 |
+| Settings Manifest | 定義欄位、標籤、預設值、校驗、可見性以及動作 |
 | `sys_setting` | 儲存租戶/使用者的 K/V 值 |
 | Resolver | 讀取生效的值 |
 | Console UI | 渲染標準的設定頁面 |
@@ -25,7 +27,7 @@ ObjectStack 包含一個用於執行時和外掛設定的設定服務。
 對於普通配置，外掛不應建立一次性的設定表。
 它們應當宣告設定清單，並讓 ObjectOS 一致地渲染和儲存這些值。
 
-## 解析順序
+## 解析順序 [#resolution-order]
 
 每項設定都宣告一個作用域（`global`、`tenant` 或 `user`）。
 解析器按從最高到最低的優先順序遍歷這個層疊結構，第一個已設定的值生效：
@@ -38,11 +40,11 @@ User setting
 Manifest default
 ```
 
-環境覆蓋是鎖定的。如果某個值是通過環境變數設定的，Console UI 會將其
+環境覆蓋是鎖定的。如果某個值是通過環境變數設定的，Setup 會將其
 顯示為由主機託管，並拒絕執行時編輯。鏈路中更上層的任何鎖定值也會鎖定
 生效的值，因此更低層的作用域無法將其遮蓋。
 
-## 常見設定領域
+## 常見設定領域 [#common-settings-areas]
 
 面向客戶的設定通常包括：
 
@@ -55,24 +57,48 @@ Manifest default
 | AI providers | 模型提供商、API key、預算上限 |
 | SSO | OIDC 提供商設定以及測試連線 |
 
-## 機密資訊
+## 品牌 [#branding]
+
+位於 **Setup → Configuration → Branding**。這些設定控制工作區的顯示身份 ——
+它的名稱、Logo 和顏色。
+
+| 設定 | 說明 |
+|---|---|
+| `Workspace name` | 必填。整個 UI 中顯示的名稱（預設 `ObjectStack`） |
+| `Support email` | 展示給使用者、用於尋求幫助的地址（例如 `support@example.com`） |
+| `Default theme` | `Match system`、`light` 或 `dark` |
+| `Accent colour` | 帶取色器的十六進位制顏色（預設 `#6366f1`） |
+| `Logo URL` | 工作區 Logo 的 URL |
+
+## 功能開關 [#feature-flags]
+
+位於 **Setup → Configuration → Feature Flags** `[Beta]`。為這個工作區開關實驗性
+和 Beta 功能 —— 分為 **Productivity**（AI Assistant、Kanban swimlanes）和
+**Collaboration**（Realtime cursors、Inline comments）兩組。每一項都是租戶級的
+UI 開關。
+
+> **Beta 功能可能會在不另行通知的情況下變更。** 用環境變數固定某個開關（例如
+> `OS_FEATURE_FLAGS_AI_ENABLED=true`），就能為整個部署鎖定它。由於環境覆蓋是
+> 鎖定的，`OS_FEATURE_FLAGS_*` 變數優先於 UI 開關。
+
+## 機密資訊 [#secrets]
 
 密碼和憑據欄位應由設定服務加密，或以環境託管的值提供。當配置了機密提供商時，
 設定服務會將密文儲存在 `sys_secret` 中，並在 `sys_setting` 中只保留一個控制代碼。
 不要將機密資訊儲存在工件、compose 檔案或 Git 中。
 
-## 測試操作
+## 測試動作 [#test-actions]
 
-設定清單可以宣告標準的操作按鈕，例如：
+設定清單可以宣告標準的動作按鈕，例如：
 
 - 傳送測試郵件；
 - 測試 SSO discovery；
 - 驗證物件儲存憑據；
 - 校驗 webhook 目標。
 
-在客戶配置流程中使用這些操作，而不是要求運維人員先去翻查日誌。
+在客戶配置流程中使用這些動作，而不是要求運維人員先去翻查日誌。
 
-## 相關內容
+## 相關內容 [#related]
 
 若干設定領域有專門的配置指南：
 

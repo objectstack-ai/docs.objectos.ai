@@ -1,27 +1,28 @@
 ---
 title: 接入 AI 工具（MCP）
 description: 把 Claude Code、Claude Desktop 或任意 MCP 客户端指向你的 ObjectOS 应用，让 Agent 在你的权限模型约束下处理你的数据。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: a41183fbf103bf1e51a569bc44279678a6aca9a4988384edeceecb985041f110
+  source_sha: dbab6b08c28ab977e12bec3cb19d901665254a266942968a049415e8f0fca7d0
   guide_rev: 1
   mode: auto
 ---
 
-每个 ObjectOS 部署天生就是一个 MCP 服务器。运行时在 **`/api/v1/mcp`** 上提供 [Model Context Protocol](https://modelcontextprotocol.io) 服务——默认开启，无需安装插件，无需配置步骤。你的对象和已暴露的操作在定义的那一刻就成为带类型的工具；剩下唯一要做的就是接入一个客户端并验证它能用。
+每个 ObjectOS 部署天生就是一个 MCP 服务器。运行时在 **`/api/v1/mcp`** 上提供 [Model Context Protocol](https://modelcontextprotocol.io) 服务——默认开启，无需安装插件，无需配置步骤。你的对象和已暴露的动作在定义的那一刻就成为带类型的工具；剩下唯一要做的就是接入一个客户端并验证它能用。
 
 > 要关闭这个入口，设置 `OS_MCP_SERVER_ENABLED=false`——端点将返回 404，**Setup → Connect an Agent**（接入 Agent）页面也随之消失。
 
 本页讲的是把*外部* AI 工具接入你的应用。服务端 AI 栈——聊天 Provider、Embedder、RAG，以及在代码中显式注册 MCP 服务器插件——参见 [AI 服务](/docs/configure/ai)。
 
-## Claude Code（一条命令）
+## Claude Code（一条命令） [#claude-code-one-command]
 
 交互式客户端使用 OAuth——每个部署本身就是一个 OAuth 2.1 授权服务器，因此不存在需要管理员签发再分发的凭据。第一次工具调用会打开浏览器登录，你**以自己的身份**接入：
 
 ```bash
-# 本地开发服务器
+# local dev server
 claude mcp add --transport http my-app http://localhost:3000/api/v1/mcp
 
-# 已部署的实例
+# a deployed instance
 claude mcp add --transport http my-app https://your-deployment.example.com/api/v1/mcp
 ```
 
@@ -34,11 +35,11 @@ claude mcp add --transport http my-app https://your-deployment.example.com/api/v
   --header "x-api-key: osk_..."
 ```
 
-## Claude Desktop 与 claude.ai
+## Claude Desktop 与 claude.ai [#claude-desktop-and-claudeai]
 
 **Settings → Connectors → Add custom connector**（设置 → 连接器 → 添加自定义连接器），然后粘贴 MCP URL（`https://your-deployment.example.com/api/v1/mcp`）。首次使用时会走同样的浏览器登录流程。
 
-## 任意 MCP 客户端（`.mcp.json`）
+## 任意 MCP 客户端（`.mcp.json`） [#any-mcp-client-mcpjson]
 
 读取 `mcpServers` 映射的客户端以同样方式接入。使用 API Key：
 
@@ -54,13 +55,13 @@ claude mcp add --transport http my-app https://your-deployment.example.com/api/v
 }
 ```
 
-## 无头场景：API Key
+## 无头场景：API Key [#headless-api-keys]
 
 在 **Setup → Connect an Agent**（接入 Agent，那里还提供各客户端可直接复制粘贴的接入片段）中签发 Key，或通过 REST：
 
 ```bash
 curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
-# → { "key": "osk_..." }  —— 只显示一次；存入你的 secret manager
+# → { "key": "osk_..." }  — shown once; store it in your secret manager
 ```
 
 每次请求以三种等价形式之一携带它：
@@ -75,7 +76,7 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 
 对于长期集成，把 Key 绑定到带最小权限集的专用服务用户——参见[服务账号与 API Key](/docs/configure/users#service-accounts--api-keys)。
 
-## stdio 传输（16.0）
+## stdio 传输（16.0） [#the-stdio-transport-160]
 
 除了 HTTP，运行时还可以通过 **stdio** 提供 MCP 服务，供以子进程方式拉起服务器的宿主使用。自 16.0（ADR-0101）起，stdio 拥有自己的开关，并且始终以真实身份运行：
 
@@ -83,9 +84,9 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 - stdio **必须配置 `OS_MCP_STDIO_API_KEY=osk_...`**。该 Key 通过与 HTTP、REST 完全相同的验证 + 授权链解析，因此对象权限、记录访问、字段级安全和租户隔离对 stdio 调用的作用与 `/api/v1/mcp` 完全一致——并且每次读取都会重新解析 Key，吊销立即生效。
 - 该传输是 **fail-closed** 的：开启自动启动却没有可解析的 Key，启动会直接被拒绝；刻意不提供任何无身份回退，也没有 `system` 旁路。若需要完整权限，请在平台管理员或专用服务身份上签发 Key。
 
-## Agent 能得到什么
+## Agent 能得到什么 [#what-the-agent-gets]
 
-十一个数据、操作与创作工具，由你的元数据生成：
+十一个数据、动作与创作工具，由你的元数据生成：
 
 | 工具 | 用途 |
 |---|---|
@@ -94,21 +95,21 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 | `validate_expression` | 在保存*之前*对照真实对象 schema 校验公式（16.0）：错误（裸字段引用、未知字段并给出 did-you-mean）、警告（类型健全性、日期相等陷阱）、作用域内的字段/函数清单，以及推断的结果类型。只读、`data:read` scope、对 `sys_*` fail-closed |
 | `aggregate_records` | 分组聚合（当前驱动支持时才注册） |
 | `create_record` / `update_record` / `delete_record` | 写入数据 |
-| `list_actions` / `run_action` | 按名称发现并调用你的业务操作 |
+| `list_actions` / `run_action` | 按名称发现并调用你的业务动作 |
 
 要了解的两条暴露规则：
 
 - **对象自动暴露**——但 `sys_*` 系统对象除外，它们以 fail-closed 方式被拦截。
-- **操作需要作者显式选择加入**：`ai: { exposed: true }` 加上不少于 40 个字符的 `ai.description`，且该操作必须可以在无 UI 的情况下调用（带 body 或已注册 handler 的 `script`，或 `flow`）。
+- **动作需要作者显式选择加入**：`ai: { exposed: true }` 加上不少于 40 个字符的 `ai.description`，且该动作必须可以在无 UI 的情况下调用（带 body 或已注册 handler 的 `script`，或 `flow`）。
 
-## 权限强制执行
+## 权限强制执行 [#permission-enforcement]
 
 - **每次调用都以调用者身份运行。**MCP 桥接解析的执行上下文与 REST 请求相同，因此对象权限、[记录访问](/docs/configure/permissions/record-access)和[字段级安全](/docs/configure/permissions/field-level-security)对 Agent 的作用与对 UI 中的真人完全一致。结果稀疏或写入被拒，通常意味着治理在*正常工作*，而不是连接坏了。
 - **OAuth scope 会收窄工具集。**Token 携带 `data:read`、`data:write` 和 `actions:execute` 这些 scope——不在已授予 scope 内的工具，在该会话中根本不会被注册。API Key 和会话调用者获得完整工具集，但每次调用仍会做权限检查。
-- **操作体一经调用即作为可信应用代码运行**（`ai.exposed` 门槛和 `requiredPermissions` 在*调用*时检查）。把编写操作当作值得代码评审的行为——那才是真正的安全边界。
-- 操作还可以声明 `ai.requiresConfirmation`；看起来具有破坏性的操作默认要求确认。
+- **动作体一经调用即作为可信应用代码运行**（`ai.exposed` 门槛和 `requiredPermissions` 在*调用*时检查）。把编写动作当作值得代码评审的行为——那才是真正的安全边界。
+- 动作还可以声明 `ai.requiresConfirmation`；看起来具有破坏性的动作默认要求确认。
 
-## 验证连接
+## 验证连接 [#verify-the-connection]
 
 问 Agent 一个只有实时 schema 才能回答的问题：
 
@@ -120,7 +121,7 @@ What objects does this app have, and what fields does the main one carry?
 
 > 配上应用的 **skill 文件**，Agent 的表现会明显更好：从 `GET /api/v1/mcp/skill` 下载它，或安装[官方 Claude 插件](https://github.com/objectstack-ai/claude-plugin)（`claude plugin marketplace add objectstack-ai/claude-plugin`），后者打包了该 skill 和一个引导式的 `/objectstack:connect` 命令。
 
-## 故障排查
+## 故障排查 [#troubleshooting]
 
 | 症状 | 原因 → 解决 |
 |---|---|
@@ -129,10 +130,10 @@ What objects does this app have, and what fields does the main one carry?
 | 开启 stdio 后启动被拒绝 | stdio 是 fail-closed 的（16.0）——把 `OS_MCP_STDIO_API_KEY` 设为可解析的 `osk_` Key，或关闭 `OS_MCP_STDIO_ENABLED` |
 | 每次调用都 `401` | 匿名或凭据无效。交互式客户端：完成浏览器登录。无头场景：检查 `osk_` Key 和请求头拼写 |
 | `403 insufficient_scope` | OAuth token 缺少该工具族所需的 scope（例如没有 `data:write` 却尝试写入）——重新连接并授予该 scope |
-| 某个操作没出现在 `list_actions` 中 | `ai.exposed` 不为 `true`、`ai.description` 短于 40 个字符、类型不可无头调用（`url` / `modal` / `form` 永远不会出现）、目标是 `sys_*` 对象，或调用者未通过其 `requiredPermissions` |
+| 某个动作没出现在 `list_actions` 中 | `ai.exposed` 不为 `true`、`ai.description` 短于 40 个字符、类型不可无头调用（`url` / `modal` / `form` 永远不会出现）、目标是 `sys_*` 对象，或调用者未通过其 `requiredPermissions` |
 | 读取返回的行很少 / 写入被拒 | 符合设计——调用者的权限和记录访问在生效。用同一用户在 UI 中验证 |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任务 | 页面 |
 |---|---|

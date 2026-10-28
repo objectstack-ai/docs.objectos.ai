@@ -1,0 +1,169 @@
+---
+title: 权限
+seoTitle: "权限模型：岗位、权限集、记录访问"
+description: 身份、岗位、权限集、记录访问和字段安全 —— 整个访问模型尽在一页。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 62da1addaebe59555e84667986dd672e36ad681514d179b84709100b01fc0b61
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 有一套分层的访问模型，借鉴自在企业软件中行之有效了二十年的做法：
+身份 → 岗位 → 权限集 → 记录访问 → 字段安全。每一层回答一个不同的问题，你可以
+忽略用不到的层。（ObjectStack 13 把旧有的 Roles 和 Profiles 概念合并成了
+**岗位** —— 参见[岗位](/docs/configure/permissions/positions)。）
+
+## 一张图看懂模型 [#the-model-in-one-diagram]
+
+```text
+Authentication       Who is the caller?
+        ↓
+Identity             Which user/org/membership is active?
+        ↓
+Positions            Which job functions do they hold?
+        ↓
+Permission sets      What CAN they do — apps, objects, fields, system?
+        ↓
+Record access        WHICH records can they touch?
+        ↓
+Field security       For those records, which FIELDS are readable / writable?
+```
+
+每一层都由安全插件强制执行。对于简单的应用，你可以只用权限集（不用岗位，不用
+共享规则），等需求出现时再加上其余部分。
+
+## 第 1 层 —— 身份 [#layer-1--identity]
+
+身份对象存放在你的项目数据库中。最重要的几个：
+
+| 对象 | 代表什么 |
+|---|---|
+| `sys_user` | 可以进行认证的人或服务账号 |
+| `sys_organization` | 租户 / 工作区边界（多租户应用） |
+| `sys_member` | 用户在某个组织中的成员资格 |
+| `sys_business_unit`、`sys_team` | 用于共享规则的可选组织结构 |
+| `sys_invitation` | 等待接受的待处理邀请 |
+| `sys_session` | 活动的已认证会话 |
+| `sys_api_key` | 绑定到用户的长期编程凭据 |
+
+在多租户部署中：
+
+- 用户的作用域限定在项目数据库。
+- 会话的作用域限定在项目主机名。
+- 行级检查使用当前用户的组织和权限。
+- 控制平面的用户**不会**自动成为业务用户 —— 他们必须通过平台 SSO 或显式开通
+  映射进来。
+
+你可以在运行时从 **Setup**（`/_console/`）创建和管理这些对象，或者在
+`objectstack.config.ts` 中为全新环境预置它们。
+
+## 第 2 层 —— 岗位 [#layer-2--positions]
+
+岗位建模的是职能（"Sales Manager"、"Support Agent"）。它们是扁平的 —— 层级
+位于业务单元树上，所以共享规则和报表表达的是"记录负责人所在的单元及其下级
+单元"这样的内容。预置的受众锚点 `everyone`（所有已认证用户）让你无需自定义
+回落逻辑就能绑定基线权限集。与之对应的 `guest`（匿名调用者）不授予任何东西：
+匿名访问者只能通过声明了它的界面访问数据，比如公开表单或分享链接。用岗位按
+职能分配权限集；扁平的团队就不必自定义岗位。
+
+参见[岗位](/docs/configure/permissions/positions)。
+
+## 第 3 层 —— 权限集 [#layer-3--permission-sets]
+
+权限集是授予能力的主要方式。它们直接附加到用户上，或者通过岗位附加。
+
+### 它们授予什么 [#what-they-grant]
+
+| 类型 | 示例 |
+|---|---|
+| 应用访问 | 打开 CRM、打开支持门户 |
+| 对象权限 | 创建 / 读取 / 更新 / 删除某个对象的记录 |
+| 字段权限 | 读取或更新特定字段 |
+| 系统权限 | 访问 Setup、运行报表、查看审计日志 |
+| 集成权限 | 使用 API 密钥、配置 webhook、运行管理动作 |
+
+### 对象权限标志 [#object-permission-flags]
+
+这些就是安全插件所检查的确切标志名称：
+
+| 标志 | 含义 |
+|---|---|
+| `allowRead` | 读取用户通过记录访问能看到的记录 |
+| `allowCreate` | 创建新记录 |
+| `allowEdit` | 更新用户能看到的记录 |
+| `allowDelete` | 删除用户能看到的记录 |
+| `allowExport` | 获取该对象记录的批量、机器可读副本 |
+| `viewAllRecords` | 读取该对象的**每一条**记录，忽略记录访问规则 |
+| `modifyAllRecords` | 更新 / 删除**每一条**记录；隐含 `viewAllRecords` |
+
+`viewAllRecords` 和 `modifyAllRecords` 是针对该对象、作用于整个租户的超级
+用户授权。只把它们保留给明确的管理权限集，不要让它们出现在任何面向用户的
+岗位中。
+
+**导出是一项单独的选择加入授权。** 不设置 `allowExport` 意味着**拒绝** ——
+它不会从 `allowRead` 继承，`viewAllRecords` / `modifyAllRecords` 也**不会**
+授予它。读取一条记录和获取整张表的机器可读副本是不同的行为，这正是把二者分开
+的职责分离维度。在每个其持有者应当能够导出的权限集中，在对象条目（或 `'*'`
+通配符）上显式授予它。参见
+[权限集](/docs/configure/permissions/permission-sets#export-is-its-own-grant)。
+
+参见[权限集](/docs/configure/permissions/permission-sets)。
+
+## 第 4 层 —— 记录访问 [#layer-4--record-access]
+
+对于**没有** `viewAllRecords` 的用户，他们能看到哪些行？
+
+模型支持：
+
+- 隐式的所有权（用户创建或拥有的行）
+- 共享规则（声明式 —— "团队 A 能看到团队 A 的记录"）
+- 显式共享（`sys_record_share` 行 —— 一次性共享，授予某个用户、岗位，或某个
+  单元及其下级）
+- 组织范围（行的 `organization_id` 与用户的组织相匹配）
+
+从 ObjectStack 13 起，带有负责人字段的自定义对象默认采用**私有**共享模型 ——
+显式声明 `sharingModel` 才能开放它们。
+
+参见[记录访问](/docs/configure/permissions/record-access)。
+
+## 第 5 层 —— 字段安全 [#layer-5--field-security]
+
+即使用户能看到一条记录，单个字段仍可以是：
+
+- **隐藏** —— 字段会从 API 和 UI 的响应中剥离。
+- **只读** —— 字段会被返回，但写入时被拒绝。
+- **掩码** —— 字段返回时大部分值被替换（`138****5678`），除非调用者拥有该
+  字段所要求的能力（ObjectStack 17.1）。
+
+隐藏和只读按对象 + 按权限集设置；掩码则声明在字段本身上。典型用法：
+
+- 对 HR 以外的所有人隐藏 `sys_user` 上的 `salary`。
+- 让支持代表可以读取但不能编辑 `external_account_id`。
+- 除了负责给客户打电话的团队之外，对所有人把客户的电话号码显示为
+  `138****5678`。
+
+它在与对象权限相同的求值器中强制执行，所以在 REST、ObjectQL 和 UI 中统一
+适用。参见[字段级安全](/docs/configure/permissions/field-level-security)。
+
+## 从哪里开始 [#where-to-start]
+
+| 如果你在构建 …… | 使用 |
+|---|---|
+| 单团队的内部工具 | 只用权限集 |
+| 多团队应用，经理需要看报表 | 业务单元 + 岗位 + 权限集 |
+| SaaS 形态的多租户应用 | 组织范围 + 权限集 |
+| 涉及个人信息的受监管应用 | 在此之上再加字段安全 |
+| 复杂的 CRM 式应用 | 完整的整套模型 |
+
+## 诊断与审计 [#diagnose--audit]
+
+- **解释引擎**（`explain(principal, object, operation)`）按顺序报告每一层的
+  判定 —— 所需权限、对象 CRUD、字段安全、OWD 基线、共享、行级安全 —— 并逐层
+  归因。Studio 的 **Access** 支柱把它呈现为"Why can this user access?"面板。
+  解释另一个用户需要 `manage_users` 能力。
+- `/_console/` 会按求值结果显示任何用户的有效权限。
+- 审计日志（`sys_audit_log`）记录与权限相关的变更 —— 授权、角色分配、权限集
+  编辑。
+- 被拒绝的请求会记录失败的规则（对象权限、记录访问还是字段安全），这样支持
+  人员就能快速回答"为什么我看不到这个？"

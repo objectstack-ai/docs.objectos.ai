@@ -1,112 +1,191 @@
 ---
 title: 权限集
-description: 授予应用、对象、字段以及系统权限。
+seoTitle: "权限集：对象、字段和系统授权"
+description: 授予应用、对象、字段和系统权限。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 3a15cf4a4b1be9a3e606541bf85e92e80b2588e92e8c100bfa318aa21ee31384
+  source_sha: a358f4bda450dc16411f50560d7b6c74d2257257f89d2e6a509da19a9b8f70eb
   guide_rev: 1
   mode: auto
 ---
 
-权限集是授予能力的主要方式。它们可以直接分配给用户，或通过[岗位](/docs/configure/permissions/positions)间接分配。分配可以带有 `valid_from` / `valid_until` 时间窗口——过期的授权会立即失效。
+权限集是授予能力的主要方式。它们可以直接分配给用户，也可以通过
+[岗位](/docs/configure/permissions/positions)间接分配。分配可以带有
+`valid_from` / `valid_until` 时间窗口 —— 过期的授权会立即停止解析。
 
-## 权限集控制什么
+## 权限集控制什么 [#what-permission-sets-control]
 
 | 权限类型 | 示例 |
 |---|---|
-| 应用访问 | 用户可以打开 CRM 或 Console |
+| 应用访问 | 用户可以打开 CRM 或 Setup |
 | 对象权限 | 创建、读取、更新、删除记录 |
-| 字段权限 | 读取或更新指定字段 |
-| 系统权限 | 访问 Console、运行报表、导出数据 |
-| 集成权限 | 使用 API Key、Webhook 或管理操作 |
+| 字段权限 | 读取或更新选定的字段 |
+| 系统权限 | 访问 Setup、运行报表、查看审计日志 |
+| 集成权限 | 使用 API 密钥、webhook 或管理动作 |
 
-## 对象权限
+## 对象权限 [#object-permissions]
 
-对象权限回答：
+对象权限回答的是：
 
 ```text
 Can this user perform this operation on this object at all?
 ```
 
-权限集授权使用以下标志名（由 security 插件的权限求值器强制执行）：
+权限集授权使用以下标志名称（由安全插件的权限求值器强制执行）：
 
 | 标志 | 含义 |
 |---|---|
-| `allowRead` | 读取记录访问规则允许的记录 |
+| `allowRead` | 读取记录访问规则所允许的记录 |
 | `allowCreate` | 创建记录 |
-| `allowEdit` | 更新记录访问规则允许的记录 |
-| `allowDelete` | 删除记录访问规则允许的记录 |
+| `allowEdit` | 更新记录访问规则所允许的记录 |
+| `allowDelete` | 删除记录访问规则所允许的记录 |
+| `allowExport` | 获取该对象记录的批量、机器可读副本 |
 | `viewAllRecords` | 读取该对象的每一条记录，绕过记录访问 |
-| `modifyAllRecords` | 更新或删除该对象的每一条记录，绕过记录访问；读取上隐含 `viewAllRecords` |
+| `modifyAllRecords` | 更新或删除该对象的每一条记录，绕过记录访问；读取时隐含 `viewAllRecords` |
 
-除非 `viewAllRecords` 或 `modifyAllRecords` 绕过了行级边界，记录访问仍然生效。把这些标志保留给管理权限集——它们实际上是对该对象的租户级超级用户授权。
+除非 `viewAllRecords` 或 `modifyAllRecords` 绕过了常规的行级边界，否则
+[记录访问](/docs/configure/permissions/record-access)依然起作用。把这两个标志
+保留给管理权限集 —— 它们实际上是针对该对象、作用于整个租户的超级用户授权。
 
-## 系统权限
+### 导出是一项单独的授权 [#export-is-its-own-grant]
 
-系统权限用于平台级操作，例如：
+导出是一项**对象权限**，而不是系统权限，并且是**选择加入**的：
 
-- 访问 Console；
+| `allowExport` | 结果 |
+|---|---|
+| 未设置 | 导出被**拒绝** |
+| `false` | 拒绝 |
+| `true` | 允许（仍受 `allowRead` 约束） |
+
+未设置过去意味着"继承读取"。从 ObjectStack 17.0 起，它意味着拒绝，而且
+`viewAllRecords` / `modifyAllRecords` 也不再授予它 —— "可以看到所有数据"和
+"可以批量复制这些数据"是刻意区分开的两项授权。
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  deal: { allowRead: true, allowExport: true },   // ← add the grant
+}
+```
+
+有三个值得提前规划的后果：
+
+- **没有任何出厂权限集带有这项授权 —— 是升级把它拿走的。** 包自带的权限集会在
+  升级时重新预置，而从 ObjectStack 17.1 起，`admin_full_access`、
+  `organization_admin` 以及派生的 `organization_admin_no_bypass` 不再在 `*`
+  通配符上授予导出。刻意没有自动的替代：导出按对象授予，放在应用自己的权限集
+  中。在你编写的权限集中，凡是打算让管理员导出的地方，都显式授予
+  `allowExport`。**在环境中编写的权限集也从来没有带过它** —— 请编辑任何其用户
+  需要导出的自定义权限集。解析时不会有任何失败，所以一次什么都没改的升级会得到
+  合法的元数据，而其管理员已经悄悄失去了在所有未被应用权限集点名的对象上的导出
+  能力。
+- **`member_default` 有意不带这项授权**，所以普通的已认证用户会失去导出能力，
+  直到管理员授予它。这正是这次翻转的目的，而不是疏忽。
+- **带有 `allowExport` 的权限集属于高权限**，所以它不能绑定到 `everyone` 或
+  `guest` 受众锚点 —— 否则只要把一个可导出的权限集绑定到匿名锚点，选择加入就
+  形同虚设。
+
+合并采取最宽松原则，与 CRUD 位完全相同：任何一个已分配的权限集授予 `true`，
+就授予了导出，而 `false` 和未设置的结果相同。报表也受同一维度约束。
+
+## 系统权限 [#system-permissions]
+
+系统权限用于平台动作，例如：
+
+- 访问 Setup；
 - 管理用户；
 - 管理岗位和权限集；
 - 运行报表；
-- 导出报表；
 - 管理集成；
 - 查看审计日志。
 
-让系统权限与业务对象权限保持分离，便于管理员审计。
+把系统权限与业务对象权限分开，这样管理员可以方便地审计它们。
 
-## 推荐的权限集
+## 推荐的权限集 [#recommended-sets]
 
-从几个具名权限集开始：
+从几个具名的权限集开始：
 
 | 权限集 | 用途 |
 |---|---|
 | Basic User | 登录并访问主应用 |
-| Setup Administrator | 管理用户、岗位、设置和诊断 |
+| Setup Administrator | 管理用户、角色、设置和诊断 |
 | Report Viewer | 查看报表和仪表盘 |
-| Integration Operator | 管理 Webhook/API Key |
-| Support User | 读取/更新支持类对象 |
+| Integration Operator | 管理 webhook / API 密钥 |
+| Support User | 读取 / 更新支持相关的对象 |
 
-再为客户的应用添加领域特定的权限集。
+然后为客户的应用添加特定领域的权限集。
 
-将权限集标记为 `isDefault` 会在其所属软件包安装时建议分配（替代 13 之前的 `isProfile` 标志）。
+把权限集标记为 `isDefault`，会在其所属的包安装时建议分配它（它取代了 13 之前
+的 `isProfile` 标志）。
 
-## 委托管理（Delegated Administration）
+## 停用权限集 [#deactivating-a-permission-set]
 
-权限集可以携带 `adminScope`，使其持有者成为限定范围的管理员。该范围声明：
+权限集的 **Deactivate** 动作会立即让它停止授权（ObjectStack 17.1）。被停用的
+权限集不再贡献任何对象、字段、系统或标签页权限 —— 也不再赋予它原本会赋予的任何
+管理员身份 —— 无论它是直接还是通过岗位到达用户的。`active` 值为空的权限集不受
+影响；只有显式的停用才算数。
 
-- **在哪里**可以操作——某个业务单元子树；
-- **能做什么**——`manageAssignments`、`manageBindings`、`authorEnvironmentSets`；
-- **可以分发哪些**权限集（`assignablePermissionSets`）。
+两个后果：
 
-被委托者只能针对白名单内的权限集逐行写入，且每条授权都会记录 `granted_by` 供审计。授予或编写本身带有 `adminScope` 的权限集，要求授予者持有严格包含的范围。租户级管理员完全绕过此闸门。
+- **你无法用它把所有人都锁在外面。** 停用那个让你的管理员成为管理员的权限集，
+  会被拒绝删除它的同一个"最后一个管理员"守卫拒绝。
+- **升级越过 17.1 就是一次撤销。** 在 17.1 之前，这个开关是无效的，被停用的
+  权限集仍在授权。升级之前，列出已停用的权限集和岗位，并重新启用任何仍应授权
+  的那些 —— 参见
+  [停用岗位](/docs/configure/permissions/positions#deactivating-a-position)。
 
-## 字段安全（附录）
+## 委派管理 [#delegated-administration]
 
-权限集也承载字段级授权。即使用户能读取一条记录，单独的字段也可以被隐藏或设为只读。
+权限集可以携带一个 `adminScope`，把它的持有者变成限定范围的管理员。这个范围
+声明：
 
-### 两种模式
+- 委派者可以在**哪里**行动 —— 一棵业务单元子树；
+- 他们可以做**什么** —— `manageAssignments`、`manageBindings`、
+  `authorEnvironmentSets`；
+- 他们可以分配**哪些**权限集（`assignablePermissionSets`）。
+
+委派者只能针对允许列表中的权限集写入单行，每项授权都会盖上 `granted_by` 以便
+审计。授予或编写一个本身带有 `adminScope` 的权限集，要求授予者持有一个严格包含
+它的范围。租户级管理员完全绕过这道门控。
+
+## 字段安全（附录） [#field-security-appendix]
+
+权限集也携带字段级授权。即使用户可以读取一条记录，单个字段仍可以被隐藏或设为
+只读。
+
+### 两种模式 [#two-modes]
 
 | 模式 | 效果 |
 |---|---|
-| **隐藏** | 字段从 API 响应和 Console 视图中完全剥离 |
-| **只读** | 字段返回，但写入被拒绝 |
+| **隐藏** | 字段会从 API 响应和生成的视图中完全剥离 |
+| **只读** | 字段会被返回，但写入会被拒绝 |
 
-### 在哪里强制执行
+第三种状态 **掩码**（`138****5678`）不是权限集的模式：它声明在字段上，权限集
+只决定谁持有解除掩码所需的能力。参见
+[字段级安全](/docs/configure/permissions/field-level-security#masked-fields)。
 
-检查对象权限的同一求值器在每条路径上都应用字段规则——REST、ObjectQL、生成的 Console 表单、导出。没有"绕过"它的低层 API。
+### 在哪里强制执行 [#where-its-enforced]
 
-### 典型模式
+检查对象权限的同一个求值器，会在每条路径上应用字段规则 —— REST、ObjectQL、
+生成的表单、导出。不存在通过更底层 API 的"后门"。
+
+### 典型模式 [#typical-patterns]
 
 | 用例 | 建议 |
 |---|---|
-| `sys_user` 上的 HR 数据（薪资、SSN） | 对除 `HR` 权限集外的所有人隐藏 |
-| 外部系统标识符 | 对支持只读，对集成运维可写 |
-| `product` 的内部成本 vs 客户价格 | 对销售隐藏 `cost`，对财务呈现 |
-| 含 PHI 的备注字段 | 除包含相关临床职能的权限集外一律隐藏 |
+| `sys_user` 上的 HR 数据（薪资、SSN） | 除 `HR` 权限集外对所有人隐藏 |
+| 外部系统标识符 | 对支持人员只读，对集成运维人员可写 |
+| `product` 上的内部成本与客户价格 | 对销售隐藏 `cost`，对财务显示 |
+| 含受保护健康信息的备注字段 | 除非权限集包含相关的临床角色，否则隐藏 |
 
-### 编写建议
+### 编写指南 [#authoring-guidance]
 
-- 当字段承载敏感数据时，默认选择**隐藏**而非只读 —— 只读仍然会把值泄漏到响应和日志中。
-- 字段权限键必须**带对象限定**（写 `crm_lead.budget`，不要写 `budget`）——自 ObjectStack 14.4 起，`security-fls-unqualified-key` 校验会在编译期拒绝裸键，因为裸键会静默匹配不到任何字段。
-- 把字段规则打包到匹配真实职能的权限集（`HR Manager`、`Finance Read-only`），而不是为每个字段单独建一套——更易审计。
-- 合规场景下，把字段安全与审计日志保留期搭配使用，事后才能回答"谁看过这条记录？"。
+- 当字段承载敏感数据时，默认选择**隐藏**而不是只读 —— 只读仍会把值泄露到响应
+  和日志中。
+- 字段权限键始终要写成**带对象限定**的形式（`crm_lead.budget`，而不是
+  `budget`）—— 从 ObjectStack 14.4 起，`security-fls-unqualified-key` lint 会在
+  编译时拒绝裸键，因为它们会悄悄地什么都匹配不到。
+- 把字段规则打包进与真实职能相匹配的权限集（`HR Manager`、`Finance Read-only`），
+  而不是为每个字段发明一个权限集 —— 这样更易于审计。
+- 对于合规用例，把字段安全与审计日志保留搭配使用，这样你事后就能回答"谁看过这
+  一行？"

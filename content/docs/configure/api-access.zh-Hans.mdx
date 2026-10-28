@@ -1,15 +1,17 @@
 ---
 title: API 访问
+seoTitle: "API 访问：REST API、API 密钥和 OAuth 2.1"
 description: 用于集成的自动生成 REST API、身份验证和 API 密钥。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 59e07888e7a8e425689a077f85312f83e2d9e55cf1cfe435d37dc30856f2d0a5
+  source_sha: a72f24d7ae89d8f75070cc97fdd3cdf51529b9631945d044776aa7e84ea0283c
   guide_rev: 1
   mode: auto
 ---
 
 artifact 中声明的每个对象都会通过自动生成的 REST API 对外暴露。同一套端点同时驱动 UI、集成和客户的 ETL 脚本——无需另外维护一套“集成 API”。
 
-## Base URL
+## Base URL [#base-url]
 
 ```text
 https://<project-domain>/api/v1
@@ -31,7 +33,7 @@ https://<project-domain>/api/v1
 
 前缀默认为 `/api/v1`（即 API 的 `basePath` `/api` 加上 `version` `v1`），并且可在 ObjectOS stack 上配置。
 
-## 控制暴露的内容
+## 控制暴露的内容 [#controlling-whats-exposed]
 
 API 暴露在 artifact 中按对象逐个治理，而不是在网关层：
 
@@ -43,7 +45,7 @@ API 暴露在 artifact 中按对象逐个治理，而不是在网关层：
 
 同样的闸门也覆盖事务批量路由（16.0）：`POST /api/v1/batch` 会校验请求体，在开启事务*之前*就对**每个**操作强制执行 `apiEnabled` / `apiMethods`，update/delete 必须携带 id，无法解析的 `{ $ref }` 父引用会被拒绝。该路由只支持原子模式——`atomic: false` 会被以 `400 BATCH_NOT_ATOMIC` 拒绝；非原子的批量写入请继续使用按对象的 `createMany` / `updateMany` 端点。
 
-## 身份验证方式
+## 身份验证方式 [#authentication-options]
 
 调用方可以通过四种方式进行身份验证：
 
@@ -56,13 +58,13 @@ API 暴露在 artifact 中按对象逐个治理，而不是在网关层：
 
 这些方式都会经过同一个 `AuthPlugin`，并最终解析为 `sys_user` 上下文，由 `SecurityPlugin` 据此评估权限和记录访问。
 
-## API 密钥
+## API 密钥 [#api-keys]
 
 API 密钥是一等公民 `sys_api_key` 记录。密钥值本身以哈希形式存储——只有 `prefix` 和元数据保持可查询，因此即便密钥泄露也无法从数据库中还原。
 
 签发密钥有两种方式：
 
-- **Console**——以管理员身份登录 **Console → API Keys**，选择所属用户，
+- **Setup**——以管理员身份登录 **Setup → API Keys**，选择所属用户，
   可选地设置过期日期，并**仅这一次**复制显示出的密钥。
 - **自助端点**——`POST /api/v1/keys` 为已认证的调用方生成密钥，并只返回一次
   原始密钥。该密钥绑定到调用方自身的用户，因此无法用于冒充其他身份：
@@ -84,9 +86,25 @@ curl https://app.example.com/api/v1/data/account \
   -H "x-api-key: os_pk_live_…"
 ```
 
-要撤销某个密钥，请在对应的 `sys_api_key` 记录上运行 `revoke_api_key` action（Console UI 中也提供）。撤销会在下一次请求时立即生效。
+要撤销某个密钥，请在对应的 `sys_api_key` 记录上运行 `revoke_api_key` 动作（Setup 中也提供）。撤销会在下一次请求时立即生效。
 
-## MCP 客户端与 OAuth 2.1（ObjectStack 13+）
+### 密钥属于某个组织（ObjectStack 17.1） [#keys-belong-to-an-organization-objectstack-171]
+
+密钥是针对调用方的**当前组织**签发的：`POST /api/v1/keys` 不接受组织参数，所以
+不存在跨组织的密钥，并且签发时会重新检查调用方的成员身份。在单组织部署上，这不会
+带来任何可见的变化。在有隔离墙的租户姿态下（`OS_TENANCY_POSTURE`，参见
+[环境变量](/docs/reference/environment-variables#multi-organization-deployments)），
+它决定哪些密钥仍然有效：
+
+| 密钥 | `group` | `isolated` |
+|---|---|---|
+| 在 17.1 或之后签发，所有者仍是其组织的成员 | 有效 | 有效 |
+| 所有者此后已离开密钥所属的组织 | 拒绝 | 拒绝 |
+| 在 17.1 之前签发 —— 不携带组织 | 有效 | 拒绝 —— 请重新签发 |
+
+17.1 之前签发的密钥永远不会被回填组织。
+
+## MCP 客户端与 OAuth 2.1（ObjectStack 13+） [#mcp-clients--oauth-21-objectstack-13]
 
 任何支持 OAuth 的 MCP 客户端——Claude.ai 自定义连接器、Claude Desktop、Claude Code——都可以**自助**接入，无需管理员签发 API 密钥：
 
@@ -96,7 +114,7 @@ curl https://app.example.com/api/v1/data/account \
 
 API 密钥仍作为 CI 与无头代理的并行通道——`x-api-key` 和 `Authorization: Bearer osk_…` 继续原样工作。
 
-## 分页、过滤与排序
+## 分页、过滤与排序 [#pagination-filtering-and-sorting]
 
 自动生成的列表端点接受标准的 ObjectStack 查询参数：
 
@@ -110,15 +128,15 @@ API 密钥仍作为 CI 与无头代理的并行通道——`x-api-key` 和 `Auth
 
 完整的过滤语法请参阅框架文档——运行时语法才是权威依据。
 
-## 限流
+## 限流 [#rate-limiting]
 
 使用框架的 `RateLimiter` 原语（或 ingress / API 网关）应用按 IP 和按身份的限制。推荐的初始配额桶参见 [Production readiness](/docs/operate/production)。
 
-## CORS
+## CORS [#cors]
 
 如果调用方在不同源的浏览器上运行，请在 ingress 或运行时中间件中配置 CORS。**不要**将通配符 origin 与携带凭据的请求结合使用。
 
-## OpenAPI / 发现
+## OpenAPI / 发现 [#openapi--discovery]
 
 当镜像中包含相应能力时，运行时可以为自动生成的 REST API 提供 OpenAPI 文档。客户的集成应基于每个部署的 OpenAPI 文档生成客户端，而不是手写 URL，因为对象名称和生成的路由会跟随已部署的 artifact 而变化。
 

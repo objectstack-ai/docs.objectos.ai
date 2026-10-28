@@ -1,8 +1,10 @@
 ---
 title: 权限分配
+seoTitle: "权限分配：入职、变更角色、离职"
 description: 日常管理手册 —— 新员工入职、角色变更、验证某人能看到什么，以及干净地办理离职。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 6986ce39661d80762826b8d56a69afc24590466bcb02ded998833db52be9a82f
+  source_sha: be810828c60d389cf16c7b89bedd3c8e68110d089cd9da60fb2c59a3a67321be
   guide_rev: 1
   mode: auto
 ---
@@ -21,7 +23,7 @@ effective access = union of permission sets reached through positions
 
 限制通过*不授予*来实现——没有需要维护的减法规则。
 
-## 新员工入职
+## 新员工入职 [#onboard-a-new-hire]
 
 四个有序步骤，每一步依赖上一步：
 
@@ -32,7 +34,7 @@ effective access = union of permission sets reached through positions
 | 3. 分配岗位 | Setup → Access Control → Positions | 那日常的 90%——见下文 |
 | 4. 验证 | 模拟 + 解释 | 绝不在未测试的情况下宣布"都配好了"——见下文 |
 
-### 分配岗位
+### 分配岗位 [#assigning-positions]
 
 一次分配就是一行记录：**User Position**（用户岗位，`sys_user_position`）= *用户* + *岗位* + 可选的任职**业务单元**。这个锚点决定岗位的深度授权*在哪里*生效——"**东区**销售经理"看到的是东区的记录，而不是整个公司的。
 
@@ -43,7 +45,7 @@ effective access = union of permission sets reached through positions
 - **直接授予**——在权限集的记录页（**Setup → Access Control → Permission Sets**）上，**Assigned Users**（已分配用户）面板可添加不经岗位的按用户授予。*经岗位*持有的行也会显示，但要在岗位上移除，不能在这里移除。
 - **业务单元成员资格**——来自第 2 步；独立于分配锚点。
 
-## 变更某人的角色
+## 变更某人的角色 [#change-someones-role]
 
 当某人调换部门或职能时：
 
@@ -54,7 +56,7 @@ effective access = union of permission sets reached through positions
 
 分配可以携带 `valid_from` / `valid_until` 时间窗口——过期的授予立即停止解析，这是处理计划内交接或临时代理角色的干净方式。参见[权限集](/docs/configure/permissions/permission-sets)。
 
-## 验证某人能看到什么
+## 验证某人能看到什么 [#verify-what-someone-can-see]
 
 两个内置的验证工具：
 
@@ -64,11 +66,11 @@ effective access = union of permission sets reached through positions
 同样的报告也可通过 REST 获取：
 
 ```bash
-# GET，查询字符串形式
+# GET, query-string form
 curl -H "Authorization: Bearer $TOKEN" \
   "$BASE/api/v1/security/explain?object=crm_lead&operation=read&userId=usr_123"
 
-# POST，请求体形式
+# POST, body form
 curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"object":"crm_lead","operation":"read","userId":"usr_123"}' \
   "$BASE/api/v1/security/explain"
@@ -78,14 +80,14 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/jso
 
 > 当权限解析结果不对时，先解释胜过瞎猜乱试：报告会点名需要修正的确切权限集和层。参见[诊断与审计一节](/docs/configure/permissions#diagnose--audit)。
 
-## 办理离职
+## 办理离职 [#offboard-someone]
 
 1. **Ban User**（封禁用户）——立即阻止登录。这是唯一紧急的一步。
 2. 之后从容移除其岗位分配和直接授予。
 3. 移除或改挂其业务单元成员行。
 4. 撤销绑定到该用户的所有 API Key——Key 以该用户身份行事，只要底层授予还在，它就还能用。
 
-## 当自带的岗位不合用时
+## 当自带的岗位不合用时 [#when-the-shipped-positions-dont-fit]
 
 权限在 Studio 中*设计*，在 Setup 中*分配*。如果没有自带岗位能满足需求，优先选择能解决问题的最小改动，顺序如下：
 
@@ -102,10 +104,11 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/jso
 | 能读/建/改/删某类对象 | 对象权限 | [权限集](/docs/configure/permissions/permission-sets) |
 | 能看到 / 编辑某个特定字段 | 字段级安全 | [字段级安全](/docs/configure/permissions/field-level-security) |
 | 用户能看到哪些*行* | 记录访问 | [记录访问](/docs/configure/permissions/record-access) |
-| 某项功能性能力（导出、管理用户） | 系统权限 | [权限集](/docs/configure/permissions/permission-sets#system-permissions) |
+| 能批量导出某个对象的记录 | 对象权限 —— `allowExport`，一项读取权限**不会**授予的选择加入授权 | [导出是一项单独的授权](/docs/configure/permissions/permission-sets#export-is-its-own-grant) |
+| 某项功能性能力（管理用户、查看审计日志） | 系统权限 | [权限集](/docs/configure/permissions/permission-sets#system-permissions) |
 | 能打开某个应用或导航项 | 应用访问 | [权限集](/docs/configure/permissions/permission-sets) |
 
-## 快捷路径
+## 快捷路径 [#quick-paths]
 
 | 我需要 …… | 这样做 |
 |---|---|
@@ -117,7 +120,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/jso
 | 让子公司自行管理员工 | 授予携带[委派管理作用域](/docs/configure/permissions/permission-sets#delegated-administration)的权限集 |
 | 给某个用户加一项额外能力 | 权限集记录 → **Assigned Users** → 添加（直接授予） |
 
-## 各项在哪里
+## 各项在哪里 [#where-is-everything]
 
 | 事项 | 位置 |
 |---|---|
@@ -130,7 +133,7 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/jso
 | 会话、通知事件、审计日志 | Setup → Diagnostics |
 | 权限矩阵编辑器、Explain access | Studio → Access |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任务 | 页面 |
 |---|---|

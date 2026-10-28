@@ -2,27 +2,28 @@
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 接入 AI 工具（MCP）
 description: 把 Claude Code、Claude Desktop 或任意 MCP 客戶端指向你的 ObjectOS 應用，讓 Agent 在你的許可權模型約束下處理你的資料。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: a41183fbf103bf1e51a569bc44279678a6aca9a4988384edeceecb985041f110
+  source_sha: dbab6b08c28ab977e12bec3cb19d901665254a266942968a049415e8f0fca7d0
   guide_rev: 1
   mode: auto
 ---
 
-每個 ObjectOS 部署天生就是一個 MCP 伺服器。執行時在 **`/api/v1/mcp`** 上提供 [Model Context Protocol](https://modelcontextprotocol.io) 服務——預設開啟，無需安裝外掛，無需配置步驟。你的物件和已暴露的操作在定義的那一刻就成為帶型別的工具；剩下唯一要做的就是接入一個客戶端並驗證它能用。
+每個 ObjectOS 部署天生就是一個 MCP 伺服器。執行時在 **`/api/v1/mcp`** 上提供 [Model Context Protocol](https://modelcontextprotocol.io) 服務——預設開啟，無需安裝外掛，無需配置步驟。你的物件和已暴露的動作在定義的那一刻就成為帶型別的工具；剩下唯一要做的就是接入一個客戶端並驗證它能用。
 
 > 要關閉這個入口，設定 `OS_MCP_SERVER_ENABLED=false`——端點將返回 404，**Setup → Connect an Agent**（接入 Agent）頁面也隨之消失。
 
 本頁講的是把*外部* AI 工具接入你的應用。服務端 AI 棧——聊天 Provider、Embedder、RAG，以及在程式碼中顯式註冊 MCP 伺服器外掛——參見 [AI 服務](/docs/configure/ai)。
 
-## Claude Code（一條命令）
+## Claude Code（一條命令） [#claude-code-one-command]
 
 互動式客戶端使用 OAuth——每個部署本身就是一個 OAuth 2.1 授權伺服器，因此不存在需要管理員簽發再分發的憑據。第一次工具呼叫會開啟瀏覽器登入，你**以自己的身份**接入：
 
 ```bash
-# 本地开发服务器
+# local dev server
 claude mcp add --transport http my-app http://localhost:3000/api/v1/mcp
 
-# 已部署的实例
+# a deployed instance
 claude mcp add --transport http my-app https://your-deployment.example.com/api/v1/mcp
 ```
 
@@ -35,11 +36,11 @@ claude mcp add --transport http my-app https://your-deployment.example.com/api/v
   --header "x-api-key: osk_..."
 ```
 
-## Claude Desktop 與 claude.ai
+## Claude Desktop 與 claude.ai [#claude-desktop-and-claudeai]
 
 **Settings → Connectors → Add custom connector**（設定 → 聯結器 → 新增自定義聯結器），然後貼上 MCP URL（`https://your-deployment.example.com/api/v1/mcp`）。首次使用時會走同樣的瀏覽器登入流程。
 
-## 任意 MCP 客戶端（`.mcp.json`）
+## 任意 MCP 客戶端（`.mcp.json`） [#any-mcp-client-mcpjson]
 
 讀取 `mcpServers` 對映的客戶端以同樣方式接入。使用 API Key：
 
@@ -55,13 +56,13 @@ claude mcp add --transport http my-app https://your-deployment.example.com/api/v
 }
 ```
 
-## 無頭場景：API Key
+## 無頭場景：API Key [#headless-api-keys]
 
 在 **Setup → Connect an Agent**（接入 Agent，那裡還提供各客戶端可直接複製貼上的接入片段）中籤發 Key，或通過 REST：
 
 ```bash
 curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
-# → { "key": "osk_..." }  —— 只显示一次；存入你的 secret manager
+# → { "key": "osk_..." }  — shown once; store it in your secret manager
 ```
 
 每次請求以三種等價形式之一攜帶它：
@@ -76,7 +77,7 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 
 對於長期整合，把 Key 繫結到帶最小許可權集的專用服務使用者——參見[服務賬號與 API Key](/docs/configure/users#service-accounts--api-keys)。
 
-## stdio 傳輸（16.0）
+## stdio 傳輸（16.0） [#the-stdio-transport-160]
 
 除了 HTTP，執行時還可以通過 **stdio** 提供 MCP 服務，供以子程序方式拉起伺服器的宿主使用。自 16.0（ADR-0101）起，stdio 擁有自己的開關，並且始終以真實身份執行：
 
@@ -84,9 +85,9 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 - stdio **必須配置 `OS_MCP_STDIO_API_KEY=osk_...`**。該 Key 通過與 HTTP、REST 完全相同的驗證 + 授權鏈解析，因此物件許可權、記錄訪問、欄位級安全和租戶隔離對 stdio 呼叫的作用與 `/api/v1/mcp` 完全一致——並且每次讀取都會重新解析 Key，吊銷立即生效。
 - 該傳輸是 **fail-closed** 的：開啟自動啟動卻沒有可解析的 Key，啟動會直接被拒絕；刻意不提供任何無身份回退，也沒有 `system` 旁路。若需要完整許可權，請在平臺管理員或專用服務身份上籤發 Key。
 
-## Agent 能得到什麼
+## Agent 能得到什麼 [#what-the-agent-gets]
 
-十一個數據、操作與創作工具，由你的後設資料生成：
+十一個數據、動作與創作工具，由你的後設資料生成：
 
 | 工具 | 用途 |
 |---|---|
@@ -95,21 +96,21 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 | `validate_expression` | 在儲存*之前*對照真實物件 schema 校驗公式（16.0）：錯誤（裸欄位引用、未知欄位並給出 did-you-mean）、警告（型別健全性、日期相等陷阱）、作用域內的欄位/函式清單，以及推斷的結果型別。只讀、`data:read` scope、對 `sys_*` fail-closed |
 | `aggregate_records` | 分組聚合（當前驅動支援時才註冊） |
 | `create_record` / `update_record` / `delete_record` | 寫入資料 |
-| `list_actions` / `run_action` | 按名稱發現並呼叫你的業務操作 |
+| `list_actions` / `run_action` | 按名稱發現並呼叫你的業務動作 |
 
 要了解的兩條暴露規則：
 
 - **物件自動暴露**——但 `sys_*` 系統物件除外，它們以 fail-closed 方式被攔截。
-- **操作需要作者顯式選擇加入**：`ai: { exposed: true }` 加上不少於 40 個字元的 `ai.description`，且該操作必須可以在無 UI 的情況下呼叫（帶 body 或已註冊 handler 的 `script`，或 `flow`）。
+- **動作需要作者顯式選擇加入**：`ai: { exposed: true }` 加上不少於 40 個字元的 `ai.description`，且該動作必須可以在無 UI 的情況下呼叫（帶 body 或已註冊 handler 的 `script`，或 `flow`）。
 
-## 許可權強制執行
+## 許可權強制執行 [#permission-enforcement]
 
 - **每次呼叫都以呼叫者身份執行。**MCP 橋接解析的執行上下文與 REST 請求相同，因此物件許可權、[記錄訪問](/docs/configure/permissions/record-access)和[欄位級安全](/docs/configure/permissions/field-level-security)對 Agent 的作用與對 UI 中的真人完全一致。結果稀疏或寫入被拒，通常意味著治理在*正常工作*，而不是連線壞了。
 - **OAuth scope 會收窄工具集。**Token 攜帶 `data:read`、`data:write` 和 `actions:execute` 這些 scope——不在已授予 scope 內的工具，在該會話中根本不會被註冊。API Key 和會話呼叫者獲得完整工具集，但每次呼叫仍會做許可權檢查。
-- **操作體一經呼叫即作為可信應用程式碼執行**（`ai.exposed` 門檻和 `requiredPermissions` 在*呼叫*時檢查）。把編寫操作當作值得程式碼評審的行為——那才是真正的安全邊界。
-- 操作還可以宣告 `ai.requiresConfirmation`；看起來具有破壞性的操作預設要求確認。
+- **動作體一經呼叫即作為可信應用程式碼執行**（`ai.exposed` 門檻和 `requiredPermissions` 在*呼叫*時檢查）。把編寫動作當作值得程式碼評審的行為——那才是真正的安全邊界。
+- 動作還可以宣告 `ai.requiresConfirmation`；看起來具有破壞性的動作預設要求確認。
 
-## 驗證連線
+## 驗證連線 [#verify-the-connection]
 
 問 Agent 一個只有即時 schema 才能回答的問題：
 
@@ -121,7 +122,7 @@ What objects does this app have, and what fields does the main one carry?
 
 > 配上應用的 **skill 檔案**，Agent 的表現會明顯更好：從 `GET /api/v1/mcp/skill` 下載它，或安裝[官方 Claude 外掛](https://github.com/objectstack-ai/claude-plugin)（`claude plugin marketplace add objectstack-ai/claude-plugin`），後者打包了該 skill 和一個引導式的 `/objectstack:connect` 命令。
 
-## 故障排查
+## 故障排查 [#troubleshooting]
 
 | 症狀 | 原因 → 解決 |
 |---|---|
@@ -130,10 +131,10 @@ What objects does this app have, and what fields does the main one carry?
 | 開啟 stdio 後啟動被拒絕 | stdio 是 fail-closed 的（16.0）——把 `OS_MCP_STDIO_API_KEY` 設為可解析的 `osk_` Key，或關閉 `OS_MCP_STDIO_ENABLED` |
 | 每次呼叫都 `401` | 匿名或憑據無效。互動式客戶端：完成瀏覽器登入。無頭場景：檢查 `osk_` Key 和請求頭拼寫 |
 | `403 insufficient_scope` | OAuth token 缺少該工具族所需的 scope（例如沒有 `data:write` 卻嘗試寫入）——重新連線並授予該 scope |
-| 某個操作沒出現在 `list_actions` 中 | `ai.exposed` 不為 `true`、`ai.description` 短於 40 個字元、型別不可無頭呼叫（`url` / `modal` / `form` 永遠不會出現）、目標是 `sys_*` 物件，或呼叫者未通過其 `requiredPermissions` |
+| 某個動作沒出現在 `list_actions` 中 | `ai.exposed` 不為 `true`、`ai.description` 短於 40 個字元、型別不可無頭呼叫（`url` / `modal` / `form` 永遠不會出現）、目標是 `sys_*` 物件，或呼叫者未通過其 `requiredPermissions` |
 | 讀取返回的行很少 / 寫入被拒 | 符合設計——呼叫者的許可權和記錄訪問在生效。用同一使用者在 UI 中驗證 |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任務 | 頁面 |
 |---|---|

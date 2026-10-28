@@ -1,78 +1,131 @@
 ---
 title: 记录访问
-description: 控制用户可以看到或修改哪些记录。
+seoTitle: "记录访问：共享模型、规则和共享"
+description: 在对象权限允许之后，控制用户能看到或修改哪些记录 —— 共享模型默认值、租户隔离、共享规则、记录共享。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 17abeb2628a200cbbc2bf0a1297c94858fc37405d52019fe2adc6c58c6af5d7a
+  source_sha: 7b46161549b128c59dc28ff67e96983da80e27b14b32166a87dd0fe2b00e1789
   guide_rev: 1
   mode: auto
 ---
 
-记录访问控制对象权限允许某操作之后，用户可以看到或修改的具体行。
+记录访问控制的是：在对象权限允许某项操作之后，用户能看到或修改哪些行。
 
-## 机制
+## 机制 [#mechanisms]
 
 | 机制 | 用途 |
 |---|---|
-| 行级安全 | 强制租户或组织隔离 |
-| 共享规则 | 按声明式条件授予访问 |
-| 记录共享 | 授予某用户、岗位或"单元及下级单元"对特定记录的访问 |
-| 所有权/层级 | 通过所有者和业务单元树授予访问 |
+| 行级安全 | 强制执行租户或组织隔离 |
+| 共享规则 | 基于声明式条件授予访问 |
+| 记录共享 | 向特定用户、团队、岗位、业务单元，或某个单元及其下级授予访问 |
+| 所有权 / 层级 | 通过负责人和业务单元树授予访问 |
 
-## 共享模型默认值
+## 共享模型默认值 [#sharing-model-defaults]
 
-每个对象都声明（或继承）一个 `sharingModel`，用于设定组织级默认值：`private`、`public_read`、`public_read_write` 或 `controlled_by_parent`。
+每个对象都会声明（或继承）一个 `sharingModel`，它设定组织范围的默认值：
+`private`、`public_read`、`public_read_write` 或 `controlled_by_parent`。
 
-自 ObjectStack 13 起，带有所有者字段但未声明 `sharingModel` 的自定义对象默认使用**私有**模型——记录仅对其所有者（和管理员）可见，直到共享规则、记录共享或更宽的默认值将其开放。需要开放行为时请显式声明：
+从 ObjectStack 13 起，带有负责人字段且没有声明 `sharingModel` 的自定义对象默认
+为**私有** —— 记录只对其负责人（以及管理员）可见，直到某条共享规则、记录共享或
+更宽的默认值把它们开放出来。显式声明模型即可恢复开放的行为：
 
 ```ts
-defineObject({
+ObjectSchema.create({
   name: 'crm_lead',
   sharingModel: 'public_read_write',
-  // …
+  fields: {
+    company: Field.text({ label: 'Company' }),
+    // …
+  },
 });
 ```
 
-13 之前的别名 `read`、`read_write`、`full` 已被移除；`os compile` 会通过 `security-owd-unset` 与 `security-owd-alias` 校验规则标记未设置或使用别名的模型。
+13 之前的别名 `read`、`read_write` 和 `full` 已被移除；`os compile` 会通过
+`security-owd-unset` 和 `security-owd-alias` lint 标出未设置或使用别名的模型。
 
-## 默认租户隔离
+## 默认的租户隔离 [#default-tenant-isolation]
 
-security 插件通过当前用户的上下文强制租户隔离。对标准平台对象，默认规则保护那些不带常规组织字段的全局表。
+安全插件通过当前用户的上下文强制执行租户隔离。对于标准的平台对象，默认规则会
+保护那些不带常规组织字段的全局表。
 
-客户的现实期望是：
+客户在实践中的预期是：
 
 ```text
 Users only see records that belong to their organization or records
 explicitly shared with them.
 ```
 
-## 共享规则
+## 共享规则 [#sharing-rules]
 
-把共享规则用于可复用的业务策略：
+用共享规则表达可重复的业务策略：
 
-- 所有大区经理可以读取本区的 account；
-- 支持经理可以查看升级的 case；
+- 所有区域经理都可以读取其所在区域的客户；
+- 支持经理可以看到已升级的案例；
 - 财务可以读取已批准的发票；
-- 审计员可以读取标记为审计审查的记录。
+- 审计人员可以读取标记为待审计的记录。
 
-## 记录共享
+一条规则是基于字段值的 CEL `condition`，在编写时编译成行过滤条件；匹配的记录会
+为解析出的接收方（某个用户、团队、岗位、业务单元，或某个单元及其下级）生成
+`sys_record_share` 授权。`criteria` 规则是唯一可编写的形式。
 
-把记录共享用于例外情况：
+### 两个开关都失败即关闭 [#both-switches-fail-closed]
 
-- 把一个 opportunity 共享给某专家；
-- 在升级期间临时授予访问；
-- 把某条记录的访问授予一个外部集成。
+两件读者理所当然会假定、却直到 ObjectStack 17.0 才成立的事：
 
-## 排查可见性
+- **没有条件的共享规则什么都不共享。** 过去，一条存储时没有条件谓词的规则会被
+  求值为*该对象的每一条记录* —— 即空过滤条件 —— 所以经由某个未校验的写入路径
+  产生的一个拼写错误，就会悄悄地开放整张表。现在，写入一个匹配全部的条件会被
+  拒绝，求值器也会把空条件视为**什么都不**匹配。
+- **`enabled: false` 的 RLS 策略就是禁用的。** 过去，被关闭的策略仍会继续贡献
+  它的 OR 分支授权，所以关闭一条策略并不会收回访问。现在，被禁用的策略根本不会
+  被求值。
 
-当用户看不到一条记录时，按顺序检查：
+如果你在更早的版本下审计过访问，并得出"这条规则什么也没授予"或"这条策略是关闭
+的"的结论，值得重新运行一遍
+[解释引擎](/docs/configure/permissions#diagnose--audit) —— 实际的范围可能比
+元数据所说的更宽。
 
-1. 用户是否已认证并处于预期组织？
-2. 用户是否拥有对象 `read` 权限？
-3. 该对象的 `sharingModel` 是什么（自 ObjectStack 13 起自定义对象默认 `private`）？
-4. 行级安全是否允许该记录？
-5. 是否有共享规则应当生效？
-6. 是否存在直接的记录共享？
-7. 该记录是否归属于预期业务单元子树中的用户？
-8. 用户是否在正确的项目/主机名下？
+## 行级安全拒绝它无法强制执行的内容 [#row-level-security-refuses-what-it-cannot-enforce]
 
-[解释引擎](/docs/configure/permissions#诊断与审计)可以一次性回答上述所有问题——它报告每一层的判定结果，以及是哪条授权（或缺失的授权）决定了最终结果。
+从 ObjectStack 17.5 起，RLS 策略要么精确地收窄它所声明的范围，要么拒绝：
+
+- **没有 `check` 的策略用它的 `using` 门控写入。** 文档一直说 `check` 默认为
+  `using`，但只有声明了 `check` 的策略才会被应用到写入上，所以用户可能写入一行
+  自己读不回来的数据。现在，单行插入或按 id 更新的结果如果落在所有适用的写入
+  策略的 `using` 之外，会返回 `403 PERMISSION_DENIED`。如果一条策略本意就是让
+  写入可以落在其读取范围之外，就必须声明一个允许这些写入的 `check`。
+- **它无法强制执行的谓词会拒绝。** 把字段与列表比较
+  （`record.status != ['closed', 'archived']`）、与裸的 `current_user` 而不是
+  `current_user.id` 比较，或者指定了对象未声明的字段，都可能放进它本来要拒绝的
+  行和写入。这样的策略现在会失败即关闭：它的读取不返回任何行，写入返回 `403`。
+- **写入按存储后的行来判定。** `check` 和组织隔离墙看到的，是引擎在
+  `beforeInsert` / `beforeUpdate` 钩子运行之后所存储的行。
+
+`os validate` 会在这些形态发布之前报告它们（`rls-predicate-unenforceable`、
+`rls-predicate-unknown-field`），元数据保存入口也会拒绝携带这类策略的权限集
+（`422 INVALID_METADATA`）。
+
+## 记录共享 [#record-shares]
+
+用记录共享处理例外情况：
+
+- 把某个商机共享给一位专家；
+- 在升级处理期间授予临时访问；
+- 让外部集成访问某条特定记录。
+
+## 可见性故障排查 [#troubleshooting-visibility]
+
+当用户看不到某条记录时，按以下顺序检查：
+
+1. 用户是否已认证，且处于预期的组织中？
+2. 用户是否拥有对象的 `read` 权限？
+3. 对象的 `sharingModel` 是什么（从 ObjectStack 13 起，自定义对象默认为
+   `private`）？
+4. 行级安全是否允许这条记录？
+5. 是否有本应适用的共享规则？
+6. 是否有直接的记录共享？
+7. 记录是否由预期业务单元子树中的某个用户拥有？
+8. 用户访问的项目 / 主机名是否正确？
+
+[解释引擎](/docs/configure/permissions#diagnose--audit)一次调用就能回答所有这些
+问题 —— 它会报告每一层的判定，以及是哪项授权（或缺少的授权）决定了结果。

@@ -1,19 +1,32 @@
 ---
 title: 管理
+seoTitle: "管理：用户、访问和设置"
 description: 系统管理员在哪里管理用户、访问、设置与集成 —— 以及哪个页面解决哪类任务。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: b8fa9980d709254db66ee46fa6978bf3a1df09b57fcf013268b32513919dd6f6
+  source_sha: dc1a105142d4b26d331b4288248309f185672ffa2b1986e5f8d36afc521562e4
   guide_rev: 1
   mode: auto
 ---
 
 本章面向 ObjectOS 部署的**系统管理员**：负责用户入职、授予访问权限、接通登录、邮件、存储与集成，并保持系统健康运转的人。你日常管理的是人和他们的权限；应用、对象和权限集本身则随平台及你安装的应用包一起交付。
 
-> **权限在 Studio 中设计，在 Setup 中分配。**绝大多数管理工作都不会离开 Setup（管理后台）——只有编写权限集或运行解释引擎时才需要进入 Studio。
+## Setup 与 Studio [#setup-and-studio]
 
-## Setup 控制台
+**权限在 Studio 中设计，在 Setup 中分配。** 这句话是对一条贯穿整个产品的划分的标准表述，而不只是关于权限的规则：Setup *运营*一个运行中的部署，Studio *编写*这个部署所运行的元数据。两者都位于 `/_console/` 下的同一个 UI 中；谁都不是独立的界面。
 
-内置的管理控制台位于 **`/apps/setup`**，需要 `setup.access` 权限。其左侧导航由运行时已加载的能力插件动态提供，因此你看到的菜单精确反映当前部署所运行的内容——未启用的能力不贡献任何菜单项，其分组保持为空。
+| | Setup | Studio |
+|---|---|---|
+| 回答 | 谁在这里，他们可以做什么？ | 这个应用由什么组成？ |
+| 位置 | `/_console/apps/setup` | `/_console/studio` |
+| 门控 | `setup.access` | `studio.access` |
+| 面向 | 系统管理员 | 实施人员和开发者 |
+
+绝大多数管理工作都不会离开 Setup —— 只有编写权限集或运行解释引擎时才需要进入 Studio。
+
+## Setup 应用 [#the-setup-app]
+
+内置的管理应用位于 **`/apps/setup`**，需要 `setup.access` 权限。其左侧导航由运行时已加载的能力插件动态提供，因此你看到的菜单精确反映当前部署所运行的内容——未启用的能力不贡献任何菜单项，其分组保持为空。
 
 稳定的导航分组：
 
@@ -28,7 +41,7 @@ translation:
 | **Integrations**（集成） | Webhooks |
 | **Advanced**（高级） | OAuth 应用、签名密钥（JWKS）、身份关联、用户偏好 |
 
-## 任务地图
+## 任务地图 [#task-map]
 
 | 我需要 …… | 阅读 |
 |---|---|
@@ -51,7 +64,7 @@ translation:
 | 查看日志、指标和审计记录 | [可观测性](/docs/operate/observability) |
 | 诊断故障部署 | [故障排查](/docs/operate/troubleshooting) |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任务 | 页面 |
 |---|---|

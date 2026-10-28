@@ -2,8 +2,9 @@
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 使用者與組織
 description: 搭建業務單元樹、新增和邀請使用者、管理成員資格與團隊，以及開通服務賬號。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 8c40f55f61ac88836e5cd989d96833070804ccfdb99d13b180487d1eba6cac90
+  source_sha: b196256973c869eb90df98eb14987f85c2762e3ec3b5bdf578f3be8d33b5344c
   guide_rev: 1
   mode: auto
 ---
@@ -14,7 +15,7 @@ translation:
 
 > **90% 的日常管理就是把人分配到崗位。**崗位、其背後的許可權集以及安全基線都隨平臺和你安裝的應用一起交付。你的工作是人這一側——本頁所講的內容——以及分配這一側，後者在[許可權分配](/docs/configure/permissions/managing-access)中講解。
 
-## 搭建組織（業務單元）
+## 搭建組織（業務單元） [#build-the-organization-business-units]
 
 **Setup → People & Organization → Business Units**（業務單元）。
 
@@ -34,7 +35,7 @@ translation:
 
 > 讓樹保持淺層、如實反映你的真實結構。如果某個東西應該按組織結構影響*人們能看到哪些記錄*，它是業務單元；如果只是一個供人共享記錄的群組，它是團隊。
 
-## 新增人員
+## 新增人員 [#add-people]
 
 **Setup → People & Organization → Users**（使用者）。三條入口，都是一等公民：
 
@@ -46,13 +47,15 @@ translation:
 
 待接受的邀請列在 **Setup → People & Organization → Invitations**（邀請）下。
 
+除非你開放自助註冊，否則人們無法自己建立賬戶：從 ObjectStack 17.3 起，註冊受眾預設為**僅限邀請**，這三條路徑就是人員進入的方式。無論受眾設定為什麼，它們都有效。要讓人們自行註冊，參見[認證 → 誰可以註冊](/docs/configure/authentication#who-may-sign-up-objectstack-173)。
+
 同樣的流程也可通過 REST 完成（ObjectStack 14.3+），用於指令碼化入職：
 
 ```bash
-# 创建可直接登录的账户，可选生成一次性密码
+# Create a sign-in-ready account with an optional one-time password
 curl -X POST https://crm.example.com/api/v1/auth/admin/create-user
 
-# 批量导入行 / CSV / XLSX（最多 500 行），支持 dry-run 和 upsert 模式
+# Bulk-import rows / CSV / XLSX (max 500 rows), with dry-run and upsert modes
 curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 ```
 
@@ -60,21 +63,52 @@ curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 
 請求體、密碼策略和僅手機號賬戶的細節，參見[認證 → 管理員使用者管理](/docs/configure/authentication#admin-user-management-objectstack-143)。
 
-## 把人放進組織樹（成員資格）
+## 組織成員層級 [#organization-membership-tiers]
+
+每一條成員資格行（`sys_member`）都帶有一個**層級** —— 即使用者在組織中的身份。這套詞彙是封閉的，由平臺擁有（ADR-0108）：只有這四個值，應用宣告的任何東西都不會擴充它們。
+
+| 層級 | 含義 |
+|---|---|
+| `owner` | 組織中的最高身份。可以邀請任何層級，也是唯一可以移除另一個 owner 的層級 |
+| `admin` | 管理組織。可以邀請除 `owner` 以外的任何層級 |
+| `delegated_admin` | **無需**成為組織管理員即可發出組織邀請。它的能力僅此而已 —— 層級本身不解析為任何許可權；見下文 |
+| `member` | 普通身份。沒有管理能力；訪問許可權像其他所有人一樣，通過崗位和許可權集獲得 |
+
+> **本頁中有兩種不同的記錄都被稱為"成員資格"。** `sys_member` 回答*你屬於哪個組織，處於什麼層級*。`sys_business_unit_member` —— [下一節](#place-people-in-the-org-tree-memberships) —— 回答*你位於哪個業務單元*。把某人放進組織樹不會改變任何層級，改變層級也不會放置任何人。
+
+層級在邀請時選擇（`sys_invitation.role`），並存儲在成員資格行上（`sys_member.role`）。這兩個欄位都是同一個固定的四值選擇，所以應用自己的業務角色（`sales_manager`）無法存入其中任何一個，指定了業務角色的邀請會在寫入任何行之前被拒絕。職能是一個[崗位](/docs/configure/permissions/positions)。
+
+有兩條規則限定誰可以授予哪個層級：邀請永遠不能授予高於發出者自身層級的層級，而低於 `admin` 的發出者只能以 `member` 身份邀請。
+
+**層級是一種決定你能*觸及*什麼的等級 —— 而絕不是你可以*做*什麼的許可權包。** `owner` 和 `admin` 可見的權力來自另一個機制：這兩個層級的成員資格會被自動授予一個限定在該組織範圍內的組織管理員許可權集。權力由那個許可權集承載；層級只決定誰獲得它。
+
+### `delegated_admin` 不是委派管理 [#delegated_admin-is-not-delegated-administration]
+
+兩個名字幾乎相同的機制。選錯其中一個，正是本節要防止的錯誤：
+
+| | `delegated_admin`（一個成員層級） | [委派管理](/docs/configure/permissions/permission-sets#delegated-administration)（一個許可權集） |
+|---|---|---|
+| 位於 | `sys_member.role` | 由某個許可權集攜帶的 `adminScope` |
+| 回答 | *你究竟能否觸及邀請流程？* | *你實際上可以授予什麼* —— 哪些業務單元、哪些許可權集 |
+| 單獨使用時 | 讓你可以邀請一個普通成員，但不能放置任何人 | 讓你可以通過普通的分配路徑進行管理，但不能發出邀請 |
+
+兩者是**雙重選擇加入且相互獨立**的：必須有人設定成員層級，**並且**授予一個 `adminScope`，一個限定範圍的委派者才能發出一份同時把新人放進某個業務單元並賦予崗位的邀請。授予其中一個並不等於授予另一個 —— 持有 `delegated_admin` 不會帶來[委派管理](/docs/configure/permissions/permission-sets#delegated-administration)下列出的任何權力。
+
+## 把人放進組織樹（成員資格） [#place-people-in-the-org-tree-memberships]
 
 把一個人放進組織樹是一條獨立的記錄：**Business Unit Member**（業務單元成員）行（`sys_business_unit_member`——使用者 + 業務單元，其中一條標記為 *primary*）。基於深度的可見性和 `unit_and_subordinates` 共享都通過這條成員資格解析，所以不要跳過它——沒有成員資格行的使用者對基於深度的規則來說是不可見的。
 
 當某人調換部門時，更新其業務單元成員行，並重新錨定其崗位分配——參見[許可權分配](/docs/configure/permissions/managing-access)。
 
-## 團隊
+## 團隊 [#teams]
 
 **Setup → People & Organization → Teams**（團隊）。團隊是扁平的協作組：共享規則和記錄共享可以指向它們，但它們從不承載許可權集。當一個跨部門的群組需要看到某批記錄，而又不想改變任何人的職能或組織樹時，就用團隊。
 
-## 使用者生命週期
+## 使用者生命週期 [#user-lifecycle]
 
-日常生命週期操作位於每個使用者的行選單和記錄頭部：
+日常生命週期動作位於每個使用者的行選單和記錄頭部：
 
-| 操作 | 效果 |
+| 動作 | 效果 |
 |---|---|
 | **Ban / Unban**（封禁 / 解封） | 立即阻止（或恢復）登入 |
 | **Unlock Account**（解鎖賬戶） | 提前清除暴力破解鎖定 |
@@ -85,7 +119,7 @@ curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 
 > 使用者的自助密碼找回依賴已配置的[郵件](/docs/configure/email)或簡訊傳送服務。在接通之前，管理員的 **Set Password**（臨時密碼、強制修改）是可靠的兜底手段。
 
-## 服務賬號與 API Key
+## 服務賬號與 API Key [#service-accounts--api-keys]
 
 整合和無頭 Agent 使用 API Key（`sys_api_key`）認證——一種**繫結到使用者**的長期程式設計憑據。用該 Key 發起的每次呼叫都以那個使用者的身份、按那個使用者的許可權執行。
 
@@ -97,12 +131,12 @@ curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 
 ```bash
 curl -b cookies.txt -X POST https://crm.example.com/api/v1/keys
-# → { "key": "osk_..." }  —— 只显示一次；存入你的 secret manager
+# → { "key": "osk_..." }  — shown once; store it in your secret manager
 ```
 
 Key 的用法、請求頭和輪換見 [API 訪問](/docs/configure/api-access)；用 Key 接入 AI Agent 見[接入 AI 工具（MCP）](/docs/configure/mcp)。
 
-## FAQ
+## FAQ [#faq]
 
 **新使用者幾乎什麼都看不到——是壞了嗎？**不是：這正是基線在正常工作。每個已認證使用者都獲得疊加式的 `member_default` 基線；真正的訪問許可權在你分配崗位時到來。
 
@@ -110,7 +144,7 @@ Key 的用法、請求頭和輪換見 [API 訪問](/docs/configure/api-access)�
 
 **能刪除內建許可權集嗎？**不能——`member_default`、`organization_admin` 這類許可權集是平臺基線。隨應用交付的許可權集可以被覆蓋（overlay），或乾脆不分配。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任務 | 頁面 |
 |---|---|

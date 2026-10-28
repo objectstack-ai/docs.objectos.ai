@@ -1,16 +1,18 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: API 訪問
+seoTitle: "API 訪問：REST API、API 金鑰和 OAuth 2.1"
 description: 用於整合的自動生成 REST API、身份驗證和 API 金鑰。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 59e07888e7a8e425689a077f85312f83e2d9e55cf1cfe435d37dc30856f2d0a5
+  source_sha: a72f24d7ae89d8f75070cc97fdd3cdf51529b9631945d044776aa7e84ea0283c
   guide_rev: 1
   mode: auto
 ---
 
 artifact 中宣告的每個物件都會通過自動生成的 REST API 對外暴露。同一套端點同時驅動 UI、整合和客戶的 ETL 指令碼——無需另外維護一套“整合 API”。
 
-## Base URL
+## Base URL [#base-url]
 
 ```text
 https://<project-domain>/api/v1
@@ -32,7 +34,7 @@ https://<project-domain>/api/v1
 
 字首預設為 `/api/v1`（即 API 的 `basePath` `/api` 加上 `version` `v1`），並且可在 ObjectOS stack 上配置。
 
-## 控制暴露的內容
+## 控制暴露的內容 [#controlling-whats-exposed]
 
 API 暴露在 artifact 中按物件逐個治理，而不是在閘道器層：
 
@@ -44,7 +46,7 @@ API 暴露在 artifact 中按物件逐個治理，而不是在閘道器層：
 
 同樣的閘門也覆蓋事務批次路由（16.0）：`POST /api/v1/batch` 會校驗請求體，在開啟事務*之前*就對**每個**操作強制執行 `apiEnabled` / `apiMethods`，update/delete 必須攜帶 id，無法解析的 `{ $ref }` 父引用會被拒絕。該路由只支援原子模式——`atomic: false` 會被以 `400 BATCH_NOT_ATOMIC` 拒絕；非原子的批次寫入請繼續使用按物件的 `createMany` / `updateMany` 端點。
 
-## 身份驗證方式
+## 身份驗證方式 [#authentication-options]
 
 呼叫方可以通過四種方式進行身份驗證：
 
@@ -57,13 +59,13 @@ API 暴露在 artifact 中按物件逐個治理，而不是在閘道器層：
 
 這些方式都會經過同一個 `AuthPlugin`，並最終解析為 `sys_user` 上下文，由 `SecurityPlugin` 據此評估許可權和記錄訪問。
 
-## API 金鑰
+## API 金鑰 [#api-keys]
 
 API 金鑰是一等公民 `sys_api_key` 記錄。金鑰值本身以雜湊形式儲存——只有 `prefix` 和後設資料保持可查詢，因此即便金鑰洩露也無法從資料庫中還原。
 
 簽發金鑰有兩種方式：
 
-- **Console**——以管理員身份登入 **Console → API Keys**，選擇所屬使用者，
+- **Setup**——以管理員身份登入 **Setup → API Keys**，選擇所屬使用者，
   可選地設定過期日期，並**僅這一次**複製顯示出的金鑰。
 - **自助端點**——`POST /api/v1/keys` 為已認證的呼叫方生成金鑰，並只返回一次
   原始金鑰。該金鑰繫結到呼叫方自身的使用者，因此無法用於冒充其他身份：
@@ -85,9 +87,25 @@ curl https://app.example.com/api/v1/data/account \
   -H "x-api-key: os_pk_live_…"
 ```
 
-要撤銷某個金鑰，請在對應的 `sys_api_key` 記錄上執行 `revoke_api_key` action（Console UI 中也提供）。撤銷會在下一次請求時立即生效。
+要撤銷某個金鑰，請在對應的 `sys_api_key` 記錄上執行 `revoke_api_key` 動作（Setup 中也提供）。撤銷會在下一次請求時立即生效。
 
-## MCP 客戶端與 OAuth 2.1（ObjectStack 13+）
+### 金鑰屬於某個組織（ObjectStack 17.1） [#keys-belong-to-an-organization-objectstack-171]
+
+金鑰是針對呼叫方的**當前組織**簽發的：`POST /api/v1/keys` 不接受組織引數，所以
+不存在跨組織的金鑰，並且簽發時會重新檢查呼叫方的成員身份。在單組織部署上，這不會
+帶來任何可見的變化。在有隔離牆的租戶姿態下（`OS_TENANCY_POSTURE`，參見
+[環境變數](/docs/reference/environment-variables#multi-organization-deployments)），
+它決定哪些金鑰仍然有效：
+
+| 金鑰 | `group` | `isolated` |
+|---|---|---|
+| 在 17.1 或之後簽發，所有者仍是其組織的成員 | 有效 | 有效 |
+| 所有者此後已離開金鑰所屬的組織 | 拒絕 | 拒絕 |
+| 在 17.1 之前簽發 —— 不攜帶組織 | 有效 | 拒絕 —— 請重新簽發 |
+
+17.1 之前簽發的金鑰永遠不會被回填組織。
+
+## MCP 客戶端與 OAuth 2.1（ObjectStack 13+） [#mcp-clients--oauth-21-objectstack-13]
 
 任何支援 OAuth 的 MCP 客戶端——Claude.ai 自定義聯結器、Claude Desktop、Claude Code——都可以**自助**接入，無需管理員簽發 API 金鑰：
 
@@ -97,7 +115,7 @@ curl https://app.example.com/api/v1/data/account \
 
 API 金鑰仍作為 CI 與無頭代理的並行通道——`x-api-key` 和 `Authorization: Bearer osk_…` 繼續原樣工作。
 
-## 分頁、過濾與排序
+## 分頁、過濾與排序 [#pagination-filtering-and-sorting]
 
 自動生成的列表端點接受標準的 ObjectStack 查詢引數：
 
@@ -111,15 +129,15 @@ API 金鑰仍作為 CI 與無頭代理的並行通道——`x-api-key` 和 `Auth
 
 完整的過濾語法請參閱框架文件——執行時語法才是權威依據。
 
-## 限流
+## 限流 [#rate-limiting]
 
 使用框架的 `RateLimiter` 原語（或 ingress / API 閘道器）應用按 IP 和按身份的限制。推薦的初始配額桶參見 [Production readiness](/docs/operate/production)。
 
-## CORS
+## CORS [#cors]
 
 如果呼叫方在不同源的瀏覽器上執行，請在 ingress 或執行時中介軟體中配置 CORS。**不要**將萬用字元 origin 與攜帶憑據的請求結合使用。
 
-## OpenAPI / 發現
+## OpenAPI / 發現 [#openapi--discovery]
 
 當映象中包含相應能力時，執行時可以為自動生成的 REST API 提供 OpenAPI 文件。客戶的整合應基於每個部署的 OpenAPI 文件生成客戶端，而不是手寫 URL，因為物件名稱和生成的路由會跟隨已部署的 artifact 而變化。
 

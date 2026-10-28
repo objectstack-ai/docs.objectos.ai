@@ -1,8 +1,9 @@
 ---
 title: 用户与组织
 description: 搭建业务单元树、添加和邀请用户、管理成员资格与团队，以及开通服务账号。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 8c40f55f61ac88836e5cd989d96833070804ccfdb99d13b180487d1eba6cac90
+  source_sha: b196256973c869eb90df98eb14987f85c2762e3ec3b5bdf578f3be8d33b5344c
   guide_rev: 1
   mode: auto
 ---
@@ -13,7 +14,7 @@ translation:
 
 > **90% 的日常管理就是把人分配到岗位。**岗位、其背后的权限集以及安全基线都随平台和你安装的应用一起交付。你的工作是人这一侧——本页所讲的内容——以及分配这一侧，后者在[权限分配](/docs/configure/permissions/managing-access)中讲解。
 
-## 搭建组织（业务单元）
+## 搭建组织（业务单元） [#build-the-organization-business-units]
 
 **Setup → People & Organization → Business Units**（业务单元）。
 
@@ -33,7 +34,7 @@ translation:
 
 > 让树保持浅层、如实反映你的真实结构。如果某个东西应该按组织结构影响*人们能看到哪些记录*，它是业务单元；如果只是一个供人共享记录的群组，它是团队。
 
-## 添加人员
+## 添加人员 [#add-people]
 
 **Setup → People & Organization → Users**（用户）。三条入口，都是一等公民：
 
@@ -45,13 +46,15 @@ translation:
 
 待接受的邀请列在 **Setup → People & Organization → Invitations**（邀请）下。
 
+除非你开放自助注册，否则人们无法自己创建账户：从 ObjectStack 17.3 起，注册受众默认为**仅限邀请**，这三条路径就是人员进入的方式。无论受众设置为什么，它们都有效。要让人们自行注册，参见[认证 → 谁可以注册](/docs/configure/authentication#who-may-sign-up-objectstack-173)。
+
 同样的流程也可通过 REST 完成（ObjectStack 14.3+），用于脚本化入职：
 
 ```bash
-# 创建可直接登录的账户，可选生成一次性密码
+# Create a sign-in-ready account with an optional one-time password
 curl -X POST https://crm.example.com/api/v1/auth/admin/create-user
 
-# 批量导入行 / CSV / XLSX（最多 500 行），支持 dry-run 和 upsert 模式
+# Bulk-import rows / CSV / XLSX (max 500 rows), with dry-run and upsert modes
 curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 ```
 
@@ -59,21 +62,52 @@ curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 
 请求体、密码策略和仅手机号账户的细节，参见[认证 → 管理员用户管理](/docs/configure/authentication#admin-user-management-objectstack-143)。
 
-## 把人放进组织树（成员资格）
+## 组织成员层级 [#organization-membership-tiers]
+
+每一条成员资格行（`sys_member`）都带有一个**层级** —— 即用户在组织中的身份。这套词汇是封闭的，由平台拥有（ADR-0108）：只有这四个值，应用声明的任何东西都不会扩充它们。
+
+| 层级 | 含义 |
+|---|---|
+| `owner` | 组织中的最高身份。可以邀请任何层级，也是唯一可以移除另一个 owner 的层级 |
+| `admin` | 管理组织。可以邀请除 `owner` 以外的任何层级 |
+| `delegated_admin` | **无需**成为组织管理员即可发出组织邀请。它的能力仅此而已 —— 层级本身不解析为任何权限；见下文 |
+| `member` | 普通身份。没有管理能力；访问权限像其他所有人一样，通过岗位和权限集获得 |
+
+> **本页中有两种不同的记录都被称为"成员资格"。** `sys_member` 回答*你属于哪个组织，处于什么层级*。`sys_business_unit_member` —— [下一节](#place-people-in-the-org-tree-memberships) —— 回答*你位于哪个业务单元*。把某人放进组织树不会改变任何层级，改变层级也不会放置任何人。
+
+层级在邀请时选择（`sys_invitation.role`），并存储在成员资格行上（`sys_member.role`）。这两个字段都是同一个固定的四值选择，所以应用自己的业务角色（`sales_manager`）无法存入其中任何一个，指定了业务角色的邀请会在写入任何行之前被拒绝。职能是一个[岗位](/docs/configure/permissions/positions)。
+
+有两条规则限定谁可以授予哪个层级：邀请永远不能授予高于发出者自身层级的层级，而低于 `admin` 的发出者只能以 `member` 身份邀请。
+
+**层级是一种决定你能*触及*什么的等级 —— 而绝不是你可以*做*什么的权限包。** `owner` 和 `admin` 可见的权力来自另一个机制：这两个层级的成员资格会被自动授予一个限定在该组织范围内的组织管理员权限集。权力由那个权限集承载；层级只决定谁获得它。
+
+### `delegated_admin` 不是委派管理 [#delegated_admin-is-not-delegated-administration]
+
+两个名字几乎相同的机制。选错其中一个，正是本节要防止的错误：
+
+| | `delegated_admin`（一个成员层级） | [委派管理](/docs/configure/permissions/permission-sets#delegated-administration)（一个权限集） |
+|---|---|---|
+| 位于 | `sys_member.role` | 由某个权限集携带的 `adminScope` |
+| 回答 | *你究竟能否触及邀请流程？* | *你实际上可以授予什么* —— 哪些业务单元、哪些权限集 |
+| 单独使用时 | 让你可以邀请一个普通成员，但不能放置任何人 | 让你可以通过普通的分配路径进行管理，但不能发出邀请 |
+
+两者是**双重选择加入且相互独立**的：必须有人设置成员层级，**并且**授予一个 `adminScope`，一个限定范围的委派者才能发出一份同时把新人放进某个业务单元并赋予岗位的邀请。授予其中一个并不等于授予另一个 —— 持有 `delegated_admin` 不会带来[委派管理](/docs/configure/permissions/permission-sets#delegated-administration)下列出的任何权力。
+
+## 把人放进组织树（成员资格） [#place-people-in-the-org-tree-memberships]
 
 把一个人放进组织树是一条独立的记录：**Business Unit Member**（业务单元成员）行（`sys_business_unit_member`——用户 + 业务单元，其中一条标记为 *primary*）。基于深度的可见性和 `unit_and_subordinates` 共享都通过这条成员资格解析，所以不要跳过它——没有成员资格行的用户对基于深度的规则来说是不可见的。
 
 当某人调换部门时，更新其业务单元成员行，并重新锚定其岗位分配——参见[权限分配](/docs/configure/permissions/managing-access)。
 
-## 团队
+## 团队 [#teams]
 
 **Setup → People & Organization → Teams**（团队）。团队是扁平的协作组：共享规则和记录共享可以指向它们，但它们从不承载权限集。当一个跨部门的群组需要看到某批记录，而又不想改变任何人的职能或组织树时，就用团队。
 
-## 用户生命周期
+## 用户生命周期 [#user-lifecycle]
 
-日常生命周期操作位于每个用户的行菜单和记录头部：
+日常生命周期动作位于每个用户的行菜单和记录头部：
 
-| 操作 | 效果 |
+| 动作 | 效果 |
 |---|---|
 | **Ban / Unban**（封禁 / 解封） | 立即阻止（或恢复）登录 |
 | **Unlock Account**（解锁账户） | 提前清除暴力破解锁定 |
@@ -84,7 +118,7 @@ curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 
 > 用户的自助密码找回依赖已配置的[邮件](/docs/configure/email)或短信发送服务。在接通之前，管理员的 **Set Password**（临时密码、强制修改）是可靠的兜底手段。
 
-## 服务账号与 API Key
+## 服务账号与 API Key [#service-accounts--api-keys]
 
 集成和无头 Agent 使用 API Key（`sys_api_key`）认证——一种**绑定到用户**的长期编程凭据。用该 Key 发起的每次调用都以那个用户的身份、按那个用户的权限运行。
 
@@ -96,12 +130,12 @@ curl -X POST https://crm.example.com/api/v1/auth/admin/import-users
 
 ```bash
 curl -b cookies.txt -X POST https://crm.example.com/api/v1/keys
-# → { "key": "osk_..." }  —— 只显示一次；存入你的 secret manager
+# → { "key": "osk_..." }  — shown once; store it in your secret manager
 ```
 
 Key 的用法、请求头和轮换见 [API 访问](/docs/configure/api-access)；用 Key 接入 AI Agent 见[接入 AI 工具（MCP）](/docs/configure/mcp)。
 
-## FAQ
+## FAQ [#faq]
 
 **新用户几乎什么都看不到——是坏了吗？**不是：这正是基线在正常工作。每个已认证用户都获得叠加式的 `member_default` 基线；真正的访问权限在你分配岗位时到来。
 
@@ -109,7 +143,7 @@ Key 的用法、请求头和轮换见 [API 访问](/docs/configure/api-access)�
 
 **能删除内置权限集吗？**不能——`member_default`、`organization_admin` 这类权限集是平台基线。随应用交付的权限集可以被覆盖（overlay），或干脆不分配。
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
 | 任务 | 页面 |
 |---|---|

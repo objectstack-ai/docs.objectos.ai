@@ -1,0 +1,170 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 許可權
+seoTitle: "許可權模型：崗位、許可權集、記錄訪問"
+description: 身份、崗位、許可權集、記錄訪問和欄位安全 —— 整個訪問模型盡在一頁。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 62da1addaebe59555e84667986dd672e36ad681514d179b84709100b01fc0b61
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 有一套分層的訪問模型，借鑑自在企業軟體中行之有效了二十年的做法：
+身份 → 崗位 → 許可權集 → 記錄訪問 → 欄位安全。每一層回答一個不同的問題，你可以
+忽略用不到的層。（ObjectStack 13 把舊有的 Roles 和 Profiles 概念合併成了
+**崗位** —— 參見[崗位](/docs/configure/permissions/positions)。）
+
+## 一張圖看懂模型 [#the-model-in-one-diagram]
+
+```text
+Authentication       Who is the caller?
+        ↓
+Identity             Which user/org/membership is active?
+        ↓
+Positions            Which job functions do they hold?
+        ↓
+Permission sets      What CAN they do — apps, objects, fields, system?
+        ↓
+Record access        WHICH records can they touch?
+        ↓
+Field security       For those records, which FIELDS are readable / writable?
+```
+
+每一層都由安全外掛強制執行。對於簡單的應用，你可以只用許可權集（不用崗位，不用
+共享規則），等需求出現時再加上其餘部分。
+
+## 第 1 層 —— 身份 [#layer-1--identity]
+
+身份物件存放在你的專案資料庫中。最重要的幾個：
+
+| 物件 | 代表什麼 |
+|---|---|
+| `sys_user` | 可以進行認證的人或服務賬號 |
+| `sys_organization` | 租戶 / 工作區邊界（多租戶應用） |
+| `sys_member` | 使用者在某個組織中的成員資格 |
+| `sys_business_unit`、`sys_team` | 用於共享規則的可選組織結構 |
+| `sys_invitation` | 等待接受的待處理邀請 |
+| `sys_session` | 活動的已認證會話 |
+| `sys_api_key` | 繫結到使用者的長期程式設計憑據 |
+
+在多租戶部署中：
+
+- 使用者的作用域限定在專案資料庫。
+- 會話的作用域限定在專案主機名。
+- 行級檢查使用當前使用者的組織和許可權。
+- 控制平面的使用者**不會**自動成為業務使用者 —— 他們必須通過平臺 SSO 或顯式開通
+  對映進來。
+
+你可以在執行時從 **Setup**（`/_console/`）建立和管理這些物件，或者在
+`objectstack.config.ts` 中為全新環境預置它們。
+
+## 第 2 層 —— 崗位 [#layer-2--positions]
+
+崗位建模的是職能（"Sales Manager"、"Support Agent"）。它們是扁平的 —— 層級
+位於業務單元樹上，所以共享規則和報表表達的是"記錄負責人所在的單元及其下級
+單元"這樣的內容。預置的受眾錨點 `everyone`（所有已認證使用者）讓你無需自定義
+回落邏輯就能繫結基線許可權集。與之對應的 `guest`（匿名呼叫者）不授予任何東西：
+匿名訪問者只能通過聲明瞭它的介面訪問資料，比如公開表單或分享連結。用崗位按
+職能分配許可權集；扁平的團隊就不必自定義崗位。
+
+參見[崗位](/docs/configure/permissions/positions)。
+
+## 第 3 層 —— 許可權集 [#layer-3--permission-sets]
+
+許可權集是授予能力的主要方式。它們直接附加到使用者上，或者通過崗位附加。
+
+### 它們授予什麼 [#what-they-grant]
+
+| 型別 | 示例 |
+|---|---|
+| 應用訪問 | 開啟 CRM、開啟支援門戶 |
+| 物件許可權 | 建立 / 讀取 / 更新 / 刪除某個物件的記錄 |
+| 欄位許可權 | 讀取或更新特定欄位 |
+| 系統許可權 | 訪問 Setup、執行報表、檢視審計日誌 |
+| 整合許可權 | 使用 API 金鑰、配置 webhook、執行管理動作 |
+
+### 物件許可權標誌 [#object-permission-flags]
+
+這些就是安全外掛所檢查的確切標誌名稱：
+
+| 標誌 | 含義 |
+|---|---|
+| `allowRead` | 讀取使用者通過記錄訪問能看到的記錄 |
+| `allowCreate` | 建立新記錄 |
+| `allowEdit` | 更新使用者能看到的記錄 |
+| `allowDelete` | 刪除使用者能看到的記錄 |
+| `allowExport` | 獲取該物件記錄的批次、機器可讀副本 |
+| `viewAllRecords` | 讀取該物件的**每一條**記錄，忽略記錄訪問規則 |
+| `modifyAllRecords` | 更新 / 刪除**每一條**記錄；隱含 `viewAllRecords` |
+
+`viewAllRecords` 和 `modifyAllRecords` 是針對該物件、作用於整個租戶的超級
+使用者授權。只把它們保留給明確的管理許可權集，不要讓它們出現在任何面向使用者的
+崗位中。
+
+**匯出是一項單獨的選擇加入授權。** 不設定 `allowExport` 意味著**拒絕** ——
+它不會從 `allowRead` 繼承，`viewAllRecords` / `modifyAllRecords` 也**不會**
+授予它。讀取一條記錄和獲取整張表的機器可讀副本是不同的行為，這正是把二者分開
+的職責分離維度。在每個其持有者應當能夠匯出的許可權集中，在物件條目（或 `'*'`
+萬用字元）上顯式授予它。參見
+[許可權集](/docs/configure/permissions/permission-sets#export-is-its-own-grant)。
+
+參見[許可權集](/docs/configure/permissions/permission-sets)。
+
+## 第 4 層 —— 記錄訪問 [#layer-4--record-access]
+
+對於**沒有** `viewAllRecords` 的使用者，他們能看到哪些行？
+
+模型支援：
+
+- 隱式的所有權（使用者建立或擁有的行）
+- 共享規則（宣告式 —— "團隊 A 能看到團隊 A 的記錄"）
+- 顯式共享（`sys_record_share` 行 —— 一次性共享，授予某個使用者、崗位，或某個
+  單元及其下級）
+- 組織範圍（行的 `organization_id` 與使用者的組織相匹配）
+
+從 ObjectStack 13 起，帶有負責人欄位的自定義物件預設採用**私有**共享模型 ——
+顯式宣告 `sharingModel` 才能開放它們。
+
+參見[記錄訪問](/docs/configure/permissions/record-access)。
+
+## 第 5 層 —— 欄位安全 [#layer-5--field-security]
+
+即使使用者能看到一條記錄，單個欄位仍可以是：
+
+- **隱藏** —— 欄位會從 API 和 UI 的響應中剝離。
+- **只讀** —— 欄位會被返回，但寫入時被拒絕。
+- **掩碼** —— 欄位返回時大部分值被替換（`138****5678`），除非呼叫者擁有該
+  欄位所要求的能力（ObjectStack 17.1）。
+
+隱藏和只讀按物件 + 按許可權集設定；掩碼則宣告在欄位本身上。典型用法：
+
+- 對 HR 以外的所有人隱藏 `sys_user` 上的 `salary`。
+- 讓支援代表可以讀取但不能編輯 `external_account_id`。
+- 除了負責給客戶打電話的團隊之外，對所有人把客戶的電話號碼顯示為
+  `138****5678`。
+
+它在與物件許可權相同的求值器中強制執行，所以在 REST、ObjectQL 和 UI 中統一
+適用。參見[欄位級安全](/docs/configure/permissions/field-level-security)。
+
+## 從哪裡開始 [#where-to-start]
+
+| 如果你在構建 …… | 使用 |
+|---|---|
+| 單團隊的內部工具 | 只用許可權集 |
+| 多團隊應用，經理需要看報表 | 業務單元 + 崗位 + 許可權集 |
+| SaaS 形態的多租戶應用 | 組織範圍 + 許可權集 |
+| 涉及個人資訊的受監管應用 | 在此之上再加欄位安全 |
+| 複雜的 CRM 式應用 | 完整的整套模型 |
+
+## 診斷與審計 [#diagnose--audit]
+
+- **解釋引擎**（`explain(principal, object, operation)`）按順序報告每一層的
+  判定 —— 所需許可權、物件 CRUD、欄位安全、OWD 基線、共享、行級安全 —— 並逐層
+  歸因。Studio 的 **Access** 支柱把它呈現為"Why can this user access?"面板。
+  解釋另一個使用者需要 `manage_users` 能力。
+- `/_console/` 會按求值結果顯示任何使用者的有效許可權。
+- 審計日誌（`sys_audit_log`）記錄與許可權相關的變更 —— 授權、角色分配、許可權集
+  編輯。
+- 被拒絕的請求會記錄失敗的規則（物件許可權、記錄訪問還是欄位安全），這樣支援
+  人員就能快速回答"為什麼我看不到這個？"

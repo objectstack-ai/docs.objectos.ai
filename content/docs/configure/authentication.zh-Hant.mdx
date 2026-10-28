@@ -1,16 +1,18 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 認證
+seoTitle: "認證：OAuth、OIDC/SSO 和裝置流程"
 description: 配置登入、會話、OAuth、OIDC/SSO 以及裝置流程。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 84eb43cc244cc4e3d1cbb73885340dab6689e57a70bd8d34d353c7f43ff31b2c
+  source_sha: f5ecbdd5472f71c9839f722534cf88e4aba12301b053b26ef38e7fa713fc91f3
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 使用由 Better Auth 驅動的 ObjectStack 認證外掛。認證是專案本地的：每個專案擁有獨立的身份表和會話作用域。
 
-## 支援的能力
+## 支援的能力 [#what-is-supported]
 
 視所打包的應用和已啟用的設定而定，ObjectOS 可支援：
 
@@ -25,7 +27,43 @@ ObjectOS 使用由 Better Auth 驅動的 ObjectStack 認證外掛。認證是專
 - 手機號登入與簡訊 OTP（需顯式開啟）；
 - CLI/瀏覽器裝置流程。
 
-## 手機號登入與簡訊（ObjectStack 14.3+）
+## 誰可以註冊（ObjectStack 17.3+） [#who-may-sign-up-objectstack-173]
+
+自助註冊**預設關閉**。誰可以自己建立賬戶由一個設定決定，即
+**Setup → Authentication → Audience**：
+
+| 受眾 | 誰可以註冊 |
+|---|---|
+| `invite_only`（預設） | 只有持有待處理邀請的地址 |
+| `email_domain` | 你所允許的域名下的地址 —— 精確匹配，不區分大小寫；子域名需要單獨的條目 |
+| `open` | 任何人 |
+
+受眾會評判每一條自助路徑：郵箱/密碼註冊、通過社交 Provider 的首次登入、魔法
+連結、OTP 和手機號。被拒絕的註冊返回 `403 SELF_REGISTRATION_CLOSED`（在
+`email_domain` 下是 `403 EMAIL_DOMAIN_NOT_ALLOWED`）。開放註冊附帶兩條規則：
+
+- `email_domain` 和 `open` 都需要一個**自助註冊許可權集** —— 即每個自助註冊者
+  獲得的許可權集（`member_default` 可以；`admin_full_access` 會被拒絕）。
+- 兩者都會開啟郵箱驗證：`email_domain` 總是開啟，`open` 則除非部署自身的配置
+  關閉了它。
+
+*Email and password* 下的 **Allow self-service registration** 開關不會覆蓋
+受眾：受眾為 `invite_only` 時，即使該開關開啟，註冊也保持關閉。
+
+由你自己建立人員永遠不受受眾限制 —— 邀請、**Create User**、批次匯入和企業級
+SSO 在每種設定下都可用（參見[使用者](/docs/configure/users#add-people)）。全新
+安裝上的第一個賬戶也不受限制。
+
+> **從 17.2 或更早版本升級：** 過去未宣告受眾意味著開放郵箱/密碼註冊。現在它
+> 意味著 `invite_only`，而且升級時不會有任何失敗 —— 依賴開放註冊的部署只是不再
+> 接受註冊。要保留它，請選擇 `open`（並配一個自助註冊許可權集）。
+
+受眾與**成員策略**是兩個不同的決定（**Setup → Authentication → Membership**，
+或 `OS_AUTH_MEMBERSHIP_POLICY` —— 參見
+[環境變數](/docs/reference/environment-variables#multi-organization-deployments)）。
+受眾決定某人*能否*成為使用者；成員策略決定新使用者加入*哪個組織*。
+
+## 手機號登入與簡訊（ObjectStack 14.3+） [#phone-sign-in--sms-objectstack-143]
 
 通過 `auth.plugins.phoneNumber` 設定開啟手機號認證。開啟後：
 
@@ -35,14 +73,14 @@ ObjectOS 使用由 Better Auth 驅動的 ObjectStack 認證外掛。認證是專
 
 簡訊傳送由 `@objectstack/plugin-sms` 提供，支援阿里雲簡訊、Twilio 或開發環境日誌回退，通過 `sms` 設定名稱空間配置。含 OTP 驗證碼的訊息體永不持久化或寫入日誌。通知也可以通過 `notify(channels: ['sms'])` 走 `sms` 通道。
 
-## 管理員使用者管理（ObjectStack 14.3+）
+## 管理員使用者管理（ObjectStack 14.3+） [#admin-user-management-objectstack-143]
 
 平臺管理員可以不經郵件邀請流程直接開通賬戶：
 
 - `POST /api/v1/auth/admin/create-user` 直接建立使用者，可選生成一次性密碼（僅返回一次，不持久化）。`must_change_password` 標誌強制首次登入時修改密碼（未修改前返回 403 `PASSWORD_EXPIRED`）。
 - `POST /api/v1/auth/admin/import-users` 批次匯入行 / CSV / XLSX（每次請求最多 500 行），支援 dry-run 和按郵箱或手機號 upsert；已存在使用者的密碼永不重置。自 16.0 起，預設 `passwordPolicy` 為 `'auto'`：具有可送達通道的行（真實郵箱 + 已接通的郵件服務，或手機號 + 簡訊邀請通道）會被**邀請**，只有無法觸達的行才得到臨時密碼（僅返回一次，`must_change_password`）。依賴舊的僅建身份預設行為的呼叫方現在必須顯式傳入 `passwordPolicy: 'none'`；每行結果在 `rows[].delivery` 上，並附 `summary.delivery` 彙總。
 
-## 必需的 Secret
+## 必需的 Secret [#required-secret]
 
 設定：
 
@@ -58,11 +96,11 @@ ObjectOS 基於該值和專案環境 id 派生穩定的專案級 secret。這意
 
 完整的認證相關設定列表（包括舊版 `AUTH_SECRET` 別名）請參閱 [Environment variables](/docs/reference/environment-variables)。
 
-## 會話隔離
+## 會話隔離 [#session-isolation]
 
 在多專案部署中，Cookie 限定到專案主機名。ObjectOS 故意避免使用寬泛的根域 Cookie 作為專案會話——以防止會話跨客戶專案洩漏。
 
-## 社交登入
+## 社交登入 [#social-login]
 
 通過環境變數或系統設定配置 Provider 憑據，具體取決於應用包暴露認證配置的方式。
 
@@ -84,7 +122,7 @@ https://crm.example.com/api/v1/auth/oauth2/callback/entra
 
 在 ObjectOS 中啟用 Provider 前，先在身份提供方的應用註冊中配置匹配的 redirect URI。
 
-## 企業級 OIDC/SSO
+## 企業級 OIDC/SSO [#enterprise-oidcsso]
 
 OIDC Provider 註冊為通用 OAuth2 Provider，使用 `/api/v1/auth/oauth2/callback/<provider>` 路徑。典型配置需要：
 
@@ -99,23 +137,24 @@ OIDC Provider 註冊為通用 OAuth2 Provider，使用 `/api/v1/auth/oauth2/call
 
 對客戶部署，優先使用 OIDC discovery URL，而不是手工配置 authorization/token/userinfo 端點。
 
-## 平臺 SSO
+## 平臺 SSO [#platform-sso]
 
 在雲連線部署中，ObjectOS 可以使用控制面登入作為平臺 SSO Provider。已經登入控制面的建設者無需建立獨立的專案本地賬戶即可被預置到專案執行時。
 
 這要求控制面與 ObjectOS 共享同一個 `OS_AUTH_SECRET` 基礎 secret。僅在客戶希望每個專案擁有完全獨立的登入邊界時才停用平臺 SSO。
 
-## 執行檢查
+## 執行檢查 [#operational-checks]
 
 上線前：
 
 - 確認過期 token 返回 `401`；
+- 確認註冊受眾與應當能夠建立賬戶的人群一致；
 - 確認登出會撤銷活動會話；
 - 如策略需要，確認密碼重置會撤銷其他會話；
 - 確認回撥 URL 與公開的專案域名一致；
 - 確認可信 origin 僅包含已批准的域名；
 - 確認 `OS_AUTH_SECRET` 存於 secret manager，而不是原始碼。
 
-## 後續步驟
+## 後續步驟 [#next-steps]
 
 認證確立的是使用者*是誰*。要控制使用者登入後*能訪問什麼*，請參閱 [Permissions](/docs/configure/permissions)。對於非瀏覽器客戶端和機器對機器的訪問，請參閱 [API access](/docs/configure/api-access)。
