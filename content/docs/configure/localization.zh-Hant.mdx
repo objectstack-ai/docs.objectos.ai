@@ -1,0 +1,73 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 本地化
+seoTitle: "本地化：時區、語言和格式"
+description: 設定整個租戶的時區、語言、國家、預設貨幣和財年起始月，每個渲染出來的值都會繼承它們。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 85567978135b8d527209ff22f652aa15f2315e046e832736993cd3d2368a4e1c
+  guide_rev: 1
+  mode: auto
+---
+
+本地化設定的是 ObjectOS 如何解讀時間、選擇訊息目錄，以及渲染日期、數字和
+貨幣的**租戶級預設值**。這些值是整個工作區的回落值 —— 使用者個人可以在自己的
+[賬戶](/docs/use/profile)中覆蓋自己的語言，但你在這裡設定的預設值適用於所有
+沒有覆蓋的人。
+
+開啟 **Setup → Configuration → Localization**。頁面分為兩個部分：**Region**
+和 **Finance**。
+
+## 區域 [#region]
+
+區域控制 ObjectOS 如何解析*含義* —— 哪個時區錨定相對時間的計算，哪個
+locale 驅動格式化，以及部署報告哪個國家作為其所在國。
+
+| 設定 | 預設值 | 驅動 |
+|---|---|---|
+| `Default timezone` | `UTC` | `today()` / `daysFromNow`、分析日期分桶和渲染的日期時間所用的 IANA 時區 |
+| `Default language` | `English (US)` | 用於訊息目錄和數字 / 日期格式化的 BCP-47 locale |
+| `Default country` | `US` | ISO 3166-1 alpha-2 程式碼（例如 `US`、`GB`、`CN`） |
+
+> **時區不是裝飾。** 它是每個相對時間表達式的錨點，也是分析把記錄歸入
+> 分桶的依據。修改它會改變整個租戶中"今天"的含義 —— 慎重地設定一次。
+
+`Default timezone` 是 IANA 時區的下拉式清單（`UTC`、`America/New_York`、
+`Asia/Shanghai` 等等）。`Default language` 選擇 UI 回落使用其訊息目錄和
+格式化規則的 locale。`Default country` 是一個自由文本欄位，需要兩個字母的
+ISO 程式碼。
+
+## 財務 [#finance]
+
+| 設定 | 預設值 | 驅動 |
+|---|---|---|
+| `Default currency` | 無 | 貨幣欄位未宣告自己的貨幣時使用的 ISO 4217 程式碼。不設定時，這類金額會渲染為普通數字，不會猜測貨幣符號 |
+| `Fiscal year start` | `January` | 財年的第一個月 —— 決定報表中"本季度"和"本財年"的含義 |
+
+## 日期、時間和數字跟隨語言 [#dates-times-and-numbers-follow-the-language]
+
+沒有單獨的格式設定。日期、時間或數字怎樣書寫，以及一週從哪一天開始，都
+跟隨 `Default language`（或使用者自己的語言）。ObjectStack 17.7 廢棄了本頁
+過去列出的四個格式設定 —— `date_format`、`time_format`、`number_format`
+和 `first_day_of_week` —— 因為沒有任何東西讀取它們。之前儲存的值會被保留，
+但不再提供；點名其中任何一個的 `PUT /api/settings/localization` 會讓整個
+請求以 `400 UNKNOWN_KEY` 被拒絕，同一請求中的有效鍵也一樣；
+`OS_LOCALIZATION_*_FORMAT` 和 `OS_LOCALIZATION_FIRST_DAY_OF_WEEK` 變數也
+不再被讀取。格式只改變值的顯示方式：無論如何，時間戳和數字都以規範形式
+儲存。
+
+## 租戶預設值與使用者覆蓋 [#tenant-defaults-vs-user-overrides]
+
+本頁上的一切都是**租戶預設值**。當用戶在 **Account** 中設定了自己的語言，
+這個選擇會在該使用者的會話和渲染出的 UI 中生效；沒有設定偏好的使用者會繼承你在
+這裡配置的 `Default language`。時區、國家、貨幣和財年的預設值作用於整個
+租戶。
+
+## 下一步 [#where-to-go-next]
+
+| 任務 | 頁面 |
+|---|---|
+| 修改品牌、功能開關和其他租戶設定 | [系統設定](/docs/configure/system-settings) |
+| 配置使用者個人的語言覆蓋 | [你的資料](/docs/use/profile) |
+| 設定事務郵件投遞 | [郵件](/docs/configure/email) |
+| 回到管理概覽 | [配置](/docs/configure) |

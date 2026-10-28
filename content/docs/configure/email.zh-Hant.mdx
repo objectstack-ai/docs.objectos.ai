@@ -1,0 +1,77 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 郵件
+seoTitle: "事務郵件：傳輸方式和模板"
+description: 配置事務郵件的投遞提供商和模板。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 1ee2df65cf5765f43f4943d79c3f093362a542e7d3fc30bc4a3e6f7789e3a43c
+  guide_rev: 1
+  mode: auto
+---
+
+當應用需要時（密碼重置、邀請、審批通知），ObjectOS 會通過框架的郵件外掛
+傳送事務郵件。沒有定時報表郵件：ObjectStack 17.5 移除了定時報表投遞，
+且沒有替代方案。該外掛自帶三種傳輸方式。
+
+## 傳輸方式 [#transports]
+
+| 提供商 | 何時使用 | 必需的環境變數 |
+|---|---|---|
+| `log` | 本地開發；把郵件記錄到 stdout，而不是傳送 | 無 |
+| `resend` | 通過 Resend 獲得 SaaS 級的送達率 | `OS_EMAIL_API_KEY` |
+| `postmark` | 通過 Postmark 獲得 SaaS 級的送達率 | `OS_EMAIL_API_KEY` |
+
+預設值是 `log`。當配置了真實的提供商卻沒有提供 API 金鑰時，ObjectOS 會
+回落到 log 傳輸方式 —— 這有助於防止非生產環境意外發出郵件。
+
+### SMTP 怎麼辦？ [#what-about-smtp]
+
+執行時目前**沒有**內建原生的 SMTP 傳輸方式。如果你的環境需要 SMTP（企業
+中繼、本地部署的郵件、物理隔離部署），你有兩個生產級的選擇：
+
+1. 在 ObjectOS 前面**執行一個 SMTP 轉 API 的中繼**。Resend、Postmark 以及
+   自託管的替代方案（Postal、Cuttlefish）都接受 SMTP 入站，並通過它們的
+   HTTP API 重新發出 —— ObjectOS 照常通過 HTTPS 與它們通訊。
+2. **用自定義的郵件外掛執行執行時。** 郵件外掛的 API 很小（一個
+   `send(message)` 函式）；一個封裝了 `nodemailer` 的專案外掛可以通過
+   `requires` 列表接入。參見 spec 倉庫中的
+   [外掛編寫指南](https://github.com/objectstack-ai/spec)。
+
+原生 SMTP 傳輸方式已列入路線圖；可以在
+[github.com/objectstack-ai/objectstack/issues](https://github.com/objectstack-ai/objectstack/issues)
+跟蹤進展。
+
+## 環境變數 [#environment-variables]
+
+| 變數 | 用途 |
+|---|---|
+| `OS_EMAIL_PROVIDER` | `log`、`resend` 或 `postmark` |
+| `OS_EMAIL_API_KEY` | 提供商的 API 金鑰（Resend 或 Postmark） |
+| `OS_EMAIL_FROM` | 預設發件地址。支援 `addr@x` 和 `Name <addr@x>` 兩種格式 |
+| `OS_EMAIL_RETRIES` | 傳送失敗時傳輸方式的重試次數（預設 `0`） |
+
+環境變數會覆蓋產物 `email` 配置塊中對應的值，所以運維人員無需重新構建產物
+就能重新指定投遞方式。
+
+## 模板 [#templates]
+
+可複用的模板存放在 `sys_email_template` 中。模板支援由框架模板引擎求值的
+變數插值。應用程式碼（或流程）用一個模板 id 和一組變數呼叫郵件服務；服務生成
+主題和正文，並交給配置好的傳輸方式。
+
+## 驗證投遞 [#verifying-delivery]
+
+對於 Resend / Postmark，請在提供商的控制台中確認發件域名已配置好（SPF、
+DKIM，以及可選的 DMARC）。最快的端到端檢查是 Setup 中郵件設定頁上的
+**Send test email** 動作 —— 它使用實際的傳輸方式，並在頁面內直接顯示傳輸
+錯誤。
+
+## 運維指南 [#operational-guidance]
+
+- 把 API 金鑰當作機密。把它存放在客戶的金鑰管理器中，絕不放進產物。
+- 關注傳輸錯誤日誌：提供商的限流、退訂抑制和退信都會出現在那裡。
+- 對審計敏感的事務郵件（密碼重置、MFA 驗證）應按客戶的策略保留 —— 在審計
+  日誌上設定保留期，而不是在傳輸方式上。
+- 外發郵件不會阻塞業務事務：傳送失敗會作為錯誤報告出來，但不會回滾引發它
+  的記錄變更。

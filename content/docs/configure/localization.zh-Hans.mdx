@@ -1,0 +1,72 @@
+---
+title: 本地化
+seoTitle: "本地化：时区、语言和格式"
+description: 设置整个租户的时区、语言、国家、默认货币和财年起始月，每个渲染出来的值都会继承它们。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 85567978135b8d527209ff22f652aa15f2315e046e832736993cd3d2368a4e1c
+  guide_rev: 1
+  mode: auto
+---
+
+本地化设置的是 ObjectOS 如何解读时间、选择消息目录，以及渲染日期、数字和
+货币的**租户级默认值**。这些值是整个工作区的回落值 —— 用户个人可以在自己的
+[账户](/docs/use/profile)中覆盖自己的语言，但你在这里设置的默认值适用于所有
+没有覆盖的人。
+
+打开 **Setup → Configuration → Localization**。页面分为两个部分：**Region**
+和 **Finance**。
+
+## 区域 [#region]
+
+区域控制 ObjectOS 如何解析*含义* —— 哪个时区锚定相对时间的计算，哪个
+locale 驱动格式化，以及部署报告哪个国家作为其所在国。
+
+| 设置 | 默认值 | 驱动 |
+|---|---|---|
+| `Default timezone` | `UTC` | `today()` / `daysFromNow`、分析日期分桶和渲染的日期时间所用的 IANA 时区 |
+| `Default language` | `English (US)` | 用于消息目录和数字 / 日期格式化的 BCP-47 locale |
+| `Default country` | `US` | ISO 3166-1 alpha-2 代码（例如 `US`、`GB`、`CN`） |
+
+> **时区不是装饰。** 它是每个相对时间表达式的锚点，也是分析把记录归入
+> 分桶的依据。修改它会改变整个租户中"今天"的含义 —— 慎重地设置一次。
+
+`Default timezone` 是 IANA 时区的下拉列表（`UTC`、`America/New_York`、
+`Asia/Shanghai` 等等）。`Default language` 选择 UI 回落使用其消息目录和
+格式化规则的 locale。`Default country` 是一个自由文本字段，需要两个字母的
+ISO 代码。
+
+## 财务 [#finance]
+
+| 设置 | 默认值 | 驱动 |
+|---|---|---|
+| `Default currency` | 无 | 货币字段未声明自己的货币时使用的 ISO 4217 代码。不设置时，这类金额会渲染为普通数字，不会猜测货币符号 |
+| `Fiscal year start` | `January` | 财年的第一个月 —— 决定报表中"本季度"和"本财年"的含义 |
+
+## 日期、时间和数字跟随语言 [#dates-times-and-numbers-follow-the-language]
+
+没有单独的格式设置。日期、时间或数字怎样书写，以及一周从哪一天开始，都
+跟随 `Default language`（或用户自己的语言）。ObjectStack 17.7 废弃了本页
+过去列出的四个格式设置 —— `date_format`、`time_format`、`number_format`
+和 `first_day_of_week` —— 因为没有任何东西读取它们。之前存储的值会被保留，
+但不再提供；点名其中任何一个的 `PUT /api/settings/localization` 会让整个
+请求以 `400 UNKNOWN_KEY` 被拒绝，同一请求中的有效键也一样；
+`OS_LOCALIZATION_*_FORMAT` 和 `OS_LOCALIZATION_FIRST_DAY_OF_WEEK` 变量也
+不再被读取。格式只改变值的显示方式：无论如何，时间戳和数字都以规范形式
+存储。
+
+## 租户默认值与用户覆盖 [#tenant-defaults-vs-user-overrides]
+
+本页上的一切都是**租户默认值**。当用户在 **Account** 中设置了自己的语言，
+这个选择会在该用户的会话和渲染出的 UI 中生效；没有设置偏好的用户会继承你在
+这里配置的 `Default language`。时区、国家、货币和财年的默认值作用于整个
+租户。
+
+## 下一步 [#where-to-go-next]
+
+| 任务 | 页面 |
+|---|---|
+| 修改品牌、功能开关和其他租户设置 | [系统设置](/docs/configure/system-settings) |
+| 配置用户个人的语言覆盖 | [你的资料](/docs/use/profile) |
+| 设置事务邮件投递 | [邮件](/docs/configure/email) |
+| 回到管理概览 | [配置](/docs/configure) |
