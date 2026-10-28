@@ -1,0 +1,207 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 工作流
+seoTitle: "工作流：把記錄生命週期建模為狀態機"
+description: 把記錄的生命週期建模為狀態機 —— 它可能處於的狀態、狀態之間允許的移動，而流程能做得更好的事一概不管。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 7ec55c7f19bcf4f40b34dc0d852ea4cf3534169ad263dbdff0f1ed34fbb0c600
+  guide_rev: 1
+  mode: auto
+---
+
+**工作流把記錄的生命週期建模為一個有限狀態機：記錄可能處於的狀態，以及狀態之間允許的移動。** 你把它宣告為物件上的一條 `state_machine` 驗證規則，對狀態欄位的每一次寫入都會據此檢查。當核心需求是"這個物件只能在這些狀態之間流轉"時，就用它。
+
+沒有獨立的、Salesforce 風格的 Workflow Rule 編寫型別。舊的"工作流"概念
+被幹淨地一分為二：
+
+- **`state_machine` 驗證規則**，用於嚴格的生命週期遷移 —— 即本頁。
+- **[流程](/docs/build/automation/flows)**，用於事件觸發或定時的自動化，
+  包括[審批](/docs/build/automation/approvals)暫停。
+
+## 工作流與流程 [#workflows-vs-flows]
+
+| | 工作流（狀態機） | 流程 |
+|---|---|---|
+| 建模 | *狀態* —— 記錄處於生命週期的哪個位置 | *步驟* —— 某件事發生時要做什麼 |
+| 回答 | "此刻允許這次遷移嗎？" | "我們對此做什麼？" |
+| 形態 | 一個狀態欄位和一張允許移動的表 | 節點和邊：觸發器、動作、分支 |
+| 副作用 | 沒有 —— 它只做約束 | 全部 —— 郵件、更新、HTTP、等待 |
+
+它們相互組合：狀態機約束遷移；當你需要通知、更新記錄或呼叫外部系統時，
+流程負責遷移前後的副作用。
+
+## 定義一個狀態機 [#define-a-state-machine]
+
+一個支援案例必須按 `new → assigned → resolved` 流轉，並帶有一條升級路徑。
+狀態機是物件的 `validations` 之一：
+
+```ts
+import { P } from '@objectstack/spec';
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const SupportCase = ObjectSchema.create({
+  name: 'support_case',
+  label: 'Support Case',
+  fields: {
+    status: Field.select({
+      label: 'Status',
+      required: true,
+      options: [
+        { label: 'New', value: 'new', default: true },
+        { label: 'Assigned', value: 'assigned' },
+        { label: 'Escalated', value: 'escalated' },
+        { label: 'Resolved', value: 'resolved' },
+      ],
+    }),
+    resolution: Field.textarea({
+      label: 'Resolution',
+      requiredWhen: P`record.status == 'resolved'`,  // no resolved case without one
+    }),
+  },
+  validations: [
+    {
+      type: 'state_machine',
+      name: 'case_lifecycle',
+      field: 'status',
+      message: 'This status change is not allowed.',
+      initialStates: ['new'],
+      transitions: {
+        new: ['assigned'],
+        assigned: ['resolved', 'escalated'],
+        escalated: ['resolved'],
+        resolved: [],
+      },
+    },
+  ],
+});
+```
+
+把它當作一份契約來讀：案例以 `new` 建立，`new` 的案例只能被指派。
+`assigned` 的案例可以被解決或升級，升級後的案例可以被解決。`resolved`
+沒有列出任何狀態，所以沒有什麼能再移動它。由於狀態為 `resolved` 時
+`resolution` 是必填的，不帶解決說明就把案例設為已解決的寫入會被拒絕。
+
+## 結構 [#anatomy]
+
+| 鍵 | 它宣告什麼 |
+|---|---|
+| `type: 'state_machine'` | 這條驗證規則是一個狀態機 |
+| `name` | 規則的識別符號（snake_case） |
+| `field` | 規則所管轄的狀態欄位 |
+| `transitions` | 每個狀態 → 它可以移動到的狀態的對映；在記錄更新時檢查 |
+| `initialStates` | 記錄可以在哪些狀態下被建立；在插入時檢查 |
+| `message` | 被拒絕的寫入所返回的錯誤 |
+
+這條規則還接受每條驗證規則共有的鍵：`severity`、`events`、`active` 和
+`priority`。
+
+### 終止狀態 [#final-states]
+
+列表為空的狀態是終止狀態：任何移出它的操作都會被拒絕。完全沒有對應鍵的
+狀態則不是終止狀態。檢查在那裡無從判斷，於是放行這次寫入，所以當你的
+意思是"終止"時，請宣告 `[]`。
+
+### 遷移上的條件 [#conditions-on-a-transition]
+
+`state_machine` 規則沒有按遷移設定的守衛。要讓某次移動帶條件，就把條件
+放在平臺會強制執行的地方：
+
+- **某個狀態需要的值** —— 在那個欄位上用 `requiredWhen`，就像上面的
+  `resolution` 那樣。它會拒絕不帶該值就進入該狀態的寫入，並且不會觸碰
+  規則出現之前就已存在的行。
+- **其他任何條件** —— 在同一個 `validations` 陣列中放一條並列的 `script`
+  或 `conditional` 驗證規則（一個 CEL 謂詞）。
+
+### 寫入，而不是事件 [#writes-not-events]
+
+狀態機在對狀態欄位的寫入時檢查。把 `status` 改成一個未列在其當前值下的
+值的更新會被拒絕，插入時狀態不在 `initialStates` 中也會被拒絕。沒有需要
+宣告的具名事件：合法移動的那張表就是整個狀態機。
+
+> **提示：** 讓狀態機保持最小 —— 只有狀態以及狀態之間的移動。一旦你想要
+> "然後發一封郵件"，你就已經離開了工作流的地盤：把副作用放進一個響應該
+> 遷移的[流程](/docs/build/automation/flows)。
+
+## 副作用屬於流程 [#side-effects-belong-in-flows]
+
+狀態機描述合法的遷移 —— 僅此而已。當一次遷移應該*做*點什麼（通知銷售、
+寫入關閉日期、呼叫外部系統）時，就把狀態機和一個由記錄變更觸發的流程
+搭配起來：
+
+```ts
+export const dealClosedWon = defineFlow({
+  name: 'deal_closed_won',
+  label: 'Deal closed won',
+  type: 'record_change',
+  status: 'active',
+  nodes: [
+    {
+      id: 'start',
+      type: 'start',
+      label: 'Stage moved to closed won',
+      config: {
+        triggerType: 'record-after-update',
+        objectName: 'opportunity',
+        condition: "record.stage == 'closed_won' && previous.stage != 'closed_won'",
+      },
+    },
+    {
+      id: 'set_closed_date',
+      type: 'update_record',
+      label: 'Set Closed Date',
+      config: {
+        objectName: 'opportunity',
+        filter: { id: '{record.id}' },
+        fields: { closed_date: '{TODAY()}' },
+      },
+    },
+    {
+      id: 'notify_sales',
+      type: 'notify',
+      label: 'Notify Sales',
+      config: { recipients: '{record.owner}', title: 'Deal won: {record.name}' },
+    },
+    { id: 'end', type: 'end', label: 'End' },
+  ],
+  edges: [
+    { id: 'e1', source: 'start', target: 'set_closed_date' },
+    { id: 'e2', source: 'set_closed_date', target: 'notify_sales' },
+    { id: 'e3', source: 'notify_sales', target: 'end' },
+  ],
+});
+```
+
+狀態機保證商機是合法地*到達* `closed_won` 的；流程負責接下來發生的事。
+像上面這樣的條件是 CEL 表示式 —— 參見 [CEL](/docs/reference/cel)。
+
+## 從工作流規則遷移 [#migrating-from-workflow-rules]
+
+如果你來自一個有 Workflow Rules 的平臺，對應關係如下：
+
+| 舊概念 | 當前的對應物 |
+|---|---|
+| Workflow Rule | 流程 |
+| 時間觸發器（"某個日期之前 / 之後 N 天"） | 相對時間觸發器 —— 流程開始節點上的 `config.timeRelative`（16.0，參見[流程](/docs/build/automation/flows)） |
+| 時間觸發器（固定時鐘） | 定時流程 |
+| 欄位更新動作 | `update_record` 節點 |
+| 郵件提醒 | `notify` 節點 |
+| HTTP 呼叫 | `http` 節點 |
+| Approval Process | 帶一個或多個 `approval` 節點的流程 |
+
+判斷方法：如果舊規則是"當 X 發生時，做 Y"，就把它建模為一個小流程。如果
+它是"在某個日期欄位之前 / 之後 N 天，做 Y"，就宣告一個相對時間觸發器 ——
+絕不要在記錄變更流程上用日期相等條件，那隻會在記錄恰好變更時才求值。如果
+它是"這條記錄必須在受控的狀態之間流轉"，就宣告一條 `state_machine` 驗證
+規則，並用流程處理副作用。
+
+## 下一步 [#where-to-go-next]
+
+| 頁面 | 為什麼 |
+|---|---|
+| [流程](/docs/build/automation/flows) | 遷移前後的副作用 —— 觸發器、步驟、錯誤處理 |
+| [審批](/docs/build/automation/approvals) | 作為流程內暫停的人工籤核 |
+| [驗證規則](/docs/build/data/validation-rules) | 狀態機所屬的規則家族 |
+| [CEL 表示式](/docs/reference/cel) | `requiredWhen`、驗證規則和流程條件背後的語言 |
+| [資料建模](/docs/build/data) | 你正在約束其生命週期的物件 |
+| [自動化概覽](/docs/build/automation) | 選擇器：流程、工作流還是審批 |

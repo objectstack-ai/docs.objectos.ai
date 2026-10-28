@@ -1,0 +1,44 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 自動化
+seoTitle: "自動化：流程、工作流和審批"
+description: 為工作選對工具 —— 流程管步驟，工作流管狀態，審批管人工籤核。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: e39ead174c229520946d302d63cc2c7e6903c12d87048df02a15aed0b5ab0a84
+  guide_rev: 1
+  mode: auto
+---
+
+**自動化以宣告式的方式把業務邏輯掛到你的資料模型上 —— 作為執行時執行的後設資料 —— 而不是把它散落在應用程式碼中。** 三種工具覆蓋了這塊地盤，一開始就選對，能省去日後的返工。
+
+## 我需要哪一種？ [#which-one-do-i-need]
+
+| 你需要 | 使用 | 閱讀 |
+|---|---|---|
+| "當 X 發生時，做 Y" —— 在記錄變更、定時計劃或按鈕點選時執行的步驟 | **流程** | [流程](/docs/build/automation/flows) |
+| "這條記錄只能在這些狀態之間流轉" —— 受控的生命週期 | **工作流**（狀態機） | [工作流](/docs/build/automation/workflows) |
+| "必須有人籤核才能繼續" —— 被路由的人工決策 | **審批** | [審批](/docs/build/automation/approvals) |
+
+經驗法則：用工作流建模**狀態**，用流程建模**步驟**。審批不是一個單獨的引擎 —— 審批就是一個在審批節點處暫停、直到有人做出決定的流程。
+
+## 它們如何組合 [#how-they-combine]
+
+三者是組合關係，而不是競爭關係：
+
+- **工作流**約束哪些生命週期遷移是合法的 —— 只有狀態以及狀態之間的移動，別無其他。
+- **流程**執行這些遷移前後的副作用：傳送郵件、更新記錄、呼叫外部服務、等待、分支。
+- 流程中的**審批節點**會阻塞執行，直到審批人採取行動，然後沿著批准或拒絕分支繼續。
+
+所以"一個案例按 new → assigned → resolved 流轉"是工作流；"升級時通知經理"是流程；"超過 5 萬美元的折扣需要財務經理籤核"是帶審批節點的流程。
+
+> **提示：** 如果一個需求讀起來是"當 X 發生時，做 Y"，那它是流程。如果讀起來是"這條記錄絕不能跳過某個狀態"，那它是工作流。從這裡出發，你很少會選錯。
+
+## 下一步 [#where-to-go-next]
+
+| 頁面 | 為什麼 |
+|---|---|
+| [流程](/docs/build/automation/flows) | 完整的流程參考 —— 觸發器、步驟型別、錯誤處理、CEL |
+| [工作流](/docs/build/automation/workflows) | 用於嚴格生命週期的狀態及其允許的遷移 |
+| [審批](/docs/build/automation/approvals) | 審批節點、執行身份，以及審批人的體驗 |
+| [CEL 表示式](/docs/reference/cel) | 條件和驗證規則中使用的表示式語言 |

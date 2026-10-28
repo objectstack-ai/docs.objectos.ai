@@ -1,15 +1,17 @@
 ---
 title: 审批流程
+seoTitle: "审批流程：把记录路由给人签核"
 description: 把记录路由给人签核 —— 同时不让自动化悄悄绕过行级安全。
+editions: [community, cloud, enterprise]
 translation:
-  source_sha: 891d4c828930b407ad51b3e042559255011956548b0c0b1c5d388804b9ca8de5
+  source_sha: e03dd11f32910f971d7514f12aab8e3c2ac1eceb25966b2b4162185eb062a521
   guide_rev: 1
   mode: auto
 ---
 
-**审批就是带审批节点的[流程](/docs/build/automation/flows)：流程暂停，直到有人批准或拒绝，然后沿匹配的分支继续。**没有需要另学的独立审批引擎 —— 触发器、分支、错误处理都与任何其他流程完全一致。本页新增的内容是审批节点本身，以及两个与路由同样重要的访问决策。
+**审批就是带审批节点的[流程](/docs/build/automation/flows)：流程暂停，直到有人批准或拒绝，然后沿匹配的分支继续。** 没有需要另学的独立审批引擎 —— 触发器、分支、错误处理都与任何其他流程完全一致。本页新增的内容是审批节点本身，以及两个与路由同样重要的访问决策。
 
-## 谁做什么
+## 谁做什么 [#who-does-what]
 
 三个角色，刻意分离：
 
@@ -19,9 +21,9 @@ translation:
 | **提交人** | 提交进入流程的记录 | 正常的记录访问 —— 不需要任何自动化配置权限 |
 | **审批人** | 处理审批请求（批准 / 拒绝） | 由其权限集授予的能力 |
 
-最终用户提交记录、处理请求；他们从不编辑自动化。把自动化配置界面挡在消费者应用之外。
+最终用户提交记录、处理请求；他们从不编辑自动化。把自动化配置界面挡在面向使用者的应用之外。
 
-## 以谁的身份运行 —— 安全决策
+## 以谁的身份运行 —— 安全决策 [#as-whom-does-it-run--the-safety-decision]
 
 流程通过 `runAs` 声明运行身份，对审批而言，正是这个决策防止流程悄悄绕过行级安全：
 
@@ -32,13 +34,14 @@ translation:
 
 **显式**声明提权，让它可见而非意外。默认的 `'user'` 意味着审批流程无法悄悄给提交人跨租户或跨所有者的触达 —— 提权是自愿开启且可审计的。
 
-> **提示：**由定时触发的升级流程没有触发用户 —— 它必须 `runAs: 'system'` 才能行动。这是提权的正当场景；"到处 `system` 好让它能跑"才是反模式。
+> **提示：** 由定时触发的升级流程没有触发用户 —— 它必须 `runAs: 'system'` 才能行动。这是提权的正当场景；"到处 `system` 好让它能跑"才是反模式。
 
-## 审批节点
+## 审批节点 [#the-approval-node]
 
 节点声明**谁来审批**以及多个决策如何聚合：
 
 ```ts
+// One flow node; the flow around it is omitted (see the complete flow below).
 {
   id: 'manager_approval',
   type: 'approval',
@@ -54,19 +57,50 @@ translation:
 
 | 配置 | 作用 |
 |---|---|
-| `approvers` | 谁必须决策 —— 具名用户、岗位，或从记录字段解析出的用户（如提交人的经理） |
+| `approvers` | 谁必须决策 —— 见下文的审批人类型 |
 | `behavior` | 多个审批人如何聚合：`'first_response'`（默认）、`'unanimous'`、`'quorum'`、`'per_group'` |
 | `minApprovals` | 所需批准数 —— `quorum` 为总数（N 中取 M），`per_group` 为每组所需数（默认 1） |
+| `onEmptyApprovers` | 审批人解析结果为空时怎么办：`'admin_rescue'`（默认）、`'fail'`、`'auto_approve'` |
+| `decisionOutputs` | 决策可以作为结构化输出带回流程的键 |
 | `approvalStatusField` | 可选的记录字段，插件把请求状态镜像进去 |
-| `lockRecord` | 请求待定期间锁定记录、禁止编辑 |
+| `lockRecord` | 请求待处理期间锁定记录，禁止编辑 |
 
-> **警告 —— `position` 与成员层级。**`{ type: 'position', value: 'finance_manager' }` 路由给某个岗位的持有者（`sys_user_position`）。组织成员层级（`sys_member.role`：`owner`/`admin`/`member`）自 16.0 起写作 `type: 'org_membership_level'`；旧写法 `role` 是**保留一个版本的弃用别名** —— 仍能加载并按相同方式解析，但会给出警告，下个大版本移除。把岗位名写成成员层级类型谁也匹配不上，请求就会卡住。`os lint` 对两种情况都会标记（`approval-approver-not-membership-tier`、`approval-approver-type-deprecated`）；如果值是岗位名，正确写法是 `type: 'position'`。
+`approvers` 中的每个条目指定一个 `type` 和一个 `value`：
 
-### 法定人数与会签（16.0）
+| `type` | 解析为 |
+|---|---|
+| `manager` | 提交人的经理（`sys_user.manager_id`）—— 不需要 value |
+| `position` | 某个组织岗位的任职者 |
+| `department` | 某个业务单元**及其所有下级单元**的成员 |
+| `team` | 某个扁平协作团队的成员 |
+| `field` | 触发记录上某个字段中保存的用户 id |
+| `user` | 一个具名用户 id |
+| `org_membership_level` | 一个[组织成员层级](/docs/configure/users#organization-membership-tiers)（`owner` / `admin` / `delegated_admin` / `member`） |
+| `expression` | 在进入节点时解析的 CEL 表达式 —— 见下文 |
 
-在 `first_response` 和 `unanimous` 之外，16.0 新增两种聚合模式。**Quorum（法定人数）**在达到 N 中取 M 个批准时定案：
+优先使用间接绑定（`manager`、`position`、`department`、`team`），而不是
+字面的 `user` id：当这个人换了团队或离职时，它们依然有效；而硬编码的 id
+会悄悄把审批路由给一个本不该再看到它们的人。
+
+> **警告 —— `position` 与成员层级。**
+> `{ type: 'position', value: 'finance_manager' }` 会路由给某个岗位
+> （`sys_user_position`）的任职者。
+> [组织成员层级](/docs/configure/users#organization-membership-tiers)
+> （`sys_member.role`：`owner`/`admin`/`delegated_admin`/`member`）自 16.0 起
+> 以 `type: 'org_membership_level'` 寻址；旧写法 `role` 是一个**保留一个版本
+> 的已弃用别名** —— 它仍能加载，解析结果完全相同，但会给出警告，并将在下一个
+> 大版本中移除。把岗位名称写成成员层级类型，不会匹配到任何人，请求就会卡住。
+> `os lint` 会标出这两种情况（`approval-approver-not-membership-tier`、
+> `approval-approver-type-deprecated`）；如果 value 指的是组织岗位，修复方法
+> 是 `type: 'position'`。
+
+### 法定人数和分组会签（16.0） [#quorum-and-per-group-sign-off-160]
+
+除了 `first_response` 和 `unanimous`，16.0 新增了两种聚合模式。
+**法定人数（quorum）**在获得 N 中 M 个批准时定案：
 
 ```ts
+// The `config` of an `approval` node; the node around it is omitted.
 config: {
   approvers: [
     { type: 'user', value: 'director_a' },
@@ -74,32 +108,107 @@ config: {
     { type: 'user', value: 'director_c' },
   ],
   behavior: 'quorum',
-  minApprovals: 2, // 3 人中任意 2 人批准
+  minApprovals: 2, // any 2 of the 3 approve
 }
 ```
 
-**Per-group（会签）**要求*每个*带标签的组都签核 —— 用 `group` 给审批人打标签，只有当每个组都达到 `minApprovals` 个批准（默认每组 1 个）时节点才会前进：
+**分组（per_group）**要求*每个*带标签的分组都签核（会签）—— 用 `group`
+给审批人打标签，只有当每个分组都获得 `minApprovals` 个批准（默认每组 1 个）
+时，节点才会前进：
 
 ```ts
+// The `config` of an `approval` node; the node around it is omitted.
 config: {
   approvers: [
     { type: 'position', value: 'legal_counsel',   group: 'legal' },
     { type: 'position', value: 'finance_manager', group: 'finance' },
   ],
-  behavior: 'per_group', // 法务一个签核，且财务一个签核
+  behavior: 'per_group', // one sign-off from legal AND one from finance
 }
 ```
 
-对所有模式都成立的语义：
+在所有模式下都成立的语义：
 
-- 审批人集合按**开启时快照**统计，并带休假（OOO）替补 —— 谁必须响应在请求开启时就已确定，休假的审批人会被替补而不是卡住请求。
-- **单个拒绝仍然是一票否决**：在任何模式下它都把节点定案为 `rejected`。
-- 阈值在运行时**收拢（clamp）**到可解析的审批人数量，因此配置错误的 `minApprovals` 永远不会让请求死锁。
-- 没有 `group` 标签的审批人各自成组，所以普通的审批人列表在 `per_group` 下依然行为合理。
+- 审批人集合按**开启时的快照**计数，并带有外出替代 —— 谁必须回应在请求
+  开启时就已确定，外出的审批人会被替代，而不是让请求停滞。
+- **一次拒绝仍然是否决**：在每种模式下，它都会把节点定案为 `rejected`。
+- 阈值在运行时会**收紧**到可解析的审批人数量，所以配置错误的
+  `minApprovals` 永远不会让请求陷入死锁。
+- 没有 `group` 标签的审批人各自构成一个分组，所以普通的审批人列表在
+  `per_group` 下也能表现合理。
 
-## 一个完整的审批流程
+### 动态路由：由审批人选择下一位审批人（17.0） [#dynamic-routing-an-approver-picks-the-next-approver-170]
 
-把大额提案路由给负责人的经理，再按决策分支：
+17.0 的三项新增让节点能根据这次运行到目前为止产生的结果来决定审批人，
+而不是依据固定的声明。
+
+**`expression` 审批人**在进入节点时解析一个 CEL 表达式，可用三个明确的
+根：`current.*`（记录的实时状态）、`trigger.*`（提交时的快照）和
+`vars.*`（流程变量，包括上游节点的输出）。结果成为审批人名单：
+
+```ts
+// The `config` of an `approval` node; the node around it is omitted.
+config: {
+  approvers: [
+    {
+      type: 'expression',
+      value: 'vars.legal_review.picked_departments',
+      resolveAs: 'department',   // each value is a department id, fanned out to its members
+    },
+  ],
+}
+```
+
+`resolveAs` 是 `expression` 审批人自身的一个键（默认 `'user'`，或
+`'department'` / `'position'` / `'team'`），它说明表达式返回的是哪种 id，
+并通过静态审批人类型所用的同样的图查询展开每一个 id。在
+`behavior: 'per_group'` 下，每个返回值构成自己的分组 —— 每个返回的部门
+各需一次签核。
+
+`record` 和裸字段名被有意设为**不可用**：在平台的其他所有界面上，`record`
+的含义都是"事件发生时的记录"，在这里复用它会悄悄地把两个时间点之一混淆
+起来。
+
+**`decisionOutputs`** 就是为上面那种表达式提供数据的东西。由*作者*声明
+决策可以携带哪些键；审批人只负责填入值。被接受的输出以
+`<nodeId>.<key>` 流程变量的形式恢复运行 —— 绝不是裸名称，所以审批人无法
+遮蔽作者的变量：
+
+```ts
+// One flow node; the flow around it is omitted.
+{
+  id: 'legal_review',
+  type: 'approval',
+  label: 'Legal Review',
+  config: {
+    approvers: [{ type: 'position', value: 'legal_counsel' }],
+    decisionOutputs: [
+      { key: 'picked_departments', type: 'department', multiple: true },
+    ],
+  },
+}
+```
+
+每个条目要么是一个裸键（在决策 UI 中渲染为普通文本输入框），要么是一个
+带类型的声明 —— `{ key, type, multiple }` —— 它告诉决策 UI 改为渲染一个
+记录选择器：`user` / `department` / `position` / `team` 各自得到对应的
+系统对象选择器，`multiple: true` 收集一个 id 数组。携带未声明键的决策会被
+拒绝；`decision` 和 `requestId` 是保留键。
+
+**`onEmptyApprovers`** 决定解析结果中没有任何具体人员时怎么办 —— 表达式
+结果为空、岗位无人任职、多选字段为空：
+
+| 值 | 行为 |
+|---|---|
+| `'admin_rescue'`（默认） | 照样开启请求并高调告警；有特权的管理员可以通过 Reassign 接手。这是唯一一个既不放行记录、也不终止运行的选项 |
+| `'fail'` | 节点失败（fault 边 / 运行失败）。当名单为空只可能意味着配置错误时选择它 |
+| `'auto_approve'` | 跳过请求，带着 `output.autoApproved = true` 沿 `approve` 边继续。需要主动开启，因为它会悄悄放行记录 |
+
+这个默认值是有意为之：审批的职责是把关，所以空名单绝不能悄悄通过。
+
+## 一个完整的审批流程 [#a-complete-approval-flow]
+
+把大额提案路由给负责人的经理，然后按决策分支：
 
 ```ts
 export const opportunityApproval = defineFlow({
@@ -107,11 +216,12 @@ export const opportunityApproval = defineFlow({
   label: 'Opportunity Approval',
   type: 'record_change',
   status: 'active',
-  runAs: 'user', // 用提交人的 RLS，除非某一步确实需要更多权限
+  runAs: 'user', // submitter's RLS unless a step genuinely needs more
   nodes: [
     {
       id: 'start',
       type: 'start',
+      label: 'Proposal over 50,000',
       config: {
         triggerType: 'record-after-update',
         objectName: 'opportunity',
@@ -129,9 +239,27 @@ export const opportunityApproval = defineFlow({
         lockRecord: true,
       },
     },
-    { id: 'mark_approved', type: 'update_record', label: 'Mark Approved' },
-    { id: 'mark_rejected', type: 'update_record', label: 'Mark Rejected' },
-    { id: 'end', type: 'end' },
+    {
+      id: 'mark_approved',
+      type: 'update_record',
+      label: 'Mark Approved',
+      config: {
+        objectName: 'opportunity',
+        filter: { id: '{record.id}' },
+        fields: { stage: 'negotiation' },
+      },
+    },
+    {
+      id: 'mark_rejected',
+      type: 'update_record',
+      label: 'Mark Rejected',
+      config: {
+        objectName: 'opportunity',
+        filter: { id: '{record.id}' },
+        fields: { stage: 'closed_lost' },
+      },
+    },
+    { id: 'end', type: 'end', label: 'End' },
   ],
   edges: [
     { id: 'e1', source: 'start', target: 'manager_approval' },
@@ -143,42 +271,68 @@ export const opportunityApproval = defineFlow({
 });
 ```
 
-注意带标签的边：`approve` 和 `reject` 命名了决策之后的分支。永远要建模拒绝路径 —— 只有批准分支的流程会让被拒绝的记录搁浅。
+注意带标签的边：`approve` 和 `reject` 命名了决策之后的分支。始终要为拒绝
+路径建模 —— 只有批准分支的流程会让被拒绝的记录无处可去。
 
-**多级审批：**串联多个 `approval` 节点。**并行审批：**见[流程](/docs/build/automation/flows)中的聚合节点模式。
+**多步审批：**串联多个 `approval` 节点。**并行审批：**参见
+[流程](/docs/build/automation/flows)中的聚合节点模式。
 
-## 审批人体验到什么
+## 审批人的体验 [#what-the-approver-experiences]
 
-`@objectstack/plugin-approvals` 包持有持久化的审批状态。请求待定期间：
+`@objectstack/plugin-approvals` 包持有持久化的审批状态。请求待处理期间：
 
-1. 插件持久化请求（`sys_approval_request`）以及针对它的每个决策（`sys_approval_action`）—— 你的审批历史是可查询的数据。
-2. 设置 `lockRecord: true` 时，记录被锁定、禁止编辑，直到决策落地。
-3. 如果设置了 `approvalStatusField`，记录自身的字段会镜像请求状态，视图和报表就能按它筛选。
-4. 审批人批准或拒绝；插件沿匹配的边恢复被暂停的流程。自 16.0 起，决策可以携带**文件附件**（持久化在 `sys_approval_action.attachments`，贯通决策/评论路由与客户端 SDK）—— 签署的 PDF 和证据材料与决策存放在一起。
-5. 请求暴露服务端计算的 **`decision_progress`** —— `unanimous`/`quorum` 为已获批准数 vs. 所需数，`per_group` 为按组明细 —— 收件箱和你自己的 UI 直接渲染进度，无需重新实现计票。
+1. 插件持久化请求（`sys_approval_request`）以及针对它做出的每一个决策
+   （`sys_approval_action`）—— 你的审批历史是可查询的数据。
+2. 设置 `lockRecord: true` 后，记录在决策落定之前被锁定，禁止编辑。
+3. 如果你设置了 `approvalStatusField`，记录自身的字段会镜像请求状态，
+   视图和报表就可以按它过滤。
+4. 审批人批准或拒绝；插件让暂停的流程沿匹配的边恢复运行。从 16.0 起，决策
+   可以携带**文件附件**（持久化在 `sys_approval_action.attachments` 上，
+   贯穿 decide / comment 路由和客户端 SDK）—— 签名的 PDF 和证据与决策
+   存放在一起。
+5. 请求会暴露一个由服务器计算的 **`decision_progress`** —— `unanimous` /
+   `quorum` 下已获得与所需的批准数，`per_group` 下按分组的明细 —— 所以
+   收件箱和你自己的 UI 无需重新实现计数就能渲染进度。
 
-**决策即声明式操作（16.0）。**完整的决策集合 —— 批准、拒绝、转办、退回修改（`/revise`）、补充材料、催办、撤回、重新提交 —— 以 `type: 'api'` 操作的形式声明在 `sys_approval_request` 上，带类型化参数、仅待定时可见的门控，以及提交人 vs 审批人谓词（如 `record.submitter_id == ctx.user.id`）。Console 审批收件箱渲染的是这些声明的操作，而不是手写按钮，因此新的决策能力以元数据形式发布 —— 无需客户端发版。
+**谁能看到一条请求（17.0）。** 请求携带记录的快照、完整的决策历史和附件，
+所以只有它的参与者能读取：提交人、当前审批人（包括请求所等待的岗位的任职
+者），以及已经对它采取过行动或发表过评论的任何人。平台和组织管理员能看到
+每一条请求。其他人什么也看不到，能读取这条记录也改变不了这一点。按审批人
+过滤请求列表只是一个过滤条件，而不是一次授权：不加这个过滤，返回的也只是
+你参与其中的请求，绝不是整个租户的请求。在一条可见的请求中，快照会去掉
+读者在该记录上无法读取的每个字段 —— 并且从 17.6 起，也会去掉他们只能读到
+掩码值的每个字段。
 
-批准本身也是被门控的操作。把"可以批准"建模为一个能力（如 `approve_invoice`），由审批人的权限集授予，并把批准操作的 `requiredPermissions` 建立在它之上 —— 这样门控就在 **UI 和服务端**两侧同时强制，而不只是从屏幕上藏起来。
+**决策是声明式的动作（16.0）。** 完整的决策集合 —— 批准、拒绝、转派、退回
+修改（`/revise`）、请求补充信息、催办、撤回、重新提交 —— 都声明为
+`sys_approval_request` 上的 `type: 'api'` 动作，带有类型化的参数、仅在待处理
+时可见的门控，以及区分提交人与审批人的谓词（例如
+`record.submitter_id == ctx.user.id`）。审批收件箱渲染这些声明的动作，而不是
+手写的按钮，所以新的决策能力以元数据的形式交付 —— 无需发布客户端。
 
-## 最佳实践
+批准本身就是一个受门控的动作。把"可以批准"建模为一项能力（例如
+`approve_invoice`），由审批人的权限集授予，并把批准动作的
+`requiredPermissions` 门控在它上面 —— 这样门控就会在 UI **和**服务器
+**两端**都强制执行，而不只是从某个屏幕上隐藏。
 
-| 应该 | 不应该 |
+## 最佳实践 [#best-practices]
+
+| 要 | 不要 |
 |---|---|
-| 定义清晰的进入条件 | 设置过多的审批环节 |
-| 设置合理的超时时间 | 把审批做得过于复杂 |
-| 在合适的场景允许撤回 | 忘记拒绝路径 |
-| 通知所有相关方 | 把审批人写死 |
-| 追踪审批历史 | 只在 UI 层门控"批准" |
-| 默认 `runAs: 'user'`，一步一步地提权 | 到处设置 `runAs: 'system'` "好让它能跑" |
+| 定义清晰的进入条件 | 设置过多的审批步骤 |
+| 设定合理的超时时间 | 把审批搞得过于复杂 |
+| 在合适时允许撤回 | 忘记拒绝路径 |
+| 通知所有相关方 | 硬编码审批人 |
+| 跟踪审批历史 | 只在 UI 中门控"批准" |
+| 默认 `runAs: 'user'`，一次只为一个步骤提权 | 为了"让它能跑"到处设置 `runAs: 'system'` |
 
-## 下一步
+## 下一步 [#where-to-go-next]
 
-| 页面 | 原因 |
+| 页面 | 为什么 |
 |---|---|
 | [流程](/docs/build/automation/flows) | 本页所基于的流程参考 —— 触发器、步骤、错误处理 |
 | [工作流](/docs/build/automation/workflows) | 约束审批所处的生命周期 |
-| [操作](/docs/build/interface/actions) | 把提交和批准做成界面上的按钮 |
+| [动作](/docs/build/interface/actions) | 把提交和批准做成界面上的按钮 |
 | [CEL 表达式](/docs/reference/cel) | 进入条件背后的语言 |
-| [Email](/docs/configure/email) | 通知审批人与相关方 |
-| [自动化总览](/docs/build/automation) | 选择器：流程 vs 工作流 vs 审批 |
+| [邮件](/docs/configure/email) | 通知审批人和相关方 |
+| [自动化概览](/docs/build/automation) | 选择器：流程、工作流还是审批 |
