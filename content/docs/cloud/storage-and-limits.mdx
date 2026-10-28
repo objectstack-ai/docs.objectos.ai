@@ -1,0 +1,93 @@
+---
+title: Storage and Limits
+seoTitle: "ObjectOS Cloud Limits: Storage per Environment and MCP Request Limits"
+description: The usage limits of an ObjectOS Cloud environment — the 1 GB and 20 GB storage allowances, what a full environment stops and never stops, the 80% warning, and the MCP request and draft limits per plan.
+editions: [cloud]
+---
+
+Each ObjectOS Cloud environment has a few limits of its own. This page lists
+them with the plan each number belongs to. The AI allowance has its own page:
+[AI Credits and Limits](/docs/cloud/ai-credits-and-limits).
+
+| Limit | Free | Team and above | Enterprise |
+|---|---|---|---|
+| [Storage per environment](#storage) | 1 GB | 20 GB | Not capped |
+| [MCP requests per minute](#mcp-limits) | 20 | 120 | 120 |
+| [MCP requests per UTC day](#mcp-limits) | 1,000 | No daily cap | No daily cap |
+| [Authoring writes through MCP per UTC day](#drafts-and-authoring-writes) | 200 | 2,000 | 2,000 |
+| [Unpublished drafts per environment](#drafts-and-authoring-writes) | 500 | 500 | 500 |
+
+## Storage
+
+Every environment has a **storage allowance**: **1 GB** on Free and **20 GB**
+on Team, counted **per environment**. A development environment gets the same
+allowance as production. An Enterprise contract carries no storage number.
+(Product owner ruling, 2026-09-08: the numbers are final.)
+
+**What counts.** The environment's database plus its attachments. Usage is
+re-measured about every hour, so a large upload or import shows up in the
+reading within the hour; the lag is deliberate.
+
+**What a full environment stops.** From 100% of the allowance, two things are
+refused:
+
+- **attachment uploads** (file and image fields);
+- **bulk import** of records.
+
+The refusal is `403` with the code `STORAGE_LIMIT_REACHED` and the way to
+upgrade.
+
+**What it never stops.** Creating, editing or deleting a single record; reading
+anything; exporting; and deleting attachments to free space. Someone using an
+app built on the environment is never left unable to save a form because the
+environment is near its allowance.
+
+**The warning.** At **80%** the console shows a banner. It is a warning, not a
+limit: uploads and imports still go through until 100%.
+
+**Downgrading deletes nothing.** An environment that ends up over the Free
+allowance after a downgrade keeps every byte, stays readable and exportable,
+and only stops taking uploads and imports until it is upgraded again or space
+is freed.
+
+## MCP limits
+
+Every environment's [MCP endpoint](/docs/configure/mcp#on-objectos-cloud)
+accepts a set number of requests, shared by every agent connected to that
+environment. Ruled on [cloud#3203](https://github.com/objectstack-ai/cloud/issues/3203).
+
+- **Free:** 20 requests a minute and 1,000 a UTC day.
+- **Team and above:** 120 requests a minute, with no daily cap.
+
+A request is one MCP message: a tool call, a listing, each step of the
+connection handshake. A batch counts each message in it, and a batch the day's
+remaining count cannot hold is refused whole. The per-minute allowance refills
+continuously, so a short burst up to the per-minute figure is fine.
+
+Past a limit the endpoint answers `429 Too Many Requests` with a `Retry-After`
+header, and the body's `error.code` is `RATE_LIMIT_EXCEEDED`. The message says
+which limit was hit and when it resets; on Free it also points to the upgrade
+to Team. A refused request did not run and uses up neither limit, and the next
+one after the wait is served normally. An agent driven by a person stays well
+under the paid limit; one that hits it is usually a loop calling the same tool
+over and over.
+
+## Drafts and authoring writes
+
+Changes to an app's design are staged as **drafts** until they are published.
+An environment holds at most **500 unpublished drafts**, on every plan and
+whichever way they were made. Past that, a change that would stage another
+draft is refused until drafts are published or discarded; no clock resets this
+one.
+
+Authoring writes that arrive through MCP — the build tools that create or change
+metadata — are also counted per UTC day: **200** on Free and **2,000** on Team
+and above. Reads and checks are not counted. Both refusals use the same
+`RATE_LIMIT_EXCEEDED` answer as the request limit, with the count, the limit
+and when it resets. Ruled on
+[cloud#3303](https://github.com/objectstack-ai/cloud/issues/3303).
+
+## Next
+
+- [Plans and AI Seats](/docs/cloud/plans-and-seats) — what each plan includes.
+- [Connect AI Tools (MCP)](/docs/configure/mcp#on-objectos-cloud) — turn on an environment's MCP endpoint.

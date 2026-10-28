@@ -1,0 +1,158 @@
+---
+title: Apps
+seoTitle: "ObjectOS Cloud Apps: Install, Update, Publish and Deploy from the CLI"
+description: Install an app into an ObjectOS Cloud environment, check for updates, publish an environment's apps as a package for your organization, and deploy a locally built app from the os CLI.
+editions: [cloud]
+---
+
+An app reaches an ObjectOS Cloud environment in one of three ways: you
+**install** one from the marketplace or your organization's registry, you
+**build** it in the environment (with the [AI Builder](/docs/build/ai-builder)
+or by hand), or you **publish** it from your own machine with the `os` CLI.
+Whatever the route, what is installed is a [package](/docs/build/packages): a
+versioned bundle of objects, views, flows and the rest.
+
+## Install an app
+
+From the cloud console, open the environment's **Settings → Apps** and choose
+**Install an app** (**Install Application**). Pick the app, then:
+
+- **Include sample data** — fills the environment with the package's demo
+  records so you can explore it straight away. Leave it unchecked for a clean
+  production environment.
+- **Accept additional permissions** — leave it unchecked on a first install.
+  It is for an update that asks for more permissions than the app was granted
+  before (see [Check for updates](#check-for-updates)).
+
+The app appears in the environment on its next request, with no restart. The
+message after an install says how it landed — installed, reinstalled, updated
+or rolled back, with the versions — and anything you should know about it, such
+as a capability the app uses that your plan does not include.
+
+You can also install from inside the environment: open its **Marketplace**,
+find the app and choose **Install**. Both routes install the same package into
+the same environment; see [Marketplace](/docs/build/marketplace).
+
+Installing is for the organization's owners and admins.
+
+## Check for updates
+
+**Settings → Apps → Check for app updates** compares each installed app with
+the newest version published, and says whether updates are available, all
+apps are up to date, or nothing is installed yet.
+
+To update an app, install it again: installing an app that is already installed
+moves it to the latest published version, in place.
+
+If the new version asks for permissions the app was not granted before, the
+update is refused with `PERMISSION_RECONSENT_REQUIRED`, and the message lists
+each permission it adds. Read them, then install again with
+**Accept additional permissions** checked to grant them.
+
+## Publish an environment as a package
+
+**Settings → Apps → Publish as a package** (**Publish to Registry**) takes the
+apps built in this environment and publishes them as a new version of a package
+in your organization's registry. From there it can be installed into any other
+environment of the organization — this is how an app built in a development
+environment reaches production.
+
+| Field | Meaning |
+|---|---|
+| **App Name** | The name shown in the registry. Defaults to the environment's name. |
+| **Version** | A semantic version such as `1.2.0`. Leave it blank to publish the next patch after the latest version. |
+| **Visibility** | **Private** — only your organization can install it; **Organization** — shared across your organization. |
+| **Description** | What the app does, overall. |
+| **Release notes** | What changed in this version; shown with the version. |
+| **Package ID** (advanced) | A reverse-domain identifier. Left blank, it is derived from the environment's name. |
+
+A listing in the public marketplace is a separate step with a review; it is not
+offered here. **Advanced → Packages** in the sidebar lists everything your
+organization has published.
+
+## Deploy from the CLI
+
+If you develop an app as code — an ObjectStack project on your own machine —
+the `os` CLI publishes it to your organization and can install it into an
+environment. The flow is **log in → build → publish → install**.
+
+You need an ObjectStack project (see
+[Path B — `os init`](/docs/start/community#path-b--os-init-developer)), the
+`os` CLI, and an ObjectOS Cloud account with an environment.
+
+### 1. Log in
+
+```bash
+os cloud login
+```
+
+This opens the browser sign-in and stores a cloud token in
+`~/.objectstack/cloud.json`. Use `--no-browser` to print the sign-in link
+instead of opening it. In CI, skip the login and give `os package publish` an
+API key with `--token` or the `OS_CLOUD_API_KEY` variable.
+
+The cloud login is separate from `os login`, which signs you in to a runtime;
+publishing always uses the cloud login.
+
+### 2. Build
+
+```bash
+os build
+```
+
+This compiles the project to one artifact, `dist/objectstack.json`: your
+objects, views, apps, dashboards, flows and any sample data. Only this artifact
+is uploaded later — never source files, `node_modules` or local credentials.
+
+### 3. Publish
+
+```bash
+os package publish
+```
+
+Run it from the project root. It registers the package in your organization
+(once, keyed by a reverse-domain package id such as `com.acme.crm`) and
+publishes the artifact as a new, immutable version. A version cannot be
+published twice: raise `manifest.version` or pass `--version`.
+
+| Flag | Purpose |
+|---|---|
+| `--manifest-id <id>` | The reverse-domain package id. Default: derived from the artifact |
+| `--version <semver>` | The version to publish. Default: `manifest.version` |
+| `--visibility <private\|org\|marketplace>` | Who can see and install it. A new package defaults to `org` on ObjectOS Cloud; leave the flag out to keep an existing package's visibility |
+| `--install` | Install the new version into an environment right away |
+| `--env <id>` | The environment for `--install`. Default: the one `os environments switch` selected |
+| `--seed-sample-data` | Include the artifact's sample data when installing |
+| `--note "<text>"` | Release notes |
+| `--submit` | Submit a `marketplace` package's new version for review |
+
+### 4. Install
+
+People install from the environment: open its **Marketplace**, find your
+package and choose **Install** — or use **Install an app** in the cloud
+console, [above](#install-an-app).
+
+A pipeline that deploys to a known environment can publish and install in one
+command:
+
+```bash
+os package publish --env <environment-id> --install --seed-sample-data
+```
+
+This is all or nothing. If the install is refused — you may not install into
+that environment, it does not exist, or the version is not approved for it —
+nothing is published: the command prints the refusal and exits non-zero, so the
+pipeline fails. Fix the cause and publish the same version again.
+
+### Marketplace listings
+
+`--visibility marketplace` makes a package eligible for the public catalog, but
+each new version still arrives as a **draft**. Pass `--submit` to send it for
+review. Private and organization packages need no review and can be installed
+by your organization at once.
+
+## Next
+
+- [Packages](/docs/build/packages) — what a package contains and how versions work.
+- [Marketplace](/docs/build/marketplace) — browsing and installing from inside an environment.
+- [CLI Reference](/docs/reference/cli) — every `os` command.

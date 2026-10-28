@@ -23,11 +23,11 @@ are not for every edition with the same icons.
 |---|---|---|---|---|
 | Delivery | Self-managed | Hosted | Hosted | Self-managed |
 | Price | Free (Apache-2.0) | Free | $24 / AI seat / month | By contract |
-| File storage | Your own ([Storage](/docs/configure/storage)) | 1 GB | 20 GB | Your own ([Storage](/docs/configure/storage)) |
-| Development environment | n/d | — (production only) | n/d | n/d |
-| MCP requests | Set by your deployment | 20 / minute, 1,000 / day | n/d | Set by your deployment |
+| File storage | Your own ([Storage](/docs/configure/storage)) | 1 GB per environment | 20 GB per environment | Your own ([Storage](/docs/configure/storage)) |
+| Development environment | As many as you deploy | — (production only) | Two, plus one per AI seat | As many as you deploy |
+| MCP requests | Set by your deployment | 20 / minute, 1,000 / day | 120 / minute, no daily cap | Set by your deployment |
 | Custom domain | Your own host | — | ✓ | Your own host |
-| Record- and field-level security | ✓ | — | n/d | ✓ |
+| Record- and field-level security | ✓ | — | ✓ | ✓ |
 | In-UI AI (AI Builder, "ask your data") | MCP only — bring your own model | Taste | ✓ | ✓ |
 | AI governance (action audit, guardrails, permission scoping) | — | — | — | ✓ |
 | Single sign-on with your identity provider | ✓ ([Authentication](/docs/configure/authentication)) | — | — | ✓ |
@@ -36,10 +36,6 @@ are not for every edition with the same icons.
 | Several organizations on one deployment | — | — | — | ✓ |
 | Air-gapped operation | — | — | — | ✓ |
 | Support | Community | Community | Standard | SLA + dedicated |
-
-**n/d** — not yet documented here. These cells are being confirmed against the
-product and will be filled in; until then, ask
-[sales@objectstack.ai](mailto:sales@objectstack.ai).
 
 On ObjectOS Cloud, single sign-on and AI governance come with **Business**, a
 contract option of ObjectOS Enterprise on the hosted service. On a self-managed
@@ -64,6 +60,13 @@ these docs already describe in detail:
   the deployment must also declare no control plane. The combinations that
   cannot work are refused at startup. See
   [Air-gapped Deployment](/docs/deploy/air-gapped).
+- **On ObjectOS Cloud, the plan is enforced per environment.** Development
+  environments are refused on Free (`403 DEV_ENV_PLAN_LOCKED`); a full
+  environment refuses attachment uploads and bulk imports, never single-record
+  writes, reads or exports (`403 STORAGE_LIMIT_REACHED`, with a warning from
+  80%); and the MCP endpoint answers `429` past the plan's request limit. See
+  [Environments](/docs/cloud/environments) and
+  [Storage and Limits](/docs/cloud/storage-and-limits).
 - **A lapsed license never stops the runtime.** Business Self-Managed switches
   its paid features off and keeps your data and runtime working; a full
   Enterprise deployment keeps the last paid version. See

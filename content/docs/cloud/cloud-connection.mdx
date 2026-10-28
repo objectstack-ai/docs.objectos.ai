@@ -1,0 +1,93 @@
+---
+title: Cloud Connection
+seoTitle: "Connect a Self-hosted ObjectOS Server to an ObjectOS Cloud Organization"
+description: Link a self-hosted ObjectOS Community or Enterprise server to your ObjectOS Cloud organization with a one-time code, so its Marketplace shows your organization's packages — and what revoking or disconnecting removes.
+editions: [community, cloud, enterprise]
+---
+
+A self-hosted ObjectOS server — Community or Enterprise — can be connected to
+an ObjectOS Cloud organization. Connected, the server's **Marketplace** shows
+your organization's own packages beside the public ones, and installs them
+with the server's own credential. You start the connection on the server and
+approve it in the cloud with a one-time code; nothing is typed into the server.
+
+The connection has two halves, and this page covers both:
+
+- **On your server** (Community, Enterprise): starting the connection, and
+  disconnecting. The full server-side reference — prerequisites, what the
+  server stores, every message the panel can show — is
+  [Cloud Connection on objectstack.ai](https://objectstack.ai/docs/deployment/cloud-connection).
+- **In your cloud organization** (Cloud): approving the request, and managing
+  the servers connected to it under **Advanced → Connected Runtimes**.
+
+## What connecting gives you
+
+- **Your organization's packages in the server's Marketplace**, under
+  "Your organization": the private and organization packages you
+  [published](/docs/cloud/apps#publish-an-environment-as-a-package), browsed and
+  installed with the server's own credential.
+- **A registration in your organization**, listed under Connected Runtimes,
+  with the server's name and version, the account that approved it, and when
+  it was connected and last used.
+
+What you do **not** need it for: browsing the public marketplace and installing
+public packages work on a server that is not connected, and installing from a
+compiled artifact never calls the cloud at all.
+
+## Connect
+
+1. **On the server**, sign in as a user with the **Manage Platform Settings**
+   permission and open **Setup → Integrations → Cloud Connection**. Choose
+   **Connect**.
+2. The server asks the cloud for a one-time code and opens the approval page
+   in a new window. The code is shown on the server's page as well.
+3. **In the cloud**, sign in to the ObjectOS Cloud account of the organization
+   the server should join, check that the code matches, and approve.
+4. The server finishes on its own: its page turns to **Connected to
+   ObjectStack Cloud** and lists the runtime, the organization, the approving
+   account and the time.
+
+The code expires if nobody approves it in time; start again from **Connect**.
+
+**Who can approve.** Any member of the organization, whatever their role. The
+server joins the approver's **active** organization: if you belong to several,
+switch to the right one in the cloud console before approving.
+
+The server needs outbound HTTPS to the cloud, and its working directory must be
+persistent storage — the connection is kept in a file there. A server that
+ObjectOS Cloud itself hosts is connected by the platform and has no Cloud
+Connection page.
+
+## Manage connected servers in the cloud
+
+**Advanced → Connected Runtimes** in the cloud console lists every server
+connected to your organization: its name, runtime version, approving account,
+status, when it was connected and when it was last used. Each row has:
+
+| Action | What it does |
+|---|---|
+| **Rename** | Changes the name shown here and on the approval page. |
+| **Revoke** | Cuts the server off at once: its credential stops working, so browsing, installing and updating your organization's packages on it fail until it is approved again. Apps already installed on the server keep running. |
+| **Remove** | For a server that is no longer connected: deletes its row. The server can always connect again, as a new device. |
+
+## Disconnect from the server
+
+On the server's **Cloud Connection** page, choose **Disconnect**. The server
+asks the cloud to revoke the connection and deletes its credential either way,
+and its Marketplace no longer shows your organization's packages.
+
+Disconnecting keeps two things:
+
+- **Everything installed.** Packages already installed on the server stay
+  installed and keep working.
+- **The server's runtime id.** Connecting again attaches to the same row in
+  Connected Runtimes rather than adding a new one.
+
+If the cloud could not be reached when you disconnected, the server still
+forgets its credential but the cloud was not told: check Connected Runtimes,
+and **Revoke** the row there.
+
+## Next
+
+- [Marketplace](/docs/build/marketplace) — installing apps on any server.
+- [Apps](/docs/cloud/apps) — publishing packages for your organization.

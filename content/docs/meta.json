@@ -10,6 +10,7 @@
     "use",
     "build",
     "configure",
+    "cloud",
     "deploy",
     "operate",
     "resources",
