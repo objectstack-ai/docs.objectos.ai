@@ -15,6 +15,10 @@ client and prove it works.
 > endpoint then returns 404 and the **Setup → Connect an Agent** page
 > disappears with it.
 
+> **On ObjectOS Cloud it is the other way round:** each environment's MCP
+> endpoint is **off until an owner or admin turns it on**, and every plan has
+> a request limit. See [On ObjectOS Cloud](#on-objectos-cloud).
+
 This page is about connecting *external* AI tools to your app. For the
 server-side AI stack — chat providers, embedders, RAG, and registering
 the MCP server plugin explicitly in code — see
@@ -176,6 +180,82 @@ fully operational.
 > [official Claude plugin](https://github.com/objectstack-ai/claude-plugin)
 > (`claude plugin marketplace add objectstack-ai/claude-plugin`), which
 > bundles the skill and a guided `/objectstack:connect` command.
+
+## On ObjectOS Cloud
+
+Everything above applies to an ObjectOS Cloud environment once its endpoint
+is on. Three things differ: the switch, the limits, and where the connection
+details live.
+
+### Turn on AI agent access
+
+Exposing an environment's data to an outside AI client is the organization's
+decision, so on ObjectOS Cloud the endpoint is **off by default**, per
+environment, on every plan (ruled on
+[cloud#1248](https://github.com/objectstack-ai/cloud/issues/1248)).
+
+1. In the cloud console, open the environment's page and its **Settings**
+   tab. Under **Access and sign-in**, the **AI agent access (MCP)** row reads
+   **Now: off**.
+2. Choose **Enable AI Agent Access** and confirm. Only the organization's
+   owners and admins are offered it.
+3. Give it a few seconds: the environment picks up the change on its own, with
+   no redeploy. The row then reads **Now: on**, and the environment's
+   **Overview** shows the same state.
+
+Once it is on, **Connect an Agent** appears inside the environment's own
+console, in two places that open the same page: **Account → Developer**, for
+every signed-in user, and **Setup → Integrations**, for users with Manage
+Platform Settings. That page shows the environment's endpoint URL — its
+address followed by `/api/v1/mcp` — a connect card per client, the skill file,
+and the API-key minter.
+
+### Connect
+
+Interactive clients use the browser sign-in described above: the agent then
+acts as **you**, inside your own permissions, row-level security and field
+access. Headless clients — CI, scripts — use an [API key](#headless-api-keys)
+minted on **Connect an Agent** in the card **API keys · headless**; a key acts
+as the person who minted it and can never be minted for someone else.
+
+### Limits
+
+Each environment's endpoint accepts a set number of requests, shared by every
+agent connected to it (ruled on
+[cloud#3203](https://github.com/objectstack-ai/cloud/issues/3203)):
+
+| Plan | Per minute | Per UTC day |
+|---|---|---|
+| Free | 20 | 1,000 |
+| Team and above | 120 | No daily cap |
+
+Past a limit the endpoint answers `429` with `Retry-After` and the code
+`RATE_LIMIT_EXCEEDED`; the message says which limit was hit and when it
+resets. What counts as a request, and the draft and authoring-write limits
+beside it, are on [Storage and Limits](/docs/cloud/storage-and-limits#mcp-limits).
+The switch is kept across a plan change, so a downgrade or upgrade never
+turns it on or off.
+
+### Turn it off
+
+In the same row, **Disable AI Agent Access** stops the environment serving the
+endpoint within seconds, cutting off every connected agent — browser sign-ins
+and API keys alike. It does not revoke anything else:
+
+- **API keys keep working for the REST API.** To retire a key itself, delete it
+  from **Account → Developer → API Keys** (your own) or **Setup → Access
+  Control → API Keys** (everyone's, with Manage Platform Settings).
+- **Browser sign-ins are not revoked**, but their tokens are accepted only by
+  the MCP endpoint, so while it is off they reach nothing.
+
+### On ObjectOS Cloud: troubleshooting
+
+| Symptom | Cause |
+|---|---|
+| No **AI agent access (MCP)** row on the environment's **Settings** | Only owners and admins of the organization see it |
+| **Connect an Agent** is in neither **Account → Developer** nor **Setup → Integrations** | AI agent access is still off, or was turned on a moment ago — reload |
+| **Connect an Agent** is under **Account → Developer** only | You lack Manage Platform Settings in that environment; the Account entry opens the same page |
+| `429` from the client | The environment's agents went past its limit; wait the `Retry-After` seconds, and look for an agent repeating the same call |
 
 ## Troubleshooting
 

@@ -1,0 +1,5 @@
+{
+  "title": "Cloud Organization",
+  "defaultOpen": false,
+  "pages": ["organization", "environments", "plans-and-seats", "ai-credits-and-limits", "storage-and-limits", "domains", "apps", "cloud-connection"]
+}

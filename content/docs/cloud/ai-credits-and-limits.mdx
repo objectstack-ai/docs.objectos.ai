@@ -1,0 +1,95 @@
+---
+title: AI Credits and Limits
+seoTitle: "ObjectOS Cloud AI Allowance: Weekly Limit, Pacing and Credit Packs"
+description: How the in-product AI is metered on ObjectOS Cloud — one allowance for building and asking, a rolling weekly limit and a five-hour pace, credit packs, the model each plan uses, and what a refusal says.
+editions: [cloud, enterprise]
+---
+
+On ObjectOS Cloud we run the AI model for you, so the in-product AI — the
+[AI Builder](/docs/build/ai-builder) and the assistant that answers questions
+about your data — draws on an **AI allowance**. On a self-managed ObjectOS
+Enterprise deployment you bring your own model instead, and none of this page's
+limits apply: see [On ObjectOS Enterprise](#on-objectos-enterprise).
+
+## One allowance for all AI work
+
+Building an app, asking about your data and running actions through the
+assistant all draw on the **same allowance**. There is no separate budget per
+kind of work. Each request draws on it in proportion to the work the model does
+for it, and a more capable model, where your plan offers a choice, draws more.
+
+The allowance is counted per **environment**. **Home** in the cloud console
+shows how much of this week's allowance has been used.
+
+## Two rolling windows
+
+Every plan has the same two limits, and both are **rolling**: usage counts for
+a fixed length of time and then drops out, so room comes back continuously
+rather than on a calendar date. Ruled on
+[cloud#2059](https://github.com/objectstack-ai/cloud/issues/2059).
+
+| Window | What it is | Free | Team and above |
+|---|---|---|---|
+| **7 days** | The budget: how much AI work fits in a week | One weekly allowance per environment; a hard limit | A larger allowance per AI seat, multiplied by the organization's AI seats; [credit packs](#buy-ai-credits) raise it |
+| **5 hours** | The pace: how much fits in a short burst, so one runaway session cannot spend the week | Applies, but sits above Free's weekly allowance | Per AI seat, multiplied by the seats; credit packs do not raise it |
+
+The exact sizes of the allowances are not published while ObjectOS Cloud is in
+[Public Preview](/docs/editions/public-preview). Free's is sized for the whole
+first experience: building an app, changing it several times, and still asking
+it questions.
+
+## When a limit is reached
+
+The request is refused with HTTP `429`, and the chat shows a message that says
+which limit it was and when it frees up:
+
+| Situation | Code | Message |
+|---|---|---|
+| Free, weekly allowance used | `AI_DESIGN_QUOTA_EXHAUSTED` | *You've used this week's free AI quota. It resets on DATE — upgrade to keep going.* |
+| Paid, weekly allowance used | `AI_ALLOWANCE_EXHAUSTED` | *Your AI allowance for this week is used up. It resets on DATE, or buy a credit pack to continue now.* |
+| Any plan, five-hour pace reached | `AI_DESIGN_QUOTA_EXHAUSTED` on Free, `AI_ALLOWANCE_EXHAUSTED` on a paid plan | *You've hit the five-hour AI usage limit. It resets within five hours — then you're good to go.* |
+
+The date is when the oldest usage still counted leaves the window; the error's
+`details.resetsAt` carries the same moment as an ISO timestamp. Nothing else in
+the environment is affected: your apps, data and integrations keep working.
+
+## Buy AI credits
+
+On a paid plan, an owner or admin can top up the weekly allowance with a
+one-off **AI credit pack**: open the environment's **Settings → Plan and
+billing**, then **AI credits** → **Buy AI Credits**. A secure checkout opens in
+a new tab.
+
+- A credit pack raises the **7-day** budget only. The five-hour pace is a rate
+  limit and no purchase lifts it.
+- Free does not take credit packs; the way past Free's weekly limit is the
+  [upgrade to Team](/docs/cloud/plans-and-seats#upgrade).
+- If credit packs are not on sale yet for your organization, the button says
+  so instead of opening a checkout.
+
+## Which model answers
+
+Every plan answers with the **same default model**: paid plans differ from
+Free by the size of the allowance, not by a stronger model. Where a choice of
+models is offered to a paid environment, the AI chat lets you pick one, and a
+more capable model draws the allowance down faster.
+
+## AI through your own client is not metered here
+
+An agent you connect over [MCP](/docs/configure/mcp) — Claude Code, Cursor and
+the like — runs on **your** model and your own tokens. It does not draw on the
+AI allowance. What bounds it is the environment's MCP request limit
+([Storage and Limits](/docs/cloud/storage-and-limits#mcp-limits)).
+
+## On ObjectOS Enterprise
+
+A self-managed Enterprise deployment brings its own model and key, configured in
+[AI Service](/docs/configure/ai), and pays its model provider directly. There
+are no platform AI credits, no allowance and no metering: the per-AI-seat fee is
+a license, not a usage bundle. How much AI work your deployment does is limited
+only by your own provider account.
+
+## Next
+
+- [Plans and AI Seats](/docs/cloud/plans-and-seats) — what each plan includes.
+- [AI Builder](/docs/build/ai-builder) — what the AI can build.

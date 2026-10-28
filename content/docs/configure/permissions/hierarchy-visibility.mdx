@@ -1,0 +1,152 @@
+---
+title: Hierarchy Visibility
+seoTitle: "Hierarchy Visibility: Let Managers See Their Reports' Records"
+description: Widen who can read a record by where the reader sits — their business unit, the units below it, or their reporting line — with the unit, unit_and_below and own_and_reports scopes.
+editions: [cloud, enterprise]
+---
+
+**Hierarchy visibility** widens which records a person can read by *where they
+sit* in the organization. A regional manager sees every record owned by anyone
+in their region; a team lead sees the records of their direct and indirect
+reports. It is set per object on a [permission set](/docs/configure/permissions/permission-sets),
+as a read (or write) **scope**.
+
+> **Where it is available.** On a self-managed ObjectOS Enterprise
+> deployment, under a license that includes the `hierarchySecurity` feature.
+> On ObjectOS Cloud, under an Enterprise contract. Everywhere else the three
+> scopes on this page grant nothing beyond the owner's own records — they never
+> fail *open*. See [Requirements](#requirements).
+
+## The three scopes
+
+`own` (the record's owner) and `org` (everyone in the organization) work in
+every edition. The three hierarchy scopes sit between them:
+
+| Scope | The reader sees records owned by | Built from |
+|---|---|---|
+| `unit` | The reader and every other member of the reader's business unit. Does not descend. | The reader's position assignments, else their unit memberships |
+| `unit_and_below` | The reader's business unit **and every unit below it** in the tree, with all their members | The business-unit tree |
+| `own_and_reports` | The reader and everyone below them on the management chain, direct and indirect | Each user's manager |
+
+A scope only ever **widens** what a person can read. It is added to sharing
+rules and record shares, never removes access someone already has, and never
+reaches past `org`. It decides *which records* a permission applies to; it
+never grants a new permission.
+
+### Example
+
+The business-unit tree has **Region**, with **Team** below it, and a sibling
+unit **Other**. Alice and Carol are in Region, Bob in Team, Dave in Other.
+Bob reports to Alice.
+
+- Alice with `unit` sees **Alice, Carol** — not Bob, not Dave.
+- Alice with `unit_and_below` sees **Alice, Carol, Bob** — Region descends into
+  Team. Dave's sibling unit stays out.
+- Bob with `unit_and_below` sees **only Bob** — a unit with nothing below it
+  does not roll *up* into its parent.
+- Alice with `own_and_reports` sees **Alice, Bob** — her report, whatever his
+  unit.
+
+## Set a scope
+
+Set `readScope` (and, if you want, `writeScope`) on an object entry of a
+permission set. Sales reps who read across their whole region:
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  opportunity: { allowRead: true, allowEdit: true, readScope: 'unit_and_below' },
+}
+```
+
+Team leads limited to their own reporting line:
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  opportunity: { allowRead: true, readScope: 'own_and_reports' },
+}
+```
+
+A stack written as code that uses a hierarchy scope must declare
+`requires: ['hierarchy-security']`; without it the stack does not build. An
+environment that cannot resolve the scopes refuses to publish metadata that
+uses them, and warns when such a draft is saved.
+
+## Which unit is yours
+
+For `unit` and `unit_and_below`, the reader's unit is taken from their
+**position assignments** first: the business unit each current assignment is
+placed in. Only a reader with no placed assignment falls back to the units they
+are a **member** of.
+
+This matters for someone who belongs to several units but manages only one.
+Alice is a member of **Region** and of a cross-functional **Project** unit, but
+her sales-manager position is assigned in Region. With `unit` she sees Region's
+members only; the Project membership does not widen what she reads.
+
+- **Several placed assignments add up**: the reader's unit is all of them.
+- **Expired assignments do not count**: an assignment outside its valid-from /
+  valid-until window stops granting that unit.
+
+See [Positions](/docs/configure/permissions/positions) for assignments and the
+business-unit tree.
+
+## What to populate
+
+The scopes read data your directory or HR source provides — through SCIM, an
+integration, or the admin screens:
+
+| Data | Used by |
+|---|---|
+| The business-unit tree (each unit's parent) | `unit_and_below` |
+| Position assignments, with their business unit and validity window | `unit`, `unit_and_below` (first choice) |
+| Business-unit memberships | `unit`, `unit_and_below` (fallback) |
+| Each user's **manager** | `own_and_reports` |
+
+Both walks are bounded to 20 levels, so a malformed tree or an accidental
+reporting cycle can never loop. Results are cached briefly per user and
+cleared whenever the tree, the memberships, the assignments or a user's
+manager change.
+
+## A reporting line stays inside one organization
+
+On a deployment with several organizations, a manager and their report must
+share at least one organization.
+
+- **Setting a manager across organizations is refused.** When the report and
+  the proposed manager both belong to organizations and share none, the write
+  is refused with `400 INVALID_REFERENCE` (`reason: 'cross-organization-manager'`)
+  — from the admin screens, the API, an import or system code alike. The fix is
+  to give the two a shared organization, or to choose a manager inside the
+  report's own organization.
+- **"Share an organization", not "the same one".** A group-level manager who is
+  a member of both the group and a plant can manage people in either.
+- **A user with no organization yet is never refused**, and never dropped from
+  a walk.
+- **Reading follows the same rule.** `own_and_reports` stops at the boundary: a
+  report who belongs only to another organization is left out, and so is
+  everyone below them.
+
+For group-level oversight, give that person a membership in the organization
+they oversee, grant a permission set with a wider scope there, or use the
+business-unit tree within one organization.
+
+## Requirements
+
+- **Self-managed ObjectOS Enterprise:** a license whose features include
+  `hierarchySecurity` (the default Enterprise feature set does). Without it,
+  the scopes behave as `own`.
+- **ObjectOS Cloud:** an Enterprise contract. On Free and Team the scopes
+  behave as `own`, and an environment refuses to publish metadata that uses
+  them.
+- **ObjectOS Community:** not available; the scopes behave as `own`.
+
+Like every Enterprise capability, losing the entitlement narrows access; it
+never stops the runtime.
+
+## Next
+
+- [Permission Sets](/docs/configure/permissions/permission-sets) — where scopes are set.
+- [Record Access](/docs/configure/permissions/record-access) — sharing rules and record shares, which scopes add to.
+- [Positions](/docs/configure/permissions/positions) — assignments and the business-unit tree.

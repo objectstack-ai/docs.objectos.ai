@@ -1,0 +1,103 @@
+---
+title: Organization and Members
+seoTitle: "ObjectOS Cloud Organization: Slug, Members, Invitations and Roles"
+description: Your ObjectOS Cloud organization — its slug, the cloud console, inviting members, the five membership roles, and why sign-in lives in the cloud rather than in an environment.
+editions: [cloud]
+---
+
+On ObjectOS Cloud everything you own belongs to an **organization**: its
+environments, its apps and packages, its plan and its members. You create it
+when you sign up ([Start on ObjectOS Cloud](/docs/start/cloud)), and you manage
+it in the **cloud console** at [cloud.objectos.ai](https://cloud.objectos.ai).
+
+## The cloud console
+
+The console's sidebar is the map of this section:
+
+| Sidebar item | What it holds | Page |
+|---|---|---|
+| **Home** | The organization at a glance: production environment, apps, members, this week's AI allowance | — |
+| **Environments** | Every environment, with its settings and lifecycle | [Environments](/docs/cloud/environments) |
+| **Members** | The people in the organization and their pending invitations | this page |
+| **Billing** | The plans compared, and the upgrade | [Plans and AI Seats](/docs/cloud/plans-and-seats) |
+| **Advanced → Connected Runtimes** | Self-hosted servers linked to this organization | [Cloud Connection](/docs/cloud/cloud-connection) |
+| **Advanced → Packages** | The packages your organization has published | [Apps](/docs/cloud/apps) |
+
+Each environment also has a console of its own, at the environment's own
+address. That is where your team uses the apps; the cloud console is where you
+manage the organization around them.
+
+## The organization slug
+
+The **slug** is the organization's short identifier, chosen at sign-up. It is
+also the address of your production environment: the slug, followed by the
+platform's domain.
+
+- 4 to 30 characters: lowercase letters, digits and dashes.
+- No dash at the start or end, and no two dashes in a row.
+- A short list of reserved words is refused (`admin`, `api`, `www`, `docs`,
+  `default` and others the platform uses itself).
+
+An owner or admin can change the slug from the organization's record with
+**Change Slug**, at most once every 90 days. Every platform subdomain of the
+organization is rewritten to the new slug, and the old slug is held for 90
+days so nobody else can take it in the meantime. Your own domains
+([Domains](/docs/cloud/domains)) are not affected by a slug change.
+
+## Members and invitations
+
+Open **Members** in the sidebar. The page has two tabs: the members, with
+their roles, and the invitations still pending.
+
+To add someone, choose **Invite members**, enter their email address and pick
+a role. They receive an invitation, and once they accept it they are a member
+of the organization.
+
+**The organization's invitation is the only way into its environments.** An
+environment has no invitation and no self sign-up of its own: everyone you
+invite here can get into the organization's environments, and what they can
+do inside one is decided by that environment's
+[permissions](/docs/configure/permissions).
+
+From the lists, whoever manages the organization can **change a member's
+role**, **remove a member**, and **resend** or **revoke** a pending invitation.
+
+## Roles
+
+A membership role decides what a person can reach in the organization. It is
+not a permission set: what someone may do with records inside an environment
+comes from that environment's [permission sets and positions](/docs/configure/permissions).
+
+| Role | What it is for | Who can invite to it |
+|---|---|---|
+| **Owner** | Full control of the organization, its plan and its environments | An owner |
+| **Admin** | Manages the organization: members, environments, billing | An owner or admin |
+| **Delegated Admin** | Can reach the invitation endpoint without being an admin; where they may place people comes from an admin scope granted separately | An owner or admin |
+| **Member** | Uses the organization's environments and apps | Anyone who can invite |
+| **External** | A portal user — a supplier's or a customer's — who sees only their own rows and what is explicitly shared with them; never part of the business-unit tree | Anyone who can invite |
+
+Owners and admins are the people this section means by "whoever manages the
+organization": they see the plan, the upgrade and the environment actions that
+change something. A plain member sees the environments and opens them, but is
+not offered actions they could not complete.
+
+## Where sign-in lives
+
+On ObjectOS Cloud every account is a cloud account. ObjectOS Cloud signs a
+person in, and the environment receives them: what an environment holds for
+each person is **authorization only** — their positions, permission sets and
+sharing. Every hosted environment uses this single sign-in by default, on every
+plan, so people sign in once with their ObjectOS Cloud account and move between
+environments.
+
+**Taking an environment to your own infrastructure.** Because the accounts
+live in ObjectOS Cloud and not in the environment, they do not travel with it.
+On a self-managed deployment you either issue people new credentials there, or
+bind it to your own identity provider so they sign in through it — see
+[Authentication](/docs/configure/authentication).
+
+## Next
+
+- [Environments](/docs/cloud/environments) — production and development, and their lifecycle.
+- [Plans and AI Seats](/docs/cloud/plans-and-seats) — what Free, Team and Enterprise each include.
+- [Permissions](/docs/configure/permissions) — what members can do inside an environment.

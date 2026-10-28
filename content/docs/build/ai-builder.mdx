@@ -1,134 +1,93 @@
 ---
 title: AI Builder
 seoTitle: "AI Builder: Build Apps from Plain-Language Chat"
-description: The built-in chat that turns plain-language requirements into running metadata.
+description: The built-in chat that turns plain-language requirements into running metadata, and the assistant that answers questions about your data — how each works, what tools they call, and how changes are approved.
 editions: [cloud, enterprise]
 ---
 
 The AI Builder is the **primary way customers extend ObjectOS**. Open
-ObjectOS, talk to the assistant in plain language, and it builds the
-metadata for you — packages, objects, fields, actions, flows. Every
-change is queued in a Human-in-the-Loop (HITL) approval list before it
-goes live.
+ObjectOS, describe what you need in plain language, and it builds the
+metadata for you — objects, fields, views, dashboards, flows, whole apps.
+Nothing is built until you approve the plan, and everything it builds is
+ordinary ObjectStack metadata you can read, change and package.
 
-## Try it in 30 seconds
+## Two agents: the Builder and the Assistant
+
+ObjectOS ships two AI agents. You do not choose between them: **where you
+ask** decides which one answers.
+
+| | **Builder** (`build`) | **Assistant** (`ask`) |
+|---|---|---|
+| Where | The AI Builder, in the app-building surface | The chat in the data console, beside your records |
+| What it does | Designs and changes the **app**: objects, fields, views, dashboards, flows | Answers questions about your **data**, draws charts, and runs the actions your app exposes |
+| What it never does | — | Change the application. A build request that reaches it is declined and pointed to the Builder, never silently re-routed |
+
+Both run **as the signed-in person**. Every tool call is checked against that
+person's permissions, record access and field-level security, so the AI can
+never see or change more than they could themselves.
+
+**Who can use the Builder.** An AI seat alone is not enough: the Builder changes
+your app's metadata, so it also needs the `manage_metadata` or `studio.access`
+permission. A member without either sees only the Assistant, a direct request
+to the Builder is refused with `403 PERMISSION_DENIED`, and every build tool
+checks the permission again when it runs.
+
+## Try it
 
 ```
 You: I need to track customer support tickets.
      Each ticket has a subject, description, priority (low/medium/high/urgent),
      status (new/open/pending/resolved/closed), and assignee.
 
-AI:  I'll create that for you. Here's the plan:
-     • Create package `com.you.support` (v0.1.0)
-     • Create object `support_ticket` with 5 fields
-     • Add a kanban view grouped by status
-     • Add 3 permission sets: agent, manager, viewer
+AI:  Here's the plan:
+     • Object `support_ticket` with 5 fields
+     • A kanban view grouped by status
+     • A dashboard of open tickets by priority
+     • A few sample tickets to try it with
 
-     Approve? [Yes] [Modify] [Cancel]
+     Shall I build it?
 
-You: [Yes]
+You: Yes
 
-AI:  ✓ Package created
-     ✓ Object created with 5 fields and 12 indexes
-     ✓ Kanban view registered
-     ✓ Permission sets created
-     Done. Try it: /support_ticket
+AI:  ✓ Object created
+     ✓ Kanban view and dashboard created
+     ✓ Sample data added
+     Published — open Support Tickets to try it.
 ```
 
 You now have a working ticketing app — REST endpoints, generated views,
 audit log entries, permission checkpoints, the works. No file was
 edited; no restart happened.
 
-## What the AI can do
+## How a build runs
 
-The assistant has access to a set of **built-in metadata tools**, all
-namespaced and validated against `@objectstack/spec`:
+1. **Plan.** For anything larger than a single change — "build me a recruiting
+   system" — the Builder first proposes a **blueprint**: the objects, fields,
+   relationships, views, dashboards and sample data it intends to create, with
+   its assumptions. Nothing is created at this step.
+2. **Approve.** You answer in the chat: approve it, or ask for changes and get a
+   revised plan. The Builder makes changes only after you approve them in that
+   conversation.
+3. **Build as drafts.** The approved changes are written as **drafts** — staged,
+   not yet live.
+4. **Verify.** The Builder checks the drafts against the platform's rules and
+   fixes what it can before anything goes live.
+5. **Publish.** The drafts are published into the environment you are building
+   in, and the app appears there with its sample data. A status panel shows
+   what has actually been published; the Builder never reports a change as
+   shipped when it is not.
 
-| Category | Tool | What it does |
-|---|---|---|
-| **Packages** | `create_package` | New container with manifest + version |
-| | `list_packages` | Browse existing packages |
-| | `get_package` / `get_active_package` | Inspect contents |
-| | `set_active_package` | Pick the working package for the conversation |
-| **Objects** | `create_object` | New object with initial fields |
-| | `list_objects` | Browse objects in active package |
-| | `describe_object` | Print schema, fields, relationships |
-| **Fields** | `add_field` | Add a typed field (common [field types](/docs/reference/field-types)) |
-| | `modify_field` | Change label, picklist options, validation |
-| | `delete_field` | Remove a field (with safety check) |
-| **Data** | `query_data` | Read records via ObjectQL |
-| **Actions / Knowledge** | `action_<name>`, `search_knowledge` | Invoke the actions exposed to AI, RAG over docs |
-
-Plus one `action_<name>` tool for each action its author **exposed to
-AI** — `ai: { exposed: true }` with an `ai.description` of at least 40
-characters, on a type that runs without a UI (`script`, `flow` or `api`).
-Once an action is exposed, the AI can call it like any built-in tool; an
-action that is not exposed never becomes one. See
-[Actions](/docs/build/interface/actions#from-an-ai-agent).
-
-See the full tool catalog at runtime: `GET /api/v1/ai/tools`.
-
-## Human-in-the-Loop approval
-
-Tool calls that **mutate metadata** route through a pending-action
-queue. Approving operators see the proposed change diff before
-clicking *Approve*.
-
-| Endpoint | Purpose |
-|---|---|
-| `GET  /api/v1/ai/pending-actions` | List queued actions (filter by status) |
-| `GET  /api/v1/ai/pending-actions/:id` | Diff for a single proposed action |
-| `POST /api/v1/ai/pending-actions/:id/approve` | Apply the change |
-| `POST /api/v1/ai/pending-actions/:id/reject` | Discard with reason |
-
-Required permissions:
-
-| Action | Permission |
-|---|---|
-| Read queue | `ai:read` |
-| Approve / reject | `ai:approve` |
-
-Default: only members of **Setup Administrator** have `ai:approve`.
-You can decompose finer in [Permission Sets](/docs/configure/permissions/permission-sets) — e.g.
-"product owners can approve in `com.acme.crm`, nobody else."
-
-The queue is auditable: every approve/reject lands in
-`sys_audit_log` with the originating conversation id.
-
-## Conversations and context
-
-Each chat is an `ai_conversations` record. The platform tracks:
-
-- **Active package** — set by `set_active_package`. New objects /
-  fields land here.
-- **Skills** — the slice of tools available for the current context
-  (e.g. inside `support_ticket` detail page, the AI may have
-  `support_ticket`-scoped skills enabled).
-- **Knowledge** — RAG topics + indexes attached to the conversation.
-
-```text
-POST /api/v1/ai/assistant/chat
-{
-  "messages": [{ "role": "user", "content": "Add a tags field to support_ticket" }],
-  "context":  { "objectName": "support_ticket", "recordId": "tkt_123" }
-}
-```
-
-The platform resolves the default Agent for the active application,
-filters the skill set by context, and lets the LLM pick which tool to
-call. You don't pre-wire agents into specific UIs — the agent attaches
-itself based on metadata.
+To extend an existing app, say so — *"add a satisfaction survey to the support
+app"* — and the Builder designs the new pieces to link to that app's objects and
+adds them to its navigation, instead of building a separate app.
 
 ## What you can ask for
-
-Verified patterns, with one-liner prompts:
 
 | Goal | Prompt |
 |---|---|
 | New object | *"Create a `product` object with name, sku, price, category."* |
 | Add field | *"Add a `discount` decimal field to `order`, max 50."* |
 | Picklist change | *"On `task.status`, add 'blocked' between 'open' and 'done'."* |
-| Index | *"Index `order` by status + created_at for the dashboard."* |
 | Relationship | *"Make `order_line` master-detail to `order`."* |
 | Validation | *"On `invoice`, the discount can't exceed the subtotal."* |
 | Flow | *"When a high-priority ticket sits in 'new' for 30 minutes, notify the manager."* |
@@ -136,43 +95,103 @@ Verified patterns, with one-liner prompts:
 | Permission set | *"Create `agent` permission set with read/create/edit on support_ticket and read on customer."* |
 | Translation | *"Translate the support_ticket labels and picklists to Spanish."* |
 
-If the AI can't do it, it says so — and points you at the manual path
-(usually a 30-line `*.ts` file or a form).
+If the AI can't do it, it says so — and points you at the manual path.
 
-## Live preview
+## The tools the agents call
 
-After each approved change, ObjectOS re-renders the affected views in
-place. No reload needed. The runtime hot-loads the touched package's new
-metadata; subsequent requests use it.
+An agent's abilities are its tools. See the live catalog for an environment
+at `GET /api/v1/ai/tools`.
 
-## Roll back
+**The Builder's authoring tools** work on [packages](/docs/build/packages) and
+their metadata, and are validated against `@objectstack/spec`:
 
-Pending-action records keep the **before state**. If a change goes
-wrong, reject any in-flight items and ask the AI:
+| Area | Tools |
+|---|---|
+| Plans | `propose_blueprint`, `apply_blueprint` |
+| Packages | `create_package`, `list_packages`, `get_package`, `get_active_package`, `set_active_package` |
+| Objects | `create_object`, `list_objects`, `describe_object` |
+| Fields | `add_field`, `modify_field`, `delete_field` |
 
+**The Assistant's data tools** read and act on records:
+
+| Tool | What it does |
+|---|---|
+| `query_records` | Query an object with filters, field selection, sort and paging. Each record comes back with its `id`, so an answer can link the records it names. |
+| `get_record` | Fetch one record by id. |
+| `aggregate_data` | Server-side `count`, `sum`, `avg`, `min`, `max` and `count_distinct`, optionally grouped and filtered. |
+| `query_data` | Answer a plain-language request: it finds the relevant object, writes the query, runs it and returns the records. |
+| `visualize_data` | The one tool that draws a chart: it aggregates an object by a dimension over one or more measures and draws a bar, column, horizontal-bar, line, area, pie, donut, radar or scatter chart in the chat. The axis shows display values — option labels, record names — in the chat's language. Needs the environment's analytics service. |
+| `search_knowledge` | Search your registered knowledge sources (record snapshots, files, URLs). Results are already filtered to what the person may see. Present when a knowledge service is set up. |
+| `action_<name>` | Run one of your app's business actions, exposed to AI (below). |
+
+`aggregate_data` is part of the in-product AI. An agent connected from outside
+over [MCP](/docs/configure/mcp) gets its own tool set, described there.
+
+## Actions as tools
+
+An action becomes a tool named `action_<name>` when its author **exposes it to
+AI** — `ai: { exposed: true }` with an `ai.description` of at least 40
+characters, on a type that runs without a UI (`script`, `flow` or `api`).
+Once exposed, the AI can call it like any built-in tool, under the caller's
+permissions; an action that is not exposed never becomes one. See
+[Actions](/docs/build/interface/actions#from-an-ai-agent).
+
+**Approval before an action runs.** An action that declares
+`ai.requiresConfirmation: true` — or looks destructive without declaring
+otherwise — is not run straight away. The AI files it as a **pending action**,
+and it runs only when approved:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET  /api/v1/ai/pending-actions` | List your pending actions (filter by status) |
+| `GET  /api/v1/ai/pending-actions/:id` | One of your pending actions |
+| `POST /api/v1/ai/pending-actions/:id/approve` | Approve and run it |
+| `POST /api/v1/ai/pending-actions/:id/reject` | Reject it, with an optional reason |
+
+A pending action belongs to the person whose conversation proposed it: only
+they can read, approve or reject it. Anyone else, an administrator included,
+is answered as if it did not exist.
+
+## Chatting through the API
+
+Send a conversation to an agent by name, `ask` or `build`:
+
+```bash
+curl -X POST https://your-environment-host/api/v1/ai/agents/ask/chat \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{ "role": "user", "content": "How many open opportunities over $50k?" }],
+    "context": { "appName": "crm", "objectName": "opportunity" }
+  }'
 ```
-You: Roll back the last 3 changes to support_ticket.
-AI:  Found 3 mutations from conversation conv_abc (3 minutes ago).
-     Restoring 'support_ticket' to its state at 13:42:11.
-     Approve? [Yes]
-```
 
-For larger rollbacks, use [`os diff`](/docs/reference/cli) against
-your last known-good artifact and apply the reverse diff.
+- **`messages`** — the conversation so far. Only `user` and `assistant` turns
+  are accepted from the client.
+- **`context`** — where the person is: `appName`, `objectName`, `viewName`,
+  `recordId`. Skills use it to decide what is relevant.
+- **`conversationId`** (optional) — continue an existing conversation.
 
-## Limitations (today)
+Answers **stream** by default as Server-Sent Events (the Vercel AI data stream
+protocol, `x-vercel-ai-ui-message-stream: v1`); charts arrive in the stream as
+`data-chart` parts. Send `"stream": false` for a single JSON answer instead.
 
-- **Data access follows the operator's own permissions.** The
-  assistant runs as the signed-in user, so it can only read or write
-  records that user is already allowed to touch. Most teams keep the
-  assistant focused on metadata and let it query — not mutate —
-  customer data.
-- **Cross-package mutations require explicit confirmation.** Asking
-  the AI to modify a system package (`sys_*`) returns a rejection
-  message — the platform refuses on principle.
-- **Long-running multi-step plans** (e.g. "build a full HR app from
-  scratch") work but are best done as a series of smaller
-  conversations, each landing one or two objects.
+Conversations are kept under `/api/v1/ai/conversations`, and each person sees
+only their own.
+
+## Limits
+
+- **Data access follows the person's own permissions**, for reading and for
+  actions alike.
+- **System packages are off limits.** Asking the AI to change a system package
+  (`sys_*`) is refused.
+- **Large builds go better in steps.** "Build a full HR app" works, but a
+  series of smaller conversations, each landing one area, is easier to review.
+- **On ObjectOS Cloud**, the AI draws on the environment's
+  [AI allowance](/docs/cloud/ai-credits-and-limits), and an environment holds at
+  most 500 unpublished drafts ([Storage and Limits](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)).
+  On a self-managed Enterprise deployment the model is your own, configured in
+  [AI Service](/docs/configure/ai).
 
 ## Going beyond build-time AI
 
@@ -185,4 +204,5 @@ the same Agent → Skill → Tool architecture. See [Agents](/docs/build/agents)
 - [Agents](/docs/build/agents) — end-user assistants on top of your data
 - [Data Model](/docs/build/data) — what the AI is actually generating
 - [Actions](/docs/build/interface/actions) — the unit the AI exposes as runtime tools
+- [AI Credits and Limits](/docs/cloud/ai-credits-and-limits) — the AI allowance on ObjectOS Cloud
 - [AI Service](/docs/configure/ai) — provider config (OpenAI / Anthropic / Google / DeepSeek / …)
