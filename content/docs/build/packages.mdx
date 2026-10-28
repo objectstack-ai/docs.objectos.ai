@@ -117,6 +117,21 @@ Installing below). See [Marketplace](/docs/build/marketplace).
 > [Environment Variables](/docs/reference/environment-variables) before copying
 > either name into a deployment's configuration.
 
+## Two developer routes on ObjectOS Cloud
+
+A developer gets changes into a hosted environment one of two ways:
+
+| | Package publish | MCP build |
+|---|---|---|
+| How | Build in source, then `os package publish` and install from the **Marketplace** | Your own agent, connected over [MCP](/docs/configure/mcp#build-with-an-agent) with the `metadata:write` scope, builds in the environment |
+| What lands | A **versioned** package, installed whole | **Drafts** in the environment, which a person publishes in Studio → **Changes** |
+| What it can build | Everything the environment runs, including scripts, webhooks and API-triggered flows | What the environment's AI build offers: data model, interface, sample data, app shell, record- and button-started flows, no-code actions |
+| Best for | Releases: the same version in several environments, review in your repository, the Marketplace | Iteration: trying a change in one environment and seeing it in the app |
+
+Use the MCP build to shape an app quickly, and a package once it needs a
+version: to ship it to another environment or organization, to keep it in a
+repository, or to carry metadata the MCP build does not offer.
+
 ## Installing
 
 Installing is an **in-environment** action — distinct from publishing. You
