@@ -1,8 +1,8 @@
 ---
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 審批流程
-seoTitle: "審批流程：把記錄路由給人籤核"
-description: 把記錄路由給人籤核 —— 同時不讓自動化悄悄繞過行級安全。
+seoTitle: "審批流程：把記錄路由給人簽核"
+description: 把記錄路由給人簽核 —— 同時不讓自動化悄悄繞過行級安全。
 editions: [community, cloud, enterprise]
 translation:
   source_sha: e03dd11f32910f971d7514f12aab8e3c2ac1eceb25966b2b4162185eb062a521
@@ -95,7 +95,7 @@ translation:
 > `approval-approver-type-deprecated`）；如果 value 指的是組織崗位，修復方法
 > 是 `type: 'position'`。
 
-### 法定人數和分組會籤（16.0） [#quorum-and-per-group-sign-off-160]
+### 法定人數和分組會簽（16.0） [#quorum-and-per-group-sign-off-160]
 
 除了 `first_response` 和 `unanimous`，16.0 新增了兩種聚合模式。
 **法定人數（quorum）**在獲得 N 中 M 個批准時定案：
@@ -113,7 +113,7 @@ config: {
 }
 ```
 
-**分組（per_group）**要求*每個*帶標籤的分組都籤核（會籤）—— 用 `group`
+**分組（per_group）**要求*每個*帶標籤的分組都簽核（會簽）—— 用 `group`
 給審批人打標籤，只有當每個分組都獲得 `minApprovals` 個批准（預設每組 1 個）
 時，節點才會前進：
 
@@ -164,7 +164,7 @@ config: {
 `'department'` / `'position'` / `'team'`），它說明表示式返回的是哪種 id，
 並通過靜態審批人型別所用的同樣的圖查詢展開每一個 id。在
 `behavior: 'per_group'` 下，每個返回值構成自己的分組 —— 每個返回的部門
-各需一次籤核。
+各需一次簽核。
 
 `record` 和裸欄位名被有意設為**不可用**：在平臺的其他所有介面上，`record`
 的含義都是"事件發生時的記錄"，在這裡複用它會悄悄地把兩個時間點之一混淆

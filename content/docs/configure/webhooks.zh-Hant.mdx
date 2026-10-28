@@ -40,7 +40,7 @@ X-Objectstack-Delivery:  <delivery id — use as your idempotency key>
 X-Objectstack-Attempt:   <attempt number, starting at 1>
 ```
 
-當 webhook 訂閱設定了 `secret` 時，ObjectOS 還會為每個請求籤名：
+當 webhook 訂閱設定了 `secret` 時，ObjectOS 還會為每個請求簽名：
 
 ```text
 X-Objectstack-Signature: sha256=<hex hmac>
