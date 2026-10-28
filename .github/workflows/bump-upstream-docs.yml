@@ -1,0 +1,152 @@
+name: Bump upstream docs pin
+
+# Moves ONE upstream pin — `.objectstack-sha` or `.cloud-sha` — and opens a
+# pull request whose body lists the upstream commits and changed paths since
+# the previous pin. That body is the alignment review's input: the site is
+# checked against a bounded diff instead of a periodic re-read of both corpora.
+# The rules for when each pin moves, and what the body lists, are in the header
+# of `.github/scripts/bump-upstream-pin.mjs`; AGENTS.md has the short form.
+#
+#   objectstack  on a published `@objectstack/cli` release. With no `sha`, the
+#                run pins the commit tagged with npm's `latest` release.
+#   cloud        after a successful cloud production deploy, to the commit that
+#                deploy serves. `sha` is required; the run refuses without it.
+#
+# Triggers: `workflow_dispatch` by hand, or `repository_dispatch` of type
+# `bump-upstream-docs` with `client_payload: { upstream, sha }` — the shape a
+# deploy or release workflow elsewhere sends. On a pull request that touches the
+# pins, the helper or this file, the `pins` job runs the helper's self-test and
+# checks both pin files.
+#
+# ⛔ One secret, `UPSTREAM_BUMP_TOKEN`, and the bump refuses to start without
+# it. It is used for two things `GITHUB_TOKEN` cannot do here:
+#   - read `objectstack-ai/cloud`, a private repository (contents: read there);
+#   - push the bump branch and open the pull request (contents: write and
+#     pull-requests: write here). A pull request opened with `GITHUB_TOKEN`
+#     starts no `pull_request` workflows — GitHub suppresses them to prevent
+#     recursive runs — so CI would never run on the bump, and whether this
+#     repository lets Actions open pull requests at all is a repository setting.
+
+on:
+  workflow_dispatch:
+    inputs:
+      upstream:
+        description: Which pin to move
+        type: choice
+        options: [objectstack, cloud]
+        required: true
+      sha:
+        description: >-
+          Full 40-character commit SHA to pin. Required for cloud (the commit its
+          production deploy serves). Leave empty for objectstack to pin npm's
+          latest @objectstack/cli release.
+        type: string
+        required: false
+  repository_dispatch:
+    types: [bump-upstream-docs]
+  pull_request:
+    branches: [main]
+    paths:
+      - '.objectstack-sha'
+      - '.cloud-sha'
+      - '.github/scripts/bump-upstream-pin.mjs'
+      - '.github/workflows/bump-upstream-docs.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  pins:
+    name: Upstream pins are well-formed
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Self-test
+        run: node .github/scripts/bump-upstream-pin.mjs --self-test
+
+      - name: Both pin files hold a full SHA or the placeholder
+        run: node .github/scripts/bump-upstream-pin.mjs --check
+
+  bump:
+    # A static name: a skipped job's name is never evaluated, so an expression
+    # here shows up verbatim as a check on every pull request that runs `pins`.
+    name: Bump an upstream pin
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    # Two bumps of one upstream would both diff from the same old pin.
+    concurrency:
+      group: bump-upstream-docs-${{ inputs.upstream || github.event.client_payload.upstream }}
+      cancel-in-progress: false
+    # Event values reach the scripts as environment variables only, never
+    # interpolated into a `run:` body; the helper validates both.
+    env:
+      UPSTREAM: ${{ inputs.upstream || github.event.client_payload.upstream }}
+      SHA: ${{ inputs.sha || github.event.client_payload.sha }}
+    steps:
+      - name: Require UPSTREAM_BUMP_TOKEN
+        env:
+          UPSTREAM_BUMP_TOKEN: ${{ secrets.UPSTREAM_BUMP_TOKEN }}
+        run: |
+          if [ -z "$UPSTREAM_BUMP_TOKEN" ]; then
+            echo "::error title=NOT CONFIGURED::The repository secret UPSTREAM_BUMP_TOKEN is not set. It needs contents: read on objectstack-ai/cloud and contents: write + pull-requests: write on this repository. GITHUB_TOKEN is not a substitute: it cannot read cloud, and a pull request it opens runs no CI."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Self-test
+        run: node .github/scripts/bump-upstream-pin.mjs --self-test
+
+      - name: Move the pin and write the pull-request body
+        id: bump
+        shell: bash
+        env:
+          UPSTREAM_TOKEN: ${{ secrets.UPSTREAM_BUMP_TOKEN }}
+        run: |
+          args=(--upstream "$UPSTREAM" --body "$RUNNER_TEMP/body.md" --git-dir "$RUNNER_TEMP/upstream.git")
+          if [ -n "$SHA" ]; then args+=(--sha "$SHA"); fi
+          node .github/scripts/bump-upstream-pin.mjs "${args[@]}"
+          if [ -f "$RUNNER_TEMP/body.md" ]; then cat "$RUNNER_TEMP/body.md" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Open the pull request
+        if: steps.bump.outputs.changed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.UPSTREAM_BUMP_TOKEN }}
+          LABEL: ${{ steps.bump.outputs.label }}
+          SHORT: ${{ steps.bump.outputs.short }}
+          TITLE: ${{ steps.bump.outputs.title }}
+        run: |
+          set -euo pipefail
+          branch="bump-upstream-docs/${LABEL}-${SHORT}"
+          # The token rides in GIT_CONFIG_* (masked), never on a command line.
+          basic=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          echo "::add-mask::$basic"
+          export GIT_CONFIG_COUNT=1
+          export GIT_CONFIG_KEY_0=http.https://github.com/.extraheader
+          export GIT_CONFIG_VALUE_0="AUTHORIZATION: basic $basic"
+          if git ls-remote --exit-code --heads origin "$branch" > /dev/null; then
+            echo "::error::Branch $branch already exists — a bump to this commit was already pushed. Review or close its pull request instead of bumping again."
+            exit 1
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git switch -c "$branch"
+          git add -- ".${LABEL}-sha"
+          git commit -m "$TITLE"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" --title "$TITLE" --body-file "$RUNNER_TEMP/body.md"

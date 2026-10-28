@@ -106,6 +106,14 @@
  * `npm ci --prefix .github/scripts/doc-samples` first, and says so rather than
  * passing when the install is missing. That package's `package-lock.json` sits
  * under `.github/scripts/`, so a spec bump moves this task's hash.
+ *
+ * `bump-upstream-pin.mjs` is listed for its `--self-test` only. Its bump mode
+ * fetches an upstream repository and opens nothing by itself; it runs in
+ * `bump-upstream-docs.yml`, which is dispatched, never run on a pull request.
+ * Its fixtures are inline pin files and commit lists. They prove that a
+ * malformed pin or SHA is refused, that the same commit bumps nothing, and that
+ * the pull-request body stays inside GitHub's size limit with every upstream
+ * reference inside a fence.
  */
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -130,6 +138,7 @@ const SELF_TESTED = [
   'check-positioning.mjs',
   'check-search-locales.mjs',
   'check-doc-samples.mjs',
+  'bump-upstream-pin.mjs',
 ];
 
 /**
