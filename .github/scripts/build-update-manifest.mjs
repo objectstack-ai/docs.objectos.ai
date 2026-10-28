@@ -28,7 +28,7 @@ if (!artifactsDir || !tag) {
   process.exit(2);
 }
 
-const REPO = process.env.GITHUB_REPOSITORY ?? 'objectstack-ai/objectos';
+const REPO = process.env.GITHUB_REPOSITORY ?? 'objectstack-ai/docs.objectos.ai';
 const version = tag.replace(/^[^0-9]*/, '');
 
 function* walk(dir) {

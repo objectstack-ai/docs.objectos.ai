@@ -1,15 +1,15 @@
 {
   "title": "服务条款",
   "description": "ObjectOS 各版本的许可方式、本站内容采用的 Apache-2.0 许可、ObjectOS 商标，以及自管部署的责任归属。",
-  "updated": "最近更新：2026 年 10 月 6 日",
+  "updated": "最近更新：2026 年 10 月 26 日",
   "body": [
     {
       "heading": "许可",
-      "text": "ObjectOS 是商业产品，没有开源版本。你对 ObjectOS 的使用，受你所使用版本（ObjectOS Cloud 或 ObjectOS Enterprise）的许可协议或服务协议约束。本文档站点所在仓库的内容（文档与站点代码）以 Apache License 2.0 授权；开源的 ObjectStack 框架及其运行时在其自己的仓库中以 Apache License 2.0 授权。\"ObjectOS\" 名称与 Logo 为 ObjectStack AI LLC 的商标，不在 Apache 2.0 的授权范围内 —— 详见仓库内的 TRADEMARK.md。"
+      "text": "ObjectOS 是一个产品，分为三个版本。ObjectOS Community 是开源的运行时与 Console，与其所基于的 ObjectStack 框架一起，在 objectstack-ai/objectstack 仓库中以 Apache License 2.0 授权。你对 ObjectOS Cloud 或 ObjectOS Enterprise 的使用，受该版本的服务协议或许可协议约束。本文档站点所在仓库的内容（文档与站点代码）以 Apache License 2.0 授权。\"ObjectOS\" 名称与 Logo 为 ObjectStack AI LLC 的商标，不在 Apache 2.0 的授权范围内 —— 详见仓库内的 TRADEMARK.md。"
     },
     {
       "heading": "自托管部署",
-      "text": "当你在自己的基础设施中自管运行 ObjectOS（ObjectOS Enterprise）时，该部署的运行、安全、可用性、备份与合规性，完全由你自行负责；除你的商业协议明文约定外，ObjectStack AI LLC 对该部署不提供任何保证。若你自托管的是开源的 ObjectStack 运行时，则其以 Apache License 2.0 授权，除该许可证明文约定外，ObjectStack AI LLC 不提供任何保证。"
+      "text": "当你在自己的基础设施中自管运行 ObjectOS（ObjectOS Enterprise）时，该部署的运行、安全、可用性、备份与合规性，完全由你自行负责；除你的商业协议明文约定外，ObjectStack AI LLC 对该部署不提供任何保证。若你自托管的是 ObjectOS Community，则其以 Apache License 2.0 授权，除该许可证明文约定外，ObjectStack AI LLC 不提供任何保证。"
     },
     {
       "heading": "托管服务",

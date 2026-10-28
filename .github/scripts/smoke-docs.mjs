@@ -412,7 +412,7 @@ async function fetchTarget(base, path, { attempts, timeoutMs, fetchImpl }) {
         signal: controller.signal,
         headers: {
           'Accept-Language': 'en',
-          'User-Agent': 'objectos-smoke-docs (+https://github.com/objectstack-ai/objectos)',
+          'User-Agent': 'objectos-smoke-docs (+https://github.com/objectstack-ai/docs.objectos.ai)',
         },
       });
       const body = await response.text();
