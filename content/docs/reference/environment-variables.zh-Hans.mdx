@@ -1,0 +1,209 @@
+---
+title: 环境变量
+seoTitle: "自托管部署的环境变量"
+description: 自管理 ObjectOS 部署（Community 或 Enterprise）的环境契约 —— 每个变量决定什么、哪个版本读取它、哪些组合会在启动时失败，以及哪些名称已经退役。
+editions: [community, enterprise]
+translation:
+  source_sha: 470c8ef488571d10b3f0c678d447ccf97b2f06c6c29ef0f48515b291169ecb2c
+  guide_rev: 1
+  mode: auto
+---
+
+环境变量承载的是**部署级**的决策：运行哪个镜像、数据存放在哪里，以及这个部署有权
+成为什么。任何租户或管理员应该能在部署运行期间修改的东西，都应该放在系统设置中。
+
+本页是**契约** —— 每个变量决定什么，以及当两个变量相互矛盾时会发生什么。**版本**列
+说明哪个镜像读取它：
+
+- **两者** —— 开放的 Community 镜像 `ghcr.io/objectstack-ai/objectstack`，以及需
+  许可证的 Enterprise 镜像，两者都读取。
+- **企业版** —— 只有 Enterprise 镜像，或随它发布的部署包读取。
+
+在 Community 上，[Docker](/docs/deploy/docker) 展示了要设置的值。在 Enterprise 上，
+**你要复制的值**位于随你的版本发布的部署包中：一个带注释的模板，你把它复制为 `.env`
+再编辑。那个模板固定在你的版本上；本页则不是。两者不一致时，以随你的镜像发布的模板
+为准。
+
+> **命名。**ObjectOS 自有的变量使用 `OS_` 前缀。少数 1.0 之前不带前缀的名称仍然
+> 可用，并会发出一次性的弃用警告 —— 参见[旧名称](#legacy-names)。在你使用记忆中的
+> 某个名称之前，还有另外两组值得了解：[已退役的名称](#retired-names)，它们不被任何
+> 东西读取，或者会直接拒绝启动；以及仍可解析的旧名称。
+
+## 每个部署都要做的决策 [#the-decisions-every-deployment-makes]
+
+| 变量 | 版本 | 决定 |
+|---|---|---|
+| `OS_EE_IMAGE` | 企业版 | 运行哪个镜像。由捆绑的 Compose 技术栈读取，而不是由运行时读取。固定**摘要**，绝不用标签 —— 参见 [Docker](/docs/deploy/docker)。 |
+| `OS_AUTH_SECRET` | 两者 | 用于签名会话的基础密钥。未设置时，登录端点会被跳过，服务器在没有认证的情况下运行。必须在**每个副本上完全相同**。轮换它会使所有现有会话失效。 |
+| `OS_DATABASE_URL` | 两者 | 部署所运行的数据库。未设置时，运行时会在其主目录下写一个 SQLite 文件，容器会随文件系统一起丢失它。在生产环境中，把它指向你托管的 PostgreSQL —— 在 Enterprise 上，还要移除捆绑的数据库服务。 |
+| `OS_SECRET_KEY` | 两者 | 每个存储的密钥都用它加密：加密的设置、`secret` 字段、数据源凭据。未设置时，运行时会自行生成一个并保存在自己的文件系统上，容器重启就会丢失它。把它设为一个 32 字节的值（`openssl rand -hex 32`），保存在你的密钥管理器中，并与数据库一起备份。在多个副本上它是**必需的**，并且在每个副本上都必须是*同一个*值 —— 参见[多节点](#multi-node)。 |
+| `OS_DB_USER`、`OS_DB_PASSWORD`、`OS_DB_NAME` | 企业版 | 为出厂 Compose 技术栈中**捆绑的**数据库服务进行配置。`OS_DATABASE_URL` 中的凭据必须与它们一致。一旦使用托管数据库，它们就无关紧要了。 |
+| `AI_GATEWAY_API_KEY` | 企业版 | "问你的数据" Agent 背后的 AI 提供商凭据。 |
+
+## 许可证和云端姿态 [#license-and-cloud-posture]
+
+这两个是一对。只设置其中一个而不看另一个，是本页上代价最高的错误，因为不受支持的
+组合会**在启动时被拒绝**，而不是降级运行。
+
+| 变量 | 版本 | 决定 |
+|---|---|---|
+| `OS_LICENSE_KEY` | 企业版 | 部署的授权。许可证还有一个**模式** —— 普通许可证针对控制平面在线校验；物理隔离许可证在本地校验，完全没有网络流量。模式是你被签发的许可证的属性，而不是在这里配置的东西。 |
+| `OS_CLOUD_URL` | 两者 | 这个部署是否有控制平面，以及是哪一个。`off`（及其别名 `none`、`local`、`disabled`）表示**没有控制平面**：没有市场，也没有许可证校验。 |
+
+在 Community 上没有许可证，所以 `OS_CLOUD_URL` 只决定部署是否连接到控制平面。在
+Enterprise 上，这两个变量是一对，并带来两个后果 —— 两者都会让人意外：
+
+- **未设置并不等于 "off"** —— 两个版本上都是如此。未设置的 `OS_CLOUD_URL` 会解析
+  为*公共*控制平面。它从来不是一个中立的值 —— 它选中的是联网行为。一个打算不与任何
+  人通信的部署必须明确地写上 `off`。
+- **普通许可证搭配 `off` 会在启动时被拒绝**，并点名两个变量。这不是一种降级状态，
+  而是一种不可能的状态：在线许可证通过一次需要控制平面的交换来校验，所以在没有配置
+  控制平面时，这次交换永远不会发生 —— 这次启动不会，以后的启动也不会 —— 宽限期也
+  永远不会开始，因为宽限期从上一次*成功*的校验开始计算。
+
+[物理隔离部署](/docs/deploy/air-gapped)给出了受支持组合的完整矩阵，以及拒绝背后的
+理由。
+
+## 多组织部署 [#multi-organization-deployments]
+
+**隔离墙式**租户姿态会竖起按组织隔离的隔离墙。它是一项需许可证的能力，并且使另外
+三项决策成为必需：在每一项都被声明之前，运行时会拒绝启动。声明任何一个可用的值都
+会被接受；不做决定则不行。
+
+| 变量 | 版本 | 决定 |
+|---|---|---|
+| `OS_TENANCY_POSTURE` | 两者；隔离墙取值仅企业版 | 组织之间是否相互隔离。未设置或 `single` 表示一个组织。隔离墙取值为 `isolated` 和 `group`。隔离墙式姿态**需要许可证**：没有许可证时，运行时会在启动时退出，而不是假装已经隔离来提供服务。 |
+| `OS_AUTH_MEMBERSHIP_POLICY` | 两者 | 新注册的用户加入什么。`auto` 会把每个新用户绑定到部署的默认组织 —— 适合单组织的部署，但在成员资格*就是*租户边界的地方就是错的。`invite-only` 只通过显式的行为授予成员资格：创建工作区、接受邀请、管理员或 SSO 开通。也可以在 **Setup → Authentication → Membership** 中设置；在这里设置会固定它，并使 Setup 中的字段变为只读。 |
+| `OS_AI_STUDIO_AGENTS` | 企业版 | 挂载哪些 AI Agent，以逗号分隔的 `ask` 和 `build` 的子集表示。未设置时**两者**都挂载。`ask` 只读；`build` **编写元数据** —— 而元数据的作用域是部署，而不是组织，所以在共享数据库上，一个客户的一次 `build` 对话就会改写其他所有客户运行所依赖的模式。AI 席位不涵盖这一点：它对两个 Agent 是同一个开关。拼错的值会让启动失败，而不是悄悄回落为两者都挂载。 |
+| `OS_PLATFORM_OWNER_EMAIL` | 两者 | 部署的平台管理员是谁：一个邮箱地址，或一个逗号分隔的列表。在隔离墙式姿态下，它是平台管理员身份的**唯一**来源 —— 从 ObjectStack 17.5 起，`admin_full_access` 授权在那里不再赋予这一身份 —— 未设置或为空时，运行时会拒绝启动。列出的账户只有在其地址**已验证**后才拥有该身份，所以部署需要一种验证方式：邮件通道，或受信任的联合登录。只要有一个条目无法解析，整个列表就会失效。修改在重启后生效。 |
+
+单组织部署不会看到这些检查。它可以不设置后三项：第一个注册的账户会成为平台管理员，
+除非 `OS_PLATFORM_OWNER_EMAIL` 指定了某个账户，这时由那个已验证的账户担任。
+
+## 多节点 [#multi-node]
+
+多节点是一项企业版能力。Community 部署运行一个副本，声明更多副本 ——
+`OS_CLUSTER_REPLICAS` 大于 1 —— 会拒绝启动，而不是用按进程的锁运行多个副本。扩展到
+一个副本以上会改变哪些是必需的：一个集群驱动，以及每个副本上相同的 `OS_SECRET_KEY`
+和 `OS_AUTH_SECRET`。
+
+| 变量 | 版本 | 决定 |
+|---|---|---|
+| `OS_CLUSTER_DRIVER` | 企业版 | 开启共享协调器。未设置表示一个副本，使用内置的内存协调器。 |
+| `OS_REDIS_URL` | 企业版 | 协调器位于哪里。 |
+| `OS_CLUSTER_REPLICAS` | 企业版 | 捆绑的技术栈启动多少个应用副本。运行时也会读取它，作为你所声明的拓扑：在没有多节点许可证的情况下大于 1，启动会被拒绝。 |
+
+一旦设置了集群驱动，`OS_SECRET_KEY` 就**成为必需**。没有集群驱动时，每个副本会自行
+生成并持久保存它自己的密钥；跨副本时这些密钥会悄悄地互不相同，所以运行时会拒绝
+启动，而不是以不一致的加密方式提供服务。
+
+## 运行已发布的应用 [#running-a-published-app]
+
+运行时镜像和它所提供的应用是两条独立的发布轴：一个变量指定一个已发布的产物，升级
+应用就是修改这个变量再重启 —— 不需要重建镜像。
+
+| 变量 | 版本 | 决定 |
+|---|---|---|
+| `OS_ARTIFACT_URL` | 两者 | **选择应用的唯一变量。**一个绝对的 `https://`、`http://` 或 `file://` URL，指向一个构建好的 `objectstack.json`，可以在 URL 片段中带一个 SRI 风格的完整性固定值（`#sha256=` 后跟 64 个十六进制字符）。字节不匹配的固定产物会**拒绝启动**，并点名期望的摘要和实际的摘要。它会覆盖 Community 镜像在 `/srv/app/objectstack.json` 查找的产物。在 Enterprise 镜像上，它在读取任何配置之前解析，所以在这条路径上不会加载镜像自身的企业版接线。 |
+| `OS_COMPOSED_ARTIFACT_URL` | 企业版 | 为**组合**形态选择应用 —— 一个已发布的应用与镜像的企业插件一起启动，多个组织共享一个数据库。该形态在部署包中有自己的模板，仅限物理隔离许可证，并要求 `OS_CLOUD_URL=off`；两者都在启动时强制执行。同时设置它和 `OS_ARTIFACT_URL` 会拒绝启动。 |
+
+有意没有为完整性哈希提供配套变量。固定值位于 URL 片段中，所以只有一个值需要复制，
+也只有一个值需要轮换，"URL 更新了、哈希没更新"根本不是一种能写出来的状态。
+
+发布到**不可变的、以版本命名的**对象，只把产物主机的写入凭据交给你的发布流水线，并
+在生产环境中固定摘要。正是这三条规则让回滚 —— 与升级相同的操作，只是换成较旧的
+URL —— 真正可行。
+
+## 运行时服务 [#runtime-services]
+
+| 变量 | 版本 | 决定 |
+|---|---|---|
+| `OS_PORT` | 两者 | 运行时监听的 HTTP 端口。Community 镜像设置为 `8080`。`os start` 从不换用其他端口：端口被占用时启动失败。旧别名：`PORT`。 |
+| `OS_AUTH_URL` | 两者 | 登录服务器的公网基础 URL：回调和 Cookie 源。在代理之后和生产环境中是必需的。 |
+| `OS_CORS_ORIGIN` | 两者 | 允许跨源请求的源，以逗号分隔。未设置时不接纳任何源 —— 只要 Console 和 API 共享同一个公网源，也不需要接纳。在开启凭据时，`*` 会在启动时被拒绝。 |
+| `OS_ENVIRONMENT_ID` | 两者 | 单环境运行时报告为自身的环境 id。完成云绑定后会持久保存它，之后自托管的运行时就不需要设置它。 |
+| `OS_TRUSTED_ORIGINS` | 两者 | 额外的受信任源，以逗号分隔。 |
+| `OS_ROOT_DOMAIN` | 两者 | 在平台 SSO 部署中用于信任子域名的根域名。 |
+| `OS_DATABASE_DRIVER` | 两者 | 覆盖原本由 `OS_DATABASE_URL` 的 scheme 推断出的驱动。只有在无法推断 scheme 时才设置；不受支持的值会直接失败，而不是回落。从 ObjectStack 17.7 起，内存引擎作为启动存储会被拒绝，无论是在这里指定（`memory`），还是通过 `memory://` URL 指定。 |
+| `OS_DATABASE_AUTH_TOKEN` | 两者 | 使用认证令牌的托管驱动所需的令牌。 |
+| `OS_SKIP_SCHEMA_SYNC` | 两者 | 设为 `1` 可跳过启动时的模式同步。在模式由带外方式管理时使用 —— 企业版部署包的技术栈已经在任何副本启动之前，把迁移作为单独的一次性步骤运行。 |
+| `OS_TELEMETRY_DB` | 两者 | 用于按生命周期分类的系统数据的专用数据源。设为 `0` 表示不使用，设为路径或 URL 表示使用。 |
+| `OS_STORAGE_LOCAL_ROOT` | 两者 | 本地文件存储适配器保存上传文件的位置，相对于工作目录（默认 `./.objectstack/data/uploads`）。与数据库一起备份。设置它会固定 **Setup → Settings → File Storage → Root directory**。 |
+| `OS_LIFECYCLE_DISABLED` | 两者 | 设为 `1` 可禁用生命周期服务（保留期清理、表轮转、审计归档）。保留期窗口本身通过 `lifecycle.retention_overrides` 设置调整，而不是通过环境变量。 |
+| `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` | 两者 | 部署是否运行应用和包所声明的定时任务：时间触发的[流程](/docs/build/automation/flows#scheduled-run-on-a-clock)（定时，或基于时间的批量处理）以及打包的 `defineJob` cron 作业。只有 `true`、`1`、`on` 或 `yes` 才会开启它；**未设置即为关闭**，这是 ObjectStack 运行时从 17.5 起在所有租户姿态下的默认值。关闭期间，任何定时的东西都不会被启用，每个这样的流程都会被报告为已被部署策略禁用。平台自己的定时任务（审批升级、保留期、消息派发）不受此门控。在 `isolated` 下，定时流程或作业还必须声明它以哪个组织身份运行。⚠️ 你的 ObjectOS 镜像或部署包模板是否会替你设置它，本页无法保证：如果你的应用依赖定时流程，请显式设置它，并用 `os doctor` 读取生效的值。 |
+| `OS_MCP_SERVER_ENABLED` | 两者 | 管控 `/api/v1/mcp` 上基于 HTTP 的 Model Context Protocol 服务器，且仅管控这一界面。**默认开启**：设置一个显式的假值（`false`、`0`、`off`、`no`）即可禁用。始终需要一个已认证的主体。 |
+| `OS_MCP_STDIO_ENABLED` | 两者 | 设为真值可自动启动长期运行的 **stdio** MCP 传输。默认关闭，并且独立于上面的 HTTP 界面。 |
+| `OS_MCP_STDIO_API_KEY` | 两者 | stdio 传输所绑定的主体的 API 密钥，通过与 HTTP MCP 相同的授权链解析，所以记录级和字段级安全仍然适用。失败即关闭：启用 stdio 却没有可解析的密钥时，传输不会启动。 |
+
+## 可观测性 [#observability]
+
+导出需要主动开启。导出器默认为 `noop`，所以在你选择一个导出器之前，部署不会发出
+任何东西 —— **只设置端点什么也不会做。**
+
+| 变量 | 版本 | 默认值 | 决定 |
+|---|---|---:|---|
+| `OS_OBS_EXPORTER` | 两者 | `noop` | `noop`、`console`、`json` 或 `otlp`。本地调试用 `console` 或 `json`，接入 Collector 用 `otlp`。 |
+| `OS_OTLP_ENDPOINT` | 两者 | —— | OTLP/HTTP 根 URL。导出器为 `otlp` 时必需；如果为空，运行时会发出警告并回落到 `noop`。 |
+| `OS_OTLP_HEADERS` | 两者 | —— | 额外的 OTLP 请求头，以逗号分隔的 `key=value` 对表示。 |
+| `OS_OBS_SERVICE_NAME` | 两者 | —— | 所发出指标上的 `service.name` 资源属性。 |
+| `OS_OBS_DEPLOYMENT_ENV` | 两者 | `production` | `deployment.environment` 资源属性。 |
+| `OS_OTLP_FLUSH_MS` | 两者 | —— | OTLP 导出器的刷新间隔，单位为毫秒。 |
+
+## 数据契约应急开关 [#data-contract-escape-hatches]
+
+ObjectStack 17.0 让平台拒绝违反其声明契约的值，而过去它会警告并接受它们。这些变量
+会**临时**重新开启旧行为，用于你今天无法修复的集成。每个变量只接受 `1`；任何其他值
+都会保持严格行为。违规仍会被记录，所以偏差依然可见。
+
+| 变量 | 版本 | 重新开启 |
+|---|---|---|
+| `OS_ALLOW_LAX_ACTION_PARAMS` | 两者 | `params` 缺少必需参数、违反其 `options` / `multiple` / `reference` 声明，或带有未声明键的动作调用。没有它时，这样的调用会返回 `400 VALIDATION_FAILED`。 |
+| `OS_ALLOW_LAX_MEDIA_VALUES` | 两者 | 格式错误的 `file` / `image` / `avatar` / `video` / `audio` 值，在这些值受严格检查的地方。 |
+| `OS_ALLOW_LAX_VALUE_SHAPES` | 两者 | 格式错误的引用值（`lookup`、`master_detail`、`user`、`tree`）或结构化 JSON 值（`location`、`address`……），在这些值受严格检查的地方。 |
+
+在由 17.x 运行时创建的数据库上，媒体值和值形态会受到严格检查。从更早主版本升级上来
+的数据库，只有在对应的迁移记录了它的标志之后才会受到严格检查 —— 参见
+[CLI → 数据迁移](/docs/reference/cli#data-migrations)。不要为了更早达到这一点而使用
+`OS_DATA_VALUE_SHAPE_STRICT_ENABLED=1`：它会一次性对所有值类别开启严格检查，而不管
+这个部署的数据实际上是什么样子。
+
+## 固定系统设置 [#pinning-a-system-setting]
+
+系统设置 —— 租户和管理员可编辑的 `ai`、`email`、`feature_flags` 等命名空间 ——
+可以在部署级别通过一个变量来固定，变量名为 `OS_` 加上命名空间再加上键，全部大写，
+并把 `.` 和 `-` 替换为 `_`。例如 `ai.openai_base_url` 变为 `OS_AI_OPENAI_BASE_URL`，
+`feature_flags.ai_enabled` 变为 `OS_FEATURE_FLAGS_AI_ENABLED`。被固定的设置在 Setup
+中是只读的。
+
+可以在 **Setup → Authentication** 中配置的 Google 登录，也会在部署级别读取
+`GOOGLE_CLIENT_ID` 和 `GOOGLE_CLIENT_SECRET`。
+
+## 已退役的名称 [#retired-names]
+
+这些名称出现在早期的 ObjectOS 文档中。把它们列在这里，是为了让你能读懂并修正继承来
+的配置文件 —— **而不是**为了让你使用它们。除非其所在行另有说明，否则每个名称在两个
+版本上都已退役。
+
+| 已退役的名称 | 改用 |
+|---|---|
+| `OS_ARTIFACT_FILE` | `OS_ARTIFACT_URL`。出厂运行时中没有任何东西读取 `OS_ARTIFACT_FILE`；设置了它的部署得到的启动结果，与什么都没设置时相同，也不会有任何点名这个错误的报错。本地文件在替代变量上写作 `file://`，并且替代变量可以带完整性固定值。 |
+| `OS_ARTIFACT_PATH` | `OS_ARTIFACT_URL`。**Enterprise 镜像会拒绝带有非默认 `OS_ARTIFACT_PATH` 的启动**，并点名替代项。"启动哪个产物"有两种写法就多了一种，而已退役的那种从来不能带完整性固定值。Community 镜像仍会把它设为 `/srv/app/objectstack.json`，即它查找的路径：保持不动，把产物挂载到那里，并用 `OS_ARTIFACT_URL` 指定任何其他产物。 |
+| `OS_BUSINESS_DB_URL` | `OS_DATABASE_URL`，或在产物中声明的数据源。没有任何东西读取 `OS_BUSINESS_DB_URL`；只设置了它的部署根本没有配置任何数据库。 |
+| `OS_LOCALIZATION_DATE_FORMAT`、`OS_LOCALIZATION_TIME_FORMAT`、`OS_LOCALIZATION_NUMBER_FORMAT`、`OS_LOCALIZATION_FIRST_DAY_OF_WEEK` | 无：ObjectStack 17.7 退役了它们所固定的设置，日期、时间、数字和一周的起始日现在跟随语言。参见[本地化](/docs/configure/localization#dates-times-and-numbers-follow-the-language)。 |
+
+`OS_CLOUD_API_KEY` **不是**自托管部署要设置的变量。它是托管云注入到它自己运维的
+运行时中的服务凭据，并且 —— 另外 —— 是 `os package publish` 在 CI 中向包目录认证时
+使用的 bearer 令牌（参见[包](/docs/build/packages)）。连接到控制平面的自托管部署
+出示的，是部署**绑定**到该控制平面时签发的运行时令牌，而不是你粘贴到文件中的密钥。
+
+## 旧名称 [#legacy-names]
+
+这些名称在两个版本上仍可解析，但推荐使用规范名称，旧名称可能会在未来的某个主版本中
+被移除。
+
+| 规范名称 | 旧名称 | 备注 |
+|---|---|---|
+| `OS_PORT` | `PORT` | 发出一次性的弃用警告。 |
+| `OS_AUTH_SECRET` | `AUTH_SECRET` | 发出一次性的弃用警告。 |
+| `OS_TENANCY_POSTURE` | `OS_MULTI_ORG_ENABLED` | 只有在 `OS_TENANCY_POSTURE` 未设置时，姿态才会由这个旧布尔值推导：在那里 `true` 表示隔离。请直接声明姿态 —— 许可证和启动检查都是针对它编写的。 |
+| `OS_MULTI_ORG_ENABLED` | `OS_MULTI_TENANT` | |

@@ -1,0 +1,308 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 安全與合規
+description: 保護了什麼、如何保護、誰負責 —— 面向安全評審。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: f4b8cc8aeeb89ea330e8e0c536e84ad3f27d8bb2ae336f839e9321ab0da0c9a7
+  guide_rev: 1
+  mode: auto
+---
+
+本頁面向安全評審人員、IT 管理員，以及任何需要回答"引入它是否安全？"的人。
+
+## 一句話威脅模型 [#threat-model-in-one-sentence]
+
+ObjectOS 以單個 Node.js 程序執行，只與一個數據庫通訊 —— 在 **ObjectOS
+Enterprise** 上位於**你的**網路中，在 **ObjectOS Cloud** 上位於我們的網路中。
+自管理時，它自己發起的唯一齣站呼叫是許可證校驗，而企業版物理隔離許可證在離線狀態下
+校驗。一次入侵的影響範圍就是它所連線的資料庫上的資料 —— 僅此而已。
+
+## 資料駐留 [#data-residency]
+
+下表描述的是自管理版本 **ObjectOS Enterprise**。在 **ObjectOS Cloud** 上，同樣
+類別的資料存放在我們為你運維的基礎設施中；無論哪個版本，你的本體都可以匯出到開源
+的 ObjectStack 執行時。
+
+| 資料類別 | 存放於 | 是否離開你的網路？ |
+|---|---|---|
+| 業務記錄 | 你的資料庫 | **否** |
+| 使用者賬戶、會話、OAuth 令牌 | 你的資料庫 | **否** |
+| 審計日誌 | 你的資料庫 | **否** |
+| 設定、API 金鑰、金鑰 | 你的資料庫 / 你的金鑰管理器 | **否** |
+| 上傳的檔案 | 你的磁碟或相容 S3 的儲存桶（S3、R2、MinIO） | **否** |
+| 編譯後的應用定義（`objectstack.json`） | 磁碟上的檔案，或從你的控制平面獲取 | 可選 |
+| 執行時本身 | 你的伺服器或容器 | **否** |
+| 遙測 / 使用資料 | —— | **不收集** |
+
+除了你顯式配置的整合（OIDC 發現、郵件提供商、AI 提供商、webhook 目標、外部儲存）
+之外，自管理的 ObjectOS 自己發起的唯一齣站呼叫是**許可證校驗** —— 企業版物理隔離
+許可證在離線狀態下校驗，所以物理隔離的部署完全沒有出站呼叫。參見
+[許可證與定價](/docs/editions/license#faq)。
+
+## 加密 [#encryption]
+
+| 層 | 機制 | 責任方 |
+|---|---|---|
+| 傳輸中（瀏覽器 ↔ ObjectOS） | TLS，在你的邊緣 / 入口終止 | 你 |
+| 傳輸中（ObjectOS ↔ 資料庫） | 驅動級 TLS（Postgres `sslmode=require`、MongoDB `tls=true`……） | 你 —— 設定連線字串 |
+| 靜態（業務資料） | 資料庫原生（例如 Postgres TDE、RDS 加密） | 你 |
+| 靜態（上傳的檔案） | 儲存原生（S3 SSE、R2 預設加密、磁碟級 FDE） | 你 |
+| 資料庫中的金鑰（設定、OIDC 客戶端金鑰） | 由設定服務加密 | ObjectOS |
+| 會話 Cookie / 令牌 | 用 `OS_AUTH_SECRET` 做 HMAC 簽名 | ObjectOS |
+| API 金鑰值 | 在資料庫中**雜湊儲存** —— 洩露的資料庫行無法還原金鑰 | ObjectOS |
+
+## 認證 [#authentication]
+
+內建（通過 `@objectstack/plugin-auth`，基於 Better Auth）：
+
+- 帶驗證和重置的郵箱/密碼
+- 可撤銷的會話管理
+- 社交 OAuth（Google、GitHub、Microsoft、Apple……）
+- 企業 OIDC/SSO（Okta、Entra ID、Keycloak、Ping）
+- 雙因素認證（TOTP）
+- 通行金鑰 / WebAuthn
+- 魔法連結
+- 手機號 + 簡訊 OTP 登入和密碼重置（通過 `auth.plugins.phoneNumber` 選擇開啟；
+  阿里雲 / Twilio 通道，帶速率限制）
+- CLI/瀏覽器裝置流
+- API 金鑰（雜湊儲存、可過期、可撤銷、繫結到使用者）
+- 面向 MCP 客戶端的自助 OAuth 2.1（授權碼 + PKCE、動態客戶端註冊、由作用域推導的
+  許可權上限）
+- 由管理員驅動的使用者建立和批次匯入（一次性密碼，並通過 `must_change_password`
+  強制輪換）
+
+參見[認證](/docs/configure/authentication)。
+
+## 授權 [#authorization]
+
+分層強制執行（通過 `@objectstack/plugin-security`），遵循 Permission Model v2
+（ObjectStack 13，ADR-0090）：
+
+1. **物件許可權** —— 按許可權集、按物件的 CRUD，直接分配給使用者，或通過扁平的**崗位**
+   分配
+2. **組織範圍預設值** —— 帶有負責人的自定義物件預設採用 `private` 共享模型；對
+   物件資料的匿名訪問被無條件拒絕，沒有任何開關可以開放它（ObjectStack 17.0）。
+   公開訪問按介面宣告 —— 公開表單或分享連結 —— 而 `guest` 錨點不授予任何東西
+3. **行級安全** —— 注入到查詢中的宣告式策略表示式；不可選，執行時無法強制執行的
+   策略會拒絕而不是放寬（ObjectStack 17.5）
+4. **欄位級安全** —— 欄位從響應中被剝離、被部分掩碼（`maskingRule`，ObjectStack
+   17.1），或在寫入時被拒絕（鍵帶物件限定，由 lint 強制）。隱藏或掩碼的欄位不能
+   用於過濾、排序、分組或聚合 —— 從 ObjectStack 17.6 起，在每個查詢入口都返回
+   `403`
+5. **組織範圍** —— 多租戶隔離；繞過它需要顯式的 `viewAllRecords`
+
+系統上下文的操作會繞過檢查，以便內部作業 / 遷移能夠執行 —— 這些路徑是可審計的。
+
+配套機制：
+
+- **解釋引擎** —— `explain(principal, object, operation)` 報告每一層的判定並逐層
+  歸因，使用的是與強制執行相同的求值器（從構造上就不會出現偏差）。
+- **編寫時 lint** —— `os compile` 按安全姿態門控構建（`security-owd-unset`、
+  `security-anchor-high-privilege`、`security-fls-unqualified-key`……），可選的
+  已提交 `access-matrix.json` 快照會讓任何能力漂移都使 CI 失敗，直到被顯式重新
+  批准。
+- **委派管理** —— 許可權集可以攜帶一個 `adminScope`，讓子管理員只能在其業務單元
+  子樹內、從一份允許列表中管理分配，並帶有 `granted_by` 審計。
+- **MCP 作用域上限** —— 通過 OAuth 連線的 AI Agent 在
+  `effective_permission = scope_ceiling ∩ user_grants` 下執行
+  （`data:read` / `data:write` / `actions:execute`），失敗即關閉。
+
+參見[許可權](/docs/configure/permissions)。
+
+## 審計與證據 [#audit--evidence]
+
+載入審計能力（`@objectstack/plugin-audit`）後：
+
+- 每個物件上的每一次 CRUD 操作 → 一條審計記錄。
+- 欄位變更的前後值。
+- 認證、許可權授予、會話撤銷事件。
+- 審計記錄是**不可變的**：不能修改，只能歸檔。
+- 保留期在物件的 `lifecycle` 塊上宣告（`sys_audit_log` 出廠為熱儲存 90 天，然後
+  歸檔），並可通過 `lifecycle.retention_overrides` 按環境調整；與你的資料庫的歸檔
+  策略搭配使用。
+
+這是 SOC 2 CC6/CC7、ISO 27001 A.12.4、HIPAA §164.312(b) 和 GDPR 第 30 條的證據
+基礎。
+
+## 合規框架 [#compliance-frameworks]
+
+ObjectOS 提供每個常見框架都要求的**技術原語**。認證是部署的屬性，而不是軟體的
+屬性 —— 但控制項可以清晰地對應起來：
+
+| 框架 | ObjectOS 為你提供什麼 |
+|---|---|
+| **SOC 2** | 訪問控制（CC6）、變更管理（審計日誌）、加密（部署）、監控（可觀測性）、備份（運維/備份） |
+| **ISO 27001** | A.5 策略（RBAC）、A.8 資產管理（物件目錄）、A.9 訪問控制、A.12 運維、A.18 合規 |
+| **HIPAA** | 訪問控制（§164.312(a)）、審計控制（§164.312(b)）、完整性（不可變審計）、傳輸安全（TLS） |
+| **GDPR** | 第 30 條處理活動記錄（審計）、第 32 條處理安全、第 17 條刪除權（支援軟刪除 + 硬刪除）、資料駐留（由你選擇區域） |
+| **CCPA / 中國《資料安全法》/ 俄羅斯 152-FZ** | 在合適區域部署的 ObjectOS Enterprise 滿足駐留要求；訪問控制 + 審計覆蓋大多數報告義務 |
+
+ObjectOS 本身**沒有經過認證**，因為認證針對的是執行中的部署，而不是一個二進位制
+檔案。你的部署可以通過認證 —— 許多部署已經通過。
+
+## 金鑰處理 [#secrets-handling]
+
+| 金鑰 | 放在哪裡 |
+|---|---|
+| `OS_AUTH_SECRET` | 你的金鑰管理器（Vault、AWS Secrets Manager、k8s Secret）；以環境變數注入 |
+| 帶憑據的資料庫 URL | 同上 |
+| OIDC 客戶端金鑰 | 同上 |
+| OAuth 提供商金鑰 | 同上 |
+| API 提供商金鑰（郵件、儲存、AI） | 同上 |
+| 儲存在資料庫中的設定 | 由設定服務靜態加密 |
+
+**絕不要**把金鑰烘焙進產物（`objectstack.json`）、Docker 映象、compose 檔案或
+Git。Setup 中的設定 UI 會把由環境管理的值顯示為鎖定狀態，所以運維人員不會意外地
+覆蓋它們。
+
+## 網路模型 [#network-model]
+
+必需的入站：
+- 從你的入口 / 負載均衡器到 ObjectOS `:3000`（預設）的 HTTPS。
+
+必需的出站：
+- 自管理 ObjectOS 的許可證校驗 —— 企業版物理隔離許可證在離線狀態下校驗，不需要
+  為此開放出站。
+
+只有在你配置了以下功能時才需要的出站：
+- 你的資料庫（Postgres / Mongo / Turso / ……）。
+- 相容 S3 的儲存（如果啟用了使用 S3 介面卡的 `storage` 能力）。
+- OIDC 發現 URL（如果啟用了 SSO）。
+- 郵件提供商 API（Resend / Postmark）。
+- AI 提供商 API（OpenAI / Anthropic / Google / ……）。
+- Webhook 目標。
+
+這就是全部的出站介面。對於需要切斷更多連線的部署，參見
+[物理隔離](/docs/deploy/air-gapped)。
+
+## AI：工具、審批、隔離 [#ai-tools-approvals-isolation]
+
+AI Builder 是你將要暴露的最敏感的安全介面，所以除了上述所有機制之外，它還有自己
+的強制執行層。
+
+### AI 如何改變狀態 [#how-ai-can-mutate-state]
+
+模型**不能直接寫入**你的資料庫。狀態改變的唯一途徑，是發出一個結構化的工具呼叫，
+由 AI 服務接收、校驗並排隊。整個鏈路：
+
+```text
+user prompt
+  → model emits tool call (e.g. add_field { object: 'ticket', name: 'severity', type: 'select' })
+  → AI service validates payload against the tool's Zod schema
+  → if the tool is "mutating": queue as pending action (no state change yet)
+  → human reviewer approves → mutation applied → audit row written
+  → if the tool is "read-only": run immediately, response returned to model
+```
+
+共有 11 個一方後設資料工具（[參見構建 → AI Builder](/docs/build/ai-builder)），再加上
+其作者[暴露給 AI](/docs/build/interface/actions#from-an-ai-agent) 的每個動作各對應
+一個 `action_<name>` 工具 —— 設定 `ai: { exposed: true }` 並帶有至少 40 個字元的
+`ai.description`，且型別無需 UI 即可執行（`script`、`flow` 或 `api`）；未暴露的
+動作對 Agent 不可見，被呼叫時會被拒絕。每個工具 —— 無論是一方的還是自定義的 ——
+都具有相同的生命週期。
+
+### 許可權鍵 [#permission-keys]
+
+| 鍵 | 授予 |
+|:--|:--|
+| `ai:chat` | 進行對話；使用模型；讓 Agent 呼叫只讀工具 |
+| `ai:complete` | 原始補全端點（沒有 Agent 迴圈） |
+| `ai:conversations` | 列出 / 檢視 / 刪除對話（自己的或全部，取決於 RBAC 範圍） |
+| `ai:agents` | 管理 Agent 後設資料（與 `ai:chat` 搭配以呼叫它們） |
+| `ai:tools` | 列出工具目錄 |
+| `ai:execute` | 通過 REST 直接呼叫工具（高階 —— 通常只有後臺 Agent 需要） |
+| `ai:read` | 讀取待處理動作佇列和模型列表 |
+| `ai:approve` | 批准 / 拒絕排隊的變更 |
+| `ai:admin` | 完整的 AI 服務管理 |
+
+關鍵的區分是 **`ai:chat` ≠ `ai:approve`**。給大多數使用者 `ai:chat`，讓助手能夠
+工作；把 `ai:approve` 保留給應該審查結構性變更的管理員 / 應用負責人。因此，最終
+使用者可以安全地"憑感覺構建"—— 他們最多隻能排隊一個必須由別人接受的糟糕變更。
+
+### 租戶隔離 [#tenant-isolation]
+
+- Agent、對話、知識庫和待處理動作的作用域都是一個**環境**（租戶）。租戶 A 看不到
+  租戶 B 的對話、AI 提議的工具或知識語料 —— 即使同一個 Agent 定義是從同一個市場包
+  安裝的。
+- 後設資料工具（`create_object`、`add_field`……）作用於呼叫者所在租戶中的**活動包**。
+  它們無法觸及租戶之外。
+- 工具輸入經過 CEL 校驗，引擎會拒絕對保留的系統包（`sys.*`）或其他租戶的物件名稱
+  的引用。
+
+### 審計事件 [#audit-events]
+
+載入審計能力後：
+
+- `ai.chat.message` —— 每條使用者 / 助手訊息，帶模型和令牌數
+- `ai.tool.call` —— 工具名稱、校驗後的輸入、完整輸出（或錯誤）
+- `ai.pending_action.queued` —— 提議的變更，完整的 diff
+- `ai.pending_action.approved` / `.rejected` —— 誰決定的、何時、為什麼
+- `ai.metadata.applied` —— 對後設資料儲存的實際寫入，帶 diff
+
+這些記錄是不可變的，可以匯出用於安全審查或費用分攤。按（提供商、模型、使用者）統計
+的令牌數用於成本歸因。
+
+### 提示注入態勢 [#prompt-injection-posture]
+
+間接提示注入（例如 Agent 檢索到的文件中的惡意內容）是一個真實的風險；ObjectOS
+從構造上縮小了影響範圍：
+
+- AI **無法繞過工具校驗** —— 即使它被說服發出惡意載荷，Zod schema 也會在格式錯誤
+  的輸入到達引擎之前拒絕它們。
+- 變更類工具總是排隊。被注入的提示無法悄悄地寫入資料庫。
+- 工具呼叫繼承的是**終端使用者的許可權**，而不是模型服務賬戶的許可權。使用者永遠無法藉助
+  AI 做到他們自己通過 UI 或 REST 做不到的事。
+- 載入到 Agent 中的 Skills 是有版本且顯式的 —— 參見
+  [構建 → IDE Skills](/docs/build/ai-skills) 和
+  [構建 → AI Builder](/docs/build/ai-builder)。
+
+### 外部 AI 提供商的資料流 [#external-ai-provider-data-flow]
+
+當你配置了提供商（OpenAI、Anthropic……）時，只有以下內容會離開你的網路：
+
+- 模型所需的對話歷史
+- 工具定義（名稱、JSON schema —— 不含記錄資料）
+- 模型繼續所需的工具輸出（例如使用者明確要求的查詢結果）
+
+對於物理隔離的部署，把 AI 服務指向本地的 Ollama / vLLM / TGI 端點，同樣的資料流
+就會留在你的邊界之內。
+
+## 漏洞披露 [#vulnerability-disclosure]
+
+請私下向 **security@objectstack.ai** 報告安全問題。我們會在 1 個工作日內回覆。
+不要為安全問題提交公開的 GitHub issue。
+
+## 供應鏈 [#supply-chain]
+
+- **Community** 映象 `ghcr.io/objectstack-ai/objectstack` 是公開的。它在每個
+  ObjectStack 版本釋出時，從開源的
+  [objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack)
+  倉庫構建併發布，其標籤與映象內 ObjectStack CLI 的版本一致。
+- **Enterprise** 映象是需許可證的映象，來自私有映象倉庫；你的許可證附帶映象倉庫
+  憑據。參見[部署](/docs/deploy#the-two-images)，並按照
+  [Docker](/docs/deploy/docker#verify-the-image-before-production) 的說明，在生產
+  之前校驗映象。
+- 所有 `@objectstack/*` 包都在 GitHub 上公開了原始碼 —— Apache-2.0，沒有混淆。
+- 在生產環境中固定一個確切的映象，並按摘要固定：只有摘要永遠不會移動。在
+  Community 上，執行確切的版本標籤（`X.Y.Z`）並固定它的摘要。像 `latest` 這樣的
+  滾動標籤會被每次釋出重新指向，而重新構建一個已釋出的版本，會把它的 `X.Y.Z`
+  標籤重新推送到新的位元組上。在 Enterprise 上，固定你的釋出說明中點名的摘要。參見
+  [Docker](/docs/deploy/docker#pin-the-image)。
+
+## 建議的加固檢查清單 [#suggested-hardening-checklist]
+
+- [ ] TLS 在邊緣終止，使用真實證書。
+- [ ] `OS_AUTH_SECRET` 為 32 位元組以上的隨機值，存放在金鑰管理器中。
+- [ ] 資料庫連線使用 TLS。
+- [ ] 在驗證 TLS 之後啟用 HSTS。
+- [ ] CORS 源顯式列出（攜帶憑據時絕不使用 `*`）。
+- [ ] 認證端點有速率限制（推薦 `10/min/IP`）。
+- [ ] 審計保留期符合策略。
+- [ ] 人員賬戶用 OIDC；機器賬戶用 API 金鑰。
+- [ ] 執行並計時了備份 + 恢復演練。
+- [ ] 負向測試：跨組織訪問被拒絕、欄位安全有效、過期會話被拒絕。
+- [ ] 映象按摘要固定（在 Community 上，是確切版本標籤 `X.Y.Z` 的摘要），絕不按滾動標籤固定。
+- [ ] 每次釋出前，`os doctor` 在 CI 中檢查無誤。
+
+完整的上線檢查清單參見[生產就緒](/docs/operate/production)。

@@ -1,0 +1,284 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: CLI 參考
+seoTitle: "CLI 參考：每個 os 命令及其引數"
+description: 每個 `os` 命令、它做什麼，以及最有用的引數。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3a77aa68e28e880be0de253974a5977e4412d168b16c73e544224ce1bdd82412
+  guide_rev: 1
+  mode: auto
+---
+
+`@objectstack/cli` 包會安裝一個單一的二進位制檔案 `os`（也可以用 `objectstack`）。
+下面所有示例都使用更短的 `os`。
+
+```bash
+npm i -g @objectstack/cli
+os --help
+```
+
+## 伺服器命令 [#server-commands]
+
+### `os start` —— 零配置啟動 [#os-start--zero-config-boot]
+
+自動檢測 4 種逐級遞進的模式：
+
+1. **空啟動** —— 當前目錄中既沒有產物也沒有配置 → 啟動一個帶 UI + 市場的裸核心。
+2. **專案啟動** —— 當前目錄中有 `objectstack.config.ts` → 自動編譯到
+   `./dist/objectstack.json` 並從它啟動。
+3. **產物啟動** —— 能找到 `dist/objectstack.json` → 直接從它啟動。
+4. **顯式覆蓋** —— `--artifact`、`--database`、`--port` 優先。
+
+```bash
+os start                                # default port 3000
+os start --port 8080
+os start --artifact ./build/myapp.json
+os start --artifact https://cdn.example.com/app.json
+os start --database file:./data/prod.db
+os start --database postgres://user:pass@host:5432/mydb
+os start --database libsql://my-db.turso.io --database-auth-token $TURSO
+os start --auth-secret "$(openssl rand -hex 32)"
+os start --home /var/lib/objectos      # persistent home dir
+os start --no-ui                       # API only (no UI/Account portals)
+```
+
+HOME 目錄預設值：
+- 當前目錄中有專案配置 → `<cwd>/.objectstack`（專案本地）
+- 沒有 → `~/.objectstack`（全域性，在多次呼叫之間共享）
+
+### `os serve` —— 生產伺服器 [#os-serve--production-server]
+
+如果存在 `objectstack.config.ts` 就讀取它，否則回落到 `dist/objectstack.json`。當你
+希望行為嚴格時，在生產容器中使用它。
+
+如果要改為啟動一個**已釋出的**產物，就用 `OS_ARTIFACT_URL` 指定它 —— 一個絕對的
+`https://`、`http://` 或 `file://` URL，可以在片段中帶一個可選的 `#sha256=` 完整性
+固定值。它在讀取任何配置之前解析。舊的 `OS_ARTIFACT_PATH` 寫法已經退役：在
+ObjectOS 執行時映象上，非預設值會**拒絕啟動**並點名替代項。參見
+[環境變數](/docs/reference/environment-variables#retired-names)。
+
+```bash
+os serve                       # port 3000
+os serve --port 4000 --no-ui
+```
+
+### `os dev` —— 帶熱過載的開發 [#os-dev--development-with-hot-reload]
+
+監視 `objectstack.config.ts` 和 `src/`。儲存時重新編譯 + 重新載入。在腳手架生成的
+專案中用作 npm 的 `dev` 指令碼。
+
+```bash
+os dev                         # port 3000 by default
+os dev -p 4000
+```
+
+注意，`os dev` 請求的埠與 `os start` 相同（3000）。如果該埠被佔用，它會繫結下一個
+空閒埠並說明：`↪ server bound to port 3001 (requested 3000)`。
+
+## 專案命令 [#project-commands]
+
+### `os init` —— 搭建新專案 [#os-init--scaffold-a-new-project]
+
+```bash
+os init my-app                       # interactive
+os init my-app -t app --install      # auto-install with default pnpm
+os init my-app -t app --install -p npm
+os init my-app -t plugin             # plugin scaffold
+os init my-app -t empty              # bare minimum
+```
+
+模板：
+| 模板 | 你會得到什麼 |
+|---|---|
+| `app` | 完整的應用 —— 物件、檢視、動作，隨時可以擴充套件 |
+| `plugin` | 用於分發可複用能力的外掛腳手架 |
+| `empty` | 只有清單 + tsconfig |
+
+### `os create` —— 搭建核心程式碼外掛 [#os-create--scaffold-a-kernel-code-plugin]
+
+```bash
+os create plugin my-plugin
+```
+
+`os create plugin` 會寫一個實現核心 `Plugin` 契約的 TypeScript 包，這是 `os init`
+不做的。`os create example` 已在 ObjectStack 17.4 中退役：它寫的內容是 `os init`
+所寫內容的一個子集，現在它會報錯退出，並點名 `os init`。
+
+## 構建 / 校驗命令 [#build--validate-commands]
+
+| 命令 | 用途 |
+|---|---|
+| `os compile`（`os build`） | 把 `objectstack.config.ts` 編譯為 `dist/objectstack.json` |
+| `os validate` | 依據協議 schema 校驗配置 |
+| `os lint` | 風格和約定檢查（推薦在 CI 中使用） |
+| `os diff <old> <new>` | 比較兩份配置，檢測破壞性變更 |
+| `os info` | 列印配置或產物的後設資料摘要 |
+| `os explain <object>` | 物件 schema 的人類可讀說明 |
+| `os doctor` | 健康檢查：檢測迴圈依賴、損壞的引用、環境問題 |
+| `os generate`（`os g`） | 生成 TypeScript 型別 / 後設資料檔案 |
+| `os db clean` | 一次性的 SQLite `VACUUM` + 啟用增量自動清理；報告回收的位元組數（14.5+） |
+
+`os doctor` 是**感覺不對勁時首先要執行的命令** —— 它能捕獲執行時只會以執行時警告
+形式呈現的錯誤配置。
+
+從 ObjectStack 13 起，`os compile` 還會按**安全姿態**門控構建：
+`validateSecurityPosture` 錯誤（未設定/使用別名的共享模型、高許可權錨點繫結、殘留的
+角色詞彙、未帶物件限定的欄位許可權鍵……）會讓構建失敗，而 `os lint` 會在更早的環節
+報告它們。如果你提交了一個 `access-matrix.json` 快照，任何許可權能力的漂移都會讓
+`os compile` 失敗，直到用 `--update-access-matrix` 重新生成快照 —— 每一次能力變更
+都變得可以評審。
+
+## 資料命令 [#data-commands]
+
+在終端中操作記錄 —— 適用於種子資料、遷移和 CI 冒煙測試。
+
+```bash
+os data create <object> --data '{"subject": "Hello"}'
+os data get <object> <id>
+os data query <object> --filter 'status:active' --limit 10
+os data update <object> <id> --data '{"done": true}'
+os data delete <object> <id>
+```
+
+## 後設資料命令 [#metadata-commands]
+
+在執行時讀寫後設資料記錄（物件、檢視、許可權集……）。
+
+```bash
+os meta list <kind>
+os meta get <kind> <id>
+os meta register <file>
+os meta delete <kind> <id>
+```
+
+## 資料庫遷移 —— `os migrate` [#database-migrations--os-migrate]
+
+`os migrate` 讓部署的資料庫與其後設資料保持一致，並執行某個版本所要求的一次性資料
+遷移。每個子命令都作用於 `--database-url` 指定的資料庫，它預設為 `$OS_DATABASE_URL`，
+然後是專案自己的資料庫 —— 所以請顯式指定部署的資料庫。每個命令都會啟動應用來讀取
+其後設資料。先備份資料庫。某次升級需要哪些命令，見
+[升級與回滾](/docs/operate/upgrade#version-specific-steps)。
+
+### 模式 [#schema]
+
+| 命令 | 做什麼 |
+|---|---|
+| `os migrate plan` | 顯示資料庫與後設資料之間的偏差，分為安全、需確認和破壞性三類變更。不寫入任何內容 |
+| `os migrate apply` | 在一次確認提示後應用非破壞性變更（`--yes` 跳過提示）。`--allow-destructive` 還會刪除孤立的列、收緊 `NOT NULL` 並收窄型別 |
+| `os migrate multi-value-columns` | 在欄位聲明瞭 `multiple: true` 的地方，把過時的文本列遷移為 JSON，這是 `apply` 從不做的那一種型別變更。在加 `--apply` 之前都是試執行 |
+| `os migrate unmapped-columns --object NAME` | 讀取已退役欄位的列中殘留的值，以記錄 id 為鍵。只讀。從 17.7 起沒有任何執行時入口會返回這些列，所以轉換要在 `apply --allow-destructive` 刪除它們之前用這個命令讀取 |
+| `os migrate duplicates` | 以 JSON 報告已被簽發兩次的識別符號，以及阻止唯一索引建立的行。只讀 |
+
+```bash
+os migrate plan                                    # what would change; writes nothing
+os migrate apply --allow-destructive --yes         # also drop and tighten (CI / scripts)
+os migrate unmapped-columns --object contact --json > contact-unmapped.json
+```
+
+### 資料遷移 [#data-migrations]
+
+這些命令改寫的是行而不是模式，它們關乎的是你的資料庫，而不是你安裝的版本：執行時
+不會替你執行它們。除非其所在行另有說明，否則在你傳入 `--apply` 之前，每個命令都是
+試執行。
+
+| 命令 | 做什麼 |
+|---|---|
+| `os migrate files-to-references` | （17.0）把內聯儲存的檔案欄位值轉換為 `sys_file` 引用。`--apply` 會記錄為本部署開啟嚴格媒體值的標誌 |
+| `os migrate value-shapes` | （17.0）依據契約掃描引用值和結構化 JSON 值。一旦掃描沒有發現任何問題，`--apply` 會記錄它的標誌 |
+| `os migrate meta --from 17` | 在應用的**原始碼**上重放後設資料轉換鏈，並列出它做的編輯；`--out FILE` 寫出轉換後的技術棧。這是一個編寫步驟：它不觸及資料庫 |
+| `os migrate meta --stored` | 在本部署**儲存的**後設資料上執行同樣的轉換；`--apply` 會改寫這些行 |
+| `os migrate account-issuer` | （17.5）檢查 `sys_account.issuer` 列能否被刪除。只讀；只要有兩個賬戶會衝突，就以非零狀態退出 |
+| `os migrate audit-metadata-bodies` | （17.6）改寫審計軌跡和活動流中儲存的後設資料正文副本，移除其中的憑據和儲存的內容雜湊 |
+| `os migrate summary-nulls` | 填充較舊父記錄上仍以 `NULL` 儲存的彙總 `count` / `sum` 列 |
+| `os migrate recorded-by` | 把後設資料歷史中遺留的 `'system'` 標記改寫為 `NULL` |
+| `os migrate resume` | 列出被中斷的遷移執行。在加 `--run ID` 之前都是隻讀的，加上後會恢復或撤銷其中一個 |
+
+```bash
+os migrate account-issuer                          # read-only pre-flight
+os migrate audit-metadata-bodies                   # dry run: what it would rewrite
+os migrate audit-metadata-bodies --apply           # rewrite
+```
+
+### 金鑰和儲存的檔案 [#secrets-and-stored-files]
+
+| 命令 | 做什麼 |
+|---|---|
+| `os secret rewrap` | 以 17.7 格式重新封裝較舊的 `sys_secret` 密文。在加 `--apply` 之前都是試執行；必須告訴它主機是否在程式碼中聲明瞭資料來源（`--declared-datasources FILE` 或 `--no-declared-datasources`）。⚠️ 17.7 之前的版本無法開啟它寫入的內容 |
+| `os secret orphans` | 報告不再被任何東西引用的 `sys_secret` 行。只有加 `--delete` 才會刪除 |
+| `os storage orphans` | 報告沒有任何東西持有、也沒有任何保留策略會回收的儲存檔案。不寫入任何內容 |
+
+## i18n 命令 [#i18n-commands]
+
+```bash
+os i18n extract               # extract translation keys from source
+os i18n check                 # find missing keys across configured locales
+```
+
+## 雲命令 [#cloud-commands]
+
+面向 ObjectOS Cloud（可選的託管控制平面）的使用者。
+
+```bash
+os login                      # interactive
+os logout
+os whoami
+os register                   # create an account
+os cloud login | logout | whoami
+```
+
+## 釋出 / 打包命令 [#publish--package-commands]
+
+```bash
+os package publish            # publish artifact as a versioned package
+os package install <id|file>  # install into a RUNNING runtime: catalog id
+                              # (com.acme.crm) or a compiled artifact JSON
+                              # (air-gapped, inline). --runtime / --email /
+                              # --password identify the runtime to install into
+```
+
+## 環境命令 [#environment-commands]
+
+面向每個專案使用多個環境（dev、staging、prod）並由控制平面支援的部署。
+
+```bash
+os environments list
+os environments show <id>
+os environments create <name>
+os environments switch <id>
+os environments bind          # bind local artifact to an environment
+```
+
+## 測試命令 [#test-command]
+
+```bash
+os test                       # run Quality Protocol scenarios against a running server
+```
+
+## 通用引數約定 [#common-flag-conventions]
+
+| 引數 | 含義 |
+|---|---|
+| `-p, --port` | HTTP 埠 |
+| `-a, --artifact` | 編譯後產物的路徑或 URL |
+| `-d, --database` | 資料庫 URL |
+| `--home` | 持久化狀態目錄 |
+| `-v, --verbose` | 詳細輸出 |
+| `--no-ui` | 停用 UI 和 Account 門戶 |
+
+任何命令加上 `--help` 都可以檢視完整的引數列表：
+
+```bash
+os start --help
+os data query --help
+```
+
+## CLI 的定位 [#where-the-cli-fits]
+
+- **運維 / 首次執行** → `os start`
+- **構建應用的開發者** → `os init` → `os dev` → `os compile`
+- **CI / 釋出流水線** → `os lint && os validate && os compile && os test`
+- **生產執行時** → `os serve`（通常在 Docker 映象的 `CMD` 中）
+- **升級部署** → [升級頁面](/docs/operate/upgrade#version-specific-steps)為你的
+  版本列出的 `os migrate` 步驟
+- **診斷** → `os doctor`、`os info`、`os explain`

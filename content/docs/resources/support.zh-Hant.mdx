@@ -1,0 +1,81 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 支援
+seoTitle: "支援：獲取幫助、報告缺陷、響應時間"
+description: 去哪裡獲取幫助、如何報告缺陷，以及響應預期。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: c91dd5746f73af07b73d9af2e79272ab63df7883b882a67dfcc6329bbc1ffc1a
+  guide_rev: 1
+  mode: auto
+---
+
+## 什麼事去哪裡 [#where-to-go-for-what]
+
+| 如果你…… | 去 |
+|---|---|
+| 有一個"怎麼做"的問題 | [GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) —— 唯一的公開問題跟蹤器，適用於每個 ObjectOS 版本 |
+| 發現了一個缺陷 | [GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) —— 請附上版本、復現步驟、期望結果與實際結果 |
+| 發現了這些文件中的錯誤 | [docs.objectos.ai issues](https://github.com/objectstack-ai/docs.objectos.ai/issues) —— 本站自己的倉庫只接受文件問題 |
+| 發現了一個安全漏洞 | **security@objectstack.ai** —— **不要**提交公開 issue |
+| 需要商業支援 / SLA | **sales@objectstack.ai** |
+| 想和使用者及維護者交流 | [Discord](https://discord.gg/objectstack)（社群運營） |
+| 想關注版本釋出 | [釋出說明](/docs/resources/changelog#release-notes) —— 每個版本釋出的地方；要接收通知，請 watch [github.com/objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack) → Releases |
+| 想付費實現某個功能 | **sales@objectstack.ai** —— 參見[商業支援與服務](#commercial-support--services) |
+
+## 提交一份好的缺陷報告 [#filing-a-good-bug-report]
+
+30 秒版本：
+
+```text
+ObjectOS version:           14.7.0 (or sha-abc123)
+Node version:               22.4.0
+Install method:             docker / npm -g / source
+Database:                   postgres 16 / sqlite / turso / mongo
+Repro steps:                1. ...  2. ...  3. ...
+Expected:                   ...
+Actual:                     ...
+Logs:                       (sanitized, last 30 lines)
+```
+
+對於配置問題，請附上 `os doctor` 的輸出 —— 它自己就能診斷出 80% 的錯誤配置。
+
+## 響應預期 [#response-expectations]
+
+| 渠道 | 盡力而為的響應時間 |
+|---|---|
+| 安全郵件 | 1 個工作日 |
+| GitHub Issues —— 缺陷，帶復現 | 3 個工作日內分診，在下一個釋出週期修復 |
+| GitHub Issues —— 功能請求 | 7 個工作日內分診 |
+| 商業支援 | 按你的支援合同 |
+
+這些是盡力而為的目標，而不是 SLA。商業支援合同帶有正式的 SLA。
+
+## 商業支援與服務 [#commercial-support--services]
+
+ObjectStack 團隊提供：
+
+- **ObjectOS Runtime Subscription** —— 針對免費自託管執行時 ObjectOS Community 的
+  支援合同：響應時間 SLA、指定的升級處理人、安全補丁優先（與開源版本沒有功能差異）。
+- **託管服務** —— ObjectOS Cloud，由我們為你執行。
+- **架構評審** —— 部署前的合理性檢查。
+- 按你的規格構建的**自定義外掛 / 能力**。
+- **OEM 再分發** —— 把 ObjectOS 嵌入你的產品。
+
+聯絡 **sales@objectstack.ai**。
+
+## 回饋貢獻 [#contributing-back]
+
+底層的 ObjectStack 框架採用 Apache-2.0 許可，接受貢獻：
+
+- [CONTRIBUTING.md](https://github.com/objectstack-ai/objectstack/blob/main/CONTRIBUTING.md)
+- [行為準則](https://github.com/objectstack-ai/objectstack/blob/main/CODE_OF_CONDUCT.md)
+- 儘早提交草稿 PR —— 我們寧願評審一份草圖，也不願看到重複勞動。
+
+## 狀態與事件 [#status--incidents]
+
+託管服務（ObjectOS Cloud、包登錄檔）：
+[status.objectstack.ai](https://status.objectstack.ai)。
+
+對於你自託管的 ObjectOS 部署，狀態由你負責 —— 把它接入你常規的監控（參見
+[可觀測性](/docs/operate/observability)）。
