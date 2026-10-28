@@ -112,9 +112,56 @@ const FIXED_PAIRS = ['apps/docs/lib/ui-text', 'apps/docs/app/[lang]/privacy', 'a
  * `www.objectos.ai` runs in production (`src/lib/zhconvert.ts`), and the
  * dependency is pinned to one exact version in `package.json` for the same
  * reason: the dictionaries decide the bytes, so a floating range would rewrite
- * the whole committed corpus on some future install.
+ * the whole committed corpus on some future install. The one difference is the
+ * `OVERRIDES` layer below, which `www.objectos.ai` does not have yet.
  */
-const convert = OpenCC.Converter({ from: 'cn', to: 'twp' });
+const opencc = OpenCC.Converter({ from: 'cn', to: 'twp' });
+
+/**
+ * Corrections applied to the converter's output, in this order (#366).
+ *
+ * Simplified 签 is two Traditional characters: 簽 (sign, approve) and 籤 (slip,
+ * tag). `twp` picks 籤 where a Taiwan reader expects 簽 in two ways. It lacks
+ * the phrase (签核 → 籤核, 会签 → 會籤), and it segments across a word boundary:
+ * 请求签名 is read as 请 + 求签 (draw a lot) + 名, and 中签发 as 中签 (win a
+ * lottery) + 发. No upstream phrase fixes the second kind, because the wrong
+ * word is a real word, so the fix is exact string pairs on the output.
+ *
+ * Every pair is applied to every converted run, so the output stays a function
+ * of the Simplified text alone. Fences never reach this, as they never reach
+ * the converter.
+ */
+const OVERRIDES = [
+  ['籤核', '簽核'], // 签核 sign off
+  ['會籤', '會簽'], // 会签 countersign
+  ['籤名', '簽名'], // 请求签名 request signature, not 求签 + 名
+  ['籤發', '簽發'], // 中签发 / 上签发 issue (a key), not 中签 + 发
+];
+
+/**
+ * Nouns where 籤 is right, set aside while the pairs run so that no pair can
+ * reach into them: 标签名 (tag name) converts to 標籤名, which the 籤名 pair
+ * would otherwise turn into 標簽名. They are swapped for private-use code
+ * points and swapped back after.
+ */
+const KEEP = ['標籤', '書籤'];
+const KEEP_BASE = 0xe000;
+
+function convert(text) {
+  if (/[-]/.test(text)) {
+    // A private-use character in the source would collide with the stand-ins.
+    throw new Error('source contains a private-use code point (U+E000..U+F8FF)');
+  }
+  let out = opencc(text);
+  KEEP.forEach((word, i) => {
+    out = out.replaceAll(word, String.fromCharCode(KEEP_BASE + i));
+  });
+  for (const [wrong, right] of OVERRIDES) out = out.replaceAll(wrong, right);
+  KEEP.forEach((word, i) => {
+    out = out.replaceAll(String.fromCharCode(KEEP_BASE + i), word);
+  });
+  return out;
+}
 
 /**
  * Pure ASCII on purpose: the converter never touches it, so it survives its own

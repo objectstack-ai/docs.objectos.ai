@@ -58,7 +58,7 @@ claude mcp add --transport http my-app https://your-deployment.example.com/api/v
 
 ## 無頭場景：API Key [#headless-api-keys]
 
-在 **Setup → Connect an Agent**（接入 Agent，那裡還提供各客戶端可直接複製貼上的接入片段）中籤發 Key，或通過 REST：
+在 **Setup → Connect an Agent**（接入 Agent，那裡還提供各客戶端可直接複製貼上的接入片段）中簽發 Key，或通過 REST：
 
 ```bash
 curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
@@ -83,7 +83,7 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 
 - **`OS_MCP_STDIO_ENABLED=true`** 開啟 stdio 自動啟動（預設**關閉**）。`OS_MCP_SERVER_ENABLED` 現在只管 HTTP 入口——`OS_MCP_SERVER_ENABLED=true` 同時拉起 stdio 的舊行為還會保留一個版本，並伴隨棄用警告。
 - stdio **必須配置 `OS_MCP_STDIO_API_KEY=osk_...`**。該 Key 通過與 HTTP、REST 完全相同的驗證 + 授權鏈解析，因此物件許可權、記錄訪問、欄位級安全和租戶隔離對 stdio 呼叫的作用與 `/api/v1/mcp` 完全一致——並且每次讀取都會重新解析 Key，吊銷立即生效。
-- 該傳輸是 **fail-closed** 的：開啟自動啟動卻沒有可解析的 Key，啟動會直接被拒絕；刻意不提供任何無身份回退，也沒有 `system` 旁路。若需要完整許可權，請在平臺管理員或專用服務身份上籤發 Key。
+- 該傳輸是 **fail-closed** 的：開啟自動啟動卻沒有可解析的 Key，啟動會直接被拒絕；刻意不提供任何無身份回退，也沒有 `system` 旁路。若需要完整許可權，請在平臺管理員或專用服務身份上簽發 Key。
 
 ## Agent 能得到什麼 [#what-the-agent-gets]
 
