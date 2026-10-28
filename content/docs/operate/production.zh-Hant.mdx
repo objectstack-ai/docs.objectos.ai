@@ -1,0 +1,137 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 生產就緒
+seoTitle: "生產就緒：加固、金鑰、CORS、上線"
+description: 在生產環境中安全執行自管理 ObjectOS 部署的檢查清單 —— 響應頭、金鑰、速率限制、CORS、啟動守衛、定時任務和保留期。
+editions: [community, enterprise]
+translation:
+  source_sha: 0d1f08122f21ab1bab4439881d84e8ef4cd8c08c847bfc56516c59fbcc0d48c2
+  guide_rev: 1
+  mode: auto
+---
+
+在把 ObjectOS 暴露給生產流量之前，使用這份檢查清單。它同樣適用於 Community 和
+Enterprise；末尾的[企業版額外提供](#enterprise-adds)一節列出了需許可證的映象隨之
+帶來的條目。
+
+## HTTP 加固 [#http-hardening]
+
+執行時預設在其路由上傳送保守的安全響應頭。請在經過任何會改寫響應頭的代理之後，
+檢查最終的響應：
+
+- `Content-Security-Policy`；
+- `X-Content-Type-Options`；
+- `X-Frame-Options`；
+- `Referrer-Policy`；
+- `Permissions-Policy`；
+- `Cross-Origin-Resource-Policy`；
+- HSTS，執行時預設不傳送它：在確認 TLS 正常後，在你的代理上新增。
+
+```bash
+curl -I https://app.example.com
+```
+
+## 金鑰 [#secrets]
+
+把這些儲存在金鑰管理器中，並在執行時注入：
+
+| 金鑰 | 用途 |
+|---|---|
+| `OS_AUTH_SECRET` | 會話簽名的基礎金鑰。**每個副本上都完全相同** —— 取值不同的副本會互相拒絕對方的會話。 |
+| `OS_SECRET_KEY` | 每個儲存的金鑰都用它加密。在容器中是必需的，因為自行生成的金鑰會隨檔案系統一起消失。**把它與資料庫一起備份**：缺了其中一個，另一個什麼都解密不了。 |
+| 資料庫憑據 | 訪問業務資料庫 |
+| OIDC 客戶端金鑰 | 單點登入 |
+| 提供商 API 金鑰 | 郵件、儲存、AI、整合 |
+
+絕不要把金鑰烘焙進產物或映象。
+
+**繫結**到控制平面的部署還持有一個執行時令牌，但那不是你要配置的金鑰：它在繫結時
+簽發，並由執行時持久儲存。它沒有需要分發的部署級 API 金鑰。
+
+## 速率限制 [#rate-limiting]
+
+執行時內建一個令牌桶速率限制器，**在應用宣告預算之前是關閉的**（在其技術棧中的
+`server.security.rateLimit`）。超出預算的呼叫者會收到帶有 `Retry-After` 的 `429`。
+令牌桶以已登入使用者為鍵，匿名流量則以呼叫者地址為鍵。
+
+在反向代理之後，呼叫者的地址就是代理的地址，除非應用設定了
+`server.trustProxy: true` —— 並且只有在代理會在每個請求上覆蓋 `X-Forwarded-For`
+時才這樣設定，否則呼叫者就能自己選擇地址。計數器儲存在記憶體中，按程序計算。登入
+可以在 **Setup → Authentication** 中設定它自己更嚴格的預算。
+
+如果限制應該放在邊緣 —— 入口或閘道器 —— 可以從這樣的預算開始：
+
+| 流量 | 示例限制 |
+|---|---:|
+| 認證端點 | 10/分鐘/IP |
+| 寫入請求 | 60/分鐘/IP |
+| 讀取請求 | 600/分鐘/IP |
+
+## CORS [#cors]
+
+沒有 `OS_CORS_ORIGIN` 時，執行時**不接納**任何跨源呼叫者 —— 只要 Console 和 API
+共享同一個公網源，也不需要接納。從另一個源提供的前端要顯式列出，以逗號分隔：
+
+```bash
+OS_CORS_ORIGIN=https://portal.example.com,https://admin.example.com
+```
+
+在開啟憑據時，`*` 會在啟動時被拒絕。
+
+## 啟動守衛保持開啟 [#boot-guards-stay-on]
+
+有兩個為開發準備的應急開關。它們都不應出現在生產環境中：
+
+- **`OS_ALLOW_DRIVER_CONNECT_FAILURE` 未設定。**啟動時無法連線的資料庫會拒絕啟動，
+  所以錯誤的 `OS_DATABASE_URL`、輪換過的密碼或被關閉的網路路徑都是一次失敗的部署
+  —— 而不是一個"已啟動"、卻對每個請求都返回 500 的伺服器。這個開關會在沒有資料庫
+  的情況下啟動，並且永遠不會重新連線。
+- **`OS_ALLOW_DEGRADED_TENANCY` 未設定。**一個要求多個組織、卻沒有組織執行時的部署
+  會拒絕啟動；這個開關讓它在缺少隔離的情況下啟動。
+
+## 定時任務是一項決策 [#scheduled-work-is-a-decision]
+
+應用和包所宣告的定時任務 —— 時間觸發的流程和打包的 cron 作業 —— 在部署設定
+`OS_AUTOMATION_SCHEDULED_WORK_ENABLED=true` 之前都是**關閉的**。一個期望摘要、清理
+或提醒按時觸發的部署必須開啟它。保持關閉也是一個合理的答案；但要有意為之。用
+`os doctor` 確認生效的值，並閱讀啟動摘要：其中被列為 *disabled by deployment
+policy* 的任務並沒有壞掉，只是被關掉了。參見
+[環境變數](/docs/reference/environment-variables#runtime-services)。
+
+## 在上線前設定保留期 [#retention-is-set-before-go-live]
+
+平臺會按計劃刪除遙測資料：活動在 14 天后刪除，作業執行記錄在 30 天后，通知在 90
+天后，審計記錄在 90 天后離開熱儲存。如果你的合規制度需要更長的保留期，請在上線
+**之前**通過 `lifecycle.retention_overrides` 設定延長這些時間視窗 —— 按策略刪除的
+資料，在之後製作的每一份備份中都不會存在。
+
+## 上線檢查清單 [#go-live-checklist]
+
+- [ ] TLS 在邊緣或入口終止。
+- [ ] 最終響應中帶有安全響應頭。
+- [ ] 在驗證 TLS 之後啟用了 HSTS。
+- [ ] `OS_AUTH_URL` 和 `OS_TRUSTED_ORIGINS` 與公網地址一致。
+- [ ] CORS 恰好接納你所提供的跨源前端。
+- [ ] 速率限制保護著登入和寫入端點。
+- [ ] `OS_AUTH_SECRET` 和 `OS_SECRET_KEY` 足夠強，作為金鑰儲存，並已託管備份。
+- [ ] 第一個管理員在地址被分享之前已經註冊。
+- [ ] OIDC 回撥 URL 與公網域名一致。
+- [ ] `OS_ALLOW_DRIVER_CONNECT_FAILURE` 和 `OS_ALLOW_DEGRADED_TENANCY` 未設定。
+- [ ] `OS_AUTOMATION_SCHEDULED_WORK_ENABLED` 是某人做出的決策。
+- [ ] 保留期視窗符合你的策略。
+- [ ] 業務資料庫的備份和恢復已經測試過 —— 參見[備份](/docs/operate/backup#the-restore-drill)。
+- [ ] 審計日誌按你的策略保留。
+- [ ] 監控會對 5xx 比率和就緒狀態告警 —— 參見[可觀測性](/docs/operate/observability)。
+- [ ] 回滾計劃同時覆蓋映象版本和應用產物版本。
+
+## 企業版額外提供 [#enterprise-adds]
+
+- [ ] `OS_LICENSE_KEY` —— 部署的授權 —— 作為金鑰儲存。
+- [ ] 已宣告 `OS_CLOUD_URL`，並且它與許可證模式相符。普通許可證搭配 `off` 會在
+      啟動時被拒絕；參見[物理隔離](/docs/deploy/air-gapped#the-supported-combinations)。
+- [ ] 映象按摘要固定，並且已校驗其簽名、SBOM 和溯源
+      （[Docker](/docs/deploy/docker#verify-the-image-before-production)）。
+- [ ] 在多個副本上，`OS_AUTH_SECRET` 和 `OS_SECRET_KEY` 在每個副本上都完全相同。
+- [ ] 在多組織姿態下：已宣告成員資格策略和掛載的 AI Agent，
+      `OS_PLATFORM_OWNER_EMAIL` 指定了不止一個已驗證的管理員，並且跨組織的負向
+      訪問測試通過。

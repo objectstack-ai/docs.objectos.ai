@@ -1,0 +1,103 @@
+---
+title: CEL 表达式
+seoTitle: "CEL 表达式：公式、谓词、模板"
+description: 公式字段、验证规则、可见性、共享和流程条件背后的表达式语言 —— ObjectOS 在哪里使用它、几个示例，以及 objectstack.ai 上的完整语言规范。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: ba57e518fc6626502da8e3012659d4218d65c7703dcb70c1834432e11a711d17
+  guide_rev: 1
+  mode: auto
+---
+
+**完整规范：**[objectstack.ai 上的表达式（CEL）](https://objectstack.ai/docs/data-modeling/formulas)。本页是摘要：ObjectOS 在哪里使用它，以及几个示例。
+
+ObjectOS 在任何需要一个小巧、安全的表达式的定义中使用
+[CEL](https://github.com/google/cel-spec)（Common Expression Language）：它没有
+副作用，没有 I/O，并且在服务器上求值。表达式能以 `record` 看到被求值的记录（以
+`previous` 看到它之前的状态），并且 —— 在有执行用户的地方 —— 以 `current_user`
+看到该用户。
+
+## ObjectOS 在哪里使用它 [#where-objectos-uses-it]
+
+| 位置 | 表达式决定什么 |
+|:--|:--|
+| 公式字段 | 字段的值，由记录推导而来 |
+| 字段的 `requiredWhen`、`visibleWhen`、`readonlyWhen` | 该字段在这条记录上是否必填、是否显示、是否可编辑 |
+| 验证规则 | 是否拒绝一次写入（[验证规则](/docs/build/data/validation-rules)） |
+| 共享规则 | 授予一组用户哪些记录（[记录访问](/docs/configure/permissions/record-access)） |
+| 动作的 `visible` / `disabled` | 是否提供该按钮 |
+| 流程的启动条件及其分支 | 流程是否运行，以及走哪个分支（[流程](/docs/build/automation/flows)） |
+| 字段的 `defaultValue` | 新记录的初始值 |
+
+## 示例 [#examples]
+
+**公式字段** —— 明细行合计：
+
+```ts
+subtotal: Field.formula({
+  label: 'Subtotal',
+  expression: F`record.quantity * record.unit_price`,
+}),
+```
+
+**验证** —— 关闭日期必须在将来。`script` 规则的 `condition` 描述的是*无效*的
+记录：当它为真时，写入会被拒绝。
+
+```ts
+// One validation rule, an entry of the object's `validations`
+{
+  type: 'script',
+  name: 'close_date_in_future',
+  message: 'Close date must be in the future',
+  condition: P`record.close_date <= today()`,
+}
+```
+
+**可见性** —— 只在商机赢单后才显示某个字段：
+
+```ts
+close_reason: Field.textarea({
+  label: 'Close reason',
+  visibleWhen: P`record.stage == 'closed_won'`,
+}),
+```
+
+**流程条件** —— 只在金额较大时启动记录变更流程：
+
+```ts
+// The `config` of a `start` node; the rest of the flow is omitted (see Flows).
+config: {
+  objectName: 'opportunity',
+  triggerType: 'record-after-update',
+  condition: P`record.amount >= 1000`,
+}
+```
+
+## 权限检查 [#permission-checks]
+
+从 ObjectStack 17.5 起，`current_user.can(object, verb)` 用于询问执行用户是否持有
+某项对象权限，依据该用户的有效权限作答：
+
+```ts
+discount: Field.percent({
+  label: 'Discount',
+  defaultValue: cel`current_user.can('crm_quote', 'edit') ? 10 : 0`,
+}),
+```
+
+服务器会在选择项选项的 `visibleWhen` 中（用户不能选择的选项会以 `invalid_option`
+被拒绝）、在公式字段中以及在 CEL `defaultValue` 中回答它。在不携带权限数据的求值
+中 —— 验证规则就是一例 —— `can()` 会被拒绝而不是被猜测，表达式随之失败。
+
+## 当表达式有错时 [#when-an-expression-is-wrong]
+
+它不会静默失败。格式错误的表达式，或者点名了对象上不存在的字段的表达式，会让
+`os compile` 失败，并给出位置和一个"你是不是想写"的提示。在运行时，错误的表达式
+会抛出一个可归因的错误，而不是求值为 `null` 或 `false`，所以故障会出现在日志和审计
+轨迹中，而不是悄悄地破坏一个公式值或一次守卫判定。
+
+## 另请参阅 [#see-also]
+
+- [公式](/docs/build/data/formulas) —— 应用中的公式字段
+- [验证规则](/docs/build/data/validation-rules) —— 拒绝写入的谓词
+- [字段类型](./field-types) —— 公式字段和条件属性

@@ -1,0 +1,59 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: skills CLI
+seoTitle: "skills CLI：把 Skills 安裝進你的編碼 Agent"
+description: 把 ObjectStack Skills 安裝進你的編碼 Agent 的 npx 命令 —— ObjectOS 在哪裡使用它、幾個示例，以及 objectstack.ai 上的完整 Skill 參考。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 26df3bfe697fc1dcc37dc143c85b53c43d842b6b8a5801ad85e00738000a6399
+  guide_rev: 1
+  mode: auto
+---
+
+**完整規範：**[objectstack.ai 上的 AI Skill 參考](https://objectstack.ai/docs/ai/skills-reference)。本頁是摘要：ObjectOS 在哪裡使用它，以及幾個示例。
+
+[`skills`](https://www.npmjs.com/package/skills) CLI（來自
+[vercel-labs/skills](https://github.com/vercel-labs/skills)）會把按領域劃分的
+指令安裝進 AI 編碼 Agent。ObjectStack Skills 教 Claude Code、Cursor、Copilot、
+Codex 等依據真實的 schema 編寫 ObjectOS 執行的後設資料 —— 物件、檢視、流程、許可權、
+查詢、CEL —— 所以 Agent 寫出的內容能夠編譯通過。
+
+## ObjectOS 在哪裡使用它 [#where-objectos-uses-it]
+
+- **在你的 IDE 中手工編寫應用。**瀏覽器內的 [AI Builder](/docs/build/ai-builder)
+  會在 ObjectOS 中為你編寫後設資料；當你改在程式碼倉庫中工作時，這些 Skills 會給你自己
+  的編碼 Agent 同樣的詞彙。參見[構建 → IDE Skills](/docs/build/ai-skills)。
+- **讓 Agent 保持最新。**這些 Skills 位於
+  [objectstack 倉庫](https://github.com/objectstack-ai/objectstack/tree/main/skills)中，
+  與它們所描述的 schema 放在一起，所以升級後重新安裝即可讓 Agent 跟上最新版本。
+
+## 示例 [#examples]
+
+把 Skills **安裝**到當前專案中。CLI 會檢測專案使用哪些 Agent，併為每一個寫入其
+原生格式（`.claude/skills/`、`.cursor/rules/`、`AGENTS.md`……）：
+
+```bash
+npx skills add objectstack-ai/objectstack/skills
+```
+
+為可重現的 CI **固定一個版本**：
+
+```bash
+npx skills add https://github.com/objectstack-ai/objectstack/tree/<commit-sha>/skills
+```
+
+**檢視和管理**已安裝的內容：
+
+```bash
+npx skills detect                  # show which agents the CLI will write to
+npx skills list                    # list installed skills
+npx skills remove <name>           # remove a skill
+```
+
+**提交輸出。**Skills 是你的整個團隊 —— 包括 CI Agent —— 都應共享的 markdown，而
+CLI 寫入的路徑本來就是你會簽入的路徑。
+
+## 另請參閱 [#see-also]
+
+- [構建 → IDE Skills](/docs/build/ai-skills) —— 與 AI Builder 並列的 Skills
+- [vercel-labs/skills](https://github.com/vercel-labs/skills) —— 上游 CLI

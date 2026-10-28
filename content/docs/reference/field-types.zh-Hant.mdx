@@ -1,0 +1,107 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 欄位型別
+seoTitle: "欄位型別：每個欄位儲存和顯示什麼"
+description: 欄位型別在 ObjectOS 中決定什麼 —— 列、API、表單控制元件，以及 AI Builder 會詢問什麼 —— 附幾個示例，完整的目錄見 objectstack.ai。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: d8cf773f496622e8a3d84f80d1e3e96dbcc89f6f2892ef7cf6847d049db4a2ca
+  guide_rev: 1
+  mode: auto
+---
+
+**完整規範：**[objectstack.ai 上的欄位型別](https://objectstack.ai/docs/data-modeling/field-types)。本頁是摘要：ObjectOS 在哪裡使用它，以及幾個示例。
+
+欄位的型別決定它儲存什麼，以及每個介面如何對待它。共有 48 種內建型別 —— 文本、
+數字、日期、選擇、關係、計算值、媒體、結構化資料，以及地址、評分和簽名等更豐富的
+輸入 —— 每個物件還帶有你不需要宣告的系統欄位（`id`、`created_at`、`updated_at`、
+`created_by`、`updated_by`）。
+
+## ObjectOS 在哪裡使用它 [#where-objectos-uses-it]
+
+一個欄位定義驅動以下所有內容：
+
+```
+*.object.ts (field spec)
+   │
+   ├─► Postgres / MySQL / SQLite column + index + constraint
+   ├─► REST: validated on POST/PATCH, exposed on GET
+   ├─► UI: form widget + list column
+   ├─► AI Builder: tool argument schema (so the AI knows what to ask)
+   └─► Audit: change-tracked if `trackHistory: true`
+```
+
+- **資料庫**會得到一列，以及它的索引和約束。
+- **REST API** 在每次寫入時校驗該欄位，並在讀取時返回它（[REST API](./rest-api)）。
+- **UI** 根據型別選擇表單控制元件和列表列。
+- **AI Builder** 知道該詢問什麼，因為型別就是其工具的引數 schema。
+- **審計**在開啟 `trackHistory` 時記錄該欄位的變更。
+
+## 示例 [#examples]
+
+**選擇** —— `select` 欄位的選項：
+
+```ts
+// Keys of a `select` field; its other keys are omitted.
+options: [
+  { value: 'low',    label: 'Low' },
+  { value: 'high',   label: 'High',   color: '#e02' },
+  { value: 'urgent', label: 'Urgent', color: '#c00' }
+]
+```
+
+**關係** —— 指向客戶的查詢，選擇器收窄為活動的客戶：
+
+```ts
+// One field.
+{
+  type: 'lookup',
+  reference: 'account',                       // target object name
+  lookupFilters: [                            // narrow the lookup picker
+    { field: 'status', operator: 'eq', value: 'active' }
+  ],
+  deleteBehavior: 'set_null'                  // 'set_null' | 'cascade' | 'restrict'
+}
+```
+
+**計算值** —— 用 [CEL](./cel) 編寫的公式欄位：
+
+```ts
+// One field.
+{
+  name: 'profit_margin',
+  type: 'formula',
+  expression: F`(record.revenue - record.cost) / record.revenue * 100`
+}
+```
+
+**附件** —— 在伺服器上檢查的檔案：
+
+```ts
+// One field.
+{
+  type: 'file',
+  multiple: true,                             // store an array of attachments
+  accept: ['image/png', 'image/jpeg'],        // MIME types / extensions
+  maxSize: 10_000_000                         // bytes
+}
+```
+
+## 媒體 [#media]
+
+媒體欄位儲存的是一個**不透明的 `sys_file` id** —— 不是 URL，也不是內聯的後設資料
+塊。你讀取記錄時看到的 `{ url, name, size, mimeType, … }` 物件是展開後的形式，由
+所屬的 `sys_file` 記錄推導而來；`url` 來自 `/files/:fileId` 解析器。
+
+由於位元組由平臺持有，`accept` 和 `maxSize` 不只是給瀏覽器檔案選擇器的提示：伺服器
+會依據它們重新檢查每一次記錄寫入，所以直接呼叫 API 的呼叫者也無法繞過它們。下載
+會帶有真實的檔名和內容型別，讀取訪問則委託給所屬的物件。現有部署用
+`os migrate files-to-references` 進行轉換；位元組存放在哪裡，參見
+[儲存](/docs/configure/storage)，遷移則參見
+[17.0 釋出說明](https://objectstack.ai/docs/releases/v17)。
+
+## 另請參閱 [#see-also]
+
+- [構建 → 資料模型](/docs/build/data) —— 把欄位組合成物件
+- [關係](/docs/build/data/relationships) —— 查詢和主從
+- [ObjectQL](./objectql) —— 查詢這些欄位

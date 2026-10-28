@@ -1,0 +1,104 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: CEL 表示式
+seoTitle: "CEL 表示式：公式、謂詞、模板"
+description: 公式欄位、驗證規則、可見性、共享和流程條件背後的表示式語言 —— ObjectOS 在哪裡使用它、幾個示例，以及 objectstack.ai 上的完整語言規範。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: ba57e518fc6626502da8e3012659d4218d65c7703dcb70c1834432e11a711d17
+  guide_rev: 1
+  mode: auto
+---
+
+**完整規範：**[objectstack.ai 上的表示式（CEL）](https://objectstack.ai/docs/data-modeling/formulas)。本頁是摘要：ObjectOS 在哪裡使用它，以及幾個示例。
+
+ObjectOS 在任何需要一個小巧、安全的表示式的定義中使用
+[CEL](https://github.com/google/cel-spec)（Common Expression Language）：它沒有
+副作用，沒有 I/O，並且在伺服器上求值。表示式能以 `record` 看到被求值的記錄（以
+`previous` 看到它之前的狀態），並且 —— 在有執行使用者的地方 —— 以 `current_user`
+看到該使用者。
+
+## ObjectOS 在哪裡使用它 [#where-objectos-uses-it]
+
+| 位置 | 表示式決定什麼 |
+|:--|:--|
+| 公式欄位 | 欄位的值，由記錄推導而來 |
+| 欄位的 `requiredWhen`、`visibleWhen`、`readonlyWhen` | 該欄位在這條記錄上是否必填、是否顯示、是否可編輯 |
+| 驗證規則 | 是否拒絕一次寫入（[驗證規則](/docs/build/data/validation-rules)） |
+| 共享規則 | 授予一組使用者哪些記錄（[記錄訪問](/docs/configure/permissions/record-access)） |
+| 動作的 `visible` / `disabled` | 是否提供該按鈕 |
+| 流程的啟動條件及其分支 | 流程是否執行，以及走哪個分支（[流程](/docs/build/automation/flows)） |
+| 欄位的 `defaultValue` | 新記錄的初始值 |
+
+## 示例 [#examples]
+
+**公式欄位** —— 明細行合計：
+
+```ts
+subtotal: Field.formula({
+  label: 'Subtotal',
+  expression: F`record.quantity * record.unit_price`,
+}),
+```
+
+**驗證** —— 關閉日期必須在將來。`script` 規則的 `condition` 描述的是*無效*的
+記錄：當它為真時，寫入會被拒絕。
+
+```ts
+// One validation rule, an entry of the object's `validations`
+{
+  type: 'script',
+  name: 'close_date_in_future',
+  message: 'Close date must be in the future',
+  condition: P`record.close_date <= today()`,
+}
+```
+
+**可見性** —— 只在商機贏單後才顯示某個欄位：
+
+```ts
+close_reason: Field.textarea({
+  label: 'Close reason',
+  visibleWhen: P`record.stage == 'closed_won'`,
+}),
+```
+
+**流程條件** —— 只在金額較大時啟動記錄變更流程：
+
+```ts
+// The `config` of a `start` node; the rest of the flow is omitted (see Flows).
+config: {
+  objectName: 'opportunity',
+  triggerType: 'record-after-update',
+  condition: P`record.amount >= 1000`,
+}
+```
+
+## 許可權檢查 [#permission-checks]
+
+從 ObjectStack 17.5 起，`current_user.can(object, verb)` 用於詢問執行使用者是否持有
+某項物件許可權，依據該使用者的有效許可權作答：
+
+```ts
+discount: Field.percent({
+  label: 'Discount',
+  defaultValue: cel`current_user.can('crm_quote', 'edit') ? 10 : 0`,
+}),
+```
+
+伺服器會在選擇項選項的 `visibleWhen` 中（使用者不能選擇的選項會以 `invalid_option`
+被拒絕）、在公式欄位中以及在 CEL `defaultValue` 中回答它。在不攜帶許可權資料的求值
+中 —— 驗證規則就是一例 —— `can()` 會被拒絕而不是被猜測，表示式隨之失敗。
+
+## 當表示式有錯時 [#when-an-expression-is-wrong]
+
+它不會靜默失敗。格式錯誤的表示式，或者點名了物件上不存在的欄位的表示式，會讓
+`os compile` 失敗，並給出位置和一個"你是不是想寫"的提示。在執行時，錯誤的表示式
+會丟擲一個可歸因的錯誤，而不是求值為 `null` 或 `false`，所以故障會出現在日誌和審計
+軌跡中，而不是悄悄地破壞一個公式值或一次守衛判定。
+
+## 另請參閱 [#see-also]
+
+- [公式](/docs/build/data/formulas) —— 應用中的公式欄位
+- [驗證規則](/docs/build/data/validation-rules) —— 拒絕寫入的謂詞
+- [欄位型別](./field-types) —— 公式欄位和條件屬性

@@ -1,0 +1,77 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 執行時能力
+seoTitle: "執行時能力：基礎包和可選包"
+description: ObjectOS 可以從 ObjectStack 框架包中載入的能力。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3beb96f0a63636343e3b8750462e6b3051b331b4addc65c3e2c18c93c9ec4d4e
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS 為每個專案載入一個基礎執行時，然後安裝應用產物所宣告的可選能力。
+
+## 基礎執行時 [#base-runtime]
+
+基礎專案核心包括：
+
+- ObjectKernel 生命週期和服務登錄檔；
+- ObjectQL 資料引擎；
+- 配置的資料驅動；
+- 後設資料服務；
+- 應用產物註冊；
+- 配置了 `OS_AUTH_SECRET` 時的認證；
+- 用於 RBAC、行級安全和欄位安全的安全外掛；
+- i18n 服務。
+
+## 可選能力 [#optional-capabilities]
+
+產物可以在其 `requires` 列表中宣告能力。當映象中存在匹配的框架包時，ObjectOS 會
+載入它們。
+
+| 能力 | 包 | 用途 |
+|---|---|---|
+| `automation` | `@objectstack/service-automation` | 流程/DAG 執行和自動化節點 |
+| `ai` | 不是框架包：AI 執行時隨 ObjectOS 一起提供（[AI 服務](/docs/configure/ai)） | LLM 介面卡、對話、工具、SSE 路由 |
+| `analytics` | `@objectstack/service-analytics` | 多維資料集、分析查詢、報表資料 |
+| `audit` | `@objectstack/plugin-audit` | 審計日誌物件和審計軌跡 |
+| `cache` | `@objectstack/service-cache` | 快取抽象和介面卡 |
+| `storage` | `@objectstack/service-storage` | 檔案/物件儲存服務 |
+| `queue` | `@objectstack/service-queue` | 佇列抽象和工作程序 |
+| `job` | `@objectstack/service-job` | 定時/後臺作業 |
+| `realtime` | `@objectstack/service-realtime` | WebSocket 和釋出/訂閱即時通訊 |
+| `settings` | `@objectstack/service-settings` | 設定清單和 K/V 解析器 |
+
+如果請求了某項能力，但映象中不包含對應的包，**ObjectOS 會記錄一條警告，並在停用
+該能力的情況下繼續執行。**這是有意為之 —— 它讓執行時在開發期間缺少某個可選包時
+仍可啟動 —— 但在**生產環境中這是一個真實的風險**：
+
+- 一個要求審計的應用，如果被載入到不含 `@objectstack/plugin-audit` 的映象中，會
+  乾淨地啟動，**卻不寫任何審計日誌**。合規證據會在沒有任何錯誤的情況下缺失。
+- 一個依賴作業的應用，如果被載入到不含 `@objectstack/service-job` 的映象中，會
+  乾淨地啟動，**卻悄悄地永遠不執行定時任務**。
+
+**生產檢查清單：**
+
+1. 把能力警告視為部署失敗。在啟動日誌中 grep `capability not loaded`（或你的
+   等效資訊），一旦出現就讓就緒探針 / 釋出失敗。
+2. 把 ObjectOS 執行時映象固定為包含你的產物在 `requires` 中宣告的每個包的那一個。
+3. 釋出產物時，隨附記錄它的 `requires` 列表，以便運維人員核對匹配的映象。
+
+## API 介面 [#api-surface]
+
+ObjectOS 通常會暴露：
+
+- 生成的 REST API；
+- `/api/v1/auth/*` 下的認證端點；
+- 後設資料和 i18n 端點；
+- 已啟用能力的服務端點。
+
+OData 是一項框架級能力，只有在所部署的執行時包包含並啟用它時，才應在文件中寫為
+受支援。
+
+**GraphQL 不在其中。**GraphQL 介面已在 ObjectStack 17.0 中移除 —— 該端點在路由
+背後從未被實現過，`/graphql` 現在返回 404。不要在文件中把它寫成任何執行時包可用的
+或可選的能力。（`graphql` 仍是**外部資料來源**上的有效協議，那是 ObjectOS 去查詢的
+系統，而不是它提供的介面。）
