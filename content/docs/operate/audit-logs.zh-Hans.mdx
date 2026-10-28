@@ -1,0 +1,142 @@
+---
+title: 审计日志
+seoTitle: "审计日志：每一次变更、登录和事件"
+description: 阅读不可变的审计轨迹和诊断日志，它们记录了你的部署上的每一次变更、每一次登录和每一个发出的事件。
+editions: [community, enterprise]
+translation:
+  source_sha: 8c6b53d05235befa452e3b9a3953df31e5b1ba4c01aaf168a9392a49da21197f
+  guide_rev: 1
+  mode: auto
+---
+
+审计日志是你的部署上所发生之事的不可变记录：谁、在什么时候、从哪里改了什么。本页
+是 **Setup → Diagnostics** 下各诊断界面的深入参考。关于日志、指标和请求身份的
+运维概览，参见[可观测性](/docs/operate/observability)。
+
+> 这些界面需要 `manage_platform_settings` 权限。
+
+当你需要证明或调查以下事项时，就去查审计日志：
+
+- 权限敏感的变更；
+- 设置和配置变更；
+- 用户和会话活动；
+- 集成和自动化活动；
+- 访问被拒绝的分析。
+
+## 审计日志 [#audit-logs]
+
+位于 **Setup → Diagnostics → Audit Logs**（`sys_audit_log`）。该对象是**只读且
+不可变的** —— 一条只追加的平台事件轨迹。你可以过滤、分组和查看行，但在 Setup 中
+没有任何东西能编辑或删除它们。
+
+### 每个读者能看到什么 [#what-each-reader-is-served]
+
+每一行都会保持存储，但从 ObjectStack 17.6 起，只有当读者自己能读取某条记录时，
+才会向其返回关于这条记录的行 —— 判断依据与决定他们能否打开这条记录的对象权限、
+共享和行级安全相同。这会排除：
+
+- 每一条 `delete` 行，以及关于此后已被删除的记录的其他每一行；
+- 登出行，以及其会话此后已被移除的登录行；
+- 关于读者无法打开的记录的行。
+
+与任何记录无关的行 —— 配置变更、用户导入运行、不带会话的认证事件 —— 与以前一样，
+按该日志自身的授权返回。
+
+**`view_all_audit_log`** 能力会解除这种收窄（ObjectStack 17.7）：持有者可以看到
+删除和登出轨迹，以及关于他们无法打开的记录的行。平台管理员默认持有它；组织管理员
+则不持有，所以请把它显式授予其他必须阅读完整轨迹的人。
+
+字段级安全在每一行内部仍然适用。`old_value` 和 `new_value` 只向能以未掩码形式读取
+某个字段的读者返回该字段，并且在它们上面过滤、排序或分组会被拒绝（`403`），除非
+过滤条件以相等方式指定了一个对象（`object_name`），且你能读取它的每个字段。
+
+### 预设视图 [#preset-views]
+
+列表打开时带有按动作类别过滤的标签页。每个标签页都应用上述规则：
+
+| 视图 | 显示 |
+|---|---|
+| `Recent` | 所有事件，最新的在前 |
+| `Writes` | 创建 / 更新 / 删除动作 —— `delete` 行仅在持有 `view_all_audit_log` 时显示 |
+| `Auth` | 登录和登出事件 —— 登出，以及其会话此后已被移除的登录，仅在持有 `view_all_audit_log` 时显示 |
+| `Config` | 设置和配置变更 |
+
+### 列与字段 [#columns-and-fields]
+
+默认列为 `Timestamp`、`Action`（一个彩色标签 —— create / update / …）、`Object`、
+`Record ID` 和 `Actor`。页脚显示记录总数（例如 *36 records*）。
+
+每一行都带有完整的字段集：
+
+| 字段 | 含义 |
+|---|---|
+| `created_at` | 事件被记录的时间 |
+| `action` | 操作（create、update、delete、auth……） |
+| `user_id` | 指向执行操作的用户的查找 |
+| `actor` | 文本形式的执行者身份 |
+| `object_name` | 事件涉及的对象（例如 `sys_user`） |
+| `record_id` | 受影响的记录 |
+| `old_value` | 之前的值（textarea） |
+| `new_value` | 新的值（textarea） |
+| `ip_address` | 请求的来源 IP |
+| `user_agent` | 客户端的 user agent |
+| `tenant_id` | 所属租户 |
+| `metadata` | 额外的结构化上下文 |
+
+> `Config` 视图是回答"谁改了这个设置？"的最快方式 —— 它在你开始阅读行之前，就把
+> 轨迹收窄到配置动作。
+
+### 解读一次变更 [#reading-a-change]
+
+对于写入动作，值得关注的细节是变更前后。打开某一行的 `⋮` 菜单，展开 `old_value`
+和 `new_value`，查看这条记录上改了什么 —— 你能读取的每个字段都完整显示，其他的
+一概不显示。`Object` 和 `Record ID` 列告诉你*什么*被改动了；
+`old_value`/`new_value` 告诉你*如何*改动；`actor`、`ip_address` 和 `user_agent`
+告诉你*谁*改的，以及*从哪里*改的。
+
+> 对于受监管的环境，请在存储层为不可变性提供保障 —— 在数据库层把表设为只追加，
+> 并定义保留策略。
+
+## 通知事件 [#notification-events]
+
+位于 **Setup → Diagnostics → Notification Events**（`sys_notification`）。这是
+**通知系统的入口日志** —— 每次 `emit()` 一行，在任何投递决策之前写入。用它来诊断
+一条通知为什么到达或没有到达收件箱；之后的路由和物化过程记录在
+[通知](/docs/configure/notifications)中。
+
+预设视图为 `Recent` 和 `By Topic`。默认列：`Topic`（例如 `project.digest`）、
+`Severity`（一个 info/warn/… 标签）、`Actor`、`Source Object` 和 `Created At`。
+
+| 字段 | 含义 |
+|---|---|
+| `topic` | 发出的主题 |
+| `payload` | 事件载荷（JSON） |
+| `severity` | 严重级别 |
+| `dedup_key` | 用于合并重复发出的键 |
+| `source_object` | 引发事件的对象 |
+| `source_id` | 引发事件的记录 |
+| `actor_id` | 触发发出的主体 |
+| `created_at` | 事件被接收的时间 |
+
+`dedup_key` 会合并重复的发出，`payload` 携带模板渲染所依据的原始事件上下文。由于
+这个日志位于路由的*上游*，如果这里有一行却没有对应的收件箱消息，通常意味着受众没有
+解析到那个用户，或者他们的偏好在那个渠道上屏蔽了该主题 —— 当用户报告缺少提醒时，
+请查看[通知](/docs/configure/notifications)。
+
+在下游，每个事件都会物化为按用户的收件箱消息（`sys_inbox_message`）—— 接收方的
+视角见[通知](/docs/use/notifications)。
+
+## 会话 [#sessions]
+
+位于 **Setup → Diagnostics → Sessions**。会话列出活动的和最近的登录会话，因此你
+可以调查某个用户的活动或撤销其访问。审查登录事件时，把它与 `Auth` 审计视图搭配
+使用。
+
+## 下一步 [#where-to-go-next]
+
+| 任务 | 页面 |
+|---|---|
+| 日志、指标和请求身份的运维概览 | [可观测性](/docs/operate/observability) |
+| 了解通知如何被路由和渲染 | [通知](/docs/configure/notifications) |
+| 在上线前加固部署 | [生产就绪](/docs/operate/production) |
+| 回到运维概览 | [运维](/docs/operate) |

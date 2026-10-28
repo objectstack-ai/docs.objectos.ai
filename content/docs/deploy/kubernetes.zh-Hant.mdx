@@ -1,0 +1,143 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: Kubernetes
+seoTitle: "Kubernetes：探針、金鑰、固定版本和遷移"
+description: 在 Kubernetes 上執行 ObjectOS 映象 —— 一個參考 Deployment、在正確端點上的正確探針、來自 Secret 的金鑰，以及多副本企業版部署必須保持的屬性。
+editions: [community, enterprise]
+translation:
+  source_sha: 2270aa161805c5ab5a80c2c48562ac8ab6c54573019e3c7d17acc51587a2d6c0
+  guide_rev: 1
+  mode: auto
+---
+
+**沒有 Helm chart，也沒有官方清單集。**映象在 Kubernetes 上無需修改即可執行，
+所以本頁給出一個最小參考，以及你的清單必須保持的屬性 —— 每一項都是執行時所依賴
+或強制執行的東西。[Docker](/docs/deploy/docker) 上的一切都同樣適用：同一個映象、
+同樣的變數、同樣的升級規則。
+
+## 參考 Deployment [#a-reference-deployment]
+
+Community 映象的一個副本，金鑰來自一個 `Secret`，每個探針各有自己的端點：
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: objectos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: objectos }
+  template:
+    metadata:
+      labels: { app: objectos }
+    spec:
+      containers:
+        - name: objectos
+          image: registry.example.com/crm:2.2.2   # your image FROM ghcr.io/objectstack-ai/objectstack:X.Y.Z
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: objectos-secrets   # OS_DATABASE_URL, OS_AUTH_SECRET, OS_SECRET_KEY
+          livenessProbe:
+            httpGet: { path: /api/v1/health, port: 8080 }
+            periodSeconds: 30
+          readinessProbe:
+            httpGet: { path: /api/v1/ready, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: objectos
+spec:
+  selector: { app: objectos }
+  ports:
+    - port: 80
+      targetPort: 8080
+```
+
+## 需要保持的屬性 [#properties-to-preserve]
+
+### 映象被精確固定 [#the-image-is-pinned-exactly]
+
+按 `@sha256:` 摘要引用映象，並在旁邊寫上讀取它時對應的確切版本，絕不使用滾動標籤。
+在編排器上，這比在單臺主機上更重要：拉取策略加上會移動的標籤，意味著"同一個"
+Deployment 的兩個 Pod 可能執行不同的構建。滾動標籤隨每次釋出而移動，確切的版本
+標籤在該版本被重新構建時也會移動；參見[Docker → 固定映象](/docs/deploy/docker#pin-the-image)。
+
+### 探針指向正確的端點 [#probes-address-the-right-endpoints]
+
+`/api/v1/health` 是存活探針。`/api/v1/ready` 是就緒探針。在執行時啟動期間、關閉
+期間，以及任何資料驅動停止響應時，就緒端點都會返回 **503** —— 這樣滾動重啟可以
+乾淨地排空，而失去資料庫的 Pod 會離開 Service 的端點，而不是返回錯誤。
+
+不要把就緒檢查放到存活探針上。否則一次資料庫故障會同時重啟所有 Pod，而這並不能
+讓資料庫恢復，配置故障也會表現為 `CrashLoopBackOff`，而不是故障本身。資料庫恢復
+後，Pod 會自行恢復：就緒探針在資料庫不可用時把它們排空，之後再重新接納它們。
+
+### 金鑰來自 Secret [#secrets-come-from-a-secret]
+
+`OS_AUTH_SECRET` 和 `OS_SECRET_KEY` 應放在一個 `Secret` 中，只生成一次，並由每個
+Pod 掛載 —— 絕不按 Pod 生成，絕不烘焙進映象。一個自己生成加密金鑰的 Pod 會在下次
+重新排程時丟失它，用它加密的所有金鑰也隨之丟失。
+
+### 業務資料存放在叢集之外 [#business-data-lives-outside-the-cluster]
+
+把部署指向一個託管的 PostgreSQL。叢集內的持久卷並不是業務資料該待的地方。
+
+### Community 上只用一個副本 [#one-replica-on-community]
+
+Community 上的協調是程序內的，所以保持 `replicas: 1`。宣告更多副本
+（`OS_CLUSTER_REPLICAS` 大於 1）在沒有許可證時會拒絕啟動。多副本是一項企業版能力
+—— 見下文。
+
+### 入口 [#ingress]
+
+在邊緣終止 TLS，並把 `OS_AUTH_URL` 和 `OS_TRUSTED_ORIGINS` 設為公網地址。在
+`OS_CORS_ORIGIN` 中顯式列出跨源前端；絕不把萬用字元源與攜帶憑據的請求一起使用。當
+執行時位於代理之後時，確保代理用它自己的 forwarded-for 頭替換客戶端提供的任何同類
+頭 —— 速率限制和審計軌跡都依賴於呼叫者身份是可信的。
+
+## 企業版額外提供 [#enterprise-adds]
+
+**我們提供的是 Compose 技術棧，而不是 Helm chart 或 Kubernetes 清單。**你的版本中
+附帶的部署包才是受支援、經過測試的配置。在 Kubernetes 上，清單要你自己組裝，所以
+也要重現該技術棧的這些屬性。編排器不會改變部署有權獲得的任何東西。
+
+### 映象按摘要固定 [#the-image-is-pinned-by-digest]
+
+在 Pod spec 中按 `@sha256:` 摘要引用企業版映象。拉取映象需要一個儲存你的許可證
+映象倉庫憑據的拉取金鑰。
+
+### 遷移在副本提供服務之前執行一次，並執行到完成 [#migrations-run-once-to-completion-before-replicas-serve]
+
+Compose 技術棧執行一個一次性的遷移容器，它必須在任何應用副本啟動之前完成。在
+Kubernetes 上，這是一個 Job（或等效的服務前鉤子），而不是每個副本上的 init 容器
+—— 關鍵在於模式變更只執行**一次**，而不是每個副本並行各執行一次。映象正是為此
+支援一種"遷移後退出"的模式；部署包中點名了對應的變數。
+
+### 每個副本都使用完全相同的金鑰 [#every-replica-gets-identical-secrets]
+
+多副本不只是調高副本數：
+
+- 必須開啟**叢集驅動**，並以 Redis 作為後端。
+- **共享的加密金鑰**成為必需。沒有叢集驅動時，每個副本會自己生成一個；跨副本時
+  它們會互不相同，而**執行時會拒絕啟動**，而不是讓它們分叉。一個值，掛載到每個
+  副本中。
+- **認證金鑰**同樣必須在各副本之間完全相同。
+
+### 許可證和雲端姿態作用於整個部署 [#license-and-cloud-posture-are-deployment-wide]
+
+許可證金鑰、許可證模式和雲端姿態設定都是部署身份的一部分。它們在每個副本中都
+必須相同，其受支援的組合會**在啟動時**檢查 —— 不匹配的 Pod 不會降級執行，而是
+直接退出。組合參見[物理隔離](/docs/deploy/air-gapped)。
+
+### 滾動升級就是更換摘要 [#rolling-upgrades-change-the-digest]
+
+升級就是更換映象摘要，並讓遷移 Job 在新副本提供服務之前執行到完成。模式遷移只能
+向前：回滾映象並不會回滾模式，所以先做備份，並保留上一個摘要以便回滾。應用本身
+如果以已釋出產物的形式交付，則獨立於映象進行版本管理 —— 參見
+[部署](/docs/deploy#three-run-shapes)中的執行形態。

@@ -1,0 +1,143 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 審計日誌
+seoTitle: "審計日誌：每一次變更、登入和事件"
+description: 閱讀不可變的審計軌跡和診斷日誌，它們記錄了你的部署上的每一次變更、每一次登入和每一個發出的事件。
+editions: [community, enterprise]
+translation:
+  source_sha: 8c6b53d05235befa452e3b9a3953df31e5b1ba4c01aaf168a9392a49da21197f
+  guide_rev: 1
+  mode: auto
+---
+
+審計日誌是你的部署上所發生之事的不可變記錄：誰、在什麼時候、從哪裡改了什麼。本頁
+是 **Setup → Diagnostics** 下各診斷介面的深入參考。關於日誌、指標和請求身份的
+運維概覽，參見[可觀測性](/docs/operate/observability)。
+
+> 這些介面需要 `manage_platform_settings` 許可權。
+
+當你需要證明或調查以下事項時，就去查審計日誌：
+
+- 許可權敏感的變更；
+- 設定和配置變更；
+- 使用者和會話活動；
+- 整合和自動化活動；
+- 訪問被拒絕的分析。
+
+## 審計日誌 [#audit-logs]
+
+位於 **Setup → Diagnostics → Audit Logs**（`sys_audit_log`）。該物件是**只讀且
+不可變的** —— 一條只追加的平臺事件軌跡。你可以過濾、分組和檢視行，但在 Setup 中
+沒有任何東西能編輯或刪除它們。
+
+### 每個讀者能看到什麼 [#what-each-reader-is-served]
+
+每一行都會保持儲存，但從 ObjectStack 17.6 起，只有當讀者自己能讀取某條記錄時，
+才會向其返回關於這條記錄的行 —— 判斷依據與決定他們能否開啟這條記錄的物件許可權、
+共享和行級安全相同。這會排除：
+
+- 每一條 `delete` 行，以及關於此後已被刪除的記錄的其他每一行；
+- 登出行，以及其會話此後已被移除的登入行；
+- 關於讀者無法開啟的記錄的行。
+
+與任何記錄無關的行 —— 配置變更、使用者匯入執行、不帶會話的認證事件 —— 與以前一樣，
+按該日誌自身的授權返回。
+
+**`view_all_audit_log`** 能力會解除這種收窄（ObjectStack 17.7）：持有者可以看到
+刪除和登出軌跡，以及關於他們無法開啟的記錄的行。平臺管理員預設持有它；組織管理員
+則不持有，所以請把它顯式授予其他必須閱讀完整軌跡的人。
+
+欄位級安全在每一行內部仍然適用。`old_value` 和 `new_value` 只向能以未掩碼形式讀取
+某個欄位的讀者返回該欄位，並且在它們上面過濾、排序或分組會被拒絕（`403`），除非
+過濾條件以相等方式指定了一個物件（`object_name`），且你能讀取它的每個欄位。
+
+### 預設檢視 [#preset-views]
+
+列表開啟時帶有按動作類別過濾的標籤頁。每個標籤頁都應用上述規則：
+
+| 檢視 | 顯示 |
+|---|---|
+| `Recent` | 所有事件，最新的在前 |
+| `Writes` | 建立 / 更新 / 刪除動作 —— `delete` 行僅在持有 `view_all_audit_log` 時顯示 |
+| `Auth` | 登入和登出事件 —— 登出，以及其會話此後已被移除的登入，僅在持有 `view_all_audit_log` 時顯示 |
+| `Config` | 設定和配置變更 |
+
+### 列與欄位 [#columns-and-fields]
+
+預設列為 `Timestamp`、`Action`（一個彩色標籤 —— create / update / …）、`Object`、
+`Record ID` 和 `Actor`。頁尾顯示記錄總數（例如 *36 records*）。
+
+每一行都帶有完整的欄位集：
+
+| 欄位 | 含義 |
+|---|---|
+| `created_at` | 事件被記錄的時間 |
+| `action` | 操作（create、update、delete、auth……） |
+| `user_id` | 指向執行操作的使用者的查詢 |
+| `actor` | 文本形式的執行者身份 |
+| `object_name` | 事件涉及的物件（例如 `sys_user`） |
+| `record_id` | 受影響的記錄 |
+| `old_value` | 之前的值（textarea） |
+| `new_value` | 新的值（textarea） |
+| `ip_address` | 請求的來源 IP |
+| `user_agent` | 客戶端的 user agent |
+| `tenant_id` | 所屬租戶 |
+| `metadata` | 額外的結構化上下文 |
+
+> `Config` 檢視是回答"誰改了這個設定？"的最快方式 —— 它在你開始閱讀行之前，就把
+> 軌跡收窄到配置動作。
+
+### 解讀一次變更 [#reading-a-change]
+
+對於寫入動作，值得關注的細節是變更前後。開啟某一行的 `⋮` 選單，展開 `old_value`
+和 `new_value`，檢視這條記錄上改了什麼 —— 你能讀取的每個欄位都完整顯示，其他的
+一概不顯示。`Object` 和 `Record ID` 列告訴你*什麼*被改動了；
+`old_value`/`new_value` 告訴你*如何*改動；`actor`、`ip_address` 和 `user_agent`
+告訴你*誰*改的，以及*從哪裡*改的。
+
+> 對於受監管的環境，請在儲存層為不可變性提供保障 —— 在資料庫層把表設為只追加，
+> 並定義保留策略。
+
+## 通知事件 [#notification-events]
+
+位於 **Setup → Diagnostics → Notification Events**（`sys_notification`）。這是
+**通知系統的入口日誌** —— 每次 `emit()` 一行，在任何投遞決策之前寫入。用它來診斷
+一條通知為什麼到達或沒有到達收件箱；之後的路由和物化過程記錄在
+[通知](/docs/configure/notifications)中。
+
+預設檢視為 `Recent` 和 `By Topic`。預設列：`Topic`（例如 `project.digest`）、
+`Severity`（一個 info/warn/… 標籤）、`Actor`、`Source Object` 和 `Created At`。
+
+| 欄位 | 含義 |
+|---|---|
+| `topic` | 發出的主題 |
+| `payload` | 事件載荷（JSON） |
+| `severity` | 嚴重級別 |
+| `dedup_key` | 用於合併重複發出的鍵 |
+| `source_object` | 引發事件的物件 |
+| `source_id` | 引發事件的記錄 |
+| `actor_id` | 觸發發出的主體 |
+| `created_at` | 事件被接收的時間 |
+
+`dedup_key` 會合並重復的發出，`payload` 攜帶模板渲染所依據的原始事件上下文。由於
+這個日誌位於路由的*上游*，如果這裡有一行卻沒有對應的收件箱訊息，通常意味著受眾沒有
+解析到那個使用者，或者他們的偏好在那個渠道上遮蔽了該主題 —— 當用戶報告缺少提醒時，
+請檢視[通知](/docs/configure/notifications)。
+
+在下游，每個事件都會物化為按使用者的收件箱訊息（`sys_inbox_message`）—— 接收方的
+視角見[通知](/docs/use/notifications)。
+
+## 會話 [#sessions]
+
+位於 **Setup → Diagnostics → Sessions**。會話列出活動的和最近的登入會話，因此你
+可以調查某個使用者的活動或撤銷其訪問。審查登入事件時，把它與 `Auth` 審計檢視搭配
+使用。
+
+## 下一步 [#where-to-go-next]
+
+| 任務 | 頁面 |
+|---|---|
+| 日誌、指標和請求身份的運維概覽 | [可觀測性](/docs/operate/observability) |
+| 瞭解通知如何被路由和渲染 | [通知](/docs/configure/notifications) |
+| 在上線前加固部署 | [生產就緒](/docs/operate/production) |
+| 回到運維概覽 | [運維](/docs/operate) |
