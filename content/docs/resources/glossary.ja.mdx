@@ -1,0 +1,190 @@
+---
+title: 用語集
+seoTitle: "用語集：プラットフォームの用語、それぞれ 1 つの定義"
+description: ObjectOS と ObjectStack 全体で使われる語彙。それぞれ 1 つの定義。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 926190d46d41bff6cbbc425cf9ccf45e6fb26dfadfb12a7d791e2606e71163c2
+  guide_rev: 1
+  mode: auto
+---
+
+このドキュメントで使われる各用語について、ひとつの正式な定義を示します。
+
+### アクション（Action） [#action]
+
+メタデータで宣言された名前付きの操作で、REST（`/api/v1/actions/<object>/<action>`）、UI のボタン、そして作成者が AI に公開した場合（`ai.exposed`）はエージェントから呼び出せます。呼び出し元がそれを呼び出せるかどうかは、呼び出し元として確認されます。その後、`script` の本体は信頼されたアプリのコードとして実行されます。[アクション](/docs/build/interface/actions)を参照してください。
+
+### アダプター（Adapter） [#adapter]
+
+ObjectStack をホストのランタイム（Express、Fastify、Hono、Next.js、Nuxt、SvelteKit、NestJS）と統合するフレームワークのパッケージ。ほとんどの ObjectOS のデプロイメントでは不要です。ObjectOS は独自の HTTP サーバーを同梱しています。
+
+### AI シート（AI seat） [#ai-seat]
+
+ObjectOS の料金の単位であり、すべてのエディションで唯一課金されるシートです。閲覧者、製品内 AI を使わないアプリのユーザー、MCP で構築する開発者は無料です。[ライセンスと料金](/docs/editions/license#editions)を参照してください。
+
+### アプリ（App） [#app]
+
+オブジェクト、ビュー、権限をまとめ、ナビゲーションできるひとつのアプリケーションとして提示したもの。1 つのランタイムに複数のアプリが共存できます（例：CRM + Helpdesk + Setup）。
+
+### アーティファクト（Artifact） [#artifact]
+
+コンパイル済みの `objectstack.json` ファイル。アプリについての自己完結した不変の記述です（マニフェスト、オブジェクト、ビュー、アプリ、フロー、権限、翻訳）。`os compile` が生成します。ObjectOS が実際に実行するものです。
+
+### Better Auth [#better-auth]
+
+`@objectstack/plugin-auth` を支える認証ライブラリ。Better Auth を直接設定することはありません。プラグインがそれをラップしています。
+
+### ビジネスオントロジー（Business ontology） [#business-ontology]
+
+アプリの定義（オブジェクトとフィールド、リレーション、アクション、権限、フロー、そしてエージェントとツールの定義）を、実行可能でバージョン管理されたひとつの全体としたもの。型付きの ObjectStack メタデータとして作成され、推論されるのではなく検証され、ランタイムによって実行されます。ランタイムはそこからデータベース、REST API、UI、MCP ツールを導出します。ビュー、ダッシュボード、アプリ、翻訳はその[プロジェクション](#projection)であり、その一部ではありません。
+
+これは実行可能なものであり、知識オントロジーではありません。オブジェクトの継承も、公理も、推論器もありません。セマンティックレイヤー（ビジネスを記述するが実行はしない、既存システム上の読み取り専用のマッピング）でもありません。どちらの ObjectOS エディションでもあなたのものです。エクスポートして、オープンソースの ObjectStack ランタイムで実行できます。このサイトでは [ObjectOS におけるあなたのオントロジー](/docs/ontology)を参照してください。完全な説明は ObjectStack ドキュメントの [Business Ontology](https://objectstack.ai/docs/concepts/ontology) にあります。
+
+### 機能（Capability） [#capability]
+
+アーティファクトが `requires` リストで宣言する、オプションのランタイムの機能。パッケージに対応します（例：`audit` → `@objectstack/plugin-audit`）。ObjectOS が必要に応じて読み込みます。[ランタイムの機能](/docs/reference/runtime-capabilities)を参照してください。
+
+### CEL [#cel]
+
+[Common Expression Language](https://github.com/google/cel-spec)。Google による、安全でサンドボックス化された式の構文です。数式、検証ルール、権限の述語、共有ルール、フローの条件で使われます。
+
+### コントロールプレーン（Control Plane） [#control-plane]
+
+バージョン管理されたアーティファクトを ObjectOS のインスタンスに公開する、オプションのサービス。ObjectOS Cloud としてホストされるか、セルフホストされます。ほとんどのデプロイメントでは不要です。単一アプリの本番には、ファイルベースのモードで十分です。
+
+### ドライバー（Driver） [#driver]
+
+データバックエンドの実装：`driver-sql`（Postgres、MySQL、SQLite、Turso/libSQL）、`driver-mongodb`、`driver-memory`。起動時にデータベース URL によって選ばれます。
+
+### エンベッダー（Embedder） [#embedder]
+
+RAG / セマンティック検索のために、テキストをベクトルに変換するサービス。プロバイダー（OpenAI、Azure、硅基流动、Ollama など）を差し替えられます。[AI サービス](/docs/configure/ai)を参照してください。
+
+### 環境（Environment） [#environment]
+
+デプロイメント自身の識別情報。`OS_ENVIRONMENT_ID` として報告する id で、クラウドへのバインディングが完了すると永続化されます。セルフマネージドの ObjectOS は**単一環境**のランタイムです。ひとつのプロセス、ひとつの環境、ひとつのアプリ。多くの環境を保持し、それぞれにアーティファクトを公開するのは、コントロールプレーンの役割です。[環境変数](/docs/reference/environment-variables)を参照してください。
+
+### フィールド（Field） [#field]
+
+オブジェクトの型付きのプロパティ。組み込みのタイプは約 48 種類：`text`、`select`、`lookup`、`markdown`、`file`、`formula`、`summary` など。[データモデル](/docs/build/data)を参照してください。
+
+### フロー（Flow） [#flow]
+
+宣言的なビジネスロジック。自動起動（レコードトリガー）、スケジュール（cron）、手動（ボタン / API）があります。条件/ループ/リトライ/並列のプリミティブを持つ DAG として実行されます。[フローと自動化](/docs/build/automation/flows)を参照してください。
+
+### 数式フィールド（Formula field） [#formula-field]
+
+値が読み取り時に評価される CEL 式である計算フィールド。保存はされません。
+
+### フック（Hook） [#hook]
+
+オブジェクトのライフサイクル（`beforeInsert`、`afterUpdate` など）に注入される関数。TypeScript で作成します。フローとは異なり、フックはファーストクラスのコードで、フローはメタデータです。
+
+### カーネル（Kernel） [#kernel]
+
+ObjectOS の内部にあるマイクロカーネルで、プラグインを読み込み、DI コンテナを保持し、イベントをディスパッチし、デプロイメントのメタデータを提供します。1 つのプロセスは起動時に 1 つのカーネルを構築し、構築が終わるまで[準備完了](/docs/deploy/docker)を報告しません。そのため、リクエストごとにどのメタデータを提供するかを決める処理はありません。
+
+### マニフェスト（Manifest） [#manifest]
+
+アーティファクトの先頭にある最上位のメタデータ：`id`、`namespace`、`version`、`type`（`app` / `plugin` / `service`）、`name`、`description`、`requires` リスト。
+
+### マーケットプレイス（Marketplace） [#marketplace]
+
+インストール可能なアプリの組み込みのカタログ。設定可能なパッケージレジストリに支えられています。[マーケットプレイス](/docs/build/marketplace)を参照してください。
+
+### MCP（Model Context Protocol） [#mcp-model-context-protocol]
+
+AI エージェントがツールを発見して呼び出すためのオープンなプロトコル。すべての ObjectOS のデプロイメントは `/api/v1/mcp` にある MCP サーバーであり、デフォルトで有効です。各オブジェクトがツールであり、作成者が AI に公開した（`ai.exposed`）各アクションもツールです。すべての呼び出しは呼び出し元として実行されます。[AI ツールを接続する（MCP）](/docs/configure/mcp)を参照してください。
+
+### オブジェクト（Object） [#object]
+
+型付きのビジネスエンティティ：`task`、`account`、`invoice`。TypeScript のスキーマとして宣言され、REST API、ビュー、監査のエントリ、RBAC のチェックポイントを自動的に生成します。[データモデル](/docs/build/data)を参照してください。
+
+### ObjectOS [#objectos]
+
+ObjectStack 上に構築されたランタイム環境で、3 つのエディションを持つひとつの製品です。**ObjectOS Community** は、objectstack リポジトリで開発され、Apache-2.0 のもとで無料のオープンソースのランタイムと Console です。**ObjectOS Cloud** は、何もインストールせずにブラウザで使えるホスト型です。**ObjectOS Enterprise** は、自社のインフラストラクチャでセルフマネージドで動作するライセンス版です。Cloud と Enterprise は AI シート単位の料金で、どのエディションでもオントロジーをエクスポートしてオープンなランタイムで実行できます。**このドキュメントサイトは ObjectOS のためのものです。**
+
+### ObjectQL [#objectql]
+
+データ層のプロトコルとクエリエンジン。宣言的なクエリをネイティブの SQL / Mongo のクエリにコンパイルします。REST エンドポイント、UI、フローのすべてが同じエンジンを使います。
+
+### ObjectStack [#objectstack]
+
+オープンなスタック（Apache-2.0）：ビジネスオントロジーを実行するプロトコル、マイクロカーネル、SDK、CLI、本番ランタイムであり、`@objectstack/*` の npm パッケージとランタイムのイメージです。ObjectOS はその上に構築されたランタイム環境です。ObjectOS Community は同じ Apache-2.0 ライセンスのもとでのそのオープンなランタイムと Console であり、ObjectOS Cloud と ObjectOS Enterprise はその上の商用エディションです。
+
+### ObjectUI [#objectui]
+
+ビュー層のプロトコル：アプリ、ビュー、ページ、ダッシュボード、アクション、グラフ、ナビゲーション。ObjectOS は ObjectUI の宣言を描画します。
+
+### 権限セット（Permission Set） [#permission-set]
+
+付与（オブジェクト権限、フィールド権限、システム権限）をまとめたもの。ユーザーに直接、またはポジションを通じて割り当てられます。認可の主要な単位です。[権限](/docs/configure/permissions)を参照してください。
+
+### プラグイン（Plugin） [#plugin]
+
+機能によってランタイムを拡張するフレームワークのパッケージ：`plugin-auth`、`plugin-security`、`plugin-audit`、`plugin-webhooks`、`mcp` など。DI とライフサイクルのフック（`init → start → destroy`）を通じて有効になります。
+
+### ポジション（Position） [#position]
+
+ユーザーが担う職務：「Sales Manager」「Support Agent」「Auditor」。ObjectStack 13 以降、人をグループ化する唯一の概念であり、意図的にフラットです。報告の構造は代わりにビジネスユニットのツリーにあります。ポジションは、アプリやタブを対象者に向け、承認者を指定し、それを担うすべての人に権限セットを配布します。[ポジション](/docs/configure/permissions/positions)を参照してください。
+
+### プロジェクト（Project） [#project]
+
+**環境**の古い名前。引き継いだ設定やフレームワーク内部の識別子に残っていますが、ObjectOS のドキュメントでは*環境*と呼びます。
+
+### プロジェクション（Projection） [#projection]
+
+ビュー、ダッシュボード、アプリ、翻訳のこと。[ビジネスオントロジー](#business-ontology)の横で作成され、同じ[検証ゲート](#validation-gate)でチェックされるメタデータですが、オントロジーの一部ではありません。プロジェクションはコアを提示します。グリッド上のオブジェクトのフィールド、グラフ上のオブジェクトに対するクエリ、あるロケールでのすべてのラベル。コアを変更すればプロジェクションは追従し、プロジェクションを削除しても、それが表示していたビジネスは変わりません。[ObjectOS におけるあなたのオントロジー](/docs/ontology#the-projections)を参照してください。
+
+### レコードの共有（Record Share） [#record-share]
+
+特定のレコードへのアクセスを、1 つの受信者に直接付与するもの。受信者は、ユーザー（`user`）、チーム（`team`）、ポジション（`position`）、ビジネスユニット（`business_unit`）、またはビジネスユニットとその配下のすべてのユニット（`unit_and_subordinates`）です。`sys_record_share` の行として保存され、その `recipient_type` 列はちょうどこの 5 つの値を取ります。共有ルール（宣言的な条件）とは異なります。
+
+### Setup [#setup]
+
+組み込みの管理アプリで、`/_console/` で提供される UI の中の `/apps/setup` にあり、`setup.access` 権限で制限されています。ユーザー、ビジネスユニット、チーム、ポジション、権限セット、共有ルール、レコードの共有、API キー、そして設定、診断、連携を管理します。[設定](/docs/configure)を参照してください。
+
+### 共有ルール（Sharing Rule） [#sharing-rule]
+
+条件に基づいてレコードへのアクセスを付与する宣言的なルール（「地域マネージャーは自分の地域のレコードを見られる」）。クエリ時に評価され、行レベルのフィルターにコンパイルされます。条件**なし**で保存されたルールは何も共有しません。すべてに一致するわけではありません。[レコードアクセス](/docs/configure/permissions/record-access#both-switches-fail-closed)を参照してください。
+
+### Studio [#studio]
+
+組み込みのメタデータ作成のサーフェスで、`/_console/` で提供される UI の中の `/studio` にあり、`studio.access` 権限で制限されています。メタデータそのもの（パッケージ、オブジェクト、アプリ、フロー、権限セット）を、一度に 1 つのパッケージずつ、Data、Automations、Interfaces、Access の 4 つの柱にわたって*設計*する場所です。**Setup** と同列であり、その一部ではありません。Setup は稼働中のデプロイメント（その人々、その付与、その設定）を運用し、Studio はそのデプロイメントが実行するものを作成します。そのため、**権限は Studio で設計し、Setup で割り当てます**。Setup とは異なり、`/apps/` の下のアプリではありません。UI はこれを独自のルートのサブツリーとして提供します。[設定](/docs/configure#setup-and-studio)を参照してください。
+
+### サーフェス（Surface） [#surface]
+
+稼働中の ObjectOS が公開する HTTP の入り口の 1 つ：`/`（REST API）と `/_console/`（UI）。3 つではなく 2 つです。アカウントは独自のサーフェスでは**ありません**。サインイン、登録、アカウントのセルフサービスは、すべて UI の中のルートです。
+
+| アカウントのサーフェス | 場所 |
+|---|---|
+| サインイン | `/_console/login`。サインインしていないとき、保護されたすべてのページがここに送ります |
+| 登録 | `/_console/register`。デプロイメントがセルフサービスのサインアップを無効にしていない場合 |
+| アカウントのセルフサービス | `/_console/apps/account`。Account アプリで、`/_console/apps/setup` の Setup と並んでいます |
+
+`/_account/` というサーフェスはありません。独立したアカウントポータルが削除されたときに廃止され、それらの URL は現在 404 を返します。
+
+### システムコンテキスト（System Context） [#system-context]
+
+セキュリティのチェックを回避する必要があるプラグイン、フック、シードスクリプトが使う内部の実行モード。監査可能で、ユーザーのコードには公開されません。
+
+### テナント（Tenant） [#tenant]
+
+1 つのデプロイメントを共有する組織間の分離の境界。壁で区切られたテナンシーの姿勢がその壁を立て、これはライセンスされた機能です。それらの組織は引き続きデプロイメントのアプリ、データベース、メタデータを共有するため、壁が分けるのはスキーマではなく、データとメンバーシップです。[マルチ組織のデプロイメント](/docs/reference/environment-variables#multi-organization-deployments)を参照してください。
+
+### トリガー（Trigger） [#trigger]
+
+フローを起動する条件：レコードのイベント（`after_insert`）、スケジュール（cron）、または手動の呼び出し。
+
+### 検証ゲート（Validation gate） [#validation-gate]
+
+すべてのメタデータが実行される前に通過する、ひとまとまりのチェック：`@objectstack/spec` のスキーマと、型チェックは通るが実行時に黙って失敗するもの（不正な CEL の述語、存在しないものへの参照）を捉える作成ルールです。`os validate` と `os compile` はリポジトリのソースに対してこれを実行し、ランタイムは AI Builder、Studio、メタデータ API から稼働状態になるすべてのメタデータの書き込みに同じゲートを適用します。ObjectStack ドキュメントの [Validating Metadata](https://objectstack.ai/docs/deployment/validating-metadata) を参照してください。
+
+### ビュー（View） [#view]
+
+オブジェクトに付属する宣言的な UI の設定：リスト、フォーム、カンバン、カレンダー、ガント。ObjectOS がそれを描画するため、コンポーネントを書く必要はありません。
+
+### Zod schema [#zod-schema]
+
+`@objectstack/spec` が使う、実行時とコンパイル時の型システム。すべてのオブジェクト、フィールド、ビュー、アプリ、フローは Zod スキーマによって解析・検証されます。JSON Schema、TypeScript の型、REST のリクエストバリデーターは、すべて同じ Zod の定義から導出されます。

@@ -1,0 +1,77 @@
+---
+title: サポート
+seoTitle: "サポート：ヘルプ、バグの報告、応答時間"
+description: どこでヘルプを得るか、バグをどう報告するか、応答の目安。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: c91dd5746f73af07b73d9af2e79272ab63df7883b882a67dfcc6329bbc1ffc1a
+  guide_rev: 1
+  mode: auto
+---
+
+## 目的別の窓口 [#where-to-go-for-what]
+
+| こんなときは | 窓口 |
+|---|---|
+| 「どうすれば」という質問がある | [GitHub Issues](https://github.com/objectstack-ai/objectstack/issues)：ObjectOS のすべてのエディションに共通の、唯一の公開 issue トラッカー |
+| バグを見つけた | [GitHub Issues](https://github.com/objectstack-ai/objectstack/issues)：バージョン、再現手順、期待した結果と実際の結果を含めてください |
+| このドキュメントの誤りを見つけた | [docs.objectos.ai の issues](https://github.com/objectstack-ai/docs.objectos.ai/issues)：このサイト自身のリポジトリは、ドキュメントの issue だけを受け付けます |
+| セキュリティの脆弱性を見つけた | **security@objectstack.ai**：公開の issue は作成**しないでください** |
+| 商用サポート / SLA が必要 | **sales@objectstack.ai** |
+| ユーザーやメンテナーと話したい | [Discord](https://discord.gg/objectstack)（コミュニティ運営） |
+| リリースを追いたい | [リリースノート](/docs/resources/changelog#release-notes)：各リリースが公開される場所です。通知を受け取るには、[github.com/objectstack-ai/objectstack](https://github.com/objectstack-ai/objectstack) → Releases を Watch してください |
+| 有償で機能を実装してほしい | **sales@objectstack.ai**：[商用サポートとサービス](#commercial-support--services)を参照してください |
+
+## よいバグ報告の書き方 [#filing-a-good-bug-report]
+
+30 秒でわかる版：
+
+```text
+ObjectOS version:           14.7.0 (or sha-abc123)
+Node version:               22.4.0
+Install method:             docker / npm -g / source
+Database:                   postgres 16 / sqlite / turso / mongo
+Repro steps:                1. ...  2. ...  3. ...
+Expected:                   ...
+Actual:                     ...
+Logs:                       (sanitized, last 30 lines)
+```
+
+設定の問題については、`os doctor` の出力を添付してください。設定の誤りの 80% はそれだけで診断できます。
+
+## 応答の目安 [#response-expectations]
+
+| チャネル | ベストエフォートの応答時間 |
+|---|---|
+| セキュリティのメール | 1 営業日 |
+| GitHub Issues：再現手順付きのバグ | トリアージに 3 営業日、修正は次のリリーストレインで |
+| GitHub Issues：機能のリクエスト | トリアージに 7 営業日 |
+| 商用サポート | サポート契約に従います |
+
+これらはベストエフォートであり、SLA ではありません。商用サポートの契約には正式な SLA があります。
+
+## 商用サポートとサービス [#commercial-support--services]
+
+ObjectStack チームから提供されるもの：
+
+- **ObjectOS Runtime Subscription**：無料のセルフホストのランタイムである ObjectOS Community に対するサポート契約です。応答時間の SLA、指名されたエスカレーション先、セキュリティパッチの優先対応（オープンソース版との機能の違いはありません）。
+- **マネージドホスティング**：ObjectOS Cloud。私たちが運用します。
+- **アーキテクチャレビュー**：デプロイ前の健全性チェック。
+- 仕様に合わせて構築する**カスタムのプラグイン / 機能**。
+- **OEM 再配布**：ObjectOS を自社の製品に組み込みます。
+
+**sales@objectstack.ai** にお問い合わせください。
+
+## 貢献する [#contributing-back]
+
+基盤となる ObjectStack フレームワークは Apache-2.0 で、貢献を受け付けています。
+
+- [CONTRIBUTING.md](https://github.com/objectstack-ai/objectstack/blob/main/CONTRIBUTING.md)
+- [Code of Conduct](https://github.com/objectstack-ai/objectstack/blob/main/CODE_OF_CONDUCT.md)
+- ドラフトの PR は早めに出してください。重複した作業よりも、下書きをレビューする方を私たちは望んでいます。
+
+## ステータスとインシデント [#status--incidents]
+
+ホスト型のサービス（ObjectOS Cloud、パッケージレジストリ）：[status.objectstack.ai](https://status.objectstack.ai)。
+
+セルフホストの ObjectOS デプロイメントのステータスはあなたの管理範囲です。通常の監視に接続してください（[オブザーバビリティ](/docs/operate/observability)を参照）。
