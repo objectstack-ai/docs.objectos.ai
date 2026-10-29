@@ -1,0 +1,26 @@
+---
+title: パブリックプレビュー
+seoTitle: "ObjectOS Cloud パブリックプレビュー：その意味"
+description: ObjectOS Cloud はパブリックプレビュー段階です。データは保持され、API はまだ変更される可能性があり、SLA はまだありません。
+editions: [cloud]
+translation:
+  source_sha: cd4762a38174841caa9a60deee0bb14fead010fe52bcf440543efe070cb2bcb2
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Cloud は**パブリックプレビュー**段階です。今日からサインアップし、実際のアプリを構築して実行できます。この段階の間は、次の 3 つが当てはまります。
+
+| | パブリックプレビュー中 |
+|---|---|
+| **データ** | 永続的です。構築したものと保存したレコードは保持されます。プレビューは消去されるサンドボックスではありません。 |
+| **API** | 変更される可能性があります。一般提供の前に、エンドポイント、パラメーター、レスポンスの形がリリース間で変わることがあります。 |
+| **サービスレベル** | SLA はまだありません。公開されるまで、稼働率の約束もサービスクレジットもありません。 |
+
+## それがあなたにとって意味すること [#what-that-means-for-you]
+
+- **その上に構築してください。** アプリとそのデータは引き継がれます。プレビューが終わっても最初からやり直すことはありません。
+- **連携するものは固定してください。** 他のシステムが [REST API](/docs/reference/rest-api) や [MCP](/docs/configure/mcp) 経由で ObjectOS Cloud を呼び出す場合は、API が変わったときにその連携を見直すことを想定し、[変更履歴](/docs/resources/changelog)を確認してください。
+- **今すぐ SLA が必要ですか？** ObjectOS を自分で実行してください。**ObjectOS Enterprise** には契約のもとで SLA と専任サポートが付きます。[エディションの比較](/docs/editions/compare)と[ライセンスと料金](/docs/editions/license)を参照してください。
+
+パブリックプレビューは ObjectOS Cloud だけの段階です。自分でデプロイして[アップグレード](/docs/operate/upgrade)する ObjectOS Community や ObjectOS Enterprise については何も意味しません。

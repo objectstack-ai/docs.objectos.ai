@@ -1,0 +1,5 @@
+{
+  "title": "開始",
+  "defaultOpen": false,
+  "pages": ["cloud", "community", "enterprise"]
+}

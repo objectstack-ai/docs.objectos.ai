@@ -1,0 +1,30 @@
+---
+title: ObjectOS Enterprise で始める
+seoTitle: "ObjectOS Enterprise で始める：ライセンス制、セルフマネージド"
+description: ObjectOS Enterprise は、自社のインフラストラクチャ上で実行するライセンス制のエディションです。ライセンスの入手方法と、デプロイガイドの出発点を説明します。
+editions: [enterprise]
+translation:
+  source_sha: 65aa2affdd32ca612f967daaffd1275dc3cb60a61e72bd88b99c97ee9c0f11f2
+  guide_rev: 1
+  mode: auto
+---
+
+**ObjectOS Enterprise** は、商用ライセンスのもとで、あなたが運用するインフラストラクチャ上で動作する ObjectOS です。製品内の AI、AI ガバナンス、公式のサポートを自社のサーバー上で利用でき、フルのプライベートデプロイでは、クラスタリング、ひとつのデプロイ上の複数の組織、SCIM、エアギャップ運用も利用できます。完全な一覧は[エディションの比較](/docs/editions/compare)を、シングルノードの **Business Self-Managed** 以上の契約オプションは[ライセンスと料金](/docs/editions/license)を参照してください。
+
+## 1. ライセンスを入手する [#1-get-a-license]
+
+ObjectOS Enterprise は契約により販売されます。[営業にお問い合わせください](mailto:sales@objectstack.ai)。ライセンスにはライセンスされた Enterprise イメージのレジストリ認証情報が付属し、各リリースのリリースノートには実行すべき正確なイメージダイジェストが記載されています。
+
+## 2. デプロイする [#2-deploy]
+
+デプロイガイドは[デプロイ](/docs/deploy)から始まり、すべてのデプロイが行う 3 つの判断を順に説明します。その後、構成を選びます。
+
+- [Docker](/docs/deploy/docker)：サポートされる構成。プル、検証、ライセンス、実行、スケール、アップグレード。
+- [Kubernetes](/docs/deploy/kubernetes)：どのオーケストレーターも保持しなければならない特性。
+- [エアギャップ](/docs/deploy/air-gapped)：ライセンスモードとしてのエアギャップと、起動時に拒否される組み合わせ。
+
+## 3. 運用する [#3-operate]
+
+[本番環境への準備](/docs/operate/production)は、本番稼働前のチェックリストです。そこから先のバックアップ、アップグレード、可観測性、監査ログは[運用](/docs/operate)で扱います。
+
+購入前に評価したいですか？[ObjectOS Community](/docs/start/community) は同じランタイムを無料で実行し、その上で構築したものは通常の ObjectStack メタデータなので、そのまま Enterprise に移行できます。

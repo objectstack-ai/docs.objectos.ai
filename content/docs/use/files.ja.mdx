@@ -1,0 +1,94 @@
+---
+title: ファイルと添付ファイル
+seoTitle: "ファイルと添付ファイル：アップロード、ダウンロード、権限"
+description: レコードにファイルを添付するか、ファイルフィールドにアップロードします。誰がそれを見て、追加し、削除できるか、そして削除されたファイルがどのくらい保持されるかを説明します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3bb89abc1ac77bc14428766ab10e45b3a10ceef5d201d4d588c672c0a4072b9f
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/attachments-storage.json):
+  attachments-storage.presigned-upload-roundtrip,
+  attachments-storage.download-authz-both-sides,
+  attachments-storage.read-inherits-parent-rls,
+  attachments-storage.attach-requires-parent-edit,
+  attachments-storage.sys-file-status-pipeline,
+  attachments-storage.orphan-tombstone-reap,
+  attachments-storage.inline-grid-receipt-cells,
+  attachments-storage.field-accept-maxsize-server-enforced,
+  attachments-storage.upload-limits-scope-and-ownership.
+*/}
+
+ファイルがレコードに届く方法は 2 つあります。
+
+| 方法 | 見た目 | 用途 |
+|---|---|---|
+| **添付ファイル** | レコードページの **Attachments** タブ。任意の数のファイルを一覧表示します | 契約書、写真、やり取り。レコードに属するあらゆるもの |
+| **ファイルフィールドと画像フィールド** | フォーム内のアップロードコントロール。明細テーブルの各行にあることもあります | レコードが必要とする特定の書類。経費明細ごとの領収書、製品写真 |
+
+どちらもファイル自体はストレージに保管し、レコードはそれを指します。そのため、誰がそれを開けるかは同じルールで決まります。
+
+## Attachments タブ [#the-attachments-tab]
+
+ビルダーが添付ファイルを有効にしたオブジェクトでは、すべてのレコードページに **Attachments** タブが表示されます。
+
+| コントロール | 機能 |
+|---|---|
+| **Upload** | コンピューターから 1 つ以上のファイルを選びます |
+| ファイル一覧 | このレコードに添付されたすべてのファイル |
+| **Download** | ファイルを開きます |
+| **Delete attachment** | 確認後、このレコードからファイルを削除します |
+
+何も添付されていないレコードには **No attachments yet. Upload a file to get started.** と表示されます。
+
+## 誰が何をできるか [#who-can-do-what]
+
+添付ファイルは、それが属するレコードに従います。
+
+| するには | 必要なもの |
+|---|---|
+| 添付ファイルを見てダウンロードする | レコードの読み取りアクセス |
+| 添付ファイルをアップロードする | レコードの**編集**アクセス。読み取りだけでは不十分です |
+| 添付ファイルを削除する | それをアップロードした本人であるか、レコードの編集アクセス |
+
+ファイルをアップロードした人は、常にそれをダウンロードし削除できます。
+
+レコードを読み取れない場合、その添付ファイルはあなたにとって存在しません。どのリストにも件数にも表示されません。何かが拒否されると、*You don't have access to attach files to this record.* や *Only the uploader or someone who can edit this record may delete this attachment.* のような平易なメッセージが表示されます。
+
+## ファイルフィールドと画像フィールド [#file-and-image-fields]
+
+ファイルフィールドや画像フィールドは、フォームにアップロードコントロールを表示します。ファイルを選ぶとすぐにアップロードされ、ファイル名付きのチップとして表示されます。保存前ならそれを削除できます。明細テーブル（たとえば請求書の明細行）では、各行に独自のアップロードセルがあります。
+
+フィールドは、受け付けるファイルの種類とファイルの最大サイズを制限できます。サーバーは保存時にその制限をもう一度確認します。制限に違反するファイルはフィールド名を示すメッセージとともに拒否され、何も保存されません。
+
+## ダウンロードは短時間だけ有効なリンク [#downloads-are-short-lived-links]
+
+**Download** は、数分間（デフォルトでは 5 分）有効なリンクをサーバーに要求します。そのリンクをコピーして後で開くと、期限切れになっています。レコードからもう一度ダウンロードしてください。レコードへのアクセス権がない人は、有効なリンクをまったく取得できません。
+
+## サイズの上限 [#size-limits]
+
+管理者が別の上限（ストレージ設定の **Limits** にある **Max upload size (MB)**）を設定していない限り、1 つのファイルは **100 MB** までです。上限を超えるファイルは、一部でも保存される前に拒否されます。
+
+## 削除されたファイルはどうなるか [#what-happens-to-removed-files]
+
+添付ファイルを削除すると、**そのレコード**から外れます。ファイル自体は段階的に片付けられるため、間違えてもその場でデータが失われることはありません。
+
+| 状態 | 何が起こるか |
+|---|---|
+| 別のレコードにも添付されている | いずれかのレコードがまだ保持している限り残ります |
+| どこにも添付されていない | **30 日間**保持され、その後ストレージが回収されます |
+| 開始されたが完了しなかったアップロード | **7 日**後に削除されます |
+
+## 次に進む [#where-to-go-next]
+
+| やりたいこと | 読むもの |
+|---|---|
+| ファイルが属するレコードを開いて編集する | [レコードを操作する](/docs/use/records) |
+| チームとレコードについて話し合う | [レコードでのコラボレーション](/docs/use/collaboration) |
+| スプレッドシートから多数のレコードを取り込む | [データのインポート](/docs/use/import) |
+| ファイルの保存場所を設定する | [ストレージ](/docs/configure/storage) |
+| ツアーに戻る | [ObjectOS を使う](/docs/use) |
