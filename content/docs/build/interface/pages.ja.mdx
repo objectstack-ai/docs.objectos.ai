@@ -1,0 +1,166 @@
+---
+title: ページ
+seoTitle: "自由形式のページ：リージョン、コンポーネント、ドキュメントページ"
+description: リージョン、コンポーネント、ローカル状態で構成する自由形式のレイアウト。さらに、パッケージの中に同梱して出荷する Markdown のドキュメントページ。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 4a88c0ee1ee387d77d686cf62b3d5270e2d183f2d362cd66274326205db8a3d4
+  guide_rev: 1
+  mode: auto
+---
+
+**ページは自由形式のコンテナです。** 単一のオブジェクトにバインドされる[ビュー](/docs/build/interface/views)とは異なり、ページは複数のコンポーネントを組み合わせ、ビューを埋め込み、ローカル状態を管理します。ホーム画面、カスタムのレコードレイアウト、ユーティリティパネルなどです。
+
+```ts
+// One page.
+const homePage = {
+  name: 'sales_home',
+  label: 'Sales Home',
+  type: 'home',
+  regions: [
+    { name: 'header', width: 'full', components: [
+      { type: 'metric_card', id: 'total_revenue', label: 'Total Revenue',
+        properties: { dataset: 'sales', values: ['revenue'], format: 'currency' } },
+    ]},
+    { name: 'main', width: 'large', components: [
+      { type: 'list_view', id: 'recent_deals', label: 'Recent Deals',
+        properties: { object: 'opportunity', view: 'recent_open', limit: 10 } },
+    ]},
+  ],
+}
+```
+
+## ページのプロパティ [#page-properties]
+
+| プロパティ | 型 | 必須 | 説明 |
+|:--|:--|:--|:--|
+| `name` | `string` | はい | マシン名（`snake_case`） |
+| `label` | `string` | はい | 表示ラベル |
+| `type` | `enum` | — | ページの種類（デフォルト `'record'`、下記を参照） |
+| `object` | `string` | — | 関連するオブジェクト（`record` の種類の場合） |
+| `template` | `string` | — | レイアウトテンプレートの名前（デフォルト `'default'`） |
+| `regions` | `PageRegion[]` | — | コンポーネントを含むレイアウトの区画 |
+| `variables` | `PageVariable[]` | — | ローカル状態の変数 |
+| `isDefault` | `boolean` | — | その種類のデフォルトのページかどうか |
+| `assignedProfiles` | `string[]` | — | このページにアクセスできるプロファイル |
+
+### ページの種類 [#page-types]
+
+| 種類 | 用途 |
+|:--|:--|
+| `record` | 1 つのオブジェクトのレコードに結び付いたカスタムの詳細ページ |
+| `home` | アプリのランディング / 入口 |
+| `app` | 一般的なアプリケーションのレイアウト |
+| `utility` | ツール、設定、ウィザード |
+| `list` | データ駆動のインターフェース画面 |
+
+有効なのはこの 5 つの種類だけです。レンダラーが出荷されなかった以前のロードマップ上の種類は、スキーマから削除されました。
+
+## リージョン [#regions]
+
+リージョンはレイアウトの区画で、それぞれがコンポーネントを保持します。
+
+```ts
+// Keys of a page; its other keys, and the regions' components, are omitted.
+regions: [
+  { name: 'sidebar', width: 'small', components: [/* … */] },
+  { name: 'content', width: 'large', components: [/* … */] },
+]
+```
+
+`width` には `'small'`、`'medium'`、`'large'`、`'full'` を指定できます。
+
+## コンポーネント [#components]
+
+コンポーネントはリージョンの中の構成要素です。
+
+```ts
+// One page component; the page and region around it are omitted.
+{
+  type: 'chart',
+  id: 'revenue_chart',
+  label: 'Revenue Trend',
+  properties: { chartType: 'line', dataset: 'sales',
+                dimensions: ['close_month'], values: ['revenue'] },
+  events: { onClick: "navigate_to('opportunity_detail', { id: $event.id })" },
+  visibleWhen: "'sales_manager' in os.user.positions",
+}
+```
+
+分析を扱うコンポーネント（`chart`、`metric_card`）は名前付きの**データセット**にバインドし、その `dimensions` + `values` を名前で選びます。これは[ダッシュボード](/docs/build/interface/dashboards)のウィジェットと同じ ADR-0021 の形であり、Studio が出力する唯一の形です。削除されたインライン分析の形（コンポーネント上の `object` + `categoryField` + `valueField` + `aggregate`）は、16.0 以降はパースエラーになり、黙って無視される何もしない設定ではありません。
+
+| プロパティ | 型 | 説明 |
+|:--|:--|:--|
+| `type` | `string` | 標準のコンポーネントの種類、またはカスタムの文字列 |
+| `id` | `string` | 一意なコンポーネントインスタンスの ID |
+| `properties` | `object` | コンポーネント固有の設定 |
+| `events` | `object` | イベントハンドラー（アクションの式） |
+| `visibleWhen` | `string` | CEL の表示条件の述語。TRUE のときだけコンポーネントがレンダリングされます（`visibility` は非推奨のエイリアスで、今も受け付けられ、`visibleWhen` に正規化されます） |
+| `style` / `className` | — | その場限りの CSS |
+| `responsiveStyles` | `object` | **推奨される**スタイル指定の手段：デスクトップ優先のブレークポイントごとのスタイルマップ（`large` を基準に、`medium` / `small` / `xsmall` で上書き）。スコープ付きの CSS にコンパイルされます。`var(--space-8)` のようなデザイントークンを優先してください |
+
+標準の、名前空間付きのコンポーネントの種類：
+
+| 名前空間 | 種類 |
+|:--|:--|
+| 構造 | `page:header`、`page:footer`、`page:sidebar`、`page:tabs`、`page:accordion`、`page:card`、`page:section` |
+| レコードのコンテキスト | `record:details`、`record:highlights`、`record:related_list`、`record:activity`、`record:chatter`、`record:path`、`record:alert`、`record:quick_actions`、`record:reference_rail`、`record:history` |
+| ナビゲーション | `app:launcher`、`nav:menu`、`nav:breadcrumb` |
+| ユーティリティ | `global:search`、`global:notifications`、`user:profile` |
+| AI | `ai:chat_window`、`ai:suggestion` |
+| 要素 | `element:text`、`element:number`、`element:image`、`element:divider`、`element:button`、`element:filter`、`element:form`、`element:record_picker`、`element:text_input` |
+
+コンポーネントは、`dataSource`（複数オブジェクトのページ向けの、要素ごとのオブジェクトのバインディング）、`responsive`、`aria` の設定を持つこともできます。プロジェクト固有のウィジェットには、カスタムの文字列の種類も受け付けられます。
+
+## 変数 [#variables]
+
+ページは、コンポーネントの間で共有されるローカル状態を保持します。
+
+```ts
+// Keys of a page; its other keys are omitted.
+variables: [
+  { name: 'selected_tab', type: 'string', defaultValue: 'overview' },
+  { name: 'date_range',   type: 'object', defaultValue: { start: null, end: null } },
+]
+```
+
+`type` には `'string'`（デフォルト）、`'number'`、`'boolean'`、`'object'`、`'array'`、`'record_id'` を指定できます。
+
+> `record` の種類のページは、特注のレコードレイアウトのためにサポートされている方法です。ロールから導き出される詳細ページ（[フォーム](/docs/build/interface/forms)を参照）では足りないときに使います。全幅のヘッダーに `record:highlights` を、サイドバーに `record:details` と `record:activity` を、メインのリージョンに `record:related_list` のコンポーネントを配置します。
+
+[アプリ](/docs/build/interface/apps)から `page` のナビゲーションエントリでページを表示するか、`homePageId` でアプリのランディングページにします。
+
+## ドキュメントページ [#doc-pages]
+
+**ドキュメント**はパッケージのドキュメントのページです。フラットな `src/docs/` ディレクトリに置いたプレーンな Markdown ファイルで、パッケージの成果物にコンパイルされ、UI の `/docs/<name>` でレンダリングされます。ドキュメントは、AI アシスタントがパッケージについての質問に答えるときの根拠にもなります。
+
+```
+src/docs/
+  crm_index.md            → doc name "crm_index"
+  crm_user_guide.md       → doc name "crm_user_guide"
+```
+
+ファイル名の語幹がドキュメントの `name` になります。ディレクトリによる分類も、順序のファイルもありません。フラットな配置により相互参照が安定します。リンクはパスではなく、常にベース名で解決されます。
+
+| ルール | 詳細 |
+|:--|:--|
+| 命名 | `snake_case`。ビルドの lint は**名前空間のプレフィックス**を要求します（`user_guide` ではなく `crm_user_guide`） |
+| フロントマター | 省略可能。`title` と `description` が読み取られます。タイトルはフロントマター → 最初の `#` 見出し → ドキュメント名の順に解決されます |
+| 相互参照 | プレーンな相対リンク（`[overview](./crm_index.md)`）。UI では `/docs/<target>` に書き換えられ、GitHub ではそのまま機能します。**同じパッケージ内の壊れたリンクはビルドを失敗させます** |
+| Markdown | CommonMark + GFM：テーブル、ハイライト付きのフェンスコード、見出しのアンカー、GitHub のアラート（`> [!TIP]`） |
+| ビルド時に拒否されるもの | **MDX / 埋め込みコンポーネント**（ドキュメントはコードではなくデータであり、信頼の境界です）と**画像の参照**（まだアセットサービスがなく、壊れた画像よりも早い失敗の方がよいため） |
+
+ドキュメントの解決はパッケージ単位です。インストールされた 2 つのパッケージがそれぞれ同じ素の名前のドキュメントを出荷しても共存でき、どちらも他方を上書きしません。
+
+> 動的なコンテンツ（ライブのフロー図、レコードのテーブル）については、コンポーネントを埋め込もうとしないでください。URL でメタデータにリンクします。ライブのビューはプラットフォームがレンダリングし、ドキュメントはそれを指し示すだけです。
+
+## 次に進む [#where-to-go-next]
+
+| ページ | 理由 |
+|:--|:--|
+| [アプリ](/docs/build/interface/apps) | ページをナビゲーションに置き、`homePageId` を設定する |
+| [ビュー](/docs/build/interface/views) | ページが埋め込むオブジェクトの画面 |
+| [フォーム](/docs/build/interface/forms) | ロールから導き出されるレコードレイアウトとカスタムのレコードページ |
+| [ダッシュボード](/docs/build/interface/dashboards) | 自由形式の代わりの、分析に特化したレイアウト |
+| [アクション](/docs/build/interface/actions) | `element:button` のターゲットと `modal` の種類のアクション |
+| [AI Builder](/docs/build/ai-builder) | チャットでページのメタデータを生成する |
