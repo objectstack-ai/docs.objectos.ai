@@ -1,0 +1,178 @@
+---
+title: よくある質問
+seoTitle: "よくある質問：セットアップ、マルチテナンシー、料金、ライセンス"
+description: ObjectOS についてのよくある質問。はじめ方、データベースとマルチテナンシー、マイグレーション、権限、連携、運用、料金とライセンス。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: a04083fa1854e4094b8d7487ba533efd4b0fdc6a14425451ab84b21f739465d7
+  guide_rev: 1
+  mode: auto
+---
+
+## はじめに [#getting-started]
+
+### ObjectOS をいちばん早く試す方法は？ [#whats-the-absolute-fastest-way-to-try-objectos]
+
+[ObjectOS Cloud](https://www.objectos.ai) にサインインしてください。ブラウザで動くホスト型で、何もインストールする必要はありません。オープンソースの ObjectStack ランタイムを自分のマシンで動かす場合は、`npm i -g @objectstack/cli && os start` を実行して http://localhost:3000 を開きます。[ObjectOS Community をローカルで実行する](/docs/start/community)を参照してください。
+
+### Docker は必要ですか？ [#do-i-need-docker]
+
+いいえ。ObjectOS Cloud は何もインストールする必要がありません。オープンなランタイムには Node 22 以上と CLI があれば十分です。セルフマネージドの本番デプロイでは Docker を推奨します。
+
+### データベースは必要ですか？ [#do-i-need-a-database]
+
+始めるだけなら不要です。ObjectOS Cloud はマネージドで、オープンなランタイムは既定でローカルの SQLite を使います。セルフマネージドのデプロイは、本番に移行するときに Postgres / MySQL / Turso / Mongo に切り替えます。
+
+### アカウントやクラウドサービスは必要ですか？ [#do-i-need-an-account--cloud-service]
+
+ObjectOS Cloud *が*アカウントそのものです。サインインして構築を始めてください。ObjectOS Enterprise はセルフマネージドで、動作にクラウドサービスは不要です。コントロールプレーンへの接続は任意です。オープンソースの ObjectStack ランタイムにはアカウント自体が不要です。
+
+## オントロジー [#the-ontology]
+
+### ObjectOS のいうオントロジーとは何ですか？ [#what-does-objectos-mean-by-ontology]
+
+アプリの定義です。オブジェクトとフィールド、リレーション、アクション、権限、フロー、エージェントとツールの定義を、型付きでバージョン管理されたひとまとまりの ObjectStack メタデータとして持ち、ランタイムがそれを実行します。ビュー、ダッシュボード、アプリ、翻訳はその投影であり、オントロジーの一部ではありません。これは検証してから実行する実行可能なものであり、継承、公理、推論器を備えた知識オントロジーではありません。[ObjectOS におけるあなたのオントロジー](/docs/ontology)を参照してください。
+
+### ObjectOS はセマンティックレイヤーですか？ [#is-objectos-a-semantic-layer]
+
+いいえ。セマンティックレイヤーは既存のシステムをマッピングして問い合わせられるようにするもので、ビジネスを記述しますが実行はしません。ObjectOS はあなたのオントロジーを実行します。データベース、REST API、UI、エージェントのツールはオントロジーから導出されます。すでに運用しているデータベースを外部データソースとして接続することもできます（既定で読み取り専用で、まだ初期段階です）。その場合、記録システムは元の場所に残ります。[既存システムの拡張](/docs/build/extend-existing-systems)と、比較表は [How ObjectStack compares](https://objectstack.ai/docs/concepts/compare) を参照してください。
+
+## アーキテクチャ [#architecture]
+
+### Postgres / MySQL / MongoDB は使えますか？ [#can-i-use-postgres--mysql--mongodb]
+
+はい。Postgres、MySQL、SQLite、Turso/libSQL、MongoDB のドライバーをサポートしています。[ランタイムの設定](/docs/configure/runtime)を参照してください。
+
+### UI や Account ポータルを無効にして REST API だけを使えますか？ [#can-i-disable-the-ui--account-portals-and-use-only-the-rest-api]
+
+はい。`os start --no-ui` を実行するか、対応するフラグを設定します。UI をマウントしてもしなくても、REST API は同じです。
+
+### 生成された UI の代わりに独自のフロントエンドを使えますか？ [#can-i-use-my-own-front-end-instead-of-the-generated-ui]
+
+はい。生成された UI は、独自のコードから呼び出すのと同じ `/api/v1/*` エンドポイントを使っています。`@objectstack/client` SDK か任意の HTTP クライアントを使ってください。
+
+### ObjectOS は GraphQL をサポートしていますか？ [#does-objectos-support-graphql]
+
+いいえ。API は REST です。GraphQL エンドポイントは ObjectStack 17.0 で削除されました。そのルートの裏側は一度も実装されておらず、現在 `/graphql` は 404 を返します。同じことは、生成された REST API と [ObjectQL](/docs/reference/objectql) クエリ言語（`?filter=` / `?sort=` / `?expand=` 経由）でできます。GraphQL を話すサードパーティのシステムには影響ありません。`graphql` は*外部*データソースのプロトコルとして引き続き有効です。外部データソースは他者の API のクライアントであり、ObjectOS が提供する API ではありません。
+
+### マルチテナンシーはどう扱われますか？ [#how-is-multi-tenancy-handled]
+
+1 つのデプロイが 1 つのアプリを 1 つのデータベースに対して提供します。[アーキテクチャ](/docs/architecture)を参照してください。複数の組織が 1 つのデプロイを共有できます。**walled** のテナンシー態勢（`OS_TENANCY_POSTURE`）が組織ごとの分離の壁を設けます。これはライセンスが必要な機能で、ライセンスがなければランタイムは起動を拒否します。壁が分離するのは組織のデータとメンバーシップであり、メタデータではありません。スキーマのスコープは組織ではなくデプロイです。そのため walled のデプロイでは、どの AI エージェントをマウントするかも宣言する必要があります。壁より強い分離はデプロイの分離です。専用のデータベースが必要な顧客には専用のデプロイを用意します。[複数組織のデプロイ](/docs/reference/environment-variables#multi-organization-deployments)を参照してください。
+
+### ObjectOS はサーバーレスや Lambda の環境で動きますか？ [#can-objectos-run-in-a-serverless--lambda-environment]
+
+ランタイムは長時間動き続ける Node プロセスで、ステートレスな関数ではなくコンテナや VM 向けに設計されています。カーネルは起動時に構築され、プロセスはその後で初めて ready を報告します。このプロセス内のウォームな状態と Better Auth のセッションモデルは、呼び出しごとに起動する関数では保持できません。
+
+### 水平スケールできますか？ [#does-it-scale-horizontally]
+
+はい。ロードバランサーの背後で複数のインスタンスを動かしてください。セッションはメモリではなくデータベースにあるので、どのインスタンスでもどのリクエストにも応答できます。レート制限やキューの機能を有効にする場合は、共有のために Redis を使ってください。
+
+## データとマイグレーション [#data--migrations]
+
+### スキーマのマイグレーションはどう扱われますか？ [#how-are-schema-migrations-handled]
+
+ドライバーが起動時に、データベースのスキーマを宣言したオブジェクトに同期します。Postgres では `CREATE TABLE` / `ALTER TABLE` 文になります。規制のある環境でマイグレーションを管理したい場合は、`OS_SKIP_SCHEMA_SYNC=1` を設定して DDL を自分で管理してください。
+
+### フィールド名を変更するとデータはどうなりますか？ [#what-happens-to-data-when-i-rename-a-field]
+
+名前の変更はデータ層では破壊的な変更です（「古い列を削除し、新しい列を追加する」ように見えます）。`os diff` でこれを検出し、マイグレーションの手順を追加してください（新しい成果物をデプロイする前に、データベースで列名を変更します）。
+
+### CSV / Excel / Salesforce からデータをインポートできますか？ [#can-i-import-data-from-csv--excel--salesforce]
+
+CSV はできます。`os data create` をループで実行するか、UI の一括アップロードを使ってください。Salesforce は、現時点では CSV にエクスポートしてインポートするのが最善です。ネイティブのコネクターはロードマップにあります。
+
+### ObjectOS をアップグレードするとデータは失われますか？ [#will-upgrading-objectos-lose-my-data]
+
+いいえ。パッチとマイナーのアップグレードは非破壊的です。メジャーのアップグレード（例：4 → 5）では、必要なマイグレーションを明記しています。先にバックアップを取ってください。[バックアップと DR](/docs/operate/backup)を参照してください。
+
+## 権限とマルチテナンシー [#permissions--multi-tenancy]
+
+### 行レベルセキュリティはどう実現しますか？ [#how-do-i-do-row-level-security]
+
+オブジェクトの `recordAccess` 設定に、共有ルール（Salesforce のような宣言型）か CEL の述語を宣言します。セキュリティプラグインが、対応するフィルターをすべてのクエリに注入します。[権限](/docs/configure/permissions)を参照してください。
+
+### 特定のユーザーから一部のフィールドを見えなくできますか？ [#can-i-make-some-fields-invisible-to-certain-users]
+
+はい。権限セットのフィールドレベルセキュリティです。権限セットごと、フィールドごとに、非表示または読み取り専用にできます。REST、ObjectQL、UI で一様に適用されます。[権限セット](/docs/configure/permissions/permission-sets)を参照してください。
+
+### Okta / Entra / Keycloak と連携するには？ [#how-do-i-integrate-okta--entra--keycloak]
+
+OIDC を使います。**Setup → Authentication**（または環境変数）でディスカバリー URL とクライアント ID / シークレットを設定します。プロバイダーのコールバック URL は `/api/v1/auth/oauth2/callback/<provider-id>` です。[認証](/docs/configure/authentication)を参照してください。
+
+## 連携 [#integrations]
+
+### Webhook を送信できますか？ [#can-i-send-webhooks]
+
+はい。`requires` で `webhooks` を有効にしてください。ObjectOS は HMAC-SHA256 署名付きの永続的なアウトボックスを使います。[Webhook](/docs/configure/webhooks)を参照してください。
+
+### Zapier / Make / n8n と連携できますか？ [#can-i-integrate-with-zapier--make--n8n]
+
+はい。送信には Webhook、受信には REST API と API キーを使います。よく使われる iPaaS ツール向けのネイティブコネクターはロードマップにあります。
+
+### AI エージェントから ObjectOS を呼び出せますか？ [#can-ai-agents-call-my-objectos]
+
+はい。すべての ObjectOS デプロイは `/api/v1/mcp` で MCP サーバーになっており、既定で有効です。すべてのオブジェクトがツールであり、作成者が AI に公開したアクション（`ai.exposed`）もツールです。Claude Code、Claude Desktop、IDE などの MCP クライアントはユーザーとして接続し、すべての呼び出しはそのユーザーとして、人と同じ権限と監査のもとで実行されます。オープンソースの ObjectStack ランタイムも、独自のモデルで同じ MCP を提供します。ObjectOS はそれに製品内 AI（AI Builder と、ユーザーがチャットするアシスタント）を追加します。[AI ツールの接続（MCP）](/docs/configure/mcp)を参照してください。
+
+## カスタマイズ [#customization]
+
+### 独自のプラグインを書けますか？ [#can-i-write-custom-plugins]
+
+はい。プラグインはシンプルな DI とライフサイクルのパターン（`init → start → destroy`）に従います。例は GitHub の `@objectstack/plugin-*` パッケージを参照してください。
+
+### ObjectOS の見た目をカスタマイズできますか？ [#can-i-customize-how-objectos-looks]
+
+ブランディング（ロゴ、アクセントカラー、既定のテーマ）は **Setup → System Settings** にあります。UI を深くカスタマイズするには、`@objectstack/client-react` をフォークするか、REST API に対して独自のフロントエンドを構築します。
+
+### 英語以外の言語を追加できますか？ [#can-i-add-languages-other-than-english]
+
+はい。i18n は最初から組み込まれています。`os i18n extract` / `os i18n check` を使い、翻訳バンドルを配布してください。
+
+## 運用 [#operations]
+
+### 推奨される本番デプロイは？ [#whats-the-recommended-production-deployment]
+
+Docker（複数 Pod なら Kubernetes）、マネージド Postgres、ファイル用の S3 か R2、`OS_AUTH_SECRET` 用のシークレットマネージャーです。[本番環境への準備](/docs/operate/production)を参照してください。
+
+### ObjectOS にはステータスページがありますか？ [#does-objectos-have-a-status-page]
+
+セルフマネージド（Enterprise）のデプロイでは、ステータスはあなたが管理するものです。監視の対象を、死活監視には `/api/v1/health`、レディネスには `/api/v1/ready` に向けてください。[Docker](/docs/deploy/docker) と [Kubernetes](/docs/deploy/kubernetes) はこの 2 つを設定しています。ホスト型のサービスについては [status.objectstack.ai](https://status.objectstack.ai) を参照してください。
+
+### どのメトリクスを監視すべきですか？ [#what-metrics-should-i-monitor]
+
+5xx の割合、p95 レイテンシ、レディネス（`/api/v1/ready`）です。認証失敗のメトリクスはありません。代わりに Setup の `Auth` 監査ビューでサインインのアクティビティを確認してください。Prometheus の最小限の例は[オブザーバビリティ](/docs/operate/observability)にあります。
+
+### バックアップはどう取りますか？ [#how-do-i-take-a-backup]
+
+**データベース**と**ストレージバケット**をバックアップしてください。顧客データはすべてこの 2 つにあります。ObjectOS 自体はステートレスです。[バックアップ](/docs/operate/backup)を参照してください。
+
+## 料金と法務 [#pricing--legal]
+
+### ObjectOS は無料ですか？ [#is-objectos-free]
+
+**ObjectOS Community** は無料です。**[ObjectStack フレームワーク](https://github.com/objectstack-ai/objectstack)**（Apache-2.0）の上に構築されたオープンソースのランタイムと Console で、シートも利用量の階層もライセンスサーバーもなく、MCP 経由の AI（自分のモデルを持ち込み）が使えます。**ObjectOS Cloud**（無料枠から始められます）と **ObjectOS Enterprise** は、組み込みの**製品内 AI**、ガバナンス、公式の運用を追加し、料金は **AI シート**に対してのみ発生します（閲覧者と AI を使わないユーザーは無料）。[エディション](/docs/editions/license#editions)を参照してください。
+
+### 販売する商用製品で使えますか？ [#can-i-use-it-in-a-commercial-product-i-sell]
+
+**ObjectStack フレームワーク**と **ObjectOS Community** は使えます。Apache-2.0 はロイヤリティなしで商用利用を認めています。**ObjectOS Cloud や Enterprise** の再配布、または ObjectOS の名前でのビルドの再配布には OEM 契約が必要です。[ライセンスと料金](/docs/editions/license)を参照してください。
+
+### テレメトリーを収集していますか？ [#do-you-collect-telemetry]
+
+ObjectOS Community は、あなたが設定しない限り（OIDC、メール、AI、Webhook）外部への通信を一切行いません。ObjectOS Enterprise はライセンスをオンラインで検証します。エアギャップ環境向けの Enterprise ライセンスはオフラインで検証します。[セキュリティとコンプライアンス](/docs/reference/security#data-residency)を参照してください。
+
+### ObjectOS は SOC 2 / ISO 27001 / HIPAA / GDPR に準拠していますか？ [#is-objectos-soc-2--iso-27001--hipaa--gdpr-compliant]
+
+ObjectOS は、どのフレームワークも求める**基本要素**（RBAC、監査、暗号化への対応、データレジデンシー）を提供します。認証はバイナリではなく、あなたの**デプロイ**が取得するものです。認証を取得している ObjectOS のデプロイは多数あります。[セキュリティとコンプライアンス](/docs/reference/security#compliance-frameworks)を参照してください。
+
+## 行き詰まったら [#getting-unstuck]
+
+### 何かが壊れています。どこから始めればよいですか？ [#somethings-broken--where-do-i-start]
+
+`os doctor` です。設定ミスの 80% はこれだけで見つかります。その後は[トラブルシューティング](/docs/operate/troubleshooting)を参照してください。
+
+### バグはどこに報告しますか？ [#where-do-i-report-a-bug]
+
+[GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) です。すべての ObjectOS エディションに共通の、唯一の公開 issue トラッカーです。`os doctor` の出力を添えてください。セキュリティの問題は **security@objectstack.ai** へ。
+
+### 人に助けてもらうには？ [#where-do-i-get-help-from-humans]
+
+[GitHub Issues](https://github.com/objectstack-ai/objectstack/issues)、コミュニティの Discord、または商用サポートなら **sales@objectstack.ai** へ。
