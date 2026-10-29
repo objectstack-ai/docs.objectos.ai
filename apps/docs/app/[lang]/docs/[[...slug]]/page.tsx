@@ -17,6 +17,7 @@ import type { InferPageType } from 'fumadocs-core/source';
 import type { TOCItemType } from 'fumadocs-core/toc';
 import { EditionBadges } from '@/components/editions';
 import { EDITIONS_PAGE_SLUGS } from '@/lib/editions';
+import { loadPageBody } from '@/lib/page-body';
 
 /**
  * The page type the loader actually produces, frontmatter schema included.
@@ -267,7 +268,11 @@ export default async function Page(props: {
   // Under `dynamicParams = false` this await runs at BUILD time, in Node, on
   // every one of the 1139 prerendered paths — the Worker serves the prerendered
   // result out of the static-assets incremental cache and does not re-render.
-  const loaded = await page.data.load();
+  //
+  // Loaded through `lib/page-body.ts`, not `page.data.load()`: `source` is
+  // built without the compiled bodies so the route handlers do not bundle a
+  // second copy of every page (#395).
+  const loaded = await loadPageBody(page);
   const MDX = loaded.body;
 
   // Resolved once and handed to both controls (through `copySource` and
@@ -309,11 +314,11 @@ export default async function Page(props: {
   // translation it is this locale's text, which the `.mdx` surface does not
   // serve (English-only, see `markdownUrl`), so it is rendered into the page
   // instead: `getLLMText` builds it exactly as `/llms.mdx/docs/...` builds the
-  // English body, from the module `page.data.load()` above already loaded.
+  // English body, from the module `loadPageBody` above already loaded.
   const copySource: MarkdownSource =
     contentLang === i18n.defaultLanguage
       ? { url: pageMarkdownUrl }
-      : { text: await getLLMText(page) };
+      : { text: await getLLMText(page, loaded._exports._markdown as string) };
 
   // "Open in ChatGPT / Claude" follows the same rule (#305): the assistant is
   // sent to the page on screen. The English Markdown when that is the English

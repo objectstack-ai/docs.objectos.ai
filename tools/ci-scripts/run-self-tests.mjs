@@ -121,6 +121,13 @@
  * Its fixtures are fake handlers and fake heap readings. They prove that a
  * failed request, a reading above the budget, and a heap still growing on the
  * second pass each go red.
+ *
+ * `check-worker-page-cost.mjs` is listed for its `--self-test` only (#395). Its
+ * gate mode reads the packaged Worker's metafile, so it runs inside `ci.yml`'s
+ * `Worker bundle fits the size budget` step. Its fixtures are fake metafiles:
+ * they prove the per-page cost and the pages left are computed from the
+ * costliest locale, and that a missing metafile or renamed page chunks fail
+ * rather than print nothing.
  */
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -145,6 +152,7 @@ const SELF_TESTED = [
   'check-positioning.mjs',
   'check-search-locales.mjs',
   'check-search-heap.mjs',
+  'check-worker-page-cost.mjs',
   'check-doc-samples.mjs',
   'bump-upstream-pin.mjs',
 ];
