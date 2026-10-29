@@ -1,0 +1,124 @@
+---
+title: ポジション
+seoTitle: "ポジション：職務と対象者のアンカー"
+description: ポジションで職務と対象者のアンカーをモデル化します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9a6096331cd3521f789262b74df4f6d0c036eb8279faa0759092e883c35b050c
+  guide_rev: 1
+  mode: auto
+---
+
+ポジションは、ユーザーが担う職務（「Sales Manager」、「Support Agent」、「Auditor」）を記述します。ObjectStack 13（Permission Model v2、ADR-0090）以降、ポジションは人をグループ化する**唯一の**概念です。旧来の Role と Profile の枠組みはポジションに統合され、プロトコルから削除されました。
+
+ポジションは意図的に**フラット**です。`parent` フィールドもポジションの階層もありません。報告の構造とサブツリーに基づく表示範囲は、代わりに[事業単位のツリー](/docs/configure/permissions/record-access)にあります。
+
+## ポジションの役割 [#position-responsibilities]
+
+ポジションは次のもののモデル化に使います。
+
+- 職務（「Sales Manager」、「Recruiter」、「Auditor」）
+- アプリ、タブ、ブックの対象者の指定
+- 承認の責任（種類が `position` の承認者は、現在の保持者に自動的に展開されます）
+- 同じ職務を持つ全員への[権限セット](/docs/configure/permissions/permission-sets)の配布
+
+組織図（部署、地域、上司 / 部下の構造）のモデル化には**事業単位**を、オブジェクト、フィールド、システムの具体的な機能の付与には**権限セット**を使います。
+
+## システムオブジェクト [#system-objects]
+
+| オブジェクト | 目的 |
+|---|---|
+| `sys_position` | ポジションの定義（フラット。階層なし） |
+| `sys_user_position` | ユーザーのポジションへの割り当て |
+| `sys_position_permission_set` | ポジションを通じて配布される権限セット |
+| `sys_business_unit` | 階層とサブツリーの共有に使う組織図のツリー |
+| `sys_business_unit_member` | 事業単位におけるユーザーのメンバーシップ（`function_in_business_unit`） |
+
+RBAC のリンクテーブル（`sys_user_position`、`sys_position_permission_set`、`sys_user_permission_set`、`sys_permission_set`）への書き込みには、テナントレベルの管理者権限か[委任された管理のスコープ](/docs/configure/permissions/permission-sets#delegated-administration)が必要です。それらのテーブルに対する単なる CRUD の付与では足りません。
+
+## 対象者のアンカー：`everyone` と `guest` [#audience-anchors-everyone-and-guest]
+
+すべてのデプロイメントには、システム管理の 2 つのポジションが初期投入されています。
+
+| アンカー | 保持者 |
+|---|---|
+| `everyone` | 認証されたすべてのプリンシパル（暗黙的に） |
+| `guest` | セッションのない（匿名の）HTTP のプリンシパルだけ |
+
+サインインしたすべてのユーザーにベースラインを付与するには、権限セットを `everyone` にバインドします。バインディングは加算的で、プラットフォームは高権限のセット（View All / Modify All、delete/purge/transfer、システムの権限、ワイルドカード）をこれらのアンカーにバインドすることを拒否します。
+
+**`guest` は何も付与しません。** オブジェクトのデータへの匿名のアクセスは、すべての HTTP の画面で拒否され（ObjectStack 17.0）、`guest` アンカーへのどのバインディングも、匿名の呼び出し元に権限セットを与えません（ObjectStack 17.6）。匿名の訪問者に何かを公開するには、代わりに画面を宣言します。[公開フォーム](/docs/build/interface/views#public-forms)や共有リンクで、それぞれ宣言したものだけを認可します。
+
+設定されたベースラインの権限セット（`fallbackPermissionSet`、デフォルトは `member_default`）は、同じ `everyone` のバインディングの経路で適用されます。ObjectStack 14.2 以降、メンバーのベースラインには**削除**が含まれなくなったことに注意してください。レコードの削除は、ポジションで配布される権限セットを通じて、オブジェクトごとに明示的に付与しなければなりません。
+
+**権限セットを持たない呼び出し元は拒否のベースラインを得ます**（ObjectStack 17.6）。権限セットをまったく解決しないリクエスト（匿名のリクエスト、または存在しないセットだけを指定するリクエスト）は、すべてのオブジェクトで `403 PERMISSION_DENIED` で拒否されます。`requiredPermissions` でゲートされたフィールドは提供されず（フィールドが `maskingRule` を宣言していればマスクされて提供されます）、そのフィールドでフィルター、並べ替え、グループ化、書き込みをすることもできません。ベースラインのセットが設定されている限り、サインインしたユーザーは影響を受けません。デフォルトの `member_default` は、彼らについて常に解決されます。
+
+## ポジションを無効にする [#deactivating-a-position]
+
+ポジションの **Deactivate** アクションは、それが与えるものすべてを即座に取り除きます（ObjectStack 17.1）。
+
+- 権限セットを何も配布しなくなり、その名前は保持者の `current_user.positions` から外れます。
+- そのポジションを受け手とする共有ルールは誰とも共有しなくなり、すでに付与していたレコードの共有は次の再調整で取り消されます。
+
+無効化が止めるのはアクセスであって、宛先の指定ではありません。種類が `position` の承認者を持つ承認ステップは、無効化されたポジションの保持者に引き続き回されます。`active` の値が空のポジションは影響を受けません。数えられるのは明示的な無効化だけです。
+
+> ObjectStack 17.1 より前は、このスイッチは何もしていませんでした。無効化されたポジションも付与を続けていました。それを越えてアップグレードすると、稼働中のデータでそのアクセスが取り消されるので、まだ付与を続けるべき無効化されたポジションは、アップグレードの前に再び有効にしてください。
+
+## 有効期間付きの割り当て [#effective-dated-assignments]
+
+ポジションと権限セットの割り当ては、省略可能な `valid_from` / `valid_until` の期間（半開区間、UTC。null は無制限）を持ちます。期限切れの付与は即座に解決されなくなります。一時的な代行、契約社員、資格に結び付いたアクセスに便利です。各付与には `reason` を、委任の場合は `delegated_from` も記録できます。
+
+`delegatable: true` とマークされたポジションは、その現在の保持者が、期間を区切って（将来の `valid_until` で、上限は 30 日、理由は必須）別のユーザーに自分で委任することを許します。管理のスコープを持つ権限セットを配布するポジションは、決して委任可能にはできません。
+
+## 推奨されるパターン [#recommended-pattern]
+
+職務の形をした、小さく安定したポジションの集合を保ちます。
+
+```text
+Sales Manager
+Sales Representative
+Support Manager
+Support Agent
+```
+
+組織図は事業単位としてモデル化します。
+
+```text
+Sales
+  ├─ EMEA
+  └─ AMER
+Support
+```
+
+そして、機能のために権限セットをポジションに付けます。
+
+```text
+Sales Manager position
+  -> CRM User
+  -> Sales Manager Access
+  -> Report Viewer
+```
+
+こうすれば、権限が独立して変化していく間も、ポジションは安定したままです。
+
+## 避けるべきこと [#avoid]
+
+- ユーザー 1 人ごとに 1 つのポジションを作ること
+- すべての権限をすべてのポジションに重複させること
+- ポジションの名前をビジネスロジックのチェックに使うこと
+- ポジションで階層を作り直すこと。サブツリーの表示範囲は、事業単位と[レコードの共有](/docs/configure/permissions/record-access)の役割です
+- レコードの共有のほうがより正確なのに、マネージャーのポジションを通じて広いアクセスを付与すること
+
+## ロールからの移行（13 より前） [#migrating-from-roles-pre-13]
+
+ObjectStack 12 以前に対して作成されたメタデータをアップグレードする場合：
+
+| 旧来 | 現在 |
+|---|---|
+| `sys_role` / `sys_user_role` / `sys_role_permission_set` | `sys_position` / `sys_user_position` / `sys_position_permission_set` |
+| `defineRole` / `RoleSchema`（`parent` 付き） | `definePosition` / `PositionSchema`（フラット） |
+| メタデータの種類 `role` または `profile` | `position` |
+| 共有の受け手 `role` / `role_and_subordinates` | `position` / `unit_and_subordinates` |
+| `PermissionSetSchema.isProfile` | 削除されました。`isDefault` がインストール時の推奨をマークします |
+
+ロールの階層は、事業単位のツリーとしてモデル化し直す必要があります。`os lint` は、`security-role-word` ルールで残っているロールの語彙を指摘します。
