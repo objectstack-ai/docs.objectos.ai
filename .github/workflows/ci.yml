@@ -199,6 +199,18 @@ jobs:
         shell: bash
         run: node .github/scripts/check-search-locales.mjs | tee -a "$GITHUB_STEP_SUMMARY"
 
+      # #393: #390's eleven ja pages passed every step above, and after the
+      # deploy `/api/search` answered 503 and the site rolled back twice. A
+      # Worker isolate has 128 MB, and the route kept every locale's index
+      # (30–40 MB each). This step asks the BUILT handler in every locale, then
+      # in each once more, the way one isolate is asked, and fails when the
+      # heap after a forced GC goes above 100 MB or is still growing on the
+      # second pass. A content PR that would tip the Worker over goes red here,
+      # not after the deploy. Same footing as the step above.
+      - name: Search fits the Worker's memory
+        shell: bash
+        run: node --expose-gc .github/scripts/check-search-heap.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+
       - run: pnpm turbo run test
 
       # Defect 2 of #269: the deploy used to run its own `pnpm install` and its

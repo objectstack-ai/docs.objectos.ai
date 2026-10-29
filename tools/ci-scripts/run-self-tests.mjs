@@ -114,6 +114,13 @@
  * malformed pin or SHA is refused, that the same commit bumps nothing, and that
  * the pull-request body stays inside GitHub's size limit with every upstream
  * reference inside a fence.
+ *
+ * `check-search-heap.mjs` is listed for its `--self-test` only (#393), on the
+ * footing of `check-search-locales.mjs`: its gate mode loads the built search
+ * route out of `apps/docs/.next/`, so it is a `ci.yml` step after the build.
+ * Its fixtures are fake handlers and fake heap readings. They prove that a
+ * failed request, a reading above the budget, and a heap still growing on the
+ * second pass each go red.
  */
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -137,6 +144,7 @@ const SELF_TESTED = [
   'check-translation-ownership.mjs',
   'check-positioning.mjs',
   'check-search-locales.mjs',
+  'check-search-heap.mjs',
   'check-doc-samples.mjs',
   'bump-upstream-pin.mjs',
 ];

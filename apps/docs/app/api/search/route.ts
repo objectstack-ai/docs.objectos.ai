@@ -1,5 +1,6 @@
 import { source } from '@/lib/source';
 import { i18n } from '@/lib/i18n';
+import { searchData } from '@/.search';
 import {
   createSearchAPI,
   type AdvancedIndex,
@@ -118,22 +119,65 @@ function breadcrumbs(locale: Locale, url: string): string[] | undefined {
   return names.filter((name): name is string => typeof name === 'string' && name.length > 0);
 }
 
-/** `locale`'s pages, indexed as `createFromSource` indexes them. */
+type StructuredData = AdvancedIndex['structuredData'];
+
+/**
+ * One locale's `structuredData` — each page's headings and paragraphs — keyed
+ * by file path under `content/docs`, from `.search/` (#393).
+ *
+ * `scripts/gen-search-data.mjs` writes it before every build, with the same
+ * remark chain fumadocs-mdx compiles the pages with. Reading it from there
+ * instead of from `page.data.load()` is the point: `load()` imports the page's
+ * compiled module, the module registry keeps it for the life of the isolate,
+ * and one locale's page modules are 4–5 MB of heap that outlived its index.
+ * The module imported here is one string, and the unzipped, parsed copy is
+ * dropped once the index has the text.
+ */
+async function texts(locale: Locale): Promise<Record<string, StructuredData>> {
+  // Gzipped JSON in base64, because the module is Worker upload too.
+  const packed = (await searchData[locale]()).default;
+  const bytes = Uint8Array.from(atob(packed), (c) => c.charCodeAt(0));
+  const json = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(json).text());
+}
+
+/**
+ * `locale`'s pages, indexed as `createFromSource` indexes them. A page that
+ * has no translation in `locale` is the default language's file, so its text
+ * is read from the default language's module.
+ */
 async function indexes(locale: Locale): Promise<AdvancedIndex[]> {
+  const [own, fallback] = await Promise.all([
+    texts(locale),
+    locale === i18n.defaultLanguage ? undefined : texts(i18n.defaultLanguage),
+  ]);
   return Promise.all(
-    source.getPages(locale).map(async (page) => ({
-      id: page.url,
-      url: page.url,
-      title: page.data.title,
-      description: page.data.description,
-      structuredData: (await page.data.load()).structuredData,
-      breadcrumbs: breadcrumbs(locale, page.url),
-    })),
+    source.getPages(locale).map(async (page) => {
+      const file = page.data.info.path;
+      let structuredData = own[file] ?? fallback?.[file];
+      if (!structuredData) {
+        // `next dev` serves pages added since it wrote `.search/`; a build
+        // writes it first, so there a missing page is a stale `.search/`.
+        if (process.env.NODE_ENV !== 'development') {
+          throw new Error(`/api/search: no search data for ${file}; run scripts/gen-search-data.mjs`);
+        }
+        structuredData = (await page.data.load()).structuredData;
+      }
+      return {
+        id: page.url,
+        url: page.url,
+        title: page.data.title,
+        description: page.data.description,
+        structuredData,
+        breadcrumbs: breadcrumbs(locale, page.url),
+      };
+    }),
   );
 }
 
 /**
- * One index per locale, built on that locale's first search (#301).
+ * One index per locale, built on that locale's first search (#301), and only
+ * the most recent `KEEP` of them kept (#393, below).
  *
  * `createFromSource` with i18n builds every locale's index on the first search
  * in any locale, so the first reader after a cold start paid for all eight:
@@ -156,16 +200,38 @@ async function indexes(locale: Locale): Promise<AdvancedIndex[]> {
  */
 const servers = new Map<Locale, SearchAPI>();
 
+/**
+ * How many locales' indexes one isolate keeps (#393).
+ *
+ * One index is 30–40 MB of heap, and a Cloudflare Worker isolate has 128 MB in
+ * all. The map above used to keep every locale an isolate had served, so the
+ * second or third locale pushed it over and `/api/search` answered 503: on the
+ * built route at `09784e7`, heap after a forced GC grew from 58 MB after the
+ * first locale to 283 MB after all eight. Keeping the most recently used one
+ * holds it level. A search in another locale then pays that locale's build
+ * again (0.5–1.5 s), and a second entry would leave too little room for that
+ * build's peak. `.github/scripts/check-search-heap.mjs` measures the level
+ * after every build.
+ */
+const KEEP = 1;
+
 function server(locale: Locale): SearchAPI {
   let found = servers.get(locale);
-  if (!found) {
+  if (found) {
+    // Most recently used last, so the first key is the one to drop.
+    servers.delete(locale);
+  } else {
     const options: Partial<AdvancedOptions> = localeOptions[locale];
     found = createSearchAPI('advanced', {
       ...options,
       search: { ...options.search, sortBy: byWeightedScore },
       indexes: () => indexes(locale),
     });
-    servers.set(locale, found);
+  }
+  servers.set(locale, found);
+  for (const oldest of servers.keys()) {
+    if (servers.size <= KEEP) break;
+    servers.delete(oldest);
   }
   return found;
 }
