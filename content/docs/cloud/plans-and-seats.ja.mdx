@@ -1,0 +1,75 @@
+---
+title: プランと AI シート
+seoTitle: "ObjectOS Cloud のプラン：Free、Team、Enterprise と AI シート"
+description: ObjectOS Cloud のプラン（Free、Team、Enterprise）、唯一の有料シートである AI シート、アップグレードの方法、そしてプランに含まれないものをコンソールのどこで確認できるか。
+editions: [cloud]
+translation:
+  source_sha: c5f15cf821325b61b91091b0b7377b4a9750dc285a87202f969b73eae1eb8b97
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Cloud には 3 つのプランがあります。プランは**組織**に属し、そのすべての環境に適用されます。料金がかかるのは **AI シート**だけで、組織のそれ以外の全員は無料でアプリを使い、閲覧できます。
+
+| | **Free** | **Team** | **Enterprise** |
+|---|---|---|---|
+| 料金 | $0 | AI シートあたり月額 $24、または年払いで AI シートあたり月額 $20 | 契約による |
+| 本番環境 | 1 | 1 | 1 |
+| [開発環境](/docs/cloud/environments) | — | 2 つに加えて AI シートごとに 1 つ | ✓ |
+| アーカイブされた開発環境の保持 | — | 30 日 | 1 年 |
+| [AI 利用枠](/docs/cloud/ai-credits-and-limits) | 週ごとの利用枠 | AI シートとともに増える、より大きな利用枠と [AI クレジットパック](/docs/cloud/ai-credits-and-limits#buy-ai-credits) | AI シートとともに増える利用枠と AI クレジットパック |
+| [環境ごとのストレージ](/docs/cloud/storage-and-limits) | 1 GB | 20 GB | 上限なし |
+| [AI エージェントのアクセス（MCP）](/docs/configure/mcp#on-objectos-cloud) | 1 分あたり 20 リクエスト、1 日 1,000 | 1 分あたり 120 リクエスト、1 日の上限なし | 1 分あたり 120 リクエスト、1 日の上限なし |
+| ブランド付きのプラットフォームのサブドメイン | ✓ | ✓ | ✓ |
+| [独自のドメイン](/docs/cloud/domains) | — | 本番環境ごとに 1 つ | ✓ |
+| 承認ワークフロー | — | — | ✓ |
+| サインイン | ObjectOS Cloud のサインイン | ObjectOS Cloud のサインイン | ObjectOS Cloud のサインイン。契約により、自社のアイデンティティプロバイダーによるシングルサインオン |
+| サポート | コミュニティ | 標準 | 優先 |
+
+ObjectOS Cloud は[パブリックプレビュー](/docs/editions/public-preview)中です。料金はプレビュー期間の料金であり、変更があれば事前に告知されます。
+
+## AI シート [#the-ai-seat]
+
+**AI シート**は、AI で構築し、データについて AI に質問できるメンバーです。[AI Builder](/docs/build/ai-builder) とアプリ内のアシスタントのことです。これが唯一の有料シートです。AI シートを持たないメンバー、閲覧者、そして [MCP](/docs/configure/mcp) 経由で自分の AI クライアントを使って構築する開発者には料金がかかりません。
+
+購入する AI シートの数は組織の設定で、チェックアウト時に選び、後から変更できます。それによって 3 つのものの大きさが決まります。
+
+- 組織の **AI 利用枠**。シートごとです（[AI クレジットと上限](/docs/cloud/ai-credits-and-limits)）。
+- **開発環境のプール**。2 つに加えてシートごとに 1 つです（[環境](/docs/cloud/environments)）。
+- 人ごとのシートの割り当てが有効になっている環境で、AI シートを**割り当てられる**人の数。
+
+## アップグレード [#upgrade]
+
+アップグレードは、オーナーまたは管理者が環境のページ（そのヘッダー、または **Settings → Plan and billing**）から行います。
+
+1. **Upgrade Plan** を選びます。ダイアログで、プラン（Team）、請求の周期（月払い、または AI シートあたり月額 $20 の年払い）、AI シートの数を尋ねられます。
+2. 新しいタブで安全なチェックアウトが開きます。請求先は 1 つの環境ではなく、組織です。
+3. 支払いが完了すると組織のプランが変わり、そのすべての環境が再デプロイなしに新しいプランを取り込みます。
+
+組織でまだオンライン決済が利用できない間は、ボタンは **Upgrade to Team** と表示され、代わりに **Billing** を開きます。そこで Team の **Contact sales** ボタンを押すと、私たちとともにアップグレードを始められます。
+
+Enterprise は営業担当者が支援します。**Billing** の Enterprise の列にある **Contact sales** を使ってください。
+
+## プランに含まれないものを確認する [#see-what-your-plan-leaves-out]
+
+コンソールの 2 か所で、営業ページを挟まずに確認できます。
+
+- **Billing** は 3 つのプランを並べて比較し、現在のプランに **Current plan** の印を付けます。すべてのメンバーが読めますが、そのボタンが表示されるのはオーナーと管理者だけです。
+- 環境の **Overview** タブには、折りたたまれた **Features that need a higher plan: N · View** の行があります。開くと、現在のプランに含まれない各機能が、それを含むプランとともに一覧されます。ロックされた機能がコンソールのほかの場所に現れる場合は、**Team plan and above** のような、そのプランの名前を示す短い印が付き、**Billing** へ移動できます。
+
+## ダウングレード [#downgrading]
+
+下位のプランに下げても、データが削除されることは決してありません。
+
+- 開発環境は動き続けます。Free が拒否するのは、その作成と復元だけです（[環境](/docs/cloud/environments#after-a-downgrade-to-free)）。
+- Free のストレージの割り当てを超えた環境は、すべてのバイトを保持し、読み取りとエクスポートができる状態のまま、アップロードとインポートを受け付けなくなります（[ストレージと上限](/docs/cloud/storage-and-limits)）。
+- 独自のドメインは解放されずに一時停止され、後でアップグレードすると自動的に戻ります（[ドメイン](/docs/cloud/domains#downgrade-and-upgrade)）。
+
+## Business [#business]
+
+**Business** は、ホスト型サービスにおける ObjectOS Enterprise の契約オプションで、**Billing** からではなく[営業](/docs/editions/license)が販売します。ObjectOS Cloud では、承認ワークフローと、アーカイブされた開発環境の 90 日間の保持期間を追加します。料金と契約がカバーする内容は[ライセンスと料金](/docs/editions/license)にあります。
+
+## 次へ [#next]
+
+- [エディションの比較](/docs/editions/compare)：Community と Enterprise と並べたプラン。
+- [AI クレジットと上限](/docs/cloud/ai-credits-and-limits)：AI 利用枠の仕組み。

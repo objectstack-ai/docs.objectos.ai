@@ -1,0 +1,145 @@
+---
+title: アクセスの管理
+seoTitle: "アクセスの管理：入社、ロールの変更、退社"
+description: 日々の管理の手引き。新入社員を迎え入れ、ロールを変更し、誰かが何を見られるかを確認し、きれいに退社させます。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: be810828c60d389cf16c7b89bedd3c8e68110d089cd9da60fb2c59a3a67321be
+  guide_rev: 1
+  mode: auto
+---
+
+これは、管理者が毎週扱うアクセスの問題のためのタスクガイドです。[モデルの概要](/docs/configure/permissions)は各層が*どう*機能するかを説明し、このページは*何をクリックするか*を説明します。
+
+> **日々の管理作業の 90% は、人をポジションに割り当てることです。** ポジション、その背後にある権限セット、セキュリティのベースラインは、プラットフォームとインストールしたアプリとともに提供されます。機能を一から作ることはほとんどなく、そうすべきでもありません。
+
+ユーザーの実効的なアクセスは加算的です。
+
+```text
+effective access = union of permission sets reached through positions
+                 + direct grants
+                 + the built-in member_default baseline
+```
+
+制限は*付与しない*ことで行います。保守すべき減算のルールはありません。
+
+## 新入社員を迎え入れる [#onboard-a-new-hire]
+
+順序のある 4 つのステップで、それぞれが前のステップに依存します。
+
+| ステップ | 場所 | 内容 |
+|---|---|---|
+| 1. ユーザーを作成する | Setup → People & Organization → Users | **Invite**、**Create**、または **Import**。[ユーザーと組織](/docs/configure/users#add-people)を参照してください |
+| 2. 組織ツリーに配置する | 同じリスト → Business Unit Member の行 | ユーザー + 事業単位、1 つを*主*としてマークします。深さに基づく表示範囲はこれを通じて解決されます |
+| 3. ポジションを割り当てる | Setup → Access Control → Positions | 日々の 90%。下記を参照してください |
+| 4. 確認する | Impersonate + Explain | テストせずに「準備できました」と伝えてはいけません。下記を参照してください |
+
+### ポジションを割り当てる [#assigning-positions]
+
+割り当ては 1 つの行です。**User Position**（`sys_user_position`）= *ユーザー* + *ポジション* + 省略可能な、そのポジションを保持する**事業単位**。このアンカーが、ポジションの深さの付与が*どこに*適用されるかを決めます。「**East の**セールスマネージャー」は、会社全体ではなく East のレコードを見ます。
+
+**Setup → Access Control → Positions** でポジションを開き、その関連リストから割り当てを追加します（または User Position の行を直接作成します）。これらの書き込みは統制されています。テナントレベルの管理者は通過し、委任された管理者は自分のサブツリーの中で、許可リストにあるセットだけを割り当てられます。自分自身の権限の昇格は構造的に拒否されます（[委任された管理](/docs/configure/permissions/permission-sets#delegated-administration)を参照）。
+
+隣接する 2 つの画面で全体像が完成します。
+
+- **直接の付与**：権限セットのレコードページ（**Setup → Access Control → Permission Sets**）にある **Assigned Users** パネルは、ポジションなしにユーザーごとの付与を追加します。*ポジションを通じて*保持されている行も表示されますが、削除はここではなくポジションで行います。
+- **事業単位のメンバーシップ**：ステップ 2 のものです。割り当てのアンカーとは独立しています。
+
+## 誰かのロールを変更する [#change-someones-role]
+
+誰かが部署や職務を変えたとき：
+
+1. その人の **Business Unit Member** の行を新しい単位に更新します。
+2. **User Position の行を付け直します。** 古い単位をアンカーとする割り当てを削除または編集し、新しい単位の割り当てを追加します。
+3. 古いロールに属していた直接の付与を削除します。
+4. 確認します（下記）。
+
+割り当ては `valid_from` / `valid_until` の期間を持てます。期限切れの付与は即座に解決されなくなるので、計画的な異動や一時的な代行のロールを扱うきれいな方法です。[権限セット](/docs/configure/permissions/permission-sets)を参照してください。
+
+## 誰かが何を見られるかを確認する [#verify-what-someone-can-see]
+
+組み込みの確認ツールが 2 つあります。
+
+- **Impersonate。** Users のリスト → 行のメニュー → **Impersonate User**。そのユーザーのセッションを得られます。その人が開くアプリを開き、見えるべきものが見え、見えるべきでないものが見え*ない*ことを確認します。なりすましは正当なサポートと確認のためのもので、セッションは記録されます。
+- **Explain。** Studio の **Access** の柱 → **Explain access**：ユーザー、オブジェクト、操作を選ぶと、エンジンが判定とすべての評価の層を返します。どの権限セットが付与したか、それをどのポジションを通じて保持しているか、どの共有ルールが広げたか、どのポリシーが絞り込んだかです。
+
+同じレポートは REST でも利用できます。
+
+```bash
+# GET, query-string form
+curl -H "Authorization: Bearer $TOKEN" \
+  "$BASE/api/v1/security/explain?object=crm_lead&operation=read&userId=usr_123"
+
+# POST, body form
+curl -X POST -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -d '{"object":"crm_lead","operation":"read","userId":"usr_123"}' \
+  "$BASE/api/v1/security/explain"
+```
+
+`operation` は `read | create | update | delete | transfer | restore | purge` のいずれかです（デフォルトは `read`）。`userId` を省略すると**自分自身**について説明します。自分自身についての説明は常に許可されます。*ほかの*ユーザーについて説明するには、`manage_users` 機能か、そのユーザーをカバーする委任された管理のスコープが必要です。
+
+> 何かが誤って解決されたときは、推測して切り替えるより、まず説明させるほうがうまくいきます。レポートが、修正すべき正確な権限セットと層を示します。[診断と監査のセクション](/docs/configure/permissions#diagnose--audit)を参照してください。
+
+## 誰かを退社させる [#offboard-someone]
+
+1. **Ban User**：サインインを即座にブロックします。急ぐ必要があるのはこのステップだけです。
+2. ポジションの割り当てと直接の付与を、落ち着いて削除します。
+3. Business Unit Member の行を削除するか、親を付け替えます。
+4. そのユーザーに結び付いた API キーを失効させます。キーはそのユーザーとして動作し、基になる付与が存在する間は機能し続けます。
+
+## 提供されたポジションが合わないとき [#when-the-shipped-positions-dont-fit]
+
+権限は Studio で*設計し*、Setup で*割り当てます*。提供されたポジションでは足りない場合は、機能する最小の変更を次の順で選んでください。
+
+1. **既存の権限セットをポジションにバインドします。**
+2. **提供されたセットを複製して調整します。**
+3. Studio の権限セットのマトリクスエディターで**新しいセットを作成します**。オブジェクトの CRUD、フィールドレベルのセキュリティ、機能のための構造化されたスプレッドシートで、JSON を手で書くことはありません。
+
+アプリとともに提供されたセットを編集すると、*環境のオーバーレイ*が作られます。あなたの変更が優先され、アップグレードを越えて残り、ベンダーのベースラインにリセットすることもできます。加算的なモデルを念頭に置いてください。まとまりのある機能の束を作成し、「減算のセット」は決して作らないでください。[権限セット](/docs/configure/permissions/permission-sets)を参照してください。
+
+要件を変更に落とし込むときは、対応する層を選びます。
+
+| 要件 | 層 | 扱っている場所 |
+|---|---|---|
+| オブジェクトの種類を読み取り / 作成 / 編集 / 削除できる | オブジェクトの権限 | [権限セット](/docs/configure/permissions/permission-sets) |
+| 特定のフィールドを見られる / 編集できる | フィールドレベルのセキュリティ | [フィールドレベルのセキュリティ](/docs/configure/permissions/field-level-security) |
+| ユーザーがどの*行*を見るか | レコードアクセス | [レコードアクセス](/docs/configure/permissions/record-access) |
+| オブジェクトのレコードを一括エクスポートできる | オブジェクトの権限：`allowExport`。読み取りでは与えられ**ない**オプトインの付与です | [Export is its own grant](/docs/configure/permissions/permission-sets#export-is-its-own-grant) |
+| 機能上の能力（ユーザーの管理、監査ログの表示） | システムの権限 | [権限セット](/docs/configure/permissions/permission-sets#system-permissions) |
+| アプリやナビゲーションのエントリを開ける | アプリケーションへのアクセス | [権限セット](/docs/configure/permissions/permission-sets) |
+
+## よく使う手順 [#quick-paths]
+
+| やりたいこと | すること |
+|---|---|
+| 新しい従業員を迎え入れる | ユーザーを Invite/Create → Business Unit Member の行 → ポジションを割り当てる |
+| 誰かを退社させる | **Ban User**（サインインを即座にブロック）、その後で割り当てを落ち着いて削除する |
+| 「サインインできない」 | ユーザーのレコード → Ban されている？ロックされている？**Unlock Account** または **Set Password**（一時的で、変更が必須） |
+| 「なぜ X が見えないのか？」 | Studio → Access → そのユーザー + オブジェクトについて **Explain access** |
+| 誰かが部署を移った | その人の Business Unit Member の行を更新し、User Position の行を付け直す |
+| 子会社に自社のスタッフを管理させる | [委任された管理のスコープ](/docs/configure/permissions/permission-sets#delegated-administration)を持つセットを付与する |
+| 1 人のユーザーに機能を 1 つ追加する | 権限セットのレコード → **Assigned Users** → 追加（直接の付与） |
+
+## どこに何があるか [#where-is-everything]
+
+| もの | 場所 |
+|---|---|
+| ユーザー、招待 | Setup → People & Organization → Users / Invitations |
+| 事業単位のツリー | Setup → People & Organization → Business Units |
+| チーム | Setup → People & Organization → Teams |
+| ポジション、権限セット | Setup → Access Control |
+| 共有ルール、レコードの共有 | Setup → Access Control |
+| パスワードのポリシー、MFA、ロックアウト、SSO | Setup → Configuration → Authentication |
+| セッション、通知のイベント、監査ログ | Setup → Diagnostics |
+| 権限のマトリクスエディター、Explain access | Studio → Access |
+
+## 次に進む [#where-to-go-next]
+
+| タスク | ページ |
+|---|---|
+| ユーザーを作成し、組織ツリーを作る | [ユーザーと組織](/docs/configure/users) |
+| ポジションと対象者のアンカーを理解する | [ポジション](/docs/configure/permissions/positions) |
+| 権限セットを作成または調整する | [権限セット](/docs/configure/permissions/permission-sets) |
+| 人がどの行を見るかを制御する | [レコードアクセス](/docs/configure/permissions/record-access) |
+| 機密性の高いフィールドを隠す、またはロックする | [フィールドレベルのセキュリティ](/docs/configure/permissions/field-level-security) |
+| サインインのポリシーと SSO | [認証](/docs/configure/authentication) |

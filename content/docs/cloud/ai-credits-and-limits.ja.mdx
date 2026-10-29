@@ -1,0 +1,66 @@
+---
+title: AI クレジットと上限
+seoTitle: "ObjectOS Cloud の AI 利用枠：週ごとの上限、ペース、クレジットパック"
+description: ObjectOS Cloud で製品内 AI がどう計量されるか。構築と質問のための 1 つの利用枠、ローリングする週ごとの上限と 5 時間のペース、クレジットパック、各プランが使うモデル、そして拒否されたときのメッセージ。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 67429e9e53ae8850c44792b0659fead909aa7791fb06d24d6153d6be29182837
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Cloud では私たちが AI モデルを実行するので、製品内 AI（[AI Builder](/docs/build/ai-builder) と、データについての質問に答えるアシスタント）は **AI 利用枠**を消費します。セルフマネージドの ObjectOS Enterprise のデプロイメントでは代わりに自分のモデルを用意し、このページの上限はどれも適用されません。[ObjectOS Enterprise の場合](#on-objectos-enterprise)を参照してください。
+
+## すべての AI の作業に 1 つの利用枠 [#one-allowance-for-all-ai-work]
+
+アプリの構築、データについての質問、アシスタントを通じたアクションの実行は、すべて**同じ利用枠**を消費します。作業の種類ごとの別々の予算はありません。各リクエストは、モデルがそのために行う作業に比例して利用枠を消費し、プランで選択肢がある場合、より高性能なモデルはより多くを消費します。
+
+利用枠は**環境**ごとに数えられます。クラウドコンソールの **Home** に、今週の利用枠をどれだけ使ったかが表示されます。
+
+## 2 つのローリングウィンドウ [#two-rolling-windows]
+
+すべてのプランに同じ 2 つの上限があり、どちらも**ローリング**です。使用量は一定の時間だけ数えられた後に外れるので、余裕はカレンダーの日付ではなく、連続的に戻ってきます。[cloud#2059](https://github.com/objectstack-ai/cloud/issues/2059) で決定されました。
+
+| ウィンドウ | 内容 | Free | Team 以上 |
+|---|---|---|---|
+| **7 日** | 予算：1 週間に収まる AI の作業量 | 環境ごとに週 1 回分の利用枠。厳格な上限です | AI シートごとのより大きな利用枠に、組織の AI シートの数を掛けたもの。[クレジットパック](#buy-ai-credits)で引き上げられます |
+| **5 時間** | ペース：短い集中した利用に収まる量。暴走したセッション 1 つが 1 週間分を使い切れないようにします | 適用されますが、Free の週ごとの利用枠より上にあります | AI シートごとで、シートの数を掛けます。クレジットパックでは引き上げられません |
+
+ObjectOS Cloud が[パブリックプレビュー](/docs/editions/public-preview)の間は、利用枠の正確な大きさは公表されません。Free の利用枠は、最初の体験全体（アプリを構築し、何度か変更し、それでもまだ質問できる）に合わせた大きさです。
+
+## 上限に達したとき [#when-a-limit-is-reached]
+
+リクエストは HTTP `429` で拒否され、チャットにはどの上限に達したか、いつ空くかを示すメッセージが表示されます。
+
+| 状況 | コード | メッセージ |
+|---|---|---|
+| Free、週ごとの利用枠を使い切った | `AI_DESIGN_QUOTA_EXHAUSTED` | *You've used this week's free AI quota. It resets on DATE — upgrade to keep going.* |
+| 有料、週ごとの利用枠を使い切った | `AI_ALLOWANCE_EXHAUSTED` | *Your AI allowance for this week is used up. It resets on DATE, or buy a credit pack to continue now.* |
+| どのプランでも、5 時間のペースに達した | Free では `AI_DESIGN_QUOTA_EXHAUSTED`、有料プランでは `AI_ALLOWANCE_EXHAUSTED` | *You've hit the five-hour AI usage limit. It resets within five hours — then you're good to go.* |
+
+日付は、まだ数えられている最も古い使用量がウィンドウから外れる時点です。エラーの `details.resetsAt` は、同じ時点を ISO タイムスタンプで持っています。環境のほかのものには影響しません。アプリ、データ、連携は動き続けます。
+
+## AI クレジットを購入する [#buy-ai-credits]
+
+有料プランでは、オーナーまたは管理者が、一回限りの **AI クレジットパック**で週ごとの利用枠を補充できます。環境の **Settings → Plan and billing** を開き、**AI credits** → **Buy AI Credits** を選びます。新しいタブで安全なチェックアウトが開きます。
+
+- クレジットパックが引き上げるのは **7 日**の予算だけです。5 時間のペースはレート制限であり、購入で引き上げることはできません。
+- Free はクレジットパックを受け付けません。Free の週ごとの上限を超える方法は [Team へのアップグレード](/docs/cloud/plans-and-seats#upgrade)です。
+- 組織でクレジットパックがまだ販売されていない場合、ボタンはチェックアウトを開く代わりにそのことを伝えます。
+
+## どのモデルが答えるか [#which-model-answers]
+
+すべてのプランは**同じデフォルトのモデル**で答えます。有料プランが Free と違うのは利用枠の大きさであって、より強力なモデルではありません。有料の環境でモデルの選択肢が提供されている場合は、AI チャットで選べます。より高性能なモデルは利用枠をより早く減らします。
+
+## 自分のクライアントを通じた AI はここでは計量されない [#ai-through-your-own-client-is-not-metered-here]
+
+[MCP](/docs/configure/mcp) で接続するエージェント（Claude Code、Cursor など）は、**あなたの**モデルとあなた自身のトークンで動きます。AI 利用枠は消費しません。その制限となるのは、環境の MCP リクエストの上限です（[ストレージと上限](/docs/cloud/storage-and-limits#mcp-limits)）。
+
+## ObjectOS Enterprise の場合 [#on-objectos-enterprise]
+
+セルフマネージドの Enterprise のデプロイメントは、[AI サービス](/docs/configure/ai)で設定する独自のモデルとキーを用意し、モデルのプロバイダーに直接支払います。プラットフォームの AI クレジットも、利用枠も、計量もありません。AI シートごとの料金はライセンスであって、使用量のパッケージではありません。デプロイメントがどれだけの AI の作業をするかは、自分のプロバイダーのアカウントによってのみ制限されます。
+
+## 次へ [#next]
+
+- [プランと AI シート](/docs/cloud/plans-and-seats)：各プランに含まれるもの。
+- [AI Builder](/docs/build/ai-builder)：AI が構築できるもの。

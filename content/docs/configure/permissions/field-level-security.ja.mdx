@@ -1,0 +1,157 @@
+---
+title: フィールドレベルのセキュリティ
+seoTitle: "フィールドレベルのセキュリティ：付与と API での強制"
+description: 個々のフィールドを隠す、マスクする、ロックする。付与の意味、サーバー側での強制、そしてフォーム、ビュー、API で FLS がどう動作するか。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 58871db7d6fcecf258805b25fbf6750df2977a64c4fc479c32004dad5e19422b
+  guide_rev: 1
+  mode: auto
+---
+
+フィールドレベルのセキュリティ（FLS）は、オブジェクトの権限と[レコードアクセス](/docs/configure/permissions/record-access)がユーザーにそもそもレコードへの到達を許した*後で*、個々のフィールドの表示と編集の可否を制御します。「サポートは取引先を見られるが、その `annual_revenue` は見られない」や「営業担当者は外部 ID を読めるが、決して変更できない」のための層です。
+
+FLS のルールは[権限セット](/docs/configure/permissions/permission-sets)にあります。このページは、そこにある[フィールドのセキュリティの付録](/docs/configure/permissions/permission-sets#field-security-appendix)よりも、付与の意味と強制について掘り下げます。
+
+## フィールドの権限の付与 [#field-permission-grants]
+
+フィールドの権限は `<object>.<field>` をキーとし、`readable` / `editable` を使います。
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+fields: {
+  // Read-only: visible but not editable
+  'account.annual_revenue': { readable: true, editable: false },
+  'account.description': { readable: true, editable: true },
+  // Hidden: not visible at all
+  'account.ssn': { readable: false, editable: false },
+  'opportunity.amount': { readable: true, editable: true },
+  'opportunity.probability': { readable: true, editable: false },
+}
+```
+
+2 つのフラグで 3 つの状態が生まれます。
+
+| 状態 | ルール | 効果 |
+|---|---|---|
+| **非表示** | `{ readable: false, editable: false }` | フィールドはまったく見えません。すべてのレスポンスから取り除かれます |
+| **読み取り専用** | `{ readable: true, editable: false }` | フィールドは返されますが、それへの書き込みは拒否されます |
+| **編集可能** | `{ readable: true, editable: true }` | フィールドは見えて、書き込めます |
+
+> フィールドの権限のキーは、常に**オブジェクトで修飾して**書きます（`budget` ではなく `crm_lead.budget`）。ObjectStack 14.4 以降、`security-fls-unqualified-key` の lint はコンパイル時に素のキーを拒否します。それらは黙って何にも一致していなかったからです。
+
+## マスクされたフィールド [#masked-fields]
+
+ObjectStack 17.1 以降、フィールドは**マスク**することもできます。値の大部分を置き換えて提供するので、開示されることなく識別できる状態が保たれます。マスクは権限セットではなく、フィールドそのものに宣言します。
+
+```ts
+// Fields of an object; the object around them is omitted.
+mobile: Field.phone({
+  label: 'Mobile',
+  maskingRule: 'phone',               // served as 138****5678
+  requiredPermissions: ['view_pii'],  // holders of view_pii see the stored value
+}),
+tax_id: Field.text({
+  label: 'Tax ID',
+  maskingRule: { keepHead: 2, keepTail: 2 },  // keep two characters at each end
+}),
+```
+
+`maskingRule` は 5 つのプリセット（`phone`、`id_card`、`bank_account`、`email`、`name`）のいずれか、または両端に残す文字数を表す `{ keepHead, keepTail }` を取ります。マスクは決定的で、値の長さを保ちます。
+
+保存された値を見られるのは誰か：
+
+| 呼び出し元 | 見えるもの |
+|---|---|
+| フィールドの `requiredPermissions` の機能を**すべて**持っている | 保存された値 |
+| フィールドが `requiredPermissions` を宣言している場合の、それ以外の全員 | マスク |
+| フィールドが `requiredPermissions` を宣言していない場合の、システムのコンテキスト以外の全員 | マスク |
+| `readable: false` の付与によってフィールドが隠される呼び出し元 | 何も見えません。フィールドは隠されたままです |
+
+`requiredPermissions` の機能は、ほかの機能と同じく権限セットで付与されます。マスクが隠されたフィールドを広げることは決してありません。`readable: false` の付与は、引き続きフィールドを完全に取り除きます。
+
+マスクはすべての画面で 1 つの値です。API のレスポンス、リストビューとフォーム、CSV と XLSX のエクスポート、AI エージェントが読むコンテキストのすべてが、同じマスクを提供します。漏洩を防ぐためのルールがさらに 2 つあります。
+
+- **マスクされたフィールドはクエリできません。** それによるフィルター、並べ替え、グループ化、集計は、隠されたフィールドと同じく拒否されます。[API での強制](#enforcement-in-the-api)を参照してください。
+- **マスクが値を上書きすることは決してありません。** マスクされたプレースホルダーを送り返す書き込み（読み取ったレコード全体を再送信するクライアント）は、`138****5678` を保存する代わりに `400 VALIDATION_ERROR` で拒否されます。
+
+## 付与はどう組み合わさるか [#how-grants-combine]
+
+FLS は**デフォルトで表示（ブロックリスト）の意味**を使います。明示的なルールのないフィールドは、そのまま通過します。読み取り可能*かつ*書き込み可能です。権限セットが制約するのは、明示的に列挙したフィールドだけです。
+
+フィールドの付与は、ユーザーのセットをまたいで**最も許容的に**合算されます。あるセットの `readable: true` は、別のセットの `false` に勝ちます。減算的なミュートの層（ADR-0066 ⑧ として予約）が導入されるまでは、`{ readable: false }` のルールがフィールドを隠すのは、**ユーザーが持つほかのどのセットも**それを `readable: true` と宣言していない間だけです。実際的な結果：
+
+- 機密性の高いフィールドは、それが必要なセットで**だけ**付与することで保護します。あるセットの `false` のルールが別の場所の `true` を上書きすることに頼ってはいけません。
+- 広く付与されたオブジェクト上の機密性の高いフィールドは、見直すべき兆候として扱ってください。
+
+宣言されたルールそのものは安全側に倒れて強制されます。隠されたフィールドは読み取り時に取り除かれ、編集不可能なフィールドへの書き込みは例外を投げます。
+
+## API での強制 [#enforcement-in-the-api]
+
+SecurityPlugin のミドルウェアは、リクエストが REST、ObjectQL、そのほかのどの経路で届いたかにかかわらず、サーバーでフィールドのルールを強制します。下位レベルの API を通る裏口はありません。
+
+**読み取り時**：`find` / `findOne` の結果は、レスポンスがエンジンを離れる前に、すべてのレコードから読み取り不可能なフィールドが取り除かれ、マスクされたフィールドはマスクに置き換えられます。
+
+**クエリ時**：呼び出し元が読めない、またはマスクされた状態でしか読めないフィールドは、行の選択にも使えません。どの行が一致するかによって、1 回の探りごとにその値が開示されてしまうからです。それによるフィルター、並べ替え、グループ化、集計は `403 PERMISSION_DENIED` で拒否されます。ObjectStack 17.6 以降、これはデータ API のフィルターと並べ替えだけでなく、すべてのクエリの入口で成り立ちます。
+
+- フィルターや集計の中で、比較の右辺として指定されたフィールド
+- 分析のクエリ
+- アクティビティストリーム、[監査ログ](/docs/operate/audit-logs)、承認のスナップショットにコピーされた値に対するフィルターと並べ替え。フィルターが等価比較で 1 つのオブジェクトを指定し、呼び出し元がそのすべてのフィールドを読める場合を除いて拒否されます
+
+**書き込み時**：`insert` / `update` のリクエストは、操作がドライバーに届く**前に**チェックされます。呼び出し元が編集を許されていないフィールドがペイロードに含まれていれば、エンジンは問題のフィールド名とともに `PermissionDeniedError`（HTTP 403）を投げます。
+
+```json
+{
+  "error": {
+    "code": "PERMISSION_DENIED",
+    "message": "[Security] Field write denied: not permitted to edit [salary, ssn] on 'employee'",
+    "details": {
+      "operation": "insert",
+      "object": "employee",
+      "forbiddenFields": ["salary", "ssn"]
+    }
+  }
+}
+```
+
+**なぜ黙って取り除かずに例外を投げるのか？** 黙って取り除くと、誠実なクライアントからはセキュリティの境界が見えなくなり（更新が「保存されない」のに理由がわからない）、*しかも*探りを入れるクライアントにも、どちらの方向にも何の手がかりも与えません。例外を投げれば、境界はどちらの方向にも観察できるようになります。正当な UI は修正すべき実用的なエラーを受け取り、探りを入れるクライアントは、すでに推測できた以上のことを何も知りません。
+
+強制についての詳細がさらに 2 つあります。
+
+- **一括の挿入**は行ごとにチェックされます。どの行であれ問題のフィールドが 1 つでもあれば、バッチ全体がアトミックに拒否されます。
+- **システムの操作**（`ExecutionContext { isSystem: true }`）はチェックを完全にすり抜けます。マイグレーション、初期データの読み込み、監査ログの書き込みに使われます。
+
+## フォームとビューでの FLS [#fls-in-forms-and-views]
+
+生成されたフォームとインラインのグリッドは、編集不可能なフィールドを UI から隠しますが、それは **UX の層にすぎません**。上のサーバー側のチェックが正であるので、動作はどこでも一貫しています。
+
+| 画面 | 非表示のフィールド | マスクされたフィールド | 読み取り専用のフィールド |
+|---|---|---|---|
+| レコードのフォーム / インラインのグリッド | レンダリングされません | 値はマスクされて表示されます。マスクを書き戻すと `400 VALIDATION_ERROR` で拒否されます | 編集用のコントロールなしでレンダリングされます。直接の書き込みの試みは 403 で拒否されます |
+| リストビュー、関連リスト、エクスポート | 列の値はレスポンスから取り除かれます | マスクされた値が表示されます。CSV と XLSX のエクスポートでも同じです | 値は通常どおり表示されます |
+| REST / ObjectQL | 結果から取り除かれます | マスクされた値が返されます | 読み取り時は返されます。書き込みは `forbiddenFields` とともに `PERMISSION_DENIED` を投げます |
+| MCP / AI エージェント | 取り除かれます。エージェントは[呼び出したユーザーとして実行されます](/docs/configure/mcp#permission-enforcement) | REST と同じ | REST と同じ |
+| フィルター、並べ替え、グループ化、集計 | `403 PERMISSION_DENIED` で拒否されます | `403 PERMISSION_DENIED` で拒否されます | 許可されます |
+
+読み取りはエラーにならずに取り除かれるので、隠されたフィールドはそのユーザーには単に存在しないように見えます。それが狙いです。それに対するクエリは例外で、上のとおり `403` で応答します。
+
+## FLS を確認してレビューする [#verifying-and-reviewing-fls]
+
+- **判定ごとに、実行時に**：[explain エンジン](/docs/configure/permissions#diagnose--audit)は、ほかのすべての層と並べて FLS の層の判定を報告し、寄与した権限セットの名前を示します。また、マスクされたフィールドを隠されたものではなくマスクされたものとして報告します。ユーザーがフィールドが「ない」と報告してきたときに使ってください。
+- **変更ごとに、ビルド時に**：アプリがアクセスマトリクスのスナップショットのゲートを有効にしている場合、`os compile` は導出された（権限セット × オブジェクト）の機能のマトリクスを、コミットされた `access-matrix.json` と比較し、ずれがあれば失敗します。そのため機能の変更は、レビューできる意味上の差分としてプルリクエストに載ります。
+
+```bash
+os compile --update-access-matrix
+```
+
+> フィールドが機密性の高いデータを持つ場合は、読み取り専用ではなく**非表示**をデフォルトにします。読み取り専用でも、値はレスポンスとログに漏れます。フィールドのルールは実際の職務に合った権限セットにまとめ、コンプライアンスのケースでは監査ログの保持と組み合わせてください。作成のパターンはほかにもあります：[Permission Sets](/docs/configure/permissions/permission-sets#field-security-appendix)。
+
+## 次に進む [#where-to-go-next]
+
+| タスク | ページ |
+|---|---|
+| 権限セットの中でフィールドのルールを作成する | [権限セット](/docs/configure/permissions/permission-sets) |
+| そもそもどの行に到達できるかを制御する | [レコードアクセス](/docs/configure/permissions/record-access) |
+| 階層化されたモデルの全体を見る | [権限](/docs/configure/permissions) |
+| 特定のユーザーのアクセスを確認する | [アクセスの管理](/docs/configure/permissions/managing-access) |
+| AI エージェントが何を読めるかを確認する | [AI ツールを接続する（MCP）](/docs/configure/mcp) |
