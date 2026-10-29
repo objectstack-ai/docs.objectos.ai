@@ -1,0 +1,62 @@
+---
+title: ObjectOS におけるあなたのオントロジー
+seoTitle: "ObjectOS におけるあなたのオントロジー：コア、プロジェクション、置き場所"
+description: ObjectOS におけるあなたのオントロジーとは何か。ランタイムが実行するコア、その横で作成されるプロジェクション、置き場所、そしてオントロジーでないものを説明します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 89b7e2e2e35db3cfc1e321a759eade603c86bbf958670a2c0abd7952bb51a8ab
+  guide_rev: 1
+  mode: auto
+---
+
+**オントロジーこそがソフトウェアです。** ObjectOS において、*あなたのオントロジー*とは、ランタイムが実行するビジネスの定義です。型付けされ、バージョン管理されたひとまとまりの ObjectStack メタデータです。ランタイムはそこからデータベーススキーマ、REST API、Console、MCP ツールを導出し、すべての呼び出しでそれを強制します。このページはこの言葉をこのサイトに対応付けます。完全な説明は、ObjectStack ドキュメントの [Business Ontology](https://objectstack.ai/docs/concepts/ontology) にあります。
+
+## コア [#the-core]
+
+オントロジーそのものは 6 種類のものから成ります。
+
+| コア | 宣言するもの | このサイトでは |
+|---|---|---|
+| **オブジェクトとフィールド** | ビジネスのエンティティと、その型付きの属性 | [データモデル](/docs/build/data)、[フィールドタイプ](/docs/reference/field-types) |
+| **リレーション** | オブジェクト間のルックアップと主従関係のリンク | [リレーションシップ](/docs/build/data/relationships) |
+| **アクション** | ユーザー（または、作成者が公開した場合はエージェント）がレコードに対して呼び出せる操作 | [アクション](/docs/build/interface/actions) |
+| **権限** | 誰が何を読み、作成し、編集し、削除できるか：権限セット、レコードアクセス、フィールドレベルのセキュリティ | [権限](/docs/configure/permissions) |
+| **フロー** | ビジネスプロセス：フロー、レコードトリガー、スケジュール、承認、ワークフロー | [自動化](/docs/build/automation) |
+| **エージェントとツールの定義** | アプリに付属する AI エージェント、そのスキル、エージェントが呼び出せるツール | [エージェント](/docs/build/agents) |
+
+## プロジェクション [#the-projections]
+
+ビュー、ダッシュボード、アプリ、翻訳もメタデータとして作成され、同じ検証ゲートを通過しますが、これらはオントロジーの一部ではなく、オントロジーの**プロジェクション**です。コアを変更すればそれらは追従し、1 つを削除しても、それが表示していたビジネスは変わりません。
+
+| プロジェクション | 投影するもの | このサイトでは |
+|---|---|---|
+| **ビュー** | オブジェクトのフィールドと権限を、リスト、フォーム、カンバン、カレンダーに | [ビュー](/docs/build/interface/views)、[フォーム](/docs/build/interface/forms) |
+| **ダッシュボード** | オブジェクトに対するクエリをグラフに | [ダッシュボード](/docs/build/interface/dashboards) |
+| **アプリ** | オブジェクト、ビュー、アクションを、ナビゲーションできる製品にまとめたもの | [アプリ](/docs/build/interface/apps) |
+| **翻訳** | すべてのラベルを、あるロケールに | [ローカライズ](/docs/configure/localization) |
+
+## ObjectOS での置き場所 [#where-it-lives-on-objectos]
+
+ひとつの定義が、3 つの形で存在します。
+
+| 形 | 内容 |
+|---|---|
+| **テナントのメタデータ** | [AI Builder](/docs/build/ai-builder) と Studio が書き込むもの：デプロイメント内の稼働中のメタデータ。AI Builder による変更は、適用される前に人の承認待ちのキューに入ります |
+| **リポジトリのソース** | 開発者とそのコーディングエージェントが [AI スキル](/docs/build/ai-skills)を使って書くもの：`objectstack.config.ts` とそのメタデータファイル。プルリクエストとしてレビューされます |
+| **コンパイル済みアーティファクト** | `os compile` が生成するもの：デプロイメントが起動に使う `objectstack.json`。[起動モード](/docs/architecture#boot-modes)を参照してください。公開したものはすべて保管してください（[バックアップ](/docs/operate/backup)） |
+
+どの形で作成しても、メタデータは実行される前に同じ[検証ゲート](/docs/resources/glossary#validation-gate)を通過します。どちらのエディションでも、オントロジーはあなたのものです。通常の ObjectStack メタデータであり、エクスポートしてオープンソースの ObjectStack ランタイムで実行できます。
+
+## オントロジーでないもの [#what-it-is-not]
+
+- **知識オントロジーではありません。** クラスの継承も、公理も、推論器もありません。定義は検証され、そして実行されます。
+- **既存システムの上のセマンティックレイヤーではありません。** セマンティックレイヤーは、自らが実行しないビジネスを記述します。あなたのオントロジーはシステムそのものです。データベース、API、UI、エージェントのツールはそこから導出されます。すでに運用しているデータベースを接続することは可能ですが、デフォルトでは読み取り専用で、まだ初期段階です。[既存システムの拡張](/docs/build/extend-existing-systems)を参照してください。
+
+## さらに読む [#read-further]
+
+このサイトはランタイムを説明しています。概念は ObjectStack のサイトが扱います。
+
+- [Business Ontology](https://objectstack.ai/docs/concepts/ontology)：この言葉の意味と、ランタイムがそれをどう実行するか
+- [How ObjectStack compares](https://objectstack.ai/docs/concepts/compare)：知識オントロジー、セマンティックレイヤー、メタデータプラットフォーム、AI によるコード生成との比較
+- [When to use ObjectStack](https://objectstack.ai/docs/concepts/when-to-use)：現時点で適している場面と、適していない場面
+- [The Ontology Is the Software](https://objectstack.ai/blog/the-ontology-is-the-software)：長文の解説

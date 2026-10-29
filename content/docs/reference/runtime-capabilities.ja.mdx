@@ -1,0 +1,66 @@
+---
+title: ランタイムの機能
+seoTitle: "ランタイムの機能：ベースとオプションのパッケージ"
+description: ObjectOS が ObjectStack フレームワークのパッケージから読み込める機能。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3beb96f0a63636343e3b8750462e6b3051b331b4addc65c3e2c18c93c9ec4d4e
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS はすべてのプロジェクトでベースのランタイムを読み込み、その後、アプリケーションのアーティファクトが宣言したオプションの機能をインストールします。
+
+## ベースのランタイム [#base-runtime]
+
+ベースのプロジェクトカーネルには次のものが含まれます。
+
+- ObjectKernel のライフサイクルとサービスレジストリ
+- ObjectQL データエンジン
+- 設定されたデータドライバー
+- メタデータサービス
+- アプリケーションのアーティファクトの登録
+- `OS_AUTH_SECRET` が設定されている場合の認証
+- RBAC、行レベルセキュリティ、フィールドのセキュリティのためのセキュリティプラグイン
+- i18n サービス
+
+## オプションの機能 [#optional-capabilities]
+
+アーティファクトは `requires` リストで機能を宣言できます。ObjectOS は、イメージに存在する場合、一致するフレームワークのパッケージを読み込みます。
+
+| 機能 | パッケージ | 目的 |
+|---|---|---|
+| `automation` | `@objectstack/service-automation` | フロー/DAG の実行と自動化ノード |
+| `ai` | フレームワークのパッケージではありません。AI ランタイムは ObjectOS に付属します（[AI サービス](/docs/configure/ai)） | LLM アダプター、会話、ツール、SSE ルート |
+| `analytics` | `@objectstack/service-analytics` | キューブ、分析クエリ、レポートのデータ |
+| `audit` | `@objectstack/plugin-audit` | 監査ログのオブジェクトと監査証跡 |
+| `cache` | `@objectstack/service-cache` | キャッシュの抽象化とアダプター |
+| `storage` | `@objectstack/service-storage` | ファイル/オブジェクトストレージのサービス |
+| `queue` | `@objectstack/service-queue` | キューの抽象化とワーカー |
+| `job` | `@objectstack/service-job` | スケジュール/バックグラウンドのジョブ |
+| `realtime` | `@objectstack/service-realtime` | WebSocket と pub/sub のリアルタイム |
+| `settings` | `@objectstack/service-settings` | 設定のマニフェストと K/V リゾルバー |
+
+機能が要求されているのにイメージにそのパッケージが含まれていない場合、**ObjectOS は警告をログに出力し、その機能を無効にしたまま実行を続けます。** これは意図的な動作です。開発中にオプションのパッケージが欠けていてもランタイムが起動できるようにするためです。しかし**本番では現実のリスク**になります。
+
+- 監査を必要とするアプリを `@objectstack/plugin-audit` のないイメージに読み込むと、問題なく起動し、**監査ログを一切書き込みません**。コンプライアンスの証拠が、エラーもなく欠落します。
+- ジョブで動くアプリを `@objectstack/service-job` のないイメージに読み込むと、問題なく起動し、**スケジュールされた処理を黙って一切実行しません**。
+
+**本番のチェックリスト：**
+
+1. 機能の警告はデプロイの失敗として扱います。起動ログを `capability not loaded`（またはそれに相当するもの）で検索し、1 つでもあれば readiness プローブ / ロールアウトを失敗させます。
+2. ObjectOS ランタイムのイメージは、アーティファクトが `requires` で宣言するすべてのパッケージを含むものに固定します。
+3. アーティファクトを公開するときは、その `requires` リストを一緒に記載し、オペレーターが対応するイメージを確認できるようにします。
+
+## API サーフェス [#api-surface]
+
+ObjectOS が一般的に公開するもの：
+
+- 生成された REST API
+- `/api/v1/auth/*` の下の認証エンドポイント
+- メタデータと i18n のエンドポイント
+- 有効な機能のサービスエンドポイント
+
+OData はフレームワークレベルの機能であり、デプロイされたランタイムのパッケージに含まれ、かつ有効になっている場合にだけ、サポートされていると記載すべきものです。
+
+**GraphQL はそれらに含まれません。** GraphQL のサーフェスは ObjectStack 17.0 で削除されました。このルートの背後にエンドポイントが実装されたことは一度もなく、現在 `/graphql` は 404 を返します。どのランタイムパッケージについても、利用可能またはオプションの機能として記載しないでください。（`graphql` は**外部データソース**のプロトコルとしては引き続き有効です。それは ObjectOS がクエリするシステムであり、ObjectOS が提供するサーフェスではありません。）

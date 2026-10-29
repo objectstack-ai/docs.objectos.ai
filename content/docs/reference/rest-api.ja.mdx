@@ -1,0 +1,122 @@
+---
+title: REST API
+seoTitle: "REST API：生成されるエンドポイント、認証、OpenAPI"
+description: ObjectOS がメタデータから生成する HTTP サーフェスです。製品での使いどころ、いくつかの例、そして objectstack.ai にある完全な仕様を紹介します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 9fa13b663d57b4d063262824875deb8a379c76338ec7272227af4e273972d0b1
+  guide_rev: 1
+  mode: auto
+---
+
+**完全な仕様：** [objectstack.ai の REST and GraphQL APIs](https://objectstack.ai/docs/api)。このページはその要約です。ObjectOS での使いどころと、いくつかの例を示します。
+
+宣言したすべてのオブジェクトに REST エンドポイントが用意され、すべてのアクションは `POST` になり、すべてのフローは HTTP から開始できます。書いたりデプロイしたりする別の API レイヤーはありません。ベース URL は `https://<your-host>/api/v1` で、実行中のランタイムは `/api/v1/openapi.json`（OpenAPI 3.0）と `/api/v1`（サービスディスカバリー）で自身を記述します。
+
+[公開フォーム](#public-forms)や[共有リンク](#share-links)のように、宣言によって匿名の呼び出し元に開放されている場合を除き、`/api/v1` の下のすべてのルートには、サインイン済みのセッションまたはベアラートークンが必要です。権限はルートごと、レコードごとにチェックされます。オブジェクト、レコード、フィールドのレベルのセキュリティは、UI とまったく同じように API の呼び出し元にも適用されます。キーとトークンについては [API アクセス](/docs/configure/api-access)を参照してください。
+
+## ObjectOS での使いどころ [#where-objectos-uses-it]
+
+| サーフェス | ルート | 利用者 |
+|:--|:--|:--|
+| データ | `/data/:object`、`/data/:object/:id`、`/data/:object/query` | 生成された UI、連携、インポートとエクスポート。クエリは [ObjectQL](./objectql) です |
+| アクション | `/actions/:object/:action` | UI のボタン、そしてアクションが AI に公開されている場合はエージェント（[アクション](/docs/build/interface/actions)） |
+| 自動化 | `/automation/:name/trigger`、`/automation/:name/runs` | 別のシステムからのフローの開始と、その実行の読み取り（[フローと自動化](/docs/build/automation/flows)） |
+| メタデータ | `/meta/:type/:name` | これを通じて保存する Studio と、実行中のメタデータを読むツール |
+| AI | `/ai/chat`、`/ai/pending-actions` | [AI Builder](/docs/build/ai-builder) とその承認キュー |
+| 公開フォーム | `/forms/:slug` | 匿名の回答者向けに公開されたフォームビュー |
+
+## 例 [#examples]
+
+**未解決のチケットを新しい順に一覧表示する：**
+
+```http
+GET /api/v1/data/support_ticket?where={"status":{"$eq":"open"}}&orderBy=-created_at&limit=20
+Authorization: Bearer <token>
+```
+
+```json
+{
+  "object": "support_ticket",
+  "records": [ { "id": "...", "subject": "...", "status": "open" } ],
+  "total": 137,
+  "hasMore": true
+}
+```
+
+**オブジェクトを API から外す、または読み取り専用にする。** `enable` ブロックで指定します。
+
+```ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+// A read-only reference object, never writable over the API:
+ObjectSchema.create({
+  name: 'exchange_rate',
+  enable: { apiMethods: ['get', 'list'] },
+  fields: {
+    rate: Field.number({ label: 'Rate', scale: 6 }),
+    // ...more fields
+  },
+})
+
+// An internal object that the API never exposes:
+ObjectSchema.create({
+  name: 'sync_cursor',
+  enable: { apiEnabled: false },
+  fields: {
+    cursor: Field.text({ label: 'Cursor' }),
+    // ...more fields
+  },
+})
+```
+
+**メッセージではなく、エラーコードで分岐する：**
+
+```json
+{
+  "error": {
+    "code": "PERMISSION_DENIED",
+    "message": "Missing ai:approve on conversation 01H…",
+    "httpStatus": 403,
+    "details": { "permission": "ai:approve", "subject": "01H…" }
+  }
+}
+```
+
+## API サーフェスを制限する [#restricting-the-api-surface]
+
+オブジェクトの `enable` ブロックは、生成されるエンドポイントを制御します。`apiEnabled: false` はオブジェクトを REST サーフェスから完全に除外するため、そのルートは `404` を返します。`apiMethods` は `get`、`list`、`create`、`update`、`delete`、`bulk` の許可リストで、それ以外の操作は REST レイヤーで拒否されます。どちらも強制されます（ADR-0049）。以前のバージョンは、これらを解析するだけで適用していませんでした。
+
+## 公開フォーム [#public-forms]
+
+セッションなしで応答します。フォームビューは `sharing` でオプトインし、3 つのキーすべてが必要です：`enabled: true`、`allowAnonymous: true`、そして `publicLink` のスラッグ。ObjectStack 17.7 以降、後の 2 つだけを設定したフォームは `404 FORM_NOT_FOUND` を返します。[ビュー → 公開フォーム](/docs/build/interface/views#public-forms)を参照してください。`GET /forms/:slug` はフォームを返し、`POST /forms/:slug/submit` はそれを送信します。
+
+## 共有リンク [#share-links]
+
+これもセッションなしで応答します。リンクに含まれるトークンが認可です。`GET /share-links/:token/resolve` は、リンクが隠すフィールドを除いて、リンクが共有する 1 つのレコードを返します。サインイン済みのユーザーに限定されたリンクは、セッションのない呼び出し元に `401 SIGN_IN_REQUIRED` を返し、パスワードで保護されたリンクは、パスワードが送信されるまで `401 NEEDS_PASSWORD` を返します。リンクの作成、一覧表示、取り消し（`POST /share-links`、`GET /share-links`、`DELETE /share-links/:idOrToken`）にはセッションが必要です。[共有リンク：リンクを知っている全員](/docs/use/collaboration#share-links-anyone-with-the-link)を参照してください。
+
+## フローのステータス表 [#flow-status-table]
+
+トリガーのルート、タイプ `flow` のアクション、宣言された `type: 'flow'` のエンドポイントは、すべて同じステータスを返します。本文の中の `success` フラグではなく、HTTP ステータスで分岐してください。
+
+| ステータス | コード | 意味 |
+|:--|:--|:--|
+| `200` | — | 実行がディスパッチされました。その `status` は `completed`、`paused`（画面、承認、タイマーを待機中）、または `refused`（`outcome: 'refused'` の `end` ノードに到達。テキストは `refusalMessage` にあります）です |
+| `404` | `RESOURCE_NOT_FOUND` | その名前のフローがありません |
+| `409` | `FLOW_DISABLED` | フローがオフになっています |
+| `422` | `FLOW_NO_START_NODE` | 保存された定義に開始ノードがなく、実行できません |
+| `400` | `FLOW_FAILED` | 実行はディスパッチされましたが失敗しました。詳細にはフローの `errorMessage` が含まれます |
+
+## メタデータ：`/api/v1/meta/*` [#metadata--apiv1meta]
+
+`/meta/:type/:name` はメタデータ項目の唯一のアドレスです。スラッシュを含む名前はパーセントエンコードします（`GET /api/v1/meta/lead/views%2Fall_leads`）。セクション分けされた `/meta/:type/:section/:name` のルートは ObjectStack 17.3 で廃止され、`404 ROUTE_NOT_FOUND` を返します。保存には作成の機能が必要で、`datasource` のメタデータの読み取りや保存には `manage_platform_settings` が必要です。
+
+## レポート [#reports]
+
+保存済みレポートの API はありません。ObjectStack 17.5 で `/reports`、`/reports/:id/run`、`/reports/:id/schedule` が削除され、現在は `404` を返します。レポートはメタデータであり、`/meta/report/:name` で読み取ります。その数値は分析（`POST /analytics/query`）から得られます。
+
+## 関連項目 [#see-also]
+
+- [API アクセス](/docs/configure/api-access)：キー、トークン、誰が何を呼び出せるか
+- [ObjectQL](./objectql)：`/data/*` が受け付けるクエリ形式
+- [セキュリティ](./security)：すべてのルートが実行前にチェックするもの

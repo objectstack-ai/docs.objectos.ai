@@ -1,0 +1,96 @@
+---
+title: フィールドタイプ
+seoTitle: "フィールドタイプ：各フィールドが保存し、表示するもの"
+description: ObjectOS でフィールドタイプが決めるもの（列、API、フォームのウィジェット、AI Builder が尋ねる内容）を、いくつかの例と、objectstack.ai にある完全な一覧とともに紹介します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: d8cf773f496622e8a3d84f80d1e3e96dbcc89f6f2892ef7cf6847d049db4a2ca
+  guide_rev: 1
+  mode: auto
+---
+
+**完全な仕様：** [objectstack.ai のフィールドタイプ](https://objectstack.ai/docs/data-modeling/field-types)。このページはその要約です。ObjectOS での使いどころと、いくつかの例を示します。
+
+フィールドのタイプは、何を保存し、すべてのサーフェスがそれをどう扱うかを決めます。組み込みのタイプは 48 種類あります。テキスト、数値、日付、選択肢、リレーション、計算値、メディア、構造化データ、そして住所、評価、署名のようなより豊かな入力です。また、すべてのオブジェクトには、宣言しなくてもシステムフィールド（`id`、`created_at`、`updated_at`、`created_by`、`updated_by`）があります。
+
+## ObjectOS での使いどころ [#where-objectos-uses-it]
+
+ひとつのフィールド定義が、これらすべてを動かします。
+
+```
+*.object.ts (field spec)
+   │
+   ├─► Postgres / MySQL / SQLite column + index + constraint
+   ├─► REST: validated on POST/PATCH, exposed on GET
+   ├─► UI: form widget + list column
+   ├─► AI Builder: tool argument schema (so the AI knows what to ask)
+   └─► Audit: change-tracked if `trackHistory: true`
+```
+
+- **データベース**には、列、そのインデックス、制約が作られます。
+- **REST API** は、書き込みのたびにフィールドを検証し、読み取りでそれを返します（[REST API](./rest-api)）。
+- **UI** は、タイプからフォームのウィジェットとリストの列を選びます。
+- **AI Builder** は、タイプがそのツールの引数スキーマなので、何を尋ねればよいかがわかります。
+- **監査**は、`trackHistory` がオンのとき、フィールドの変更を記録します。
+
+## 例 [#examples]
+
+**選択肢**：`select` フィールドの選択肢：
+
+```ts
+// Keys of a `select` field; its other keys are omitted.
+options: [
+  { value: 'low',    label: 'Low' },
+  { value: 'high',   label: 'High',   color: '#e02' },
+  { value: 'urgent', label: 'Urgent', color: '#c00' }
+]
+```
+
+**リレーション**：アカウントへのルックアップ。選択画面を有効なものに絞り込みます。
+
+```ts
+// One field.
+{
+  type: 'lookup',
+  reference: 'account',                       // target object name
+  lookupFilters: [                            // narrow the lookup picker
+    { field: 'status', operator: 'eq', value: 'active' }
+  ],
+  deleteBehavior: 'set_null'                  // 'set_null' | 'cascade' | 'restrict'
+}
+```
+
+**計算値**：[CEL](./cel) で書かれた数式フィールド：
+
+```ts
+// One field.
+{
+  name: 'profit_margin',
+  type: 'formula',
+  expression: F`(record.revenue - record.cost) / record.revenue * 100`
+}
+```
+
+**添付ファイル**：サーバーでチェックされるファイル：
+
+```ts
+// One field.
+{
+  type: 'file',
+  multiple: true,                             // store an array of attachments
+  accept: ['image/png', 'image/jpeg'],        // MIME types / extensions
+  maxSize: 10_000_000                         // bytes
+}
+```
+
+## メディア [#media]
+
+メディアフィールドは**不透明な `sys_file` id** を保存します。URL でも、インラインのメタデータの塊でもありません。レコードを読んだときに見える `{ url, name, size, mimeType, … }` オブジェクトは展開された形であり、所有する `sys_file` レコードから導出されます。`url` は `/files/:fileId` リゾルバーから来ます。
+
+バイトはプラットフォームが所有するため、`accept` と `maxSize` はブラウザのファイル選択画面へのヒントにとどまりません。サーバーはすべてのレコードの書き込みをそれらに照らして再チェックするため、API を直接呼び出す呼び出し元もそれらを回避できません。ダウンロードには実際のファイル名とコンテンツタイプが付き、読み取りアクセスは所有するオブジェクトに委ねられます。既存のデプロイメントは `os migrate files-to-references` で変換します。バイトの置き場所は[ストレージ](/docs/configure/storage)を、マイグレーションについては [17.0 のリリースノート](https://objectstack.ai/docs/releases/v17)を参照してください。
+
+## 関連項目 [#see-also]
+
+- [構築 → データモデル](/docs/build/data)：フィールドを組み合わせてオブジェクトにする
+- [リレーションシップ](/docs/build/data/relationships)：ルックアップと主従関係
+- [ObjectQL](./objectql)：これらのフィールドのクエリ
