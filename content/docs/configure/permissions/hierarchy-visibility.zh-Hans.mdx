@@ -1,0 +1,106 @@
+---
+title: 层级可见性
+seoTitle: "层级可见性：让经理看到下属的记录"
+description: 按读者所处的位置 —— 其业务单元、其下级单元或其汇报线 —— 放宽谁能读取一条记录，使用 unit、unit_and_below 和 own_and_reports 范围。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 11e8c60b7087869d03eca49ac3513df7dd066eef47d302fd1b95ffe53d110258
+  guide_rev: 1
+  mode: auto
+---
+
+**层级可见性**按一个人在组织中*所处的位置*，放宽他能读取哪些记录。区域经理能看到其区域内任何人拥有的每条记录；团队负责人能看到其直接和间接下属的记录。它在[权限集](/docs/configure/permissions/permission-sets)上按对象设置，作为读取（或写入）**范围**。
+
+> **在哪里可用。**在自管理的 ObjectOS Enterprise 部署上，需要包含 `hierarchySecurity` 特性的许可证。在 ObjectOS Cloud 上，需要 Enterprise 合同。在其他任何地方，本页的三个范围授予的都不会超出负责人自己的记录 —— 它们从不以*放开*的方式失效。参见[要求](#requirements)。
+
+## 三个范围 [#the-three-scopes]
+
+`own`（记录的负责人）和 `org`（组织中的所有人）在每个版本中都可用。三个层级范围介于两者之间：
+
+| 范围 | 读者能看到其拥有的记录的人 | 依据 |
+|---|---|---|
+| `unit` | 读者本人及其业务单元中的其他所有成员。不向下延伸。 | 读者的岗位任职，否则用其单元成员资格 |
+| `unit_and_below` | 读者的业务单元**及树中其下的每个单元**，连同其中所有成员 | 业务单元树 |
+| `own_and_reports` | 读者本人及管理链上其下的每个人，直接和间接都算 | 每个用户的经理 |
+
+范围只会**放宽**一个人能读取的内容。它叠加在共享规则和记录共享之上，从不移除某人已有的访问，也从不超出 `org`。它决定一项权限作用于*哪些记录*；它从不授予新权限。
+
+### 示例 [#example]
+
+业务单元树中有 **Region**，其下是 **Team**，还有一个同级单元 **Other**。Alice 和 Carol 在 Region，Bob 在 Team，Dave 在 Other。Bob 向 Alice 汇报。
+
+- 用 `unit` 的 Alice 看到 **Alice、Carol** —— 看不到 Bob，也看不到 Dave。
+- 用 `unit_and_below` 的 Alice 看到 **Alice、Carol、Bob** —— Region 向下延伸到 Team。Dave 所在的同级单元不在其中。
+- 用 `unit_and_below` 的 Bob **只看到 Bob** —— 下面没有单元的单元不会向*上*汇入其父单元。
+- 用 `own_and_reports` 的 Alice 看到 **Alice、Bob** —— Bob 是她的下属，无论他在哪个单元。
+
+## 设置范围 [#set-a-scope]
+
+在权限集的对象条目上设置 `readScope`（如有需要，再加上 `writeScope`）。读取整个区域的销售代表：
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  opportunity: { allowRead: true, allowEdit: true, readScope: 'unit_and_below' },
+}
+```
+
+仅限于自己汇报线的团队负责人：
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  opportunity: { allowRead: true, readScope: 'own_and_reports' },
+}
+```
+
+以代码编写、使用层级范围的 stack 必须声明 `requires: ['hierarchy-security']`；没有它，stack 无法构建。无法解析这些范围的环境会拒绝发布使用它们的元数据，并在保存这样的草稿时发出警告。
+
+## 哪个单元算你的 [#which-unit-is-yours]
+
+对于 `unit` 和 `unit_and_below`，读者的单元首先取自其**岗位任职**：每条当前任职所在的业务单元。只有没有任何带单元的任职的读者，才会回退到其作为**成员**所属的单元。
+
+这对属于多个单元、但只管理其中一个的人很重要。Alice 是 **Region** 和一个跨职能 **Project** 单元的成员，但她的销售经理岗位任职在 Region。用 `unit` 时她只看到 Region 的成员；Project 成员资格不会放宽她能读取的内容。
+
+- **多条带单元的任职会累加**：读者的单元是它们全部。
+- **过期的任职不算数**：超出其生效起止时间窗口的任职不再授予该单元。
+
+任职和业务单元树参见[岗位](/docs/configure/permissions/positions)。
+
+## 需要填充什么 [#what-to-populate]
+
+这些范围读取的是你的目录或 HR 数据源提供的数据 —— 通过 SCIM、集成或管理界面：
+
+| 数据 | 使用者 |
+|---|---|
+| 业务单元树（每个单元的父单元） | `unit_and_below` |
+| 岗位任职，带其业务单元和有效时间窗口 | `unit`、`unit_and_below`（首选） |
+| 业务单元成员资格 | `unit`、`unit_and_below`（回退） |
+| 每个用户的**经理** | `own_and_reports` |
+
+两种遍历都限制在 20 层以内，因此格式错误的树或意外的汇报循环永远不会无限循环。结果按用户短暂缓存，并在树、成员资格、任职或用户的经理发生变化时清除。
+
+## 汇报线不跨组织 [#a-reporting-line-stays-inside-one-organization]
+
+在有多个组织的部署上，经理和其下属必须至少共享一个组织。
+
+- **跨组织设置经理会被拒绝。**当下属和拟定的经理都属于某些组织、但没有共同的组织时，写入会以 `400 INVALID_REFERENCE`（`reason: 'cross-organization-manager'`）被拒绝 —— 无论来自管理界面、API、导入还是系统代码。解决办法是让两人共享一个组织，或在下属自己的组织内选择经理。
+- **是"共享一个组织"，而不是"同一个组织"。**同时是集团和某个工厂成员的集团级经理，可以管理其中任一方的人。
+- **尚未属于任何组织的用户从不被拒绝**，也从不会从遍历中被剔除。
+- **读取遵循同样的规则。**`own_and_reports` 在边界处停止：只属于另一个组织的下属会被排除，其下的所有人也一样。
+
+要实现集团级监管，给那个人一个其所监管组织的成员资格，在那里授予一个范围更宽的权限集，或在单个组织内使用业务单元树。
+
+## 要求 [#requirements]
+
+- **自管理 ObjectOS Enterprise：**特性中包含 `hierarchySecurity` 的许可证（默认的 Enterprise 特性集包含它）。没有它，这些范围的行为等同于 `own`。
+- **ObjectOS Cloud：**Enterprise 合同。在 Free 和 Team 上，这些范围的行为等同于 `own`，环境也会拒绝发布使用它们的元数据。
+- **ObjectOS Community：**不可用；这些范围的行为等同于 `own`。
+
+与每项 Enterprise 能力一样，失去授权只会收窄访问；它从不会让运行时停止。
+
+## 下一步 [#next]
+
+- [权限集](/docs/configure/permissions/permission-sets) —— 设置范围的地方。
+- [记录访问](/docs/configure/permissions/record-access) —— 共享规则和记录共享，范围叠加在它们之上。
+- [岗位](/docs/configure/permissions/positions) —— 任职和业务单元树。

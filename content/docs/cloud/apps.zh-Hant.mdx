@@ -1,0 +1,154 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 應用
+seoTitle: "ObjectOS Cloud 應用：通過 CLI 安裝、更新、釋出和部署"
+description: 將應用安裝到 ObjectOS Cloud 環境中、檢查更新、把一個環境的應用作為包釋出給你的組織，以及通過 os CLI 部署在本地構建的應用。
+editions: [cloud]
+translation:
+  source_sha: 0adc0c246817f68e5c28824736e064a5591eadd4b69aa953dd25f91a3c85a4a0
+  guide_rev: 1
+  mode: auto
+---
+
+應用通過三種方式之一進入 ObjectOS Cloud 環境：你從市場或組織的登錄檔中
+**安裝**一個應用，你在環境中**構建**它（使用 [AI Builder](/docs/build/ai-builder)
+或手動構建），或者你用 `os` CLI 從自己的機器上**釋出**它。
+無論走哪條路，安裝的都是一個[包](/docs/build/packages)：一個有版本的、
+由物件、檢視、流程等組成的集合。
+
+## 安裝應用 [#install-an-app]
+
+在雲控制台中，開啟環境的 **Settings → Apps**，選擇
+**Install an app**（**Install Application**）。挑選應用，然後：
+
+- **Include sample data**（包含示例資料）—— 用包的演示記錄填充環境，
+  讓你可以馬上開始探索。對於乾淨的生產環境，請不要勾選。
+- **Accept additional permissions**（接受額外許可權）—— 首次安裝時不要勾選。
+  它用於某次更新請求的許可權多於此前授予該應用的許可權的情況（參見[檢查更新](#check-for-updates)）。
+
+應用會在環境的下一次請求時出現，無需重啟。安裝後的訊息會說明安裝的
+結果 —— 已安裝、已重新安裝、已更新或已回滾，並附帶版本號 —— 以及你應當
+知道的任何情況，例如應用使用了你的套餐不包含的某項能力。
+
+你也可以在環境內部安裝：開啟環境的 **Marketplace**（市場），
+找到應用並選擇 **Install**。兩種方式都會把同一個包安裝到同一個環境中；
+參見[市場](/docs/build/marketplace)。
+
+安裝僅限組織的所有者和管理員。
+
+## 檢查更新 [#check-for-updates]
+
+**Settings → Apps → Check for app updates** 會把每個已安裝的應用與
+已釋出的最新版本進行比較，並告訴你是有可用更新、所有應用都已是最新，
+還是尚未安裝任何應用。
+
+要更新一個應用，就再安裝一次：安裝一個已經安裝的應用，會將它就地
+升級到已釋出的最新版本。
+
+如果新版本請求了此前未授予該應用的許可權，更新會以
+`PERMISSION_RECONSENT_REQUIRED` 被拒絕，訊息中會列出它新增的
+每一項許可權。閱讀它們，然後勾選 **Accept additional permissions**
+再次安裝，以授予這些許可權。
+
+## 將環境釋出為包 [#publish-an-environment-as-a-package]
+
+**Settings → Apps → Publish as a package**（**Publish to Registry**）會獲取
+在此環境中構建的應用，並將它們作為組織登錄檔中某個包的新版本釋出。
+之後它可以被安裝到組織的任何其他環境中 —— 在開發環境中構建的應用
+就是這樣進入生產環境的。
+
+| 欄位 | 含義 |
+|---|---|
+| **App Name** | 在登錄檔中顯示的名稱。預設為環境的名稱。 |
+| **Version** | 語義化版本號，例如 `1.2.0`。留空則在最新版本之後釋出下一個補丁版本。 |
+| **Visibility** | **Private** —— 只有你的組織可以安裝；**Organization** —— 在你的組織內共享。 |
+| **Description** | 應用的整體用途。 |
+| **Release notes** | 此版本的變更內容；與版本一起顯示。 |
+| **Package ID**（高階） | 反向域名形式的識別符號。留空時，從環境名稱派生。 |
+
+在公共市場上架是一個單獨的步驟，需要經過稽核；這裡不提供該選項。
+側邊欄中的 **Advanced → Packages** 列出了你的組織釋出過的所有內容。
+
+## 通過 CLI 部署 [#deploy-from-the-cli]
+
+如果你以程式碼形式開發應用 —— 在自己機器上的一個 ObjectStack 專案 ——
+`os` CLI 會把它釋出到你的組織，並可以將它安裝到某個環境中。
+流程是**登入 → 構建 → 釋出 → 安裝**。
+
+你需要一個 ObjectStack 專案（參見
+[路徑 B —— `os init`](/docs/start/community#path-b--os-init-developer)）、
+`os` CLI，以及一個帶有環境的 ObjectOS Cloud 賬戶。
+
+### 1. 登入 [#1-log-in]
+
+```bash
+os cloud login
+```
+
+這會開啟瀏覽器登入，並將雲令牌儲存在
+`~/.objectstack/cloud.json` 中。使用 `--no-browser` 可以列印登入連結，
+而不是開啟它。在 CI 中，跳過登入，通過 `--token` 或 `OS_CLOUD_API_KEY`
+變數給 `os package publish` 提供一個 API 金鑰。
+
+雲登入與 `os login` 是分開的，後者讓你登入到某個執行時；
+釋出始終使用雲登入。
+
+### 2. 構建 [#2-build]
+
+```bash
+os build
+```
+
+這會把專案編譯為一個產物 `dist/objectstack.json`：你的
+物件、檢視、應用、儀表盤、流程以及任何示例資料。之後只會上傳這個產物
+—— 絕不會上傳原始檔、`node_modules` 或本地憑據。
+
+### 3. 釋出 [#3-publish]
+
+```bash
+os package publish
+```
+
+在專案根目錄下執行它。它會在你的組織中註冊該包
+（只註冊一次，以反向域名形式的包 id 為鍵，例如 `com.acme.crm`），並將
+產物作為一個新的、不可變的版本釋出。同一個版本不能釋出兩次：提高
+`manifest.version` 或傳入 `--version`。
+
+| 引數 | 用途 |
+|---|---|
+| `--manifest-id <id>` | 反向域名形式的包 id。預設：從產物派生 |
+| `--version <semver>` | 要釋出的版本。預設：`manifest.version` |
+| `--visibility <private\|org\|marketplace>` | 誰可以檢視和安裝它。在 ObjectOS Cloud 上，新包預設為 `org`；省略此引數則保留已有包的可見性 |
+| `--install` | 立即將新版本安裝到某個環境中 |
+| `--env <id>` | `--install` 的目標環境。預設：`os environments switch` 選中的那個 |
+| `--seed-sample-data` | 安裝時包含產物的示例資料 |
+| `--note "<text>"` | 釋出說明 |
+| `--submit` | 將 `marketplace` 包的新版本提交稽核 |
+
+### 4. 安裝 [#4-install]
+
+使用者從環境中安裝：開啟環境的 **Marketplace**，找到你的
+包並選擇 **Install** —— 或者使用雲控制台中的 **Install an app**，見[上文](#install-an-app)。
+
+部署到已知環境的流水線可以用一條命令完成釋出和安裝：
+
+```bash
+os package publish --env <environment-id> --install --seed-sample-data
+```
+
+這是全有或全無的。如果安裝被拒絕 —— 你可能無權安裝到
+該環境、該環境不存在，或該版本未獲準用於該環境 ——
+則不會發布任何內容：命令會列印拒絕原因並以非零狀態退出，因此
+流水線會失敗。修復原因後，再次釋出同一個版本。
+
+### 市場上架 [#marketplace-listings]
+
+`--visibility marketplace` 讓包有資格進入公共目錄，但
+每個新版本仍然以**草稿**形式到達。傳入 `--submit` 將其送交
+稽核。私有包和組織包無需稽核，你的組織可以立即安裝。
+
+## 下一步 [#next]
+
+- [包](/docs/build/packages) —— 包包含什麼，以及版本如何運作。
+- [市場](/docs/build/marketplace) —— 在環境內部瀏覽和安裝。
+- [CLI 參考](/docs/reference/cli) —— 每一個 `os` 命令。

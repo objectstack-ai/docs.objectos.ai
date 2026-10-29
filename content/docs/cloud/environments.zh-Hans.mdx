@@ -1,0 +1,117 @@
+---
+title: 环境
+seoTitle: "ObjectOS Cloud 环境：生产、开发与生命周期"
+description: ObjectOS Cloud 上的生产环境和开发环境 —— 每个套餐分别得到哪些、如何创建，以及暂停、归档、恢复和删除各自会对数据做什么。
+editions: [cloud]
+translation:
+  source_sha: 697f7e55052fc9b88c5feb928caad9c8197a04cc0f52c2e514abe2b95c4995b6
+  guide_rev: 1
+  mode: auto
+---
+
+**环境**是一份正在运行的 ObjectOS 副本，拥有自己的数据库、文件、应用和
+地址。你的组织的应用存在于环境中，你的团队登录到某个环境来使用它们。在
+ObjectOS Cloud 上有两种环境。
+
+| | **生产环境** | **开发环境** |
+|---|---|---|
+| 数量 | 每个组织恰好一个，所有套餐都是如此 | 仅限付费套餐：两个，外加每个 AI 席位一个，在整个组织内共享 |
+| 地址 | 你的组织 slug 加平台域名；可以使用[你自己的域名](/docs/cloud/domains) | 由平台分配的 `dev-<id>` 形式的固定地址；从不使用品牌子域名或你自己的域名 |
+| 闲置 | 从不因不活跃而被归档 | 连续 7 天未使用后自动归档 |
+| 用途 | 你的团队使用的应用 | 在变更进入生产之前构建和试用 |
+
+组织创建的**第一个**环境是它的生产环境；之后的每一个都是开发环境。
+
+## 谁得到哪些 [#who-gets-which]
+
+**Free：一个生产环境，别无其他。** 你直接在生产环境中构建。创建第二个
+环境会被拒绝，返回 `403 DEV_ENV_PLAN_LOCKED`，控制台会改为提供升级。
+
+**Team 及以上：生产环境加一个开发环境池。** 这个池是两个开发环境，加上
+组织付费的每个 AI 席位一个，按整个组织计算。开发环境包含在席位价格中；
+它们从不会给账单增加一行。在付费套餐上，常见的流程是在开发环境中构建，然后
+[把它发布为一个包](/docs/cloud/apps#publish-an-environment-as-a-package)，
+再把这个包安装到生产环境中。
+
+是否有开发环境，由套餐决定
+（裁定见 [cloud#1252](https://github.com/objectstack-ai/cloud/issues/1252)）；
+那一个生产环境在每个套餐上都一样。
+
+## 创建环境 [#create-an-environment]
+
+在 **Environments** 中，选择 **Create Environment** 并为它命名；平台会分配
+地址。生产环境的地址之后可以用 **Change Hostname** 修改（[域名](/docs/cloud/domains)）；
+开发环境保留分配给它的固定地址。新环境从 **Provisioning**（正在配置）
+状态开始，数据库就绪后变为 **Active**。
+
+要进入一个环境，选择 **Open**。它会在新标签页中打开该环境自己的控制台，
+并以你的身份登录。
+
+## 环境页面 [#the-environment-page]
+
+每个环境都有一个带两个标签页的页面。
+
+- **Overview**（概览）—— 它的地址、状态、套餐和类型、其中安装的应用，
+  以及它的访问设置。一行折叠的 **Features that need a higher
+  plan**，统计当前套餐不包含的功能，展开后列出它们。
+- **Settings**（设置）—— 每一个操作，分为五个部分：**Apps**、**Plan and
+  billing**、**Name and domain**、**Access and sign-in**（包括
+  [AI Agent 访问](/docs/configure/mcp#on-objectos-cloud)）和 **Lifecycle and
+  danger zone**。
+
+会改变环境的操作提供给组织的所有者和管理员。
+
+## 生命周期 [#lifecycle]
+
+| 状态 | 含义 | 你的数据 |
+|---|---|---|
+| **Active**（活跃） | 正在处理请求 | — |
+| **Suspended**（已暂停） | 所有运行时流量都被阻止，直到你恢复它 | 保留 |
+| **Archived**（已归档） | 从活跃视图中移除；访问时不再启动 | 保留到保留期结束，然后删除 |
+| **Failed**（失败） | 配置未完成 | 从未创建 |
+
+**暂停与恢复运行。** 暂停会阻止对环境的每一个请求，无论来自人还是来自
+集成。不会删除任何东西，**Resume** 会让它恢复原样。
+
+**归档与恢复。** 归档让环境停止使用，并开始计算它的保留期。**Restore**
+在这个期限内把它恢复回来；它会在下次被访问时再次启动。
+
+**删除。** 删除分两步进行，因此一次点击永远不会销毁数据：
+
+1. 尚未归档的环境会被**归档**，即使你要求的是永久删除。
+2. 删除一个**已归档**的环境时勾选 **Delete permanently if already
+   archived**，会立即销毁它的数据库和所有文件，无法恢复。
+
+删除生产环境时，还会要求你勾选 **Force-delete the
+production environment**。配置失败的环境不含数据，会被立即删除。
+
+### 已归档环境保留多久 [#how-long-an-archived-environment-is-kept]
+
+| 归档方式 | 保留时长 |
+|---|---|
+| 由你归档（**Archive**，或 **Delete** 的第一步） | 至少 30 天；Business 上 90 天，Enterprise 上一年 |
+| 自动归档，即闲置 7 天的开发环境 | 套餐的期限：Team 上 30 天，Business 上 90 天，Enterprise 上一年 |
+
+在已归档环境被删除前不久，会提醒环境的所有者，以便有时间恢复它。期限过后
+它会被永久删除，连同它的数据库、文件和域名。
+
+### 闲置的开发环境 [#idle-development-environments]
+
+一个连续 **7 天**无人访问、也无人在其中构建的开发环境会被自动归档。使用
+环境和在其中开发（发布、安装、编辑包）都算作活动。生产环境从不会以这种
+方式被归档。
+
+### 降级到 Free 之后 [#after-a-downgrade-to-free]
+
+降级不追溯生效。组织已经在运行的开发环境**会继续运行**：降级不会暂停或
+归档它们。Free 拒绝的是*新增*：创建开发环境，或恢复一个已归档的开发环境，
+都会返回 `403 DEV_ENV_PLAN_LOCKED`，直到组织再次升级。之后，已归档的开发
+环境按 Free 的期限保留，即 7 天。（裁定见
+[cloud#2253](https://github.com/objectstack-ai/cloud/issues/2253) 和
+[cloud#2204](https://github.com/objectstack-ai/cloud/issues/2204)。）
+
+## 下一步 [#next]
+
+- [套餐与 AI 席位](/docs/cloud/plans-and-seats) —— 付费套餐增加了什么。
+- [存储与限制](/docs/cloud/storage-and-limits) —— 每个环境的存储额度。
+- [应用](/docs/cloud/apps) —— 在环境中安装、更新和发布应用。

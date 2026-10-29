@@ -1,0 +1,95 @@
+---
+title: 云连接
+seoTitle: "将自托管的 ObjectOS 服务器连接到 ObjectOS Cloud 组织"
+description: 用一次性代码把自托管的 ObjectOS Community 或 Enterprise 服务器关联到你的 ObjectOS Cloud 组织，让它的 Marketplace 显示你组织的包 —— 以及撤销或断开连接会移除什么。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: f32aef27f0099041cbdc82e55e1d2ab1c2b73289b0b3f87ca5cc8e9b0af6ca26
+  guide_rev: 1
+  mode: auto
+---
+
+自托管的 ObjectOS 服务器 —— Community 或 Enterprise —— 可以连接到
+ObjectOS Cloud 组织。连接后，服务器的 **Marketplace**（市场）会在公共包旁边显示
+你组织自己的包，并使用服务器自己的凭据安装它们。你在服务器上发起连接，
+然后用一次性代码在云端批准；不需要在服务器上输入任何内容。
+
+连接分为两半，本页对两者都有介绍：
+
+- **在你的服务器上**（Community、Enterprise）：发起连接，以及
+  断开连接。完整的服务器端参考 —— 前提条件、服务器存储了什么、
+  面板可能显示的每一条消息 —— 见
+  [objectstack.ai 上的 Cloud Connection](https://objectstack.ai/docs/deployment/cloud-connection)。
+- **在你的云组织中**（Cloud）：批准请求，以及在
+  **Advanced → Connected Runtimes** 下管理连接到它的服务器。
+
+## 连接能带来什么 [#what-connecting-gives-you]
+
+- **服务器 Marketplace 中你组织的包**，位于
+  "Your organization" 下：你
+  [发布](/docs/cloud/apps#publish-an-environment-as-a-package)的私有包和组织包，
+  使用服务器自己的凭据浏览和安装。
+- **你组织中的一条注册记录**，列在 Connected Runtimes 下，
+  包含服务器的名称和版本、批准它的账户，以及
+  连接时间和最后使用时间。
+
+你**不**需要它来做的事：在未连接的服务器上，浏览公共市场和安装
+公共包都能正常工作；而从编译好的产物安装根本不会调用云端。
+
+## 连接 [#connect]
+
+1. **在服务器上**，以拥有 **Manage Platform Settings**
+   权限的用户身份登录，打开 **Setup → Integrations → Cloud Connection**。选择
+   **Connect**。
+2. 服务器向云端请求一个一次性代码，并在新窗口中打开批准页面。
+   代码也会显示在服务器的页面上。
+3. **在云端**，登录服务器应加入的那个组织的 ObjectOS Cloud 账户，
+   确认代码一致，然后批准。
+4. 服务器会自行完成：它的页面变为 **Connected to
+   ObjectStack Cloud**，并列出运行时、组织、批准的
+   账户和时间。
+
+如果没有人及时批准，代码会过期；请从 **Connect** 重新开始。
+
+**谁可以批准。** 组织的任何成员，无论其角色。服务器
+会加入批准者的**当前活动**组织：如果你属于多个组织，
+请在批准之前在云控制台中切换到正确的组织。
+
+服务器需要能出站 HTTPS 访问云端，并且它的工作目录必须是
+持久化存储 —— 连接保存在那里的一个文件中。由
+ObjectOS Cloud 自己托管的服务器由平台负责连接，没有 Cloud
+Connection 页面。
+
+## 在云端管理已连接的服务器 [#manage-connected-servers-in-the-cloud]
+
+云控制台中的 **Advanced → Connected Runtimes** 列出连接到你组织的
+每一台服务器：它的名称、运行时版本、批准账户、
+状态、连接时间和最后使用时间。每一行都有：
+
+| 操作 | 作用 |
+|---|---|
+| **Rename** | 修改此处和批准页面上显示的名称。 |
+| **Revoke** | 立即切断该服务器：它的凭据失效，因此在它上面浏览、安装和更新你组织的包都会失败，直到它再次获得批准。已安装在服务器上的应用会继续运行。 |
+| **Remove** | 用于不再连接的服务器：删除它的行。服务器随时可以作为新设备再次连接。 |
+
+## 从服务器断开连接 [#disconnect-from-the-server]
+
+在服务器的 **Cloud Connection** 页面上，选择 **Disconnect**。服务器
+会请求云端撤销连接，无论结果如何都会删除自己的凭据，
+它的 Marketplace 也不再显示你组织的包。
+
+断开连接会保留两样东西：
+
+- **已安装的一切。** 已经安装在服务器上的包保持
+  安装状态并继续工作。
+- **服务器的运行时 id。** 再次连接时会关联到 Connected Runtimes 中
+  同一行，而不是新增一行。
+
+如果断开连接时无法访问云端，服务器仍然会
+丢弃它的凭据，但云端并未收到通知：请检查 Connected Runtimes，
+并在那里对该行执行 **Revoke**。
+
+## 下一步 [#next]
+
+- [市场](/docs/build/marketplace) —— 在任意服务器上安装应用。
+- [应用](/docs/cloud/apps) —— 为你的组织发布包。

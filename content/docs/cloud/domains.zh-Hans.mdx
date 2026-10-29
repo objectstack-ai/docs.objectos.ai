@@ -1,0 +1,98 @@
+---
+title: 域名
+seoTitle: "ObjectOS Cloud 域名：平台子域名与你自己的域名"
+description: 每个 ObjectOS Cloud 套餐都包含一个品牌化的平台子域名；Team 及以上套餐可以为生产环境添加你自己的域名，通过 TXT 记录证明所有权，证书由平台为你签发。
+editions: [cloud]
+translation:
+  source_sha: e09fb1bee012ece2c40eb7165542858668830bbe291102a95f4b038ffa7c7e77
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Cloud 上的环境可以通过两类地址访问。
+
+| | **平台子域名** | **你自己的域名** |
+|---|---|---|
+| 形式 | 平台域名上的 `acme` | `app.acme.com` |
+| 套餐 | 所有套餐，包括 Free | Team 及以上 |
+| 环境 | 生产环境；开发环境保留其固定地址 | 仅生产环境 |
+| 数量 | 想加多少就加多少 | Team 上每个生产环境一个；更多需按合同 |
+| 证书 | 由平台自己的证书覆盖 | 证明所有权后为你签发 |
+
+本页的规则依据
+[cloud#1087](https://github.com/objectstack-ai/cloud/issues/1087)（平台
+子域名在所有套餐上免费）和
+[cloud#2136](https://github.com/objectstack-ai/cloud/issues/2136)（你自己的
+域名）的裁定。
+
+## 平台子域名 [#platform-subdomains]
+
+生产环境的地址是你组织的
+[slug](/docs/cloud/organization#the-organization-slug) 加上平台域名。
+它在所有套餐上都免费，你选择的任何其他品牌化标签也一样。
+
+要修改它，打开环境的 **Settings → Name and domain**，选择
+**Change Hostname**。只需输入标签：平台域名会自动为你加上。
+标签由 4 到 63 个小写字母、数字和连字符组成，两端不能是连字符，
+也不能有两个连字符相连，少数保留词会被拒绝。它不必
+以你组织的 slug 开头。
+
+要添加第二个平台子域名而不是替换第一个，请使用同一部分中的
+**Add Domain**。环境 **Overview** 上显示的地址，就是你应该告诉别人的那个。
+
+## 你自己的域名 [#your-own-domain]
+
+在 **Team** 及以上套餐上，生产环境还可以通过你拥有的某个域名的
+子域名来访问，例如 `app.acme.com`。
+
+1. **添加它。** 在 **Settings → Name and domain** 中，选择 **Add Domain**（或
+   **Change Hostname**），输入完整的主机名。它必须是子域名 ——
+   至少三级标签。像 `acme.com` 这样的根域名会被拒绝：请使用
+   `www.acme.com` 或其他子域名。
+2. **证明你拥有它。** 域名创建后处于 **Pending Verification** 状态，
+   控制台会显示一条需要发布的 TXT 记录：名称为
+   `_objectos-challenge.<your hostname>`，值对该域名唯一。
+   它还会显示你的主机名应指向的 CNAME 目标。
+3. **验证。** TXT 记录发布后，在该域名上选择 **Verify DNS**。
+   ObjectOS Cloud 会检查该记录，然后申请证书；
+   域名会依次经过 **Verified** 和 **Provisioning Certificate**，最终变为
+   **Active**。如果它停在某一步，再次选择 **Verify DNS** 推动它继续。
+4. **设为主域名**（可选）。**Set as Primary** 决定登录重定向、
+   邮件链接和共享链接使用哪个地址。平台子域名
+   在它旁边继续可用。
+
+会话只属于一个地址：在平台子域名和
+你自己的域名之间切换，需要重新登录。
+
+### 出现问题时 [#when-something-goes-wrong]
+
+| 你看到的 | 原因，以及该怎么做 |
+|---|---|
+| `403 CUSTOM_DOMAIN_PLAN_LOCKED` | 组织使用的是 Free 套餐。升级到 Team。 |
+| `403 DEV_ENV_DOMAIN_LOCKED` | 这是一个开发环境。请把域名添加到生产环境。 |
+| `400 INVALID_FORMAT`，要求使用 www 或子域名 | 你输入的是根域名。请使用子域名，例如 `www.acme.com`。 |
+| `403 CONTACT_SALES_PLAN` | 该环境已经有了它唯一的那个域名。多于一个属于 Enterprise 安排。 |
+| `409 DUPLICATE_VALUE` | 另一个环境已经在使用该主机名。 |
+| 验证回复说 TXT 记录尚不可见 | DNS 尚未传播，或者记录名称或值不一致。回复中会重复给出期望的记录。 |
+| **Failed** | 证书无法签发。检查 CNAME 并再次选择 **Verify DNS**；它会先重新证明所有权。 |
+
+### 降级与升级 [#downgrade-and-upgrade]
+
+降级会**暂停**你自己的域名；绝不会释放它。域名变为
+**Suspended**，停止提供服务，其证书被撤回，但记录
+仍然保留。如果它是主域名，链接会回退到平台子域名，后者
+不受影响。之后任何一次升级时，只要你的 CNAME 仍指向我们，
+域名都会自动重新配置。不存在"N 天后释放"这回事。
+
+被暂停的域名不会阻碍其他能够证明该主机名所有权的人：
+如果另一个环境证明了所有权，被暂停的认领就会被放弃。
+
+### 移除域名 [#removing-a-domain]
+
+在域名上选择 **Delete** 会使其停止提供服务并释放主机名。永久
+删除环境会连同其所有域名一起移除。
+
+## 下一步 [#next]
+
+- [环境](/docs/cloud/environments) —— 生产环境与开发环境。
+- [套餐与 AI 席位](/docs/cloud/plans-and-seats) —— Team 增加了什么。

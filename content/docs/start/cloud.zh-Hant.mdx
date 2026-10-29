@@ -5,7 +5,7 @@ seoTitle: "在 ObjectOS Cloud 上開始：註冊並構建你的第一個應用"
 description: 為你託管的 ObjectOS，無需任何安裝 —— 註冊、為你的組織命名、建立它的生產環境、構建第一個應用並邀請你的團隊。
 editions: [cloud]
 translation:
-  source_sha: aa5b6d557937e3a5bd0420d222841397ca5645cdf72a51fc4185f7c27b40979a
+  source_sha: f83df72638808eeefa3a77e192b7ec0158e83be9e366f36a3d9c7fd74b8fedf5
   guide_rev: 1
   mode: auto
 ---
@@ -31,7 +31,7 @@ translation:
 
 組織在一個環境中執行它的應用。建立它的**生產環境**；你的第一個應用就在
 那裡。在 Free 套餐上，生產環境是唯一的環境 —— 參見
-[版本對比](/docs/editions/compare)。
+[環境](/docs/cloud/environments)。
 
 ## 4. 構建你的第一個應用 [#4-build-your-first-app]
 
@@ -42,13 +42,18 @@ translation:
   由你批准後才會執行。
 - **安裝一個[模板](/docs/build/templates)**，從一個可用的應用開始。
 
-無論哪種方式，結果都是普通的 ObjectStack 後設資料：REST API、生成的介面、
-許可權和審計都隨之而來。你接下來能新增的所有內容見[構建](/docs/build)。
+開發者還有兩條路線：在原始碼中構建併發佈一個
+[包](/docs/build/packages#two-developer-routes-on-objectos-cloud)，或者讓
+他們自己的 Agent 通過 [MCP](/docs/configure/mcp#build-with-an-agent) 以草稿形式構建，
+再由人來發布。無論哪種方式，結果都是普通的 ObjectStack
+後設資料：REST API、生成的介面、許可權和審計都隨之而來。你接下來能新增的所有內容見
+[構建](/docs/build)。
 
 ## 5. 邀請你的團隊 [#5-invite-your-team]
 
 邀請將要使用這個應用的人。只有 **AI 席位**計費：只讀使用者和不使用產品內
-AI 來使用應用的人都是免費的。角色與訪問參見[使用者](/docs/configure/users)，
+AI 來使用應用的人都是免費的。邀請和角色參見
+[組織與成員](/docs/cloud/organization)，環境內的訪問參見[使用者](/docs/configure/users)，
 誰能看到什麼參見[許可權](/docs/configure/permissions)。
 
 ## 下一步 [#next]

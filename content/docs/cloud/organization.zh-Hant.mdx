@@ -1,0 +1,96 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 組織與成員
+seoTitle: "ObjectOS Cloud 組織：slug、成員、邀請和角色"
+description: 你的 ObjectOS Cloud 組織 —— 它的 slug、雲控制台、邀請成員、五種成員角色，以及為什麼登入在雲端而不是在環境中進行。
+editions: [cloud]
+translation:
+  source_sha: 45e832e16685da44f31911d619138580836770640112ee1300fc5cc35796ac0d
+  guide_rev: 1
+  mode: auto
+---
+
+在 ObjectOS Cloud 上，你擁有的一切都屬於一個**組織**：它的環境、它的應用和
+包、它的套餐和它的成員。你在註冊時建立它（[在 ObjectOS Cloud 上開始](/docs/start/cloud)），
+並在 [cloud.objectos.ai](https://cloud.objectos.ai) 的**雲控制台**中管理它。
+
+## 雲控制台 [#the-cloud-console]
+
+控制台的側邊欄就是本節的地圖：
+
+| 側邊欄項 | 包含什麼 | 頁面 |
+|---|---|---|
+| **Home**（首頁） | 組織一覽：生產環境、應用、成員、本週的 AI 額度 | — |
+| **Environments**（環境） | 每個環境，及其設定和生命週期 | [環境](/docs/cloud/environments) |
+| **Members**（成員） | 組織中的人員及其待處理的邀請 | 本頁 |
+| **Billing**（賬單） | 套餐對比，以及升級 | [套餐與 AI 席位](/docs/cloud/plans-and-seats) |
+| **Advanced → Connected Runtimes** | 關聯到這個組織的自託管伺服器 | [雲連線](/docs/cloud/cloud-connection) |
+| **Advanced → Packages** | 你的組織已釋出的包 | [應用](/docs/cloud/apps) |
+
+每個環境也有自己的控制台，位於該環境自己的地址。你的團隊在那裡使用應用；
+雲控制台則是你管理應用所在組織的地方。
+
+## 組織 slug [#the-organization-slug]
+
+**slug** 是組織的簡短識別符號，在註冊時選定。它也是你的生產環境的地址：
+slug 後面跟上平臺的域名。
+
+- 4 到 30 個字元：小寫字母、數字和短橫線。
+- 開頭和結尾不能是短橫線，也不能有兩個連續的短橫線。
+- 一小部分保留字會被拒絕（`admin`、`api`、`www`、`docs`、
+  `default`，以及平臺自己使用的其他詞）。
+
+所有者或管理員可以在組織的記錄上用 **Change Slug** 修改 slug，每 90 天
+最多一次。組織的每個平臺子域名都會改寫為新的 slug，舊的 slug 會被保留 90
+天，以免在此期間被其他人佔用。你自己的域名
+（[域名](/docs/cloud/domains)）不受 slug 變更影響。
+
+## 成員與邀請 [#members-and-invitations]
+
+開啟側邊欄中的 **Members**。這個頁面有兩個標籤頁：成員及其角色，以及仍待
+處理的邀請。
+
+要新增某人，選擇 **Invite members**，輸入對方的電子郵件地址並選擇一個
+角色。對方會收到一份邀請，接受之後就成為組織的成員。
+
+**組織的邀請是進入其環境的唯一途徑。** 環境沒有自己的邀請，也沒有自助
+註冊：你在這裡邀請的每個人都能進入組織的環境，而他們在某個環境中能做
+什麼，由該環境的[許可權](/docs/configure/permissions)決定。
+
+在這些列表中，管理組織的人可以**更改成員的角色**、**移除成員**，以及
+**重新發送**或**撤銷**待處理的邀請。
+
+## 角色 [#roles]
+
+成員角色決定一個人在組織中能觸及什麼。它不是許可權集：某人在環境中能對記錄
+做什麼，來自該環境的[許可權集和崗位](/docs/configure/permissions)。
+
+| 角色 | 用途 | 誰能邀請此角色 |
+|---|---|---|
+| **Owner**（所有者） | 完全控制組織、它的套餐和它的環境 | 所有者 |
+| **Admin**（管理員） | 管理組織：成員、環境、賬單 | 所有者或管理員 |
+| **Delegated Admin**（委派管理員） | 無需是管理員即可訪問邀請端點；能把人放到哪裡，取決於另行授予的管理範圍 | 所有者或管理員 |
+| **Member**（成員） | 使用組織的環境和應用 | 任何能發出邀請的人 |
+| **External**（外部使用者） | 門戶使用者 —— 供應商或客戶的人員 —— 只能看到自己的行以及明確共享給他們的內容；從不屬於業務單元樹 | 任何能發出邀請的人 |
+
+所有者和管理員就是本節所說的"管理組織的人"：他們能看到套餐、升級以及
+會改變某些東西的環境操作。普通成員能看到環境並開啟它們，但不會看到他們
+無法完成的操作。
+
+## 登入在哪裡進行 [#where-sign-in-lives]
+
+在 ObjectOS Cloud 上，每個賬戶都是雲賬戶。由 ObjectOS Cloud 讓人登入，環境
+接收他們：環境為每個人儲存的**只有授權** —— 他們的崗位、許可權集和共享。
+每個託管環境預設都使用這一個登入，在每個套餐上都是如此，因此人們用
+ObjectOS Cloud 賬戶登入一次，就能在各個環境之間切換。
+
+**把環境遷到你自己的基礎設施上。** 因為賬戶儲存在 ObjectOS Cloud 而不是
+環境中，它們不會隨環境一起遷移。在自管理部署上，你要麼在那裡為人們簽發
+新的憑據，要麼把它繫結到你自己的身份提供商，讓他們通過它登入 —— 參見
+[身份認證](/docs/configure/authentication)。
+
+## 下一步 [#next]
+
+- [環境](/docs/cloud/environments) —— 生產環境和開發環境，以及它們的生命週期。
+- [套餐與 AI 席位](/docs/cloud/plans-and-seats) —— Free、Team 和 Enterprise 各自包含什麼。
+- [許可權](/docs/configure/permissions) —— 成員在環境中能做什麼。

@@ -1,0 +1,96 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 雲連線
+seoTitle: "將自託管的 ObjectOS 伺服器連線到 ObjectOS Cloud 組織"
+description: 用一次性程式碼把自託管的 ObjectOS Community 或 Enterprise 伺服器關聯到你的 ObjectOS Cloud 組織，讓它的 Marketplace 顯示你組織的包 —— 以及撤銷或斷開連線會移除什麼。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: f32aef27f0099041cbdc82e55e1d2ab1c2b73289b0b3f87ca5cc8e9b0af6ca26
+  guide_rev: 1
+  mode: auto
+---
+
+自託管的 ObjectOS 伺服器 —— Community 或 Enterprise —— 可以連線到
+ObjectOS Cloud 組織。連線後，伺服器的 **Marketplace**（市場）會在公共包旁邊顯示
+你組織自己的包，並使用伺服器自己的憑據安裝它們。你在伺服器上發起連線，
+然後用一次性程式碼在雲端批准；不需要在伺服器上輸入任何內容。
+
+連線分為兩半，本頁對兩者都有介紹：
+
+- **在你的伺服器上**（Community、Enterprise）：發起連線，以及
+  斷開連線。完整的伺服器端參考 —— 前提條件、伺服器儲存了什麼、
+  面板可能顯示的每一條訊息 —— 見
+  [objectstack.ai 上的 Cloud Connection](https://objectstack.ai/docs/deployment/cloud-connection)。
+- **在你的雲組織中**（Cloud）：批准請求，以及在
+  **Advanced → Connected Runtimes** 下管理連線到它的伺服器。
+
+## 連線能帶來什麼 [#what-connecting-gives-you]
+
+- **伺服器 Marketplace 中你組織的包**，位於
+  "Your organization" 下：你
+  [釋出](/docs/cloud/apps#publish-an-environment-as-a-package)的私有包和組織包，
+  使用伺服器自己的憑據瀏覽和安裝。
+- **你組織中的一條註冊記錄**，列在 Connected Runtimes 下，
+  包含伺服器的名稱和版本、批准它的賬戶，以及
+  連線時間和最後使用時間。
+
+你**不**需要它來做的事：在未連線的伺服器上，瀏覽公共市場和安裝
+公共包都能正常工作；而從編譯好的產物安裝根本不會呼叫雲端。
+
+## 連線 [#connect]
+
+1. **在伺服器上**，以擁有 **Manage Platform Settings**
+   許可權的使用者身份登入，開啟 **Setup → Integrations → Cloud Connection**。選擇
+   **Connect**。
+2. 伺服器向雲端請求一個一次性程式碼，並在新視窗中開啟批准頁面。
+   程式碼也會顯示在伺服器的頁面上。
+3. **在雲端**，登入伺服器應加入的那個組織的 ObjectOS Cloud 賬戶，
+   確認程式碼一致，然後批准。
+4. 伺服器會自行完成：它的頁面變為 **Connected to
+   ObjectStack Cloud**，並列出執行時、組織、批准的
+   賬戶和時間。
+
+如果沒有人及時批准，程式碼會過期；請從 **Connect** 重新開始。
+
+**誰可以批准。** 組織的任何成員，無論其角色。伺服器
+會加入批准者的**當前活動**組織：如果你屬於多個組織，
+請在批准之前在雲控制台中切換到正確的組織。
+
+伺服器需要能出站 HTTPS 訪問雲端，並且它的工作目錄必須是
+持久化儲存 —— 連線儲存在那裡的一個檔案中。由
+ObjectOS Cloud 自己託管的伺服器由平臺負責連線，沒有 Cloud
+Connection 頁面。
+
+## 在雲端管理已連線的伺服器 [#manage-connected-servers-in-the-cloud]
+
+雲控制台中的 **Advanced → Connected Runtimes** 列出連線到你組織的
+每一臺伺服器：它的名稱、執行時版本、批准賬戶、
+狀態、連線時間和最後使用時間。每一行都有：
+
+| 操作 | 作用 |
+|---|---|
+| **Rename** | 修改此處和批准頁面上顯示的名稱。 |
+| **Revoke** | 立即切斷該伺服器：它的憑據失效，因此在它上面瀏覽、安裝和更新你組織的包都會失敗，直到它再次獲得批准。已安裝在伺服器上的應用會繼續執行。 |
+| **Remove** | 用於不再連線的伺服器：刪除它的行。伺服器隨時可以作為新裝置再次連線。 |
+
+## 從伺服器斷開連線 [#disconnect-from-the-server]
+
+在伺服器的 **Cloud Connection** 頁面上，選擇 **Disconnect**。伺服器
+會請求雲端撤銷連線，無論結果如何都會刪除自己的憑據，
+它的 Marketplace 也不再顯示你組織的包。
+
+斷開連線會保留兩樣東西：
+
+- **已安裝的一切。** 已經安裝在伺服器上的包保持
+  安裝狀態並繼續工作。
+- **伺服器的執行時 id。** 再次連線時會關聯到 Connected Runtimes 中
+  同一行，而不是新增一行。
+
+如果斷開連線時無法訪問雲端，伺服器仍然會
+丟棄它的憑據，但云端並未收到通知：請檢查 Connected Runtimes，
+並在那裡對該行執行 **Revoke**。
+
+## 下一步 [#next]
+
+- [市場](/docs/build/marketplace) —— 在任意伺服器上安裝應用。
+- [應用](/docs/cloud/apps) —— 為你的組織釋出包。

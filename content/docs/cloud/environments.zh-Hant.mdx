@@ -1,0 +1,118 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 環境
+seoTitle: "ObjectOS Cloud 環境：生產、開發與生命週期"
+description: ObjectOS Cloud 上的生產環境和開發環境 —— 每個套餐分別得到哪些、如何建立，以及暫停、歸檔、恢復和刪除各自會對資料做什麼。
+editions: [cloud]
+translation:
+  source_sha: 697f7e55052fc9b88c5feb928caad9c8197a04cc0f52c2e514abe2b95c4995b6
+  guide_rev: 1
+  mode: auto
+---
+
+**環境**是一份正在執行的 ObjectOS 副本，擁有自己的資料庫、檔案、應用和
+地址。你的組織的應用存在於環境中，你的團隊登入到某個環境來使用它們。在
+ObjectOS Cloud 上有兩種環境。
+
+| | **生產環境** | **開發環境** |
+|---|---|---|
+| 數量 | 每個組織恰好一個，所有套餐都是如此 | 僅限付費套餐：兩個，外加每個 AI 席位一個，在整個組織內共享 |
+| 地址 | 你的組織 slug 加平臺域名；可以使用[你自己的域名](/docs/cloud/domains) | 由平臺分配的 `dev-<id>` 形式的固定地址；從不使用品牌子域名或你自己的域名 |
+| 閒置 | 從不因不活躍而被歸檔 | 連續 7 天未使用後自動歸檔 |
+| 用途 | 你的團隊使用的應用 | 在變更進入生產之前構建和試用 |
+
+組織建立的**第一個**環境是它的生產環境；之後的每一個都是開發環境。
+
+## 誰得到哪些 [#who-gets-which]
+
+**Free：一個生產環境，別無其他。** 你直接在生產環境中構建。建立第二個
+環境會被拒絕，返回 `403 DEV_ENV_PLAN_LOCKED`，控制台會改為提供升級。
+
+**Team 及以上：生產環境加一個開發環境池。** 這個池是兩個開發環境，加上
+組織付費的每個 AI 席位一個，按整個組織計算。開發環境包含在席位價格中；
+它們從不會給賬單增加一行。在付費套餐上，常見的流程是在開發環境中構建，然後
+[把它釋出為一個包](/docs/cloud/apps#publish-an-environment-as-a-package)，
+再把這個包安裝到生產環境中。
+
+是否有開發環境，由套餐決定
+（裁定見 [cloud#1252](https://github.com/objectstack-ai/cloud/issues/1252)）；
+那一個生產環境在每個套餐上都一樣。
+
+## 建立環境 [#create-an-environment]
+
+在 **Environments** 中，選擇 **Create Environment** 併為它命名；平臺會分配
+地址。生產環境的地址之後可以用 **Change Hostname** 修改（[域名](/docs/cloud/domains)）；
+開發環境保留分配給它的固定地址。新環境從 **Provisioning**（正在配置）
+狀態開始，資料庫就緒後變為 **Active**。
+
+要進入一個環境，選擇 **Open**。它會在新標籤頁中開啟該環境自己的控制台，
+並以你的身份登入。
+
+## 環境頁面 [#the-environment-page]
+
+每個環境都有一個帶兩個標籤頁的頁面。
+
+- **Overview**（概覽）—— 它的地址、狀態、套餐和型別、其中安裝的應用，
+  以及它的訪問設定。一行摺疊的 **Features that need a higher
+  plan**，統計當前套餐不包含的功能，展開後列出它們。
+- **Settings**（設定）—— 每一個操作，分為五個部分：**Apps**、**Plan and
+  billing**、**Name and domain**、**Access and sign-in**（包括
+  [AI Agent 訪問](/docs/configure/mcp#on-objectos-cloud)）和 **Lifecycle and
+  danger zone**。
+
+會改變環境的操作提供給組織的所有者和管理員。
+
+## 生命週期 [#lifecycle]
+
+| 狀態 | 含義 | 你的資料 |
+|---|---|---|
+| **Active**（活躍） | 正在處理請求 | — |
+| **Suspended**（已暫停） | 所有執行時流量都被阻止，直到你恢復它 | 保留 |
+| **Archived**（已歸檔） | 從活躍檢視中移除；訪問時不再啟動 | 保留到保留期結束，然後刪除 |
+| **Failed**（失敗） | 配置未完成 | 從未建立 |
+
+**暫停與恢復執行。** 暫停會阻止對環境的每一個請求，無論來自人還是來自
+整合。不會刪除任何東西，**Resume** 會讓它恢復原樣。
+
+**歸檔與恢復。** 歸檔讓環境停止使用，並開始計算它的保留期。**Restore**
+在這個期限內把它恢復回來；它會在下次被訪問時再次啟動。
+
+**刪除。** 刪除分兩步進行，因此一次點選永遠不會銷燬資料：
+
+1. 尚未歸檔的環境會被**歸檔**，即使你要求的是永久刪除。
+2. 刪除一個**已歸檔**的環境時勾選 **Delete permanently if already
+   archived**，會立即銷燬它的資料庫和所有檔案，無法恢復。
+
+刪除生產環境時，還會要求你勾選 **Force-delete the
+production environment**。配置失敗的環境不含資料，會被立即刪除。
+
+### 已歸檔環境保留多久 [#how-long-an-archived-environment-is-kept]
+
+| 歸檔方式 | 保留時長 |
+|---|---|
+| 由你歸檔（**Archive**，或 **Delete** 的第一步） | 至少 30 天；Business 上 90 天，Enterprise 上一年 |
+| 自動歸檔，即閒置 7 天的開發環境 | 套餐的期限：Team 上 30 天，Business 上 90 天，Enterprise 上一年 |
+
+在已歸檔環境被刪除前不久，會提醒環境的所有者，以便有時間恢復它。期限過後
+它會被永久刪除，連同它的資料庫、檔案和域名。
+
+### 閒置的開發環境 [#idle-development-environments]
+
+一個連續 **7 天**無人訪問、也無人在其中構建的開發環境會被自動歸檔。使用
+環境和在其中開發（釋出、安裝、編輯包）都算作活動。生產環境從不會以這種
+方式被歸檔。
+
+### 降級到 Free 之後 [#after-a-downgrade-to-free]
+
+降級不追溯生效。組織已經在執行的開發環境**會繼續執行**：降級不會暫停或
+歸檔它們。Free 拒絕的是*新增*：建立開發環境，或恢復一個已歸檔的開發環境，
+都會返回 `403 DEV_ENV_PLAN_LOCKED`，直到組織再次升級。之後，已歸檔的開發
+環境按 Free 的期限保留，即 7 天。（裁定見
+[cloud#2253](https://github.com/objectstack-ai/cloud/issues/2253) 和
+[cloud#2204](https://github.com/objectstack-ai/cloud/issues/2204)。）
+
+## 下一步 [#next]
+
+- [套餐與 AI 席位](/docs/cloud/plans-and-seats) —— 付費套餐增加了什麼。
+- [儲存與限制](/docs/cloud/storage-and-limits) —— 每個環境的儲存額度。
+- [應用](/docs/cloud/apps) —— 在環境中安裝、更新和釋出應用。
