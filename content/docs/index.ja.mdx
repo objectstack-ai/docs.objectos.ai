@@ -1,0 +1,87 @@
+---
+title: はじめに
+seoTitle: "ドキュメント：開始、構築、デプロイ、運用"
+description: "ObjectOS は ObjectStack 上に構築された商用ランタイム環境で、ホスト型（ObjectOS Cloud）またはセルフマネージド（ObjectOS Enterprise）で動作します。オントロジーはあなたのものです。"
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 0347fa621f4342212be72ecb78497ccea72ca3490d850f45dc5b91549d81cf22
+  guide_rev: 1
+  mode: auto
+---
+
+オントロジーこそがソフトウェアです。実行可能なひとつのビジネスオントロジー。AI が書き、ランタイムが実行し、エージェントが操作し、あなたが所有します。同じループをブラウザ上のホスト型で、何もインストールせずに使いたいですか？それが ObjectOS、ObjectStack 上に構築された商用ランタイム環境です。ObjectOS は、何もインストールせずにブラウザ上のホスト型で動作するか（ObjectOS Cloud）、あなた自身のインフラストラクチャ上でセルフマネージドで動作し（ObjectOS Enterprise）、どちらのエディションでもオントロジーをエクスポートして、オープンソースの ObjectStack ランタイムで実行できます。
+
+ビジネスに必要なもの（ヘルプデスク、承認フロー、CRM）を組み込みの [AI Builder](/docs/build/ai-builder) に説明するか、テンプレートをインストールすると、それが書いたオントロジーは即座に稼働します。REST API、生成された画面、認証、RBAC、監査ログ、ファイルストレージ、バックグラウンドジョブ、Webhook、そしてエージェントが呼び出せる MCP ツールとして公開されたすべてのオブジェクトです。各変更は小さく読みやすい差分で、実行前に人が承認します。
+
+オープンソース（Apache-2.0）の [ObjectStack](https://github.com/objectstack-ai/objectstack) スタック、すなわちプロトコル、カーネル、CLI、本番ランタイムは、オントロジーを実行するものであり、ObjectOS の土台です。ObjectOS 上で構築したものはすべて通常の ObjectStack メタデータなので、構造上、そのランタイムへ移植できます。
+
+## 開始 [#start]
+
+| やりたいこと | すること |
+|---|---|
+| ObjectOS を、何もインストールせずに | **ObjectOS Cloud**、あなたのためのホスト型です。最初のアプリを構築するには Free プランで十分です。[ObjectOS Cloud で始める](/docs/start/cloud)を参照してください |
+| ObjectOS を、自社のインフラストラクチャ上でライセンスを受けて | **ObjectOS Enterprise** は、シングルノードの Business Self-Managed オプション以上で、ライセンスされた Enterprise イメージをあなたのサーバー上で実行します。[ObjectOS Enterprise で始める](/docs/start/enterprise)を参照してください |
+| ObjectOS を、自分のマシン上で無料で | **ObjectOS Community** はオープンソースのランタイムです。`npm i -g @objectstack/cli && os start` で SQLite データベースとともに設定なしで起動します。[ObjectOS Community をローカルで実行する](/docs/start/community)を参照してください |
+
+その後、ObjectOS Cloud と ObjectOS Enterprise は同じ場所へ導きます。サインインして、次のことができます。
+
+- **AI Builder と対話する**：*「サポートチケットを優先度と担当者付きで管理したい」*。AI Builder があなたの[オントロジー](/docs/ontology)、つまりオブジェクトとそのフィールドを、あなたが承認する小さな差分として書くのを見届けます。[構築 → AI Builder](/docs/build/ai-builder) を参照してください。
+- **組み込みのマーケットプレイスからテンプレートをインストールする**（Todo、Contracts、Helpdesk など）と、ワンクリックで本物のアプリが手に入ります。
+- **[テンプレート](/docs/build/templates)をフォークする**と、TypeScript ソースを自分の管理下に置けます。同じメタデータを、自分のリポジトリでコーディングエージェントとともに作成します。
+
+## なぜ …… ではなく ObjectOS なのか [#why-objectos-instead-of-]
+
+| 今使っているもの | 課題 | ObjectOS が提供するもの |
+|---|---|---|
+| **Retool / Appsmith** | UI ビルダーは優れているが、データは彼らのクラウドにあり、料金はユーザー数に比例して増える | ホスト型（ObjectOS Cloud）またはあなたのネットワーク内（ObjectOS Enterprise）。オープンソースの ObjectStack（Apache-2.0）上に構築されているため、オントロジーは自由にエクスポートできます。シート課金なし、AI シートのみ |
+| **Supabase / Firebase** | BaaS は速いがベンダーロックイン。設計上マルチテナント SaaS | 同じ開発体験（自動 API、認証、ストレージ）ですが、定義はあなたのものです。エクスポートしてオープンな ObjectStack ランタイムで実行するか、自社のデータベース上で ObjectOS Enterprise を実行します |
+| **Salesforce / NetSuite** | 強力なプラットフォームだが、カスタマイズは苦痛で、シート単価は目が飛び出るほど高い | 馴染みのある語彙（オブジェクト、フィールド、権限セット、共有ルール）ですが、定義は AI が書き、エージェントが操作し、Apache-2.0 ランタイムへエクスポートできるオープンなオントロジーです。ホスト型でもセルフマネージドでも、シート課金なし。閲覧者と AI を使わないユーザーは無料です |
+| **自前で構築（Next + Prisma + NextAuth）** | RBAC、監査、ファイルアップロード、設定、Webhook、ジョブを毎回作り直す | 本来のビジネスロジックを出荷できます。プラットフォームの配管はすでに揃っています |
+
+## 標準で得られるもの [#what-you-get-out-of-the-box]
+
+| サーフェス | 内容 |
+|---|---|
+| **自動 REST API** | 宣言したすべてのオブジェクトに、フィルター/ソート/ページネーション付きの `/api/v1/data/<object>` が用意されます |
+| **UI**（`/_console/`） | 生成された画面：レコードの閲覧と編集、そしてユーザー/ロール/権限セットの管理、監査ログ、セッション、API キー、設定の確認を行う **Setup** |
+| **Account**（[UI 内](/docs/resources/glossary#surface)） | ログイン、登録、パスワードリセット、OAuth、OIDC/SSO、パスキー、2FA |
+| **MCP サーバー**（`/api/v1/mcp`） | デフォルトで有効：すべてのオブジェクトがツールであり、AI に公開したすべてのアクションもツールです。エージェントはユーザーとして、そのユーザーの権限のもとで接続します。[AI ツールを接続する（MCP）](/docs/configure/mcp)を参照してください |
+| **20 以上のプラグイン** | RBAC + 行レベルセキュリティ、監査、ファイルストレージ、キュー、ジョブ、メール、AI、Webhook。宣言的で、必要に応じて有効化 |
+
+## あなたの手元に残るもの [#what-stays-yours]
+
+どちらのエディションでも、オントロジーはあなたのものです。オブジェクト、フィールド、リレーション、アクション、権限、フロー、エージェント定義は通常の ObjectStack メタデータであり、エクスポートしてオープンソースの ObjectStack ランタイムで実行できます。**ObjectOS Enterprise** では、それ以外のものもすべてあなたの手元に残ります。[データレジデンシー](/docs/reference/security#data-residency)には、データの各分類について、どこに保存され、ネットワークの外に出るかどうかが記載されています。
+
+セルフマネージドの ObjectOS はライセンスをオンラインで検証します。Enterprise のエアギャップライセンスはオフラインで検証します。したがって、インターネットにアクセスできないネットワークは Enterprise の正式なデプロイ先です。[エアギャップ](/docs/deploy/air-gapped)を参照してください。
+
+## ドキュメントを探す [#find-your-docs]
+
+このドキュメントは 4 種類の読者を対象としています。ObjectOS の使い方に合ったセクションから始めてください。
+
+| あなたは …… | やりたいこと | ここから |
+|---|---|---|
+| **日常的なユーザー** | アプリで作業する：レコード、ビュー、ダッシュボード、承認 | [使い方](/docs/use) |
+| **ビルダー** | アプリを作成する：データモデル、インターフェース、自動化、AI エージェント | [構築](/docs/build) |
+| **管理者** | プラットフォームを運用する：ユーザー、権限、設定、デプロイ | [設定](/docs/configure)、[デプロイ](/docs/deploy)、[運用](/docs/operate/production) |
+| **エージェント、またはそれを接続する人** | MCP 経由でアプリを操作する：レコードの読み書き、AI に公開されたアクションの実行。ユーザーの権限のもとで | [AI ツールを接続する（MCP）](/docs/configure/mcp) |
+
+## 次に進む [#where-to-go-next]
+
+| やりたいこと | 読むもの |
+|---|---|
+| 何もインストールせずに始める | [ObjectOS Cloud で始める](/docs/start/cloud) |
+| 実際に動くところを見る | [ObjectOS Community をローカルで実行する](/docs/start/community) |
+| 各エディションに含まれるものを比較する | [エディションの比較](/docs/editions/compare) |
+| 中身を理解する | [アーキテクチャ](/docs/architecture) |
+| Docker で実行する | [Docker](/docs/deploy/docker) |
+| Kubernetes にデプロイする | [Kubernetes](/docs/deploy/kubernetes) |
+| Postgres / 自社の DB に接続する | [ランタイム設定](/docs/configure/runtime) |
+| SSO を設定する | [認証](/docs/configure/authentication) |
+| 誰が何を見られるかを制限する | [権限](/docs/configure/permissions) |
+| 別のサービスから呼び出す | [API アクセス](/docs/configure/api-access) |
+| 他のシステムにイベントを送る | [Webhook](/docs/configure/webhooks) |
+| 本番に移行する | [本番環境への準備](/docs/operate/production) |
+
+## ライセンスと料金 [#license--pricing]
+
+ObjectOS は **3 つのエディションを持つひとつの製品**です。**ObjectOS Community**、すなわち Apache-2.0 の **[ObjectStack フレームワーク](https://github.com/objectstack-ai/objectstack)** 上に構築されたオープンソースのランタイムと Console は、商用製品での利用、組み込み、セルフホストが無料で、シート単価もライセンスサーバーもありません。**ObjectOS Cloud** と **ObjectOS Enterprise** は、UI に組み込まれた AI、ガバナンス、公式の運用を追加し、料金は **AI シートのみ**です（閲覧者と AI を使わないユーザーは無料）。「年額 5 万ドルから」はありません。[ライセンスと料金](/docs/editions/license)を参照してください。

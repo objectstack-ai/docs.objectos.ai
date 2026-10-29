@@ -1,0 +1,118 @@
+---
+title: ライセンスと料金
+description: ObjectOS は 3 つのエディションを持つひとつの製品です。Community（オープンソース、無料）、Cloud、Enterprise。それぞれのライセンス形態と、ObjectStack フレームワークとの関係を説明します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 8214fa1bad828f1ed43938ca72f4a791acb69e4bdb82a1e015eec4e78d2d1128
+  guide_rev: 1
+  mode: auto
+---
+
+## ひとつの製品、3 つのエディション [#one-product-three-editions]
+
+ObjectOS は **ObjectStack アプリケーションの公式ランタイム環境**で、3 つのエディションがあります。**ObjectOS Community**（オープンソース、セルフホスト、無料）、**ObjectOS Cloud**（私たちが運用）、**ObjectOS Enterprise**（商用ライセンスのもとであなたが運用）です。ObjectStack は、3 つのエディションが実行するプロトコル、SDK、CLI、フレームワークの名前です。
+
+{/*
+  Naming, decided under #79 and re-confirmed on #107: "Console UI" here and in
+  the Apache-2.0 list further down names the *component* — the shipped browser
+  bundle, the `@objectstack/console` package, the same spelling architecture.mdx
+  and configure/system-settings.mdx were deliberately kept at. #79 retired
+  "Console" as the name of the end-user surface (a reader opens ObjectOS, not
+  "the Console") but kept the names of things the product ships, and a license
+  enumerates artifacts rather than surfaces. Both occurrences on this page are
+  therefore deliberate — do not rewrite them to "the UI" or to "ObjectOS".
+*/}
+
+オープンソースの部分には 2 つの名前と 1 つのライセンスがあります。**[ObjectStack フレームワーク](https://github.com/objectstack-ai/objectstack)**（Apache-2.0）はプロトコル、カーネル、SDK、CLI です。**ObjectOS Community** はそこから構築されたオープンソースのランタイムと Console UI です。本番用のランタイムイメージ、MCP サーバー、権限と共有、監査、あらゆるプロトコル機能など、**独自のアプリケーションを構築、実行、セルフホスト**するために必要なものすべてが無料で、開発と本番の間に機能の制限はありません。そのコードは同じ objectstack リポジトリにあります。ObjectOS Cloud と ObjectOS Enterprise は、その仕組みの上に**組み込みの AI** と**公式に運用 / サポートされる**プラットフォームが欲しいときに購入するものです。
+
+## エディション [#editions]
+
+ObjectOS Community は無料です。2 つの商用エディションには、ひとつの料金表と 2 つの提供形態があり、**AI シート**が唯一の課金単位です。
+
+| | **Community** | **Free** | **Team** | **Enterprise** |
+|---|---|---|---|---|
+| エディション | ObjectOS Community | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise |
+| 提供形態 | **セルフマネージド** | クラウド | クラウド | **セルフマネージド（プライベートデプロイ）** |
+| 料金 | **無料**（Apache-2.0） | **無料** | **$24** / AI シート / 月 | 個別見積もり（ボリューム）：[営業にお問い合わせください](mailto:sales@objectstack.ai) |
+| UI 内の AI（AI Builder +「データに質問する」） | MCP のみ（モデルは持ち込み） | お試し | ✓ | ✓ |
+| AI ガバナンス（アクションの監査、ガードレール、権限のスコープ設定） | — | — | — | ✓ |
+| クラスタリング / HA、マルチ組織のセルフホスト、エアギャップ、SCIM | — | — | — | ✓ |
+| サポート | コミュニティ | コミュニティ | スタンダード | SLA + 専任 |
+
+Team とフルのプライベートデプロイの間には、**ObjectOS Enterprise の下の 2 つの契約オプション**があり、料金はこれまでどおりです。**Business**（ObjectOS Cloud 上の SSO と AI ガバナンス、**$54** / AI シート / 月、年額払いでは $45 / AI シート / 月。優先サポート）と **Business Self-Managed**（シングルノードのエントリーオプション、**$540** / AI シート / 年）です。どちらも契約により販売されます。[営業にお問い合わせください](mailto:sales@objectstack.ai)。
+
+**無料で**セルフホストしたいですか？それが **ObjectOS Community** です（MCP のみの AI：モデルは持ち込み）。下の [ObjectOS Community](#objectos-community) を参照してください。
+
+**オープンな仕組み、クローズドなインテリジェンス。** データをモデル化しアプリを実行するために必要なものはすべてオープンソースです（ObjectStack フレームワーク上の ObjectOS Community）。Cloud と Enterprise は、その上に*組み込みのインテリジェンス*（製品内の AI Builder と「データに質問する」アシスタント。ガバナンスと監査付き）を重ね、さらに運用のスケールと公式サポートを加えます。
+
+**支払うのは AI シートだけです。** 課金されるシートは **AI シート**だけです。閲覧者、AI を使わないアプリユーザー、MCP 上で構築する開発者は無料で、ユーザーごとのシート課金はありません（ユーザーあたり $150〜300 の既存製品とは明確に対照的です）。
+
+## クラウドかセルフマネージドか [#cloud-or-self-managed]
+
+セルフマネージドの ObjectOS は、**ObjectOS Community**（無料）または **ObjectOS Enterprise**（ライセンス制）です。Cloud は Free と Team で、Team より上はすべて Enterprise の契約です。
+
+- **Cloud（Free / Team）**：フルホスト型、セルフサービス。料金にはホスティングと十分な月間 AI 利用枠が含まれます（モデルは私たちが実行します）。
+- **Enterprise**：契約により販売されるライセンス制の ObjectOS で、3 つの形があります。
+  - **Business**：ObjectOS Cloud 上の契約オプション。ホスト型サービス上の SSO / SAML と AI ガバナンス（アクションの監査、ガードレール、権限のスコープ設定）、$54 / AI シート / 月、または年額払いで $45 / AI シート / 月、優先サポート。
+  - **Business Self-Managed**：シングルノードのエントリーオプション。Business プランを **10〜25 AI シート**向けの**シングルノード Docker ライセンス**として提供します（$540/AI シート/年、年額）。自社のインフラストラクチャ上で UI 内の AI と AI ガバナンスを利用でき、**モデル / キーは持ち込み**です（LLM のコストは自分で支払います。プラットフォームの AI 請求や従量課金はありません）。カード払い、スタンダードサポート。ライセンスが失効しても、ランタイムは動作し続け、データはそのまま残ります。有料機能がオフになるだけです（使えなくなることは決してありません）。
+  - **フルのプライベートデプロイ**：それを超えるすべてのもの。クラスタリング / HA / マルチノード、マルチ組織のセルフホスト、データレジデンシーと**エアギャップ**運用、SCIM と ID ライフサイクル、コンプライアンスの証明、SLA と専任サポート、オフライン / 請求書払い。複数年の価格固定オプション付きの**年間ライセンス**として販売されます。更新しない場合、デプロイは**最後に支払ったバージョンを永続的に維持**します（失うのはアップデートとサポートであり、システムやデータではありません）。料金はボリュームベースです。[営業にお問い合わせください](mailto:sales@objectstack.ai)。
+
+**ノードごとの課金はありません**。クラスタリング / スケールは Enterprise に含まれます。
+
+## それぞれが適するとき [#when-you-might-want-each]
+
+| シナリオ | 選ぶもの |
+|---|---|
+| プラットフォームを**ホストして運用してほしい** | ObjectOS Cloud（Free → Team） |
+| ホスト型サービスで **SSO と AI ガバナンス**が必要 | **Business**、ObjectOS Cloud 上の ObjectOS Enterprise の契約オプション |
+| **自社のシングルノード**で実行しなければならず、製品内の AI が欲しい、25 AI シート以下 | **Business Self-Managed**、ObjectOS Enterprise の契約オプション（シングルノードのエントリー） |
+| **クラスタリング / HA**、**マルチ組織**、**エアギャップ**、**SCIM**、コンプライアンスの証明、SLA、オフライン払いが必要 | **ObjectOS Enterprise**、フルのプライベートデプロイ |
+| ObjectOS Community をセルフホストしているが、**商用契約付きのサポートされたディストリビューション**（SLA、セキュリティパッチの優先対応、指名エスカレーション）が必要 | **ObjectOS Runtime Subscription**：[営業にお問い合わせください](mailto:sales@objectstack.ai) |
+| **無料のセルフホスト**で、MCP 経由で AI を持ち込みたい | **ObjectOS Community**（オープンソース） |
+| ObjectOS または ObjectStack の名前で **OEM / 再配布**の権利が必要 | 商用契約：[営業にお問い合わせください](mailto:sales@objectstack.ai) |
+
+## ObjectOS Community [#objectos-community]
+
+**ObjectOS Community**（ランタイムイメージと Console UI）と、その土台である **ObjectStack フレームワーク**は、[Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0) のもとでライセンスされています。コピーレフトなし、明示的な特許許諾、永久に無料。シートも、利用ティアも、ライセンスサーバーも、キーも、テレメトリもありません。ノート PC、自社のサーバー、顧客のサーバー、1000 ポッドのクラスターのどこで実行しても、ライセンスは同じです。そこでの AI の経路はオープンな **MCP サーバー**です。自分の Claude Code（または任意の MCP クライアント）をデプロイに向ければ、自分のモデルでデータをクエリし操作できます。
+
+Apache-2.0 であるもの（objectstack リポジトリ内）：ランタイムイメージ、すべての`@objectstack/*` npm パッケージ（ランタイム、プラグイン、サービス、ドライバー、アダプター、CLI、クライアント SDK）、templates リポジトリ、そして Console UI（それが提供する Account アプリを含む）。ドキュメントは CC-BY-4.0 です。
+
+全文：[LICENSE](https://github.com/objectstack-ai/objectstack/blob/main/LICENSE)
+
+## 商標 [#trademarks]
+
+「ObjectOS」と ObjectOS のロゴは**商標**であり、どのコードライセンスの対象でもありません。自社の製品が ObjectOS / ObjectStack の*上に構築されている*、または*互換性がある*と事実に即して述べることはできます。自社の製品名、会社名、ドメイン名にこれらの名前やロゴを使うには書面による許可が必要です。[TRADEMARK.md](https://github.com/objectstack-ai/docs.objectos.ai/blob/main/TRADEMARK.md) を参照してください。
+
+## サードパーティのコンポーネント [#third-party-components]
+
+ObjectOS は ObjectStack フレームワークと、いくつかの上流のオープンソースプロジェクト（Node.js、Hono、Zod、Better Auth、AI SDK など）の上に構築されています。それぞれに独自のライセンスが付属し、すべて商用利用と互換性のある Apache-2.0、MIT、BSD 系の寛容なライセンスです。完全な一覧は、各リリースとともに公開される SBOM を参照してください。
+
+## よくある質問 [#faq]
+
+### ObjectOS はオープンソースですか？ [#is-objectos-open-source]
+
+**ObjectOS Community** はオープンソースです。ランタイムと Console は Apache-2.0 で無料、そのもととなる ObjectStack フレームワークと並んで [objectstack リポジトリ](https://github.com/objectstack-ai/objectstack)でオープンに開発されています。**ObjectOS Cloud**と **ObjectOS Enterprise** は商用エディションで、同じ仕組みの上に組み込みの AI、ホスティングと運用、SSO、サポートを加えたものです。
+
+### 顧客に販売するクローズドソースの SaaS で ObjectStack を使えますか？ [#can-i-use-objectstack-in-a-closed-source-saas-i-sell-to-my-customers]
+
+はい。Apache-2.0 にはコピーレフトもロイヤリティもありません。コードを共有する必要はなく、製品が利益を上げても支払うものはありません。
+
+### 支払いなしで ObjectOS をセルフホストできますか？ [#can-i-self-host-objectos-without-paying]
+
+はい。それが **ObjectOS Community** です。同じオープンな仕組みをセルフホストし、AI は MCP のみ（モデルは持ち込み）です。*ライセンス制*のセルフマネージドエディションは ObjectOS Enterprise で、その 2 つのオプション（シングルノードの Business Self-Managed、またはフルの Enterprise デプロイ）はどちらも、製品内の AI、AI ガバナンス、商用サポートを追加します。
+
+### 更新しないとソフトウェアは動かなくなりますか？ [#does-the-software-stop-working-if-i-dont-renew]
+
+使えなくなることは決してありません。Business Self-Managed は無料の仕組みの動作に戻ります（有料機能はオフになり、データとランタイムは動作し続けます）。フルの Enterprise デプロイは**最後に支払ったバージョンを永続的に**維持します。失うのはアップデート、新しい AI 機能、サポートであり、システムではありません。
+
+### ObjectOS は外部に通信しますか？ [#does-objectos-phone-home]
+
+ObjectOS Enterprise はライセンスをオンラインで検証します。エアギャップの Enterprise ライセンスはオフラインで検証します。ObjectOS Community にはテレメトリも、ライセンスチェックも、アップデートの確認通信もありません。
+
+### ObjectOS Community に契約上の保証が欲しい場合は？ [#what-if-i-want-a-contractual-warranty-on-objectos-community]
+
+それが **ObjectOS Runtime Subscription** です。ObjectOS Community に対するサポート契約（公式ディストリビューション、SLA、セキュリティパッチの優先対応）で、機能の違いはまったくありません。[sales@objectstack.ai](mailto:sales@objectstack.ai) にお問い合わせください。
+
+### ObjectOS Community とフレームワークはずっと無料ですか？ [#will-objectos-community-and-the-framework-always-be-free]
+
+はい。Apache-2.0 の許諾は取り消し不能であり、すでにリリースされたものはすべてリリース時のライセンスのままです。

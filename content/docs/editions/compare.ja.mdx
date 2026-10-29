@@ -1,0 +1,62 @@
+---
+title: エディションの比較
+seoTitle: "ObjectOS エディションの比較：Community、Free、Team、Enterprise"
+description: ObjectOS の各エディションとプランに含まれるものを 1 行ずつ。Community、Cloud Free、Cloud Team、Enterprise、そして各違いがどこで強制されるか。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 453d01cdf9083450d82f8221495bfac52b798f6ccb9ac8ffbbc5796920086128
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS は 3 つのエディションを持つひとつの製品です。**ObjectOS Community** は自分で実行するオープンソースのランタイムです。**ObjectOS Cloud** は同じ製品をあなたのためにホストしたもので、**Free** と **Team** のプランがあります。**ObjectOS Enterprise** は自社のインフラストラクチャ上で実行するライセンス制の製品で、**Business** と**Business Self-Managed** はその下の契約オプションです。料金と契約は[ライセンスと料金](/docs/editions/license)にあります。このページは、それぞれが何を違う形で行うかを説明します。
+
+このドキュメントのすべてのページは、タイトルの下にエディションバッジの行を持ち、適用されるエディションを示します。サイドバーは、すべてのエディション向けではないページとグループに同じアイコンで印を付けます。
+
+## 比較表 [#the-matrix]
+
+| | **Community** | **Cloud Free** | **Cloud Team** | **Enterprise** |
+|---|---|---|---|---|
+| 提供形態 | セルフマネージド | ホスト型 | ホスト型 | セルフマネージド |
+| 料金 | 無料（Apache-2.0） | 無料 | $24 / AI シート / 月 | 契約による |
+| ファイルストレージ | 自前（[ストレージ](/docs/configure/storage)） | 環境ごとに 1 GB | 環境ごとに 20 GB | 自前（[ストレージ](/docs/configure/storage)） |
+| 開発環境 | デプロイした数だけ | —（本番のみ） | 2 つ、さらに AI シートごとに 1 つ | デプロイした数だけ |
+| MCP リクエスト | デプロイで設定 | 20 / 分、1,000 / 日 | 120 / 分、1 日の上限なし | デプロイで設定 |
+| カスタムドメイン | 自前のホスト | — | ✓ | 自前のホスト |
+| レコードレベルおよびフィールドレベルのセキュリティ | ✓ | — | ✓ | ✓ |
+| UI 内の AI（AI Builder、「データに質問する」） | MCP のみ：モデルは持ち込み | お試し | ✓ | ✓ |
+| AI ガバナンス（アクションの監査、ガードレール、権限のスコープ設定） | — | — | — | ✓ |
+| 自社の ID プロバイダーによるシングルサインオン | ✓（[認証](/docs/configure/authentication)） | — | — | ✓ |
+| SCIM | — | — | — | ✓ |
+| クラスタリング / 高可用性 | — | — | — | ✓ |
+| ひとつのデプロイ上の複数の組織 | — | — | — | ✓ |
+| エアギャップ運用 | — | — | — | ✓ |
+| サポート | コミュニティ | コミュニティ | スタンダード | SLA + 専任 |
+
+ObjectOS Cloud では、シングルサインオンと AI ガバナンスは **Business**、すなわちホスト型サービス上の ObjectOS Enterprise の契約オプションに含まれます。セルフマネージドのデプロイでは、Community と Enterprise は同じランタイムを実行します。Community 列にあるものはすべて Enterprise 列にもあります。
+
+## 各違いがどこで強制されるか [#where-each-difference-is-enforced]
+
+比較表には、製品が強制する違いだけを載せています。以下は、このドキュメントですでに詳しく説明しているものです。
+
+- **ライセンスが、セルフマネージドのデプロイが何であるかを決めます。** ライセンスがない場合、単一組織のデプロイは Community の動作で実行されます。オープンな MCP サーバーで、AI は持ち込みです。ライセンスがある場合、AI Builder と「データに質問する」が自社のインフラストラクチャ上で利用可能になります。[AI サービス](/docs/configure/ai)を参照してください。
+- **ひとつのデプロイ上の複数の組織にはライセンスが必要です。** ライセンスなしのマルチ組織の体制は起動時に拒否され、ランタイムはトラフィックを処理しません。[ランタイム設定](/docs/configure/runtime)と[トラブルシューティング](/docs/operate/troubleshooting)を参照してください。
+- **エアギャップ運用はライセンスモードです。** 通常のライセンスはコントロールプレーンに対してオンラインで検証されます。エアギャップライセンスはローカルで検証され、デプロイはコントロールプレーンがないことも宣言しなければなりません。機能し得ない組み合わせは起動時に拒否されます。[エアギャップデプロイ](/docs/deploy/air-gapped)を参照してください。
+- **ObjectOS Cloud では、プランは環境ごとに強制されます。** 開発環境は Free では拒否されます（`403 DEV_ENV_PLAN_LOCKED`）。容量が満杯の環境は添付ファイルのアップロードと一括インポートを拒否しますが、単一レコードの書き込み、読み取り、エクスポートは決して拒否しません（`403 STORAGE_LIMIT_REACHED`、80% から警告）。MCP エンドポイントはプランのリクエスト上限を超えると `429` を返します。[環境](/docs/cloud/environments)と[ストレージと上限](/docs/cloud/storage-and-limits)を参照してください。
+- **ライセンスが失効してもランタイムは決して停止しません。** Business Self-Managed は有料機能をオフにし、データとランタイムは動作し続けます。フルの Enterprise デプロイは最後に支払ったバージョンを維持します。[ライセンスと料金](/docs/editions/license#faq)を参照してください。
+
+## このページはどのエディション向けか [#which-edition-is-this-page-for]
+
+| バッジ | 意味 |
+|---|---|
+| Community | ObjectOS Community を自分で実行する場合に当てはまる |
+| Cloud | ObjectOS Cloud の Free および Team プランで当てはまる |
+| Enterprise | ライセンスを受けたセルフマネージドの ObjectOS Enterprise デプロイで当てはまる |
+
+デプロイと運用は、2 つのセルフマネージドのエディション、Community と Enterprise 向けです。ObjectOS Cloud では、私たちがデプロイを運用します。
+
+## 次へ [#next]
+
+- [開始](/docs/start/cloud)：3 つの入り口。Cloud、Community、Enterprise。
+- [ライセンスと料金](/docs/editions/license)：料金、契約、オープンソースライセンス。
+- [パブリックプレビュー](/docs/editions/public-preview)：ObjectOS Cloud の現在の段階が、データと連携にとって何を意味するか。

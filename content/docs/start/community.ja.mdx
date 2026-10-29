@@ -1,0 +1,296 @@
+---
+title: ObjectOS Community をローカルで実行する
+seoTitle: "os start または os init で ObjectOS Community をローカルで実行する"
+description: "オープンソースのランタイムである ObjectOS Community で、ゼロから動作するアプリまで。ひとつの CLI、ひとつのコマンドで、アカウントも Docker も不要です。"
+editions: [community]
+translation:
+  source_sha: 830910eec853d34ebcd2357928eec4e753013766473391a72b60214c2479ce9e
+  guide_rev: 1
+  mode: auto
+---
+
+**ObjectOS Community** は ObjectOS のオープンソースエディションです。ランタイムとその UI で、Apache-2.0 の ObjectStack フレームワーク上に構築され、どこでも無料で実行できます。このページでは、ひとつの CLI とひとつのコマンドで自分のマシン上に起動します。ここではアカウントもライセンスも Docker も必要ありません。
+
+他の 2 つの入り口にはそれぞれ専用のページがあります。何もインストールせずにホスト型で使いたいなら [ObjectOS Cloud で始める](/docs/start/cloud)、自社のインフラストラクチャ上でライセンス制のエディションを使うなら [ObjectOS Enterprise で始める](/docs/start/enterprise)を参照してください。ここで構築したものは通常の ObjectStack メタデータなので、すべてのエディションで動作します。
+
+オープンなランタイムを起動する方法は、何をしているかによって 2 つあります。
+
+| あなたは …… | ここから |
+|---|---|
+| オープンなランタイムを初めて試す、または本番で実行する | [パス A：`os start`](#path-a--os-start-operator--first-time-evaluator) |
+| コードでアプリを構築またはカスタマイズする | [パス B：`os init`](#path-b--os-init-developer) |
+
+どちらも UI 付きの稼働中のサーバーを生成します。アカウントのサインイン、登録、セルフサービスはその UI 内のルートであり、別のサーフェスではありません。違いは、ソースファイルをスキャフォールドするかどうかです。
+
+## 前提条件 [#prerequisites]
+
+- **Node.js 22 以降**：`node --version`
+- ターミナル
+
+それだけです。Docker も、データベースも、アカウント登録も不要です。
+
+---
+
+## パス A：`os start`（運用担当者 / 初めての評価者） [#path-a--os-start-operator--first-time-evaluator]
+
+CLI をグローバルにインストールしてから実行します。
+
+```bash
+npm i -g @objectstack/cli
+os start
+```
+
+次のように表示されます。
+
+```text
+◆ ObjectStack
+────────────────────────────────────────
+🏠 Home: ~/.objectstack
+📦 Artifact: none (empty kernel — install apps via the Console marketplace)
+🗄️ Database: file:~/.objectstack/data/objectstack.db
+🎯 Environment: env_local
+  → Starting server...
+
+  ✓ Server is ready
+
+  ➜  API:       http://localhost:3000/
+  ➜  Console:   http://localhost:3000/_console/
+  ➜  MCP:       http://localhost:3000/api/v1/mcp
+      connect an AI client (Claude Code, Cursor, …) · skill: http://localhost:3000/api/v1/mcp/skill
+
+  Mode:    production
+  Driver:  SqlDriver(better-sqlite3)  → ~/.objectstack/data/objectstack.db
+  Tenancy: single
+  Plugins: 32 loaded
+
+  Press Ctrl+C to stop
+```
+
+それだけです。オープンソースのランタイムである ObjectOS Community が動作しています。ObjectOS Cloud と ObjectOS Enterprise がその上に何を追加するかは、[エディションの比較](/docs/editions/compare)を参照してください。
+
+上のブロックは、`@objectstack/cli` 17.7.0 が空のカーネルを起動したときの出力を書き写したものです。ホームパスは `~/…` と表示していますが、CLI は展開したパスを表示します。実際の起動では、サーバーの起動前に `No objectstack.config.ts or artifact found` の行も表示され、さらに起動時の注意事項（ローカルストレージドライバー、開発用の暗号鍵、起動診断）と読み込まれたプラグイン名の完全な一覧も表示されます。どちらも環境によって異なります。
+
+### 何が動いているか [#whats-running]
+
+| URL | 内容 |
+|---|---|
+| http://localhost:3000/_console/register | 最初のアカウントを作成する |
+| http://localhost:3000/_console/ | 生成された UI と **アプリマーケットプレイス** |
+| http://localhost:3000/_console/apps/setup | **Setup**：ユーザー、ロール、監査ログ、設定 |
+| http://localhost:3000/api/v1/health | Liveness：プロセスが起動しているか |
+| http://localhost:3000/api/v1/ready | Readiness：起動していて、**かつ**データを提供しているか |
+
+ランタイムは**空のカーネル**で起動します。オブジェクトもアプリもなく、マーケットプレイスが公開されているので、出来合いのアプリを数秒でインストールできます。
+
+ここではどちらのプローブも 200 を返し、ローカルではそれをつなぐ先もありません。しかし両者は交換可能ではないので、デプロイする前にどちらがどちらかを知っておく価値があります。Liveness はプロセスが実行中であることだけを報告するため、データベースが停止している間もずっと正常のままです。Readiness は、データドライバーが応答しなくなった時点で **503** を返します。どのプローブをどこに使うかは [Docker](/docs/deploy/docker) と [Kubernetes](/docs/deploy/kubernetes)で説明しています。
+
+### チャットで構築する：AI Builder [#build-by-chat--the-ai-builder]
+
+製品内の AI Builder は ObjectOS のものです。ObjectOS Cloud と ObjectOS Enterprise に含まれ、今起動したオープンなランタイムには含まれません。オープンなランタイムの AI 経路は、バナーに表示された MCP エンドポイント（`http://localhost:3000/api/v1/mcp`。Claude Code や任意の MCP クライアントをそこに向けます）です。ObjectOS では、サインインしたら AI アシスタント（右上のきらめきアイコン）を開き、必要なものを説明します。
+
+> *「顧客サポートのチケットを管理したい。各チケットには件名、説明、優先度（low/medium/high/urgent）、ステータス、担当者がある。ステータスでグループ化したカンバンビューを追加して。」*
+
+AI が計画を提案し、あなたが承認すると、メタデータが稼働します。REST エンドポイント、生成されたビュー、監査ログのエントリ、権限によるゲートです。ファイルの編集も再起動もありません。語彙の全体は [構築 → AI Builder](/docs/build/ai-builder)を参照してください。
+
+> **IDE で手書きしていますか？** `npx skills add objectstack-ai/objectstack/skills`を実行すると、Claude Code / Cursor / Copilot / Codex に、ObjectStack メタデータ（ObjectOS が実行するオントロジー）を実際の Zod スキーマに沿って作成する方法を教えられます。[構築 → IDE スキル](/docs/build/ai-skills)を参照してください。
+
+### マーケットプレイスからアプリをインストールする [#install-an-app-from-the-marketplace]
+
+**http://localhost:3000/_console/** を開き、サインインして、アプリを選びます。
+
+| アプリ | 得られるもの |
+|---|---|
+| Todo | 汎用のタスク & プロジェクト管理 |
+| Contracts | AI による抽出付きの契約ライフサイクル |
+| Procurement | ベンダー、発注書、3 点照合 |
+| Compliance | SOC 2 / ISO 27001 の統制 + 証跡 |
+| Helpdesk | AI ファーストのカスタマーサポート |
+| Content | 編集カレンダー + チャネル ROI |
+| HR | 名簿、組織図、休暇 |
+
+インストール → 再読み込み → そこにあります。オブジェクト、ビュー、権限、シードデータ付きです。再起動は不要です。
+
+### よく使うフラグ [#common-flags]
+
+```bash
+os start --port 3200                       # different port
+os start --database postgres://...         # external database
+os start --auth-secret "$(openssl rand -hex 32)"  # enable auth in /api/v1/auth/*
+os start --home /var/lib/objectos          # persistent home (production)
+```
+
+すべてのオプションは[ランタイム設定](/docs/configure/runtime)を、本番向けの構成は [Docker](/docs/deploy/docker) を参照してください。
+
+---
+
+## パス B：`os init`（開発者） [#path-b--os-init-developer]
+
+独自のデータモデル、ビュー、フローを定義するために TypeScript を書くときに使います。
+
+```bash
+npx @objectstack/cli init my-app -t app --install
+cd my-app
+pnpm dev
+```
+
+次のように表示されます。
+
+```text
+◆ Development Mode
+────────────────────────────────────────
+📂 Config: my-app/objectstack.config.ts
+  → Compiling objectstack.config.ts → dist/objectstack.json...
+
+◆ Compile
+────────────────────────────────────────
+  ✓ Build complete (312ms)
+
+  Data: 1 Objects  3 Fields
+  UI: 0 Apps
+  Logic: 0 Flows
+  Security: 0 Positions  0 Permissions
+  Runtime: 0 plugins
+
+  Artifact: my-app/dist/objectstack.json (2.2 KB)
+
+  → Starting dev server (local mode)...
+🎯 Environment ID: env_local
+📦 Artifact: dist/objectstack.json
+🗄️ Database: file:my-app/.objectstack/data/objectstack.db
+  👁  watching objectstack.config.ts, src — rebuild + restart on change
+
+  ✓ Server is ready
+
+  ➜  API:       http://localhost:3000/
+  ➜  Console:   http://localhost:3000/_console/
+  ➜  MCP:       http://localhost:3000/api/v1/mcp
+      connect an AI client (Claude Code, Cursor, …) · skill: http://localhost:3000/api/v1/mcp/skill
+
+  🔑  Dev admin: admin@objectos.ai / admin123
+      seeded on empty DB · dev only — do not use in production
+      platform admin — Setup, Studio and every record, but NO app-declared capability, so
+      an app that gates navigation on requiredPermissions may show it an empty menu; grant
+      it a permission set under Setup → Users, or sign in as an account your app seeds
+
+  Artifact: dist/objectstack.json
+  Mode:    development
+  Driver:  SqlDriver(better-sqlite3)  → my-app/.objectstack/data/objectstack.db
+  Tenancy: single
+  Plugins: 38 loaded
+
+  Press Ctrl+C to stop
+```
+
+上のブロックは、`@objectstack/cli` 17.7.0 で作成したスキャフォールド上で `pnpm dev` を実行したときの出力を書き写したものです。プロジェクトパスは `my-app/…` と表示していますが、CLI は展開したパスを表示します。また `Build complete` の時間は書き写したマシンが計測した値なので、あなたの環境では異なります。実際の実行では、ブロックの上に pnpm のスクリプトヘッダー、ステップごとのコンパイル進捗、起動時の注意事項（設定の読み込み、開発用のシークレットフィールド暗号化）、読み込まれたプラグイン名の完全な一覧、起動診断、MCP 接続の末尾メッセージも表示されます。その末尾メッセージは別のプロセスが出力するため、通常はバナーの途中に入り込み、しばしば 1 行ずつ交互に混ざります。
+
+開発サーバーはポート **3000** を要求することに注意してください。これは `os start` と同じポートです。そのポートが使用中の場合は、次の空きポートにバインドし、そのことを表示します。`↪ server bound to port 3001 (requested 3000)`。
+
+### 独自のオブジェクトを追加する [#add-your-own-object]
+
+追加するすべてのオブジェクトは、プロジェクトの名前空間を持ちます。`os init` はそれをプロジェクト名から導出し（`my-app` → `my_app`）、`objectstack.config.ts` に `manifest.namespace` として書き込んだので、タスクオブジェクトは`my_app_task` です。コンパイルは素の `task` を`Rename it to 'my_app_task' (namespace = 'my_app')` で拒否し、次のルールを示します。``Every object.name must be `${manifest.namespace}_${shortName}`.``
+
+`src/objects/task.object.ts` を作成します。
+
+```ts
+// src/objects/task.object.ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+const task = ObjectSchema.create({
+  name: 'my_app_task',
+  label: 'Task',
+  fields: {
+    subject:   Field.text({ label: 'Subject', required: true, maxLength: 200 }),
+    done:      Field.boolean({ label: 'Done', defaultValue: false }),
+    due:       Field.date({ label: 'Due' }),
+    assignee:  Field.lookup('sys_user', { label: 'Assignee' }),
+  },
+  // Org-wide default: who sees records they don't own. Required — the
+  // compile refuses an object that declares none.
+  sharingModel: 'private',
+});
+
+export default task;
+```
+
+次に、それを `src/objects/index.ts` からエクスポートします。`objectstack.config.ts` は各ディレクトリをその `index.ts` バレル経由で読み込むため、バレルがエクスポートしないファイルは読み込まれません。サンプルオブジェクトの行の下に次の行を追加します。`export { default as task } from './task.object';`
+
+`npx objectstack generate object task` は、ファイルのスタブと同じバレルの行を書き込みます。
+
+保存します。開発サーバーは再コンパイルし、`✚ new object(s): my_app_task — table & seeds sync on restart` を表示して、新しいビルドで自分自身を再起動します。書くべきマイグレーションも、実行すべき再起動もありません。`✗ compile failed` だけが表示された場合は、`pnpm build` を実行して原因を確認してください。これで次のものが手に入ります。
+
+- **`/api/v1/data/my_app_task`**：作成、読み取り、更新、削除を、フィルター、ソート、ページネーション付きで（[REST API](/docs/reference/rest-api)）。サインインした呼び出し元にのみ応答するので、まず開発用管理者としてサインインしてください（下記）。
+- **生成された一覧、フォーム、レコードページ**：スキャフォールドはまだアプリを宣言していないため、Console 内にそれらへのリンクはありません。`http://localhost:3000/_console/apps/setup/my_app_task` を開いてください。
+- **権限セットエディターの Task 行**：Setup → Permission Sets でセットを開き、*Design in Studio* を選びます。そのセットに対する作成、読み取り、編集、削除です。
+- **監査ログのエントリ**：作成、更新、削除のそれぞれが、Setup → Audit Logs に一覧表示されます。
+
+```bash
+curl -c cookies.txt -H 'Content-Type: application/json' \
+  -d '{"email":"admin@objectos.ai","password":"admin123"}' \
+  http://localhost:3000/api/v1/auth/sign-in/email
+curl -b cookies.txt -H 'Content-Type: application/json' \
+  -d '{"subject":"Try the API"}' \
+  http://localhost:3000/api/v1/data/my_app_task
+curl -b cookies.txt http://localhost:3000/api/v1/data/my_app_task
+```
+
+### プロジェクトの構成 [#project-layout]
+
+```text
+my-app/
+├── objectstack.config.ts    # defineStack(): manifest + one key per barrel
+├── src/                     # one index.ts barrel per directory
+│   ├── actions/
+│   ├── apps/
+│   ├── dashboards/
+│   ├── flows/
+│   ├── objects/             # index.ts + my_app_item.object.ts, the sample object
+│   ├── picklists/
+│   ├── skills/
+│   └── views/
+├── dist/
+│   └── objectstack.json     # Compiled artifact (regenerated on save)
+├── .objectstack/            # Local SQLite databases (pnpm dev creates them)
+├── package.json
+├── pnpm-workspace.yaml
+└── tsconfig.json
+```
+
+`os init` は `.gitignore` とインストーラーのロックファイルも書き込みます。
+
+`dist/objectstack.json` が本番に出荷するものです。これをランタイム（オープンな ObjectStack イメージ、または ObjectOS Enterprise のデプロイ）にマウントすると、それがあなたのアプリになります。
+
+### テンプレートから始める [#or-start-from-a-template]
+
+本番向けのスターターは [github.com/objectstack-ai/templates](https://github.com/objectstack-ai/templates) にあります。
+
+```bash
+git clone https://github.com/objectstack-ai/templates.git
+cd templates/packages/todo
+pnpm install
+pnpm dev    # http://localhost:4002
+```
+
+各テンプレートは 2500 行未満で、一度に読み通せ、単体で動作します。
+
+---
+
+## 標準で読み込まれるもの [#whats-loaded-out-of-the-box]
+
+どちらのパスでも、次のプラグインが自動的に読み込まれます。
+
+> HTTP サーバー、REST API、Dispatcher、MCP サーバー、Auth、Security（RBAC + RLS + FLS）、Audit、Sharing、プラットフォームオブジェクト、Metadata、ObjectQL、デフォルトのデータソースと外部データソースおよびデータソース管理のサービス、Queue、Jobs、Cache、Settings、Email、SMS、Messaging、Storage、Analytics、外部検証、Marketplace、パッケージ管理、マイグレーションの復旧、Setup と Account のアプリ、そして Console UI。
+
+パス B では、スキャフォールドの `objectstack.config.ts` が`requires: ['automation', 'triggers']` を宣言しているため、自動化サービスに加えて、レコード変更、スケジュール、相対時間、受信 HTTP/Webhook のフロートリガーも読み込まれます。また、`pnpm dev` が開発モードで実行されるため、専用のテレメトリデータソース（データベースの隣にある 2 つ目の SQLite ファイル）も開きます。
+
+どれもインポートしたり配線したりする必要はありません。上の一覧は何も宣言していなくても読み込まれ、自動化サービスとフロートリガーは何かがそれを必要と宣言すると有効になり、開発モードはテレメトリデータソースを追加します。
+
+## 次のステップ [#next-steps]
+
+| 次にすること | 読むもの |
+|---|---|
+| Docker で実行する（本番向けの構成） | [Docker](/docs/deploy/docker) |
+| SQLite の代わりに Postgres を使う | [ランタイム設定](/docs/configure/runtime) |
+| Google / Okta / Entra のログインを追加する | [認証](/docs/configure/authentication) |
+| 誰が何をできるかを制限する | [権限](/docs/configure/permissions) |
+| Slack / Zapier / 自社のサービスにイベントを送る | [Webhook](/docs/configure/webhooks) |
+| 本番にデプロイする | [本番環境への準備](/docs/operate/production) |

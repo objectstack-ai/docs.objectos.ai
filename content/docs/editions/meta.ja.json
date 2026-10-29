@@ -1,0 +1,5 @@
+{
+  "title": "エディション",
+  "defaultOpen": false,
+  "pages": ["compare", "license", "public-preview"]
+}
