@@ -1,0 +1,52 @@
+---
+title: ローカライズ
+seoTitle: "ローカライズ：タイムゾーン、言語、書式"
+description: レンダリングされるすべての値が継承する、テナント全体のタイムゾーン、言語、国、デフォルトの通貨、会計年度の開始月を設定します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 85567978135b8d527209ff22f652aa15f2315e046e832736993cd3d2368a4e1c
+  guide_rev: 1
+  mode: auto
+---
+
+ローカライズは、ObjectOS が時刻をどう解釈し、どのメッセージカタログを選び、日付、数値、通貨をどうレンダリングするかについての**テナントレベルのデフォルト**を設定します。これらの値はワークスペース全体のフォールバックです。個々のユーザーは [Account](/docs/use/profile) で自分の言語を上書きできますが、ここで設定したデフォルトは、上書きしていないすべての人に適用されます。
+
+**Setup → Configuration → Localization** を開きます。ページは **Region** と **Finance** の 2 つのセクションに分かれています。
+
+## 地域 [#region]
+
+Region は、ObjectOS が*意味*をどう解決するかを制御します。どのタイムゾーンを相対時間の計算の基準にするか、どのロケールで書式を決めるか、デプロイメントがどの国を本拠地として報告するかです。
+
+| 設定 | デフォルト | 決めるもの |
+|---|---|---|
+| `Default timezone` | `UTC` | `today()` / `daysFromNow`、分析の日付バケット、レンダリングされる日時に使う IANA のゾーン |
+| `Default language` | `English (US)` | メッセージカタログと数値 / 日付の書式に使う BCP-47 のロケール |
+| `Default country` | `US` | ISO 3166-1 alpha-2 のコード（例：`US`、`GB`、`CN`） |
+
+> **タイムゾーンは見た目だけの問題ではありません。** あらゆる相対時間の式と、分析がレコードをまとめるバケットの基準です。変更すると、テナント全体で「今日」の意味がずれます。一度だけ、慎重に設定してください。
+
+`Default timezone` は IANA のゾーン（`UTC`、`America/New_York`、`Asia/Shanghai` など）のドロップダウンです。`Default language` は、UI がフォールバックするメッセージカタログと書式のルールを持つロケールを選びます。`Default country` は、2 文字の ISO コードを想定した自由入力のフィールドです。
+
+## 財務 [#finance]
+
+| 設定 | デフォルト | 決めるもの |
+|---|---|---|
+| `Default currency` | なし | 通貨フィールドが自身の通貨を宣言していないときに使う ISO 4217 のコード。未設定のままにすると、そのような金額は推測した記号を付けず、ただの数値としてレンダリングされます |
+| `Fiscal year start` | `January` | 会計年度の最初の月。レポートで「今四半期」や「今会計年度」が何を意味するか |
+
+## 日付、時刻、数値は言語に従う [#dates-times-and-numbers-follow-the-language]
+
+独立した書式の設定はありません。日付、時刻、数値の書き表し方や、週が何曜日から始まるかは、`Default language`（またはユーザー自身の言語）に従います。ObjectStack 17.7 では、このページにかつて記載されていた 4 つの書式の設定（`date_format`、`time_format`、`number_format`、`first_day_of_week`）が廃止されました。どこからも読み取られていなかったからです。以前に保存された値は保持されますが、もう提供されません。そのいずれかを指定する `PUT /api/settings/localization` は、並んで指定された有効なキーも含めて、リクエスト全体が `400 UNKNOWN_KEY` で拒否されます。また、`OS_LOCALIZATION_*_FORMAT` と `OS_LOCALIZATION_FIRST_DAY_OF_WEEK` の変数はもう読み取られません。書式が変えるのは値の表示方法だけです。タイムスタンプと数値は、どちらにしても正規の形式で保存されます。
+
+## テナントのデフォルトとユーザーの上書き [#tenant-defaults-vs-user-overrides]
+
+このページのすべてが**テナントのデフォルト**です。ユーザーが **Account** で自分の言語を設定すると、そのユーザーのセッションとレンダリングされる UI ではその選択が優先されます。設定を未指定のままにしたユーザーは、ここで設定した `Default language` を継承します。タイムゾーン、国、通貨、会計年度のデフォルトはテナント全体に適用されます。
+
+## 次に進む [#where-to-go-next]
+
+| タスク | ページ |
+|---|---|
+| ブランディング、機能フラグ、そのほかのテナント設定を変更する | [システム設定](/docs/configure/system-settings) |
+| ユーザー個人の言語の上書きを設定する | [プロフィールと設定](/docs/use/profile) |
+| トランザクションメールの配信を設定する | [メール](/docs/configure/email) |
+| 管理の概要に戻る | [設定](/docs/configure) |

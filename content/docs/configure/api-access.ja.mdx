@@ -1,0 +1,134 @@
+---
+title: API アクセス
+seoTitle: "API アクセス：REST API、API キー、OAuth 2.1"
+description: 生成される REST API、認証、そして連携のための API キー。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: a72f24d7ae89d8f75070cc97fdd3cdf51529b9631945d044776aa7e84ea0283c
+  guide_rev: 1
+  mode: auto
+---
+
+成果物で宣言されたすべてのオブジェクトは、生成された REST API を通じて公開されます。同じエンドポイントが UI、連携、顧客の ETL スクリプトを支えています。保守すべき別の「連携用 API」はありません。
+
+## ベース URL [#base-url]
+
+```text
+https://<project-domain>/api/v1
+```
+
+主なエンドポイント：
+
+| パス | 目的 |
+|---|---|
+| `/api/v1/data/<object>` | 各オブジェクトの生成された CRUD（例：`/api/v1/data/account`） |
+| `/api/v1/data/<object>/{id}` | 単一のレコードの読み取り / 更新 / 削除 |
+| `/api/v1/actions/<object>/<action>` | 宣言的なアクションの呼び出し（POST） |
+| `/api/v1/auth/*` | 認証（サインイン、セッション、OAuth、OIDC） |
+| `/api/v1/meta/*` | 有効な場合のメタデータ API（オブジェクト、フィールド、ビュー） |
+| `/api/v1/keys` | 呼び出したユーザーのために、一度だけ表示される `sys_api_key` を発行します（POST） |
+| `/api/v1/batch` | オブジェクトをまたぐトランザクションのバッチ（POST）。アトミックのみで、すべての操作がオブジェクトごとにゲートされます |
+| `/api/v1/mcp` | Streamable HTTP による Model Context Protocol サーバー。デフォルトで有効で、`OS_MCP_SERVER_ENABLED=false` で無効にできます |
+| `/api/v1/health` | 稼働 / 準備状態のプローブ（認証なし） |
+
+プレフィックスのデフォルトは `/api/v1`（API の `basePath` である `/api` と `version` の `v1`）で、ObjectOS のスタックで設定できます。
+
+## 公開するものを制御する [#controlling-whats-exposed]
+
+API の公開は、ゲートウェイではなく、成果物の中でオブジェクトごとに管理されます。
+
+- オブジェクトに `apiEnabled: false` を設定すると、REST の画面から完全に外れます（そのルートは 404 になります）。
+- `apiMethods` のホワイトリスト（例：`['get', 'list']`）を設定すると、オブジェクトを読み取り専用にしたり、到達できる操作をほかの形で制限したりできます。
+
+どちらも REST レイヤーで強制されます。[REST API → Restricting the API surface](/docs/reference/rest-api#restricting-the-api-surface) を参照してください。
+
+同じゲートがトランザクションのバッチのルートにも適用されます（16.0）。`POST /api/v1/batch` は本文を検証し、トランザクションを開く*前に*、**すべての**操作について `apiEnabled` / `apiMethods` を強制し、更新 / 削除には ID を要求し、解決できない `{ $ref }` の親参照を拒否します。このルートはアトミックのみです。`atomic: false` は `400 BATCH_NOT_ATOMIC` で拒否されます。アトミックでない一括処理は、オブジェクトごとの `createMany` / `updateMany` エンドポイントに残ります。
+
+## 認証の方法 [#authentication-options]
+
+呼び出し元は 4 つの方法で認証できます。
+
+| 方法 | 最適な用途 | 方法の詳細 |
+|---|---|---|
+| セッション Cookie | ブラウザ / UI のトラフィック | `/api/v1/auth/*` でサインインします。Cookie のスコープはプロジェクトのホスト名です |
+| Bearer アクセストークン | モバイル、SPA、短時間のサーバージョブ | `/api/v1/auth/sign-in/email` で認証情報を交換し、`Authorization: Bearer <token>` を渡します |
+| API キー | サーバー間、ETL、長期間の連携 | `sys_api_key` を作成し、Bearer トークンとして渡します |
+| OAuth 2.1（MCP） | サインインしたユーザーとして動作する AI エージェント / MCP クライアント | デプロイメント自身に対する、セルフサービスの認可コード + PKCE フロー |
+
+いずれも同じ `AuthPlugin` を通り、`SecurityPlugin` が権限とレコードアクセスに照らして評価する `sys_user` のコンテキストに解決されます。
+
+## API キー [#api-keys]
+
+API キーは第一級の `sys_api_key` レコードです。キーの値そのものはハッシュ化して保存され、クエリできるのは `prefix` とメタデータだけなので、漏洩したキーをデータベースから復元することはできません。
+
+キーは次の 2 つの方法のどちらかで発行します。
+
+- **Setup**：管理者として **Setup → API Keys** にサインインし、所有するユーザーを選び、必要に応じて有効期限を設定し、表示されたシークレットを**一度だけ**コピーします。
+- **セルフサービスのエンドポイント**：`POST /api/v1/keys` は認証された呼び出し元のためにキーを発行し、生のシークレットをちょうど一度だけ返します。キーは呼び出し元自身のユーザーに固定されるので、別のアイデンティティになりすますために使うことはできません。
+
+  ```bash
+  curl -X POST https://app.example.com/api/v1/keys \
+    -H "Authorization: Bearer <session-or-access-token>" \
+    -H "Content-Type: application/json" \
+    -d '{"name": "etl-pipeline"}'
+  # → { "id": "...", "name": "etl-pipeline", "prefix": "os_pk_…", "key": "os_pk_live_…" }
+  ```
+
+以降のリクエストでは、キーを Bearer トークン、`x-api-key` ヘッダー、または `Authorization: ApiKey` として渡します。REST のデータ API とメタデータ API はいずれも、MCP と同じ検証器でキーを認証し、キーの所有者の権限とレコードレベルのセキュリティのもとで処理します。
+
+```bash
+curl https://app.example.com/api/v1/data/account \
+  -H "x-api-key: os_pk_live_…"
+```
+
+キーを失効させるには、対応する `sys_api_key` レコードで `revoke_api_key` アクションを実行します（Setup でも利用できます）。失効は次のリクエストから即座に有効になります。
+
+### キーは組織に属する（ObjectStack 17.1） [#keys-belong-to-an-organization-objectstack-171]
+
+キーは呼び出し元の**アクティブな組織**に対して発行されます。`POST /api/v1/keys` は組織のパラメータを取らないので、組織をまたぐキーはなく、発行時に呼び出し元のメンバーシップが再チェックされます。単一組織のデプロイメントでは、目に見える変化は何もありません。壁で区切られたテナンシー方式（`OS_TENANCY_POSTURE`、[環境変数](/docs/reference/environment-variables#multi-organization-deployments)を参照）のもとでは、どのキーが引き続き機能するかが決まります。
+
+| キー | `group` | `isolated` |
+|---|---|---|
+| 17.1 以降に発行され、所有者がまだその組織のメンバーである | 機能する | 機能する |
+| その後、所有者がキーの組織を離れた | 拒否 | 拒否 |
+| 17.1 より前に発行された（組織を持たない） | 機能する | 拒否。再発行してください |
+
+17.1 より前に発行されたキーに、後から組織が補完されることはありません。
+
+## MCP クライアントと OAuth 2.1（ObjectStack 13+） [#mcp-clients--oauth-21-objectstack-13]
+
+OAuth に対応した MCP クライアント（Claude.ai のカスタムコネクタ、Claude Desktop、Claude Code）はどれも、管理者が API キーを発行しなくても**セルフサービス**で接続できます。
+
+- 各デプロイメントは（組み込みの認証インスタンスに支えられた）独自の認可サーバーとして動作し、RFC 8414 / RFC 9728 の検出、動的なクライアント登録（RFC 7591）、認可コード + PKCE、`<origin>/api/v1/mcp` へのリソースのバインディングを備えます。TLS が必要です（localhost は除く）。
+- ユーザーは本人としてサインインし、ツールの呼び出しはその人自身の権限と行レベルセキュリティのもとで実行されます。
+- OAuth のスコープは厳格な権限の上限を定めます（ObjectStack 14.5）：`effective_permission = scope_ceiling ∩ user_grants`。`data:read` は読み取り専用のデータアクセスを、`data:write` は完全な CRUD を付与し、機能でゲートされた業務アクションには `actions:execute` が必要です。スコープが欠けているトークンは安全側に倒れて失敗します。
+
+API キーは、CI とヘッドレスのエージェントのための並行する手段として残ります。`x-api-key` と `Authorization: Bearer osk_…` は変わらず機能します。
+
+## ページネーション、フィルター、並べ替え [#pagination-filtering-and-sorting]
+
+生成されたリストのエンドポイントは、ObjectStack の標準のクエリパラメータを受け付けます。
+
+| パラメータ | 意味 |
+|---|---|
+| `?limit=` | ページサイズ（サーバー側の上限に従います） |
+| `?offset=` または `?cursor=` | ページネーション |
+| `?filter=` | ObjectQL のフィルター構文によるサーバー側のフィルター |
+| `?sort=` | 並べ替えの式（例：`-created_at`） |
+| `?fields=` | 一部のフィールドの選択 |
+
+フィルターの完全な文法はフレームワークのドキュメントを参照してください。ランタイムの文法が正です。
+
+## レート制限 [#rate-limiting]
+
+フレームワークの `RateLimiter` プリミティブ（またはイングレス / API ゲートウェイ）を使って、IP ごととアイデンティティごとの制限を適用します。推奨される初期のバケットは[本番環境への準備](/docs/operate/production)に記載されています。
+
+## CORS [#cors]
+
+呼び出し元が別のオリジンのブラウザで実行される場合は、イングレスまたはランタイムのミドルウェアで CORS を設定します。ワイルドカードのオリジンと認証情報付きのリクエストを組み合わせ**ないで**ください。
+
+## OpenAPI / 検出 [#openapi--discovery]
+
+対応する機能がイメージに含まれている場合、ランタイムは生成された REST API の OpenAPI ドキュメントを提供できます。オブジェクトの名前と生成されたルートはデプロイされた成果物に従うので、顧客の連携では URL を手で組み立てるのではなく、デプロイメントごとの OpenAPI ドキュメントからクライアントを生成すべきです。
+
+検出は `capabilities.transactionalBatch`（16.0）も通知するので、クライアントは `404`/`405`/`501` を探りに行く代わりに、接続時に宣言的にアトミックなバッチのルートを検出できます。

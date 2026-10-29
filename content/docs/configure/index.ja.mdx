@@ -1,0 +1,74 @@
+---
+title: 設定
+seoTitle: "設定：ユーザー、アクセス、各種設定"
+description: システム管理者がユーザー、アクセス、設定、連携を管理する場所と、どのページがどのタスクに答えるか。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: dc1a105142d4b26d331b4288248309f185672ffa2b1986e5f8d36afc521562e4
+  guide_rev: 1
+  mode: auto
+---
+
+このセクションは、ObjectOS デプロイメントの**システム管理者**向けです。ユーザーを迎え入れ、アクセスを付与し、サインイン、メール、ストレージ、連携を設定し、システムを健全に保つ人のことです。あなたは日々、人とその権限を管理します。アプリケーション、オブジェクト、権限セットそのものは、プラットフォームとインストールしたアプリパッケージとともに提供されます。
+
+## Setup と Studio [#setup-and-studio]
+
+**権限は Studio で設計し、Setup で割り当てます。** この一文は、製品全体を貫く区分の正式な表明であり、権限だけについてのルールではありません。Setup は稼働中のデプロイメントを*運用*し、Studio はそのデプロイメントが実行するメタデータを*作成*します。どちらも `/_console/` の同じ UI の中にあり、どちらも独立した画面ではありません。
+
+| | Setup | Studio |
+|---|---|---|
+| 答える問い | 誰がここにいて、何をしてよいか？ | このアプリは何で構成されているか？ |
+| 場所 | `/_console/apps/setup` | `/_console/studio` |
+| ゲート | `setup.access` | `studio.access` |
+| 対象 | システム管理者 | 導入担当者と開発者 |
+
+ほとんどの管理作業は Setup から出ることはありません。Studio に入るのは、権限セットを作成するときか、explain エンジンを実行するときだけです。
+
+## Setup アプリ [#the-setup-app]
+
+組み込みの管理アプリは **`/apps/setup`** にあり、`setup.access` 権限が必要です。左側のナビゲーションは、読み込まれている機能プラグインが実行時に提供するので、表示されるメニューはデプロイメントが実行しているものを正確に反映します。無効になっている機能は何も提供せず、そのグループは空のままです。
+
+安定したナビゲーションのグループ：
+
+| グループ | そこにあるもの |
+|---|---|
+| **Overview** | System Overview ダッシュボード |
+| **People & Organization** | Users、Business Units、Teams、Organizations、Invitations |
+| **Access Control** | Positions、Permission Sets、Sharing Rules、Record Shares、API Keys |
+| **Approvals** | 承認プロセス（承認プラグインが読み込まれている場合） |
+| **Configuration** | All Settings、Branding、Authentication、Email、File Storage、AI & Embedder、Knowledge、Feature Flags |
+| **Diagnostics** | Sessions、Notification Events、Audit Logs |
+| **Integrations** | Webhooks |
+| **Advanced** | OAuth Applications、Signing Keys (JWKS)、Identity Links、User Preferences |
+
+## タスクマップ [#task-map]
+
+| やりたいこと | 読むもの |
+|---|---|
+| ユーザーを追加し、組織ツリーを作り、チームを管理する | [ユーザーと組織](/docs/configure/users) |
+| 入社、退社、または誰かのアクセスを変更する | [アクセスの管理](/docs/configure/permissions/managing-access) |
+| アクセスモデルの全体を理解する | [権限](/docs/configure/permissions) |
+| サインイン、OAuth、SSO、2FA を設定する | [認証](/docs/configure/authentication) |
+| ランタイムとテナントの設定を変更する | [システム設定](/docs/configure/system-settings) |
+| トランザクションメールの配信を設定する | [メール](/docs/configure/email) |
+| ファイルストレージ（S3、ローカルディスク）を設定する | [ストレージ](/docs/configure/storage) |
+| 外部の業務データベースに接続する | [データソース](/docs/configure/data-sources) |
+| REST API と API キーを使う | [API アクセス](/docs/configure/api-access) |
+| 外向きの Webhook を配信する | [Webhook](/docs/configure/webhooks) |
+| AI プロバイダー、埋め込み、RAG を設定する | [AI サービス](/docs/configure/ai) |
+| Claude などの MCP クライアントを接続する | [AI ツールを接続する（MCP）](/docs/configure/mcp) |
+| 成果物の読み込み、データベース、キャッシュを設定する | [ランタイム設定](/docs/configure/runtime) |
+| バックアップと災害復旧を計画する | [バックアップ](/docs/operate/backup) |
+| 安全にアップグレードまたはロールバックする | [アップグレード](/docs/operate/upgrade) |
+| 本番に向けて堅牢化する | [本番環境への準備](/docs/operate/production) |
+| ログ、メトリクス、監査証跡を読む | [可観測性](/docs/operate/observability) |
+| 壊れたデプロイメントを診断する | [トラブルシューティング](/docs/operate/troubleshooting) |
+
+## 次に進む [#where-to-go-next]
+
+| タスク | ページ |
+|---|---|
+| 最初の管理タスク：人と構造を追加する | [ユーザーと組織](/docs/configure/users) |
+| 新入社員にアクセスを与える | [アクセスの管理](/docs/configure/permissions/managing-access) |
+| 階層化されたアクセスモデルを学ぶ | [権限](/docs/configure/permissions) |
+| 本番前のチェックリスト | [本番環境への準備](/docs/operate/production) |

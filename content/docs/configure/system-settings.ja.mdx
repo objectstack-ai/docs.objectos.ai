@@ -1,0 +1,95 @@
+---
+title: システム設定
+seoTitle: "システム設定：ブランディング、機能フラグ、シークレット"
+description: マニフェストと共有の K/V ストアを通じて、テナントとユーザーの設定を構成します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 61207542689619b2c68ae9534fa57297ca2d5796e8075a5a304434c60891b695
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectStack には、ランタイムとプラグインの設定のための設定サービスが含まれています。アプリケーションの成果物が設定機能を必要とする場合、ObjectOS はそれらの設定を Setup で公開します。
+
+## 設定のモデル [#settings-model]
+
+設定はコードで宣言され、値として保存されます。
+
+| レイヤー | 目的 |
+|---|---|
+| Settings Manifest | フィールド、ラベル、デフォルト、検証、表示条件、アクションを定義します |
+| `sys_setting` | テナント / ユーザーの K/V の値を保存します |
+| Resolver | 実効値を読み取ります |
+| Console UI | 標準の設定ページをレンダリングします |
+
+プラグインは、通常の設定のためにその場限りの設定テーブルを作るべきではありません。設定のマニフェストを宣言し、ObjectOS に一貫した方法で値をレンダリングして保存させるべきです。
+
+## 解決の順序 [#resolution-order]
+
+各設定はスコープ（`global`、`tenant`、`user`）を宣言します。リゾルバーは優先順位の高いものから低いものへと連鎖をたどり、最初に設定されている値が採用されます。
+
+```text
+Environment override (locked)
+Global setting
+Tenant setting
+User setting
+Manifest default
+```
+
+環境による上書きはロックされます。値が環境変数で設定されている場合、Setup はそれをホストが管理しているものとして表示し、実行時の編集を拒否します。連鎖の上位のどこかでロックされた値は実効値もロックするので、下位のスコープがそれを覆い隠すことはできません。
+
+## よくある設定の領域 [#common-settings-areas]
+
+顧客向けの設定には、通常次のものが含まれます。
+
+| 領域 | 例 |
+|---|---|
+| メール | SMTP ホスト、プロバイダーの API キー、送信元アドレス、テストメール |
+| ブランディング | 製品名、ロゴの URL、アクセントカラー、デフォルトのテーマ |
+| 機能フラグ | テナントレベルの機能スイッチ |
+| ストレージ | ローカルのファイルシステム、またはオブジェクトストレージの認証情報 |
+| AI プロバイダー | モデルのプロバイダー、API キー、予算の上限 |
+| SSO | OIDC プロバイダーの設定と接続テスト |
+
+## ブランディング [#branding]
+
+**Setup → Configuration → Branding** にあります。これらの設定は、ワークスペースの表示上のアイデンティティ、つまり名前、ロゴ、色を制御します。
+
+| 設定 | 備考 |
+|---|---|
+| `Workspace name` | 必須。UI 全体に表示される名前（デフォルト `ObjectStack`） |
+| `Support email` | ヘルプのためにユーザーに示されるアドレス（例：`support@example.com`） |
+| `Default theme` | `Match system`、`light`、または `dark` |
+| `Accent colour` | ピッカー付きの 16 進数の色（デフォルト `#6366f1`） |
+| `Logo URL` | ワークスペースのロゴの URL |
+
+## 機能フラグ [#feature-flags]
+
+**Setup → Configuration → Feature Flags** `[Beta]` にあります。このワークスペースの実験的な機能とベータ機能を切り替えます。**Productivity**（AI Assistant、Kanban swimlanes）と **Collaboration**（Realtime cursors、Inline comments）にグループ化されています。それぞれがテナントレベルの UI スイッチです。
+
+> **ベータ機能は予告なく変更されることがあります。** 環境変数（例：`OS_FEATURE_FLAGS_AI_ENABLED=true`）でフラグを固定すると、デプロイメント全体でロックできます。環境による上書きはロックされるので、`OS_FEATURE_FLAGS_*` の変数は UI のトグルより優先されます。
+
+## シークレット [#secrets]
+
+パスワードと認証情報のフィールドは、設定サービスで暗号化するか、環境で管理される値として提供すべきです。シークレットプロバイダーが設定されている場合、設定サービスは暗号文を `sys_secret` に保存し、`sys_setting` にはハンドルだけを保持します。シークレットを成果物、compose ファイル、Git に保存しないでください。
+
+## テストアクション [#test-actions]
+
+設定のマニフェストは、次のような標準のアクションボタンを宣言できます。
+
+- テストメールを送る
+- SSO の検出をテストする
+- オブジェクトストレージの認証情報を検証する
+- Webhook の送信先を検証する
+
+運用者にまずログを調べてもらう代わりに、顧客のセットアップの流れではこれらのアクションを使ってください。
+
+## 関連項目 [#related]
+
+いくつかの設定の領域には、専用の設定ガイドがあります。
+
+- [メール](/docs/configure/email)
+- [ストレージ](/docs/configure/storage)
+- [AI プロバイダー](/docs/configure/ai)
+- [認証と SSO](/docs/configure/authentication)
+- [ランタイム](/docs/configure/runtime)
