@@ -1,8 +1,22 @@
-import { docs } from 'fumadocs-mdx:collections/server';
+import { docs } from '@/.route-data/collection';
 import { type InferPageType, loader } from 'fumadocs-core/source';
 import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
 import { i18n } from '@/lib/i18n';
 
+/**
+ * Every page's tree position, URL and frontmatter, WITHOUT its compiled body
+ * (#395).
+ *
+ * The collection is fumadocs-mdx's own, rewritten by
+ * `scripts/gen-route-data.mjs` so that a page's body is not a lazy import of
+ * its compiled module. Six route handlers import this file, and a lazy import
+ * is still bundled: with the full collection here the route handlers' module
+ * graph carried a second copy of every page, about 20 MB of the Worker upload.
+ * `page.data.load()` therefore does not return a renderable body on this
+ * source; the page route loads bodies through `lib/page-body.ts`, which is the
+ * one module that imports the full collection. `getText('processed')` works
+ * for English pages, which is what the `llms` routes read.
+ */
 export const source = loader({
   baseUrl: '/docs',
   i18n,
@@ -79,8 +93,14 @@ function stripMdxComments(markdown: string): string {
   return markdown.replace(FENCE_OR_MDX_COMMENT, (match, fence?: string) => (fence ? match : ''));
 }
 
-export async function getLLMText(page: InferPageType<typeof source>) {
-  const processed = stripMdxComments(await page.data.getText('processed'));
+/**
+ * `page`'s Markdown as the `llms` surfaces serve it. `processed` is the page's
+ * processed Markdown when the caller already has it (the page route, from the
+ * module it rendered); otherwise it is read through `source`, which has it for
+ * English pages only.
+ */
+export async function getLLMText(page: InferPageType<typeof source>, processed?: string) {
+  processed = stripMdxComments(processed ?? (await page.data.getText('processed')));
 
   return `# ${page.data.title}
 

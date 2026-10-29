@@ -1,6 +1,7 @@
 import { source } from '@/lib/source';
 import { i18n } from '@/lib/i18n';
-import { searchData } from '@/.search';
+import { unpack } from '@/lib/packed';
+import { searchData } from '@/.route-data/search';
 import {
   createSearchAPI,
   type AdvancedIndex,
@@ -123,9 +124,9 @@ type StructuredData = AdvancedIndex['structuredData'];
 
 /**
  * One locale's `structuredData` — each page's headings and paragraphs — keyed
- * by file path under `content/docs`, from `.search/` (#393).
+ * by file path under `content/docs`, from `.route-data/` (#393).
  *
- * `scripts/gen-search-data.mjs` writes it before every build, with the same
+ * `scripts/gen-route-data.mjs` writes it before every build, with the same
  * remark chain fumadocs-mdx compiles the pages with. Reading it from there
  * instead of from `page.data.load()` is the point: `load()` imports the page's
  * compiled module, the module registry keeps it for the life of the isolate,
@@ -134,11 +135,7 @@ type StructuredData = AdvancedIndex['structuredData'];
  * dropped once the index has the text.
  */
 async function texts(locale: Locale): Promise<Record<string, StructuredData>> {
-  // Gzipped JSON in base64, because the module is Worker upload too.
-  const packed = (await searchData[locale]()).default;
-  const bytes = Uint8Array.from(atob(packed), (c) => c.charCodeAt(0));
-  const json = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
-  return JSON.parse(await new Response(json).text());
+  return unpack((await searchData[locale]()).default);
 }
 
 /**
@@ -156,10 +153,10 @@ async function indexes(locale: Locale): Promise<AdvancedIndex[]> {
       const file = page.data.info.path;
       let structuredData = own[file] ?? fallback?.[file];
       if (!structuredData) {
-        // `next dev` serves pages added since it wrote `.search/`; a build
-        // writes it first, so there a missing page is a stale `.search/`.
+        // `next dev` serves pages added since it wrote `.route-data/`; a build
+        // writes it first, so there a missing page is a stale `.route-data/`.
         if (process.env.NODE_ENV !== 'development') {
-          throw new Error(`/api/search: no search data for ${file}; run scripts/gen-search-data.mjs`);
+          throw new Error(`/api/search: no search data for ${file}; run scripts/gen-route-data.mjs`);
         }
         structuredData = (await page.data.load()).structuredData;
       }

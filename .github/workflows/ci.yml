@@ -409,6 +409,7 @@ jobs:
             exit 1
           fi
 
+          VERDICT=0
           awk -v size="$SIZE_KIB" -v budget="$WORKER_BUDGET_KIB" -v limit="$WORKER_LIMIT_KIB" '
             BEGIN {
               over = (size > budget)
@@ -426,7 +427,18 @@ jobs:
                 printf "one of them. Reduce the bundle, or raise the budget deliberately and say why.\n"
               }
               exit (over ? 1 : 0)
-            }' | tee -a "$GITHUB_STEP_SUMMARY"
+            }' | tee -a "$GITHUB_STEP_SUMMARY" || VERDICT=$?
+
+          # #395: what the next content batch has room for, printed whether or
+          # not this one fits. The KiB a translated page costs, read from the
+          # bundle just packaged, and how many more pages and locales that
+          # leaves under the budget. It goes red only when it cannot read the
+          # bundle; the verdict above is the budget gate.
+          echo | tee -a "$GITHUB_STEP_SUMMARY"
+          node "$GITHUB_WORKSPACE/.github/scripts/check-worker-page-cost.mjs" \
+            --meta .open-next/server-functions/default/apps/docs/handler.mjs.meta.json \
+            --size "$SIZE_KIB" --budget "$WORKER_BUDGET_KIB" | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "$VERDICT"
 
       # `include-hidden-files` is load-bearing, not tidiness: the compiled
       # OpenNext config the deploy reads lives at `.open-next/.build/`, and
