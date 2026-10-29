@@ -4,7 +4,7 @@ seoTitle: "包：创建、版本、发布和安装"
 description: ObjectOS 中的组织单元 —— 有版本、可安装、可共享。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 23408ab30233b4fd652a84dc8c40f5ed385817d4549bc0f84ba41f9f09f5a2bb
+  source_sha: d23055ede31061fdd880d75901375cee4b7968fd7ac57a3a993feae4c88d955c
   guide_rev: 1
   mode: auto
 ---
@@ -146,6 +146,8 @@ os package publish             # → ObjectStack cloud catalog
 > `os package publish --env <id> --install [--seed-sample-data]`。这是为
 > 自动化提供的便利，而不是人使用的路径 —— 交互式安装发生在环境的
 > Marketplace 中。
+> 这一步是全有或全无的：如果安装被拒绝，就什么都不会发布 —— 不会存储任何
+> 版本，命令以非零状态退出，因此流水线能看到这次失败。
 
 安装会把包的元数据合并到实时内核中，向 ObjectQL 注册它的对象，并在首次
 安装时写入初始数据 —— 无需重启。缓存的安装会在下次启动时重新注册，所以
