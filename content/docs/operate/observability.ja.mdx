@@ -1,0 +1,96 @@
+---
+title: オブザーバビリティ
+seoTitle: "オブザーバビリティ：ログ、リクエスト ID、メトリクス、エラー"
+description: ログ、リクエスト id、メトリクス、エラー、セッション、監査ログ。
+editions: [community, enterprise]
+translation:
+  source_sha: 6260a1763af40fdb7320387d9d4a60879fc6f529e51b110ee98e9a10dff64f6e
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS の運用には、インフラストラクチャのシグナルとアプリケーションのシグナルの両方が必要です。フレームワークはリクエスト id、メトリクス、エラーレポーター、監査のプリミティブを提供し、どこにエクスポートするかはデプロイメントが決めます。
+
+## リクエストの識別 [#request-identity]
+
+すべての本番デプロイメントは、リクエスト id を伝播または生成すべきです。
+
+```text
+X-Request-Id
+```
+
+これを使って次のものを関連付けます。
+
+- イングレスのログ
+- ObjectOS のログ
+- データベースのスロークエリ
+- エラーレポート
+- 顧客サポートのチケット
+
+## メトリクスとエラー [#metrics-and-errors]
+
+ランタイムはメトリクスとエラーレポートをプロセス内に保持し、エクスポーターを選んだときにだけエクスポートします。少なくとも次のものを追跡してください。
+
+| シグナル | 理由 |
+|---|---|
+| ルート/ステータス別のリクエスト数 | エラーの急増を検知する |
+| リクエストの所要時間 | レイテンシの悪化を検知する |
+| 5xx エラー | ランタイムの障害でアラートを出す |
+| readiness の遷移 | プロセスはカーネルが構築されてから初めて準備完了を報告し、データドライバーが停止すると `/api/v1/ready` は 503 を返します |
+
+リクエスト数と所要時間は、サインインや REST データ API を含むすべての受信リクエストについて、メソッド、ルートパターン、ステータスのラベル付きで `http_requests_total` と `http_request_duration_ms` として出力されます。
+
+### OpenTelemetry でエクスポートする [#export-with-opentelemetry]
+
+メトリクスは **OTLP** でランタイムの外に出ます。`OS_OBS_EXPORTER=otlp` **と** `OS_OTLP_ENDPOINT`（例：`https://<collector>/otlp`）を設定します。エクスポーターのデフォルトは `noop`（実行時コストゼロ）なので、エクスポートはオプトインです。`OS_OBS_EXPORTER=otlp` なしでエンドポイントを設定しても何も出力されず、エンドポイントなしの `otlp` は警告を出して `noop` にフォールバックします。ローカルのデバッグには `OS_OBS_EXPORTER=console` または `json` を使い、デプロイメントのタグ付けには `OS_OBS_DEPLOYMENT_ENV` を使います（デフォルトは `production`）。残りは[環境変数](/docs/reference/environment-variables#observability)に一覧があります。
+
+ランタイムは独自のスクレイプエンドポイントを提供しません。Prometheus を使うには、エクスポーターを OpenTelemetry Collector に向け、コレクターから Prometheus にメトリクスを公開させます。あるいは、Grafana Cloud や Datadog など、OTLP を受け付ける任意のバックエンドに送信します。
+
+パイプラインがランタイムのメトリクス名を維持していると仮定した、最初のアラートの例です。
+
+```yaml
+groups:
+  - name: objectos
+    rules:
+      - alert: ObjectOS5xxSpike
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m]))
+            / sum(rate(http_requests_total[5m])) > 0.02
+        for: 5m
+        annotations:
+          summary: "ObjectOS 5xx rate above 2% for 5 minutes"
+```
+
+アラートは `http_request_errors_total` ではなく `http_requests_total{status=~"5.."}` に対して設定してください。前者の系列は ObjectStack 17.2 で廃止され、常にゼロを示すため、正常なサーバーのように見えてしまいます。
+
+コールドスタートは一覧にありません。カーネルは起動時に一度だけ構築され、プロセスはその後に初めて[準備完了](/docs/deploy/docker#health-checks)を報告します。定常状態でのキャッシュミスのシグナルはないので、代わりに readiness でアラートを出してください。
+
+認証の失敗も一覧にありません。ランタイムのメトリクスレジストリは HTTP、ストレージ、キャッシュ、バックグラウンドジョブ、パッケージレジストリを対象としており、そのどれも拒否された認証情報を数えないため、アラートを出す系列がありません。`http_requests_total` から 401/403 を数えても代わりにはなりません。拒否された API キーは認証情報をまったく持たないリクエストと区別できず、どちらのステータスも、問題なく認証されたユーザーに対する通常の権限拒否が大半を占めます。代わりに、`view_all_audit_log` の保持者として、Setup の `Auth` 監査ビューでサインインのアクティビティを確認してください。プラットフォーム管理者はデフォルトでこれを保持しています。これがないと、サインアウトと、その後セッションが削除されたサインインは提供されません。[監査ログ](/docs/operate/audit-logs#what-each-reader-is-served)を参照してください。
+
+## 監査ログ [#audit-logs]
+
+監査機能が有効な場合、ObjectOS は監査レコードを `sys_audit_log` に書き込みます。
+
+監査ログは次の用途に使います。
+
+- 権限に関わる変更
+- 設定の変更
+- ユーザー/セッションの調査
+- 連携のアクティビティ
+- 拒否されたアクセスの分析
+
+規制のある環境では、データベースまたはストレージの層で監査テーブルを追記専用にし、保持ポリシーを定めてください。
+
+完全なフィールドのリファレンス、プリセットビュー、関連する診断ログについては、[監査ログ](/docs/operate/audit-logs)を参照してください。
+
+## Setup の診断 [#setup-diagnostics]
+
+Setup は次のような運用向けのサーフェスを提供します。
+
+- Sessions
+- Audit Logs
+- Notifications
+- Webhook Deliveries（Webhook が有効な場合）
+- System と Security の概要ダッシュボード
+
+これらは開発者だけでなく、オペレーターやサポートエンジニアを対象としています。

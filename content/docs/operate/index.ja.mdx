@@ -1,0 +1,38 @@
+---
+title: 運用
+seoTitle: "運用：本番環境への準備、バックアップ、アップグレード"
+description: 稼働中の ObjectOS デプロイメントを健全に保ちます。本番環境への準備、オブザーバビリティ、監査証跡、バックアップ、アップグレード、復旧を扱います。
+editions: [community, enterprise]
+translation:
+  source_sha: a17ed607565693a65e32a25c8fe8db345aa917afac9348647fecca7a35e9c8f7
+  guide_rev: 1
+  mode: auto
+---
+
+このセクションは、ObjectOS を**本番で健全に**保つためのものです。[設定](/docs/configure)がセットアップ時の管理（ユーザー、アクセス、サインイン、連携）を扱うのに対し、*運用*は稼働後の作業を扱います。デプロイメントの堅牢化、監視、何が起きたかの証明、そして問題が起きたときの復旧です。
+
+ここのすべてのページは、セルフマネージドの両エディション、ObjectOS Community と ObjectOS Enterprise を対象としています。両者は同じランタイムを実行するため、運用方法も同じです。ライセンスされた Enterprise イメージがより多くを行う箇所（リリースノートに記載されたダイジェスト、ライセンスキー、複数のレプリカ）では、ページの最後に **Enterprise で追加されるもの** のセクションがあります。ObjectOS Cloud では、私たちがデプロイメントを運用します。
+
+## 運用のページ [#operations-pages]
+
+| ページ | 用途 |
+|---|---|
+| [本番環境への準備](/docs/operate/production) | 本番稼働の前後にデプロイメントを堅牢化する |
+| [オブザーバビリティ](/docs/operate/observability) | ログ、リクエスト id、メトリクス、エラーを接続する |
+| [監査ログ](/docs/operate/audit-logs) | 改ざんできない監査証跡と診断ログを読む |
+| [バックアップ](/docs/operate/backup) | バックアップと災害復旧を計画する |
+| [アップグレード](/docs/operate/upgrade) | 安全にアップグレードまたはロールバックする |
+| [トラブルシューティング](/docs/operate/troubleshooting) | 壊れたデプロイメントを診断する |
+
+## 設定と運用の違い [#configure-vs-operate]
+
+セットアップ時の管理（ユーザーの追加、アクセスの付与、メール、ストレージ、連携の接続）は[設定](/docs/configure)にあります。デプロイメントが稼働し、監視、監査、バックアップ、アップグレードが必要になったら、ここに戻ってきてください。
+
+## 次に進む [#where-to-go-next]
+
+| タスク | ページ |
+|---|---|
+| 本番前のチェックリスト | [本番環境への準備](/docs/operate/production) |
+| 変更やサインインを追跡する | [監査ログ](/docs/operate/audit-logs) |
+| 監視を設定する | [オブザーバビリティ](/docs/operate/observability) |
+| セットアップ時の管理 | [設定](/docs/configure) |
