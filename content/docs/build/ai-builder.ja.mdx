@@ -1,0 +1,160 @@
+---
+title: AI Builder
+seoTitle: "AI Builder：平易な言葉のチャットからアプリを構築する"
+description: 平易な言葉の要件を稼働するメタデータに変える組み込みのチャットと、データについての質問に答えるアシスタント。それぞれの仕組み、呼び出すツール、変更の承認方法を説明します。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 3dc30df8f6289a706b6eb8101c4160ba800617f579063fc3b62f98518b34fad2
+  guide_rev: 1
+  mode: auto
+---
+
+AI Builder は、**顧客が ObjectOS を拡張する主要な方法**です。ObjectOS を開き、必要なものを平易な言葉で説明すると、オブジェクト、フィールド、ビュー、ダッシュボード、フロー、アプリ全体といったメタデータを構築してくれます。計画を承認するまでは何も構築されず、構築されるものはすべて、読み、変更し、パッケージ化できる通常の ObjectStack メタデータです。
+
+## 2 つのエージェント：Builder と Assistant [#two-agents-the-builder-and-the-assistant]
+
+ObjectOS には 2 つの AI エージェントが付属します。どちらかを選ぶ必要はありません。**どこで尋ねるか**で、どちらが答えるかが決まります。
+
+| | **Builder**（`build`） | **Assistant**（`ask`） |
+|---|---|---|
+| 場所 | アプリ構築のサーフェスにある AI Builder | データコンソールで、レコードの横にあるチャット |
+| 何をするか | **アプリ**を設計し変更する：オブジェクト、フィールド、ビュー、ダッシュボード、フロー | **データ**についての質問に答え、グラフを描き、アプリが公開するアクションを実行する |
+| 決してしないこと | — | アプリケーションを変更すること。構築のリクエストが届くと断り、Builder を案内します。黙って振り替えることは決してありません |
+
+どちらも**サインインしている人として**実行されます。すべてのツール呼び出しはその人の権限、レコードアクセス、フィールドレベルセキュリティに照らしてチェックされるので、AI がその人自身にできる以上のものを見たり変更したりすることは決してありません。
+
+**Builder を使える人。** AI シートだけでは不十分です。Builder はアプリのメタデータを変更するので、`manage_metadata` または `studio.access` の権限も必要です。どちらも持たないメンバーには Assistant だけが表示され、Builder への直接のリクエストは `403 PERMISSION_DENIED` で拒否され、すべての構築ツールは実行時に権限をもう一度チェックします。
+
+## 試してみる [#try-it]
+
+```
+You: I need to track customer support tickets.
+     Each ticket has a subject, description, priority (low/medium/high/urgent),
+     status (new/open/pending/resolved/closed), and assignee.
+
+AI:  Here's the plan:
+     • Object `support_ticket` with 5 fields
+     • A kanban view grouped by status
+     • A dashboard of open tickets by priority
+     • A few sample tickets to try it with
+
+     Shall I build it?
+
+You: Yes
+
+AI:  ✓ Object created
+     ✓ Kanban view and dashboard created
+     ✓ Sample data added
+     Published — open Support Tickets to try it.
+```
+
+これで動作するチケット管理アプリができました。REST エンドポイント、生成されたビュー、監査ログのエントリ、権限のチェックポイントなど、すべてそろっています。ファイルは編集されず、再起動も起きていません。
+
+## 構築の流れ [#how-a-build-runs]
+
+1. **計画。** 単一の変更より大きなもの（「採用管理システムを作って」）については、Builder はまず**ブループリント**を提案します。作成しようとしているオブジェクト、フィールド、リレーションシップ、ビュー、ダッシュボード、サンプルデータと、その前提です。このステップでは何も作成されません。
+2. **承認。** チャットで答えます。承認するか、変更を求めて修正された計画を受け取ります。Builder は、その会話であなたが承認した後にのみ変更を加えます。
+3. **ドラフトとして構築。** 承認された変更は**ドラフト**として書き込まれます。ステージングされた状態で、まだ稼働していません。
+4. **検証。** Builder はドラフトをプラットフォームのルールに照らしてチェックし、何かが稼働する前に直せるものを直します。
+5. **公開。** ドラフトは構築している環境に公開され、アプリがサンプルデータとともにそこに現れます。ステータスパネルが実際に公開されたものを表示します。Builder は、出荷されていない変更を出荷済みと報告することは決してありません。
+
+既存のアプリを拡張するには、そう伝えます。*「サポートアプリに満足度アンケートを追加して」*。すると Builder は、別のアプリを構築する代わりに、新しい部品をそのアプリのオブジェクトにリンクするよう設計し、ナビゲーションに追加します。
+
+## 依頼できること [#what-you-can-ask-for]
+
+| 目的 | プロンプト |
+|---|---|
+| 新しいオブジェクト | *"Create a `product` object with name, sku, price, category."* |
+| フィールドの追加 | *"Add a `discount` decimal field to `order`, max 50."* |
+| 選択リストの変更 | *"On `task.status`, add 'blocked' between 'open' and 'done'."* |
+| リレーションシップ | *"Make `order_line` master-detail to `order`."* |
+| 検証 | *"On `invoice`, the discount can't exceed the subtotal."* |
+| フロー | *"When a high-priority ticket sits in 'new' for 30 minutes, notify the manager."* |
+| アクション | *"Create an action `approve_invoice` that sets status to approved."* |
+| 権限セット | *"Create `agent` permission set with read/create/edit on support_ticket and read on customer."* |
+| 翻訳 | *"Translate the support_ticket labels and picklists to Spanish."* |
+
+AI にできないことなら、そう言って手作業の方法を案内します。
+
+## エージェントが呼び出すツール [#the-tools-the-agents-call]
+
+エージェントの能力はそのツールです。環境のライブカタログは `GET /api/v1/ai/tools` で確認できます。
+
+**Builder の作成ツール**は[パッケージ](/docs/build/packages)とそのメタデータを扱い、`@objectstack/spec` に照らして検証されます。
+
+| 領域 | ツール |
+|---|---|
+| 計画 | `propose_blueprint`、`apply_blueprint` |
+| パッケージ | `create_package`、`list_packages`、`get_package`、`get_active_package`、`set_active_package` |
+| オブジェクト | `create_object`、`list_objects`、`describe_object` |
+| フィールド | `add_field`、`modify_field`、`delete_field` |
+
+**Assistant のデータツール**はレコードを読み取り、それに対して動作します。
+
+| ツール | 機能 |
+|---|---|
+| `query_records` | フィルター、フィールドの選択、ソート、ページングを指定してオブジェクトをクエリします。各レコードは `id` 付きで返されるので、回答は言及したレコードにリンクできます。 |
+| `get_record` | id で 1 件のレコードを取得します。 |
+| `aggregate_data` | サーバー側の `count`、`sum`、`avg`、`min`、`max`、`count_distinct`。必要に応じてグループ化とフィルターができます。 |
+| `query_data` | 平易な言葉のリクエストに答えます。関連するオブジェクトを見つけ、クエリを書き、実行し、レコードを返します。 |
+| `visualize_data` | グラフを描く唯一のツールです。オブジェクトをひとつのディメンションで 1 つ以上のメジャーにわたって集計し、棒、縦棒、横棒、折れ線、面、円、ドーナツ、レーダー、散布図のグラフをチャットに描きます。軸には表示値（選択肢のラベル、レコード名）がチャットの言語で表示されます。環境の分析サービスが必要です。 |
+| `search_knowledge` | 登録されたナレッジソース（レコードのスナップショット、ファイル、URL）を検索します。結果はその人が見られるものにすでにフィルターされています。ナレッジサービスが設定されている場合に存在します。 |
+| `action_<name>` | AI に公開された、アプリの業務アクションのひとつを実行します（下記）。 |
+
+`aggregate_data` は製品内の AI の一部です。外部から [MCP](/docs/configure/mcp) で接続したエージェントは独自のツールセットを受け取り、それはそちらで説明しています。
+
+## ツールとしてのアクション [#actions-as-tools]
+
+アクションは、作成者がそれを **AI に公開した**とき（40 文字以上の `ai.description` を伴う `ai: { exposed: true }`、UI なしで実行される種類（`script`、`flow`、`api`）で）、`action_<name>` という名前のツールになります。公開されると、AI は呼び出し元の権限のもとで、組み込みのツールと同じようにそれを呼び出せます。公開されていないアクションがツールになることはありません。[アクション](/docs/build/interface/actions#from-an-ai-agent)を参照してください。
+
+**アクションの実行前の承認。** `ai.requiresConfirmation: true` を宣言している、または別の宣言なしに破壊的に見えるアクションは、すぐには実行されません。AI はそれを**保留中のアクション**として登録し、承認されたときにだけ実行されます。
+
+| エンドポイント | 目的 |
+|---|---|
+| `GET  /api/v1/ai/pending-actions` | 自分の保留中のアクションを一覧表示する（ステータスでフィルター） |
+| `GET  /api/v1/ai/pending-actions/:id` | 自分の保留中のアクションの 1 件 |
+| `POST /api/v1/ai/pending-actions/:id/approve` | 承認して実行する |
+| `POST /api/v1/ai/pending-actions/:id/reject` | 却下する。理由は任意 |
+
+保留中のアクションは、それを提案した会話の持ち主に属します。読み取り、承認、却下ができるのはその人だけです。それ以外の人は、管理者であっても、存在しないかのような答えを受け取ります。
+
+## API 経由でチャットする [#chatting-through-the-api]
+
+会話をエージェントに名前（`ask` または `build`）で送ります。
+
+```bash
+curl -X POST https://your-environment-host/api/v1/ai/agents/ask/chat \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{ "role": "user", "content": "How many open opportunities over $50k?" }],
+    "context": { "appName": "crm", "objectName": "opportunity" }
+  }'
+```
+
+- **`messages`**：これまでの会話。クライアントから受け付けるのは `user` と `assistant` のターンだけです。
+- **`context`**：その人がどこにいるか。`appName`、`objectName`、`viewName`、`recordId`。スキルはこれを使って何が関連するかを判断します。
+- **`conversationId`**（任意）：既存の会話を続けます。
+
+回答はデフォルトで Server-Sent Events として**ストリーミング**されます（Vercel AI のデータストリームプロトコル、`x-vercel-ai-ui-message-stream: v1`）。グラフはストリームの中で `data-chart` パートとして届きます。代わりに単一の JSON の回答が欲しい場合は `"stream": false` を送ります。
+
+会話は `/api/v1/ai/conversations` の下に保存され、各人は自分のものだけを見られます。
+
+## 制限 [#limits]
+
+- **データアクセスはその人自身の権限に従います。** 読み取りでもアクションでも同じです。
+- **システムパッケージは対象外です。** システムパッケージ（`sys_*`）の変更を AI に依頼すると拒否されます。
+- **大きな構築は段階を踏むほうがうまくいきます。** 「完全な HR アプリを作って」も機能しますが、それぞれがひとつの領域を仕上げる小さな会話の連続のほうがレビューしやすくなります。
+- **ObjectOS Cloud では**、AI は環境の [AI 利用枠](/docs/cloud/ai-credits-and-limits)を消費し、環境が保持できる未公開のドラフトは最大 500 件です（[ストレージと上限](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)）。セルフマネージドの Enterprise デプロイでは、モデルは自分のもので、[AI サービス](/docs/configure/ai)で設定します。
+
+## 構築時の AI の先へ [#going-beyond-build-time-ai]
+
+同じ AI の仕組みが、エンドユーザー向けの**ランタイムエージェント**（サポートアシスタント、営業のコパイロット、社内の Q&A ボット）も動かしています。同じ Agent → Skill → Tool のアーキテクチャで構築されます。[エージェント](/docs/build/agents)を参照してください。
+
+## 次に進む [#where-to-go-next]
+
+- [エージェント](/docs/build/agents)：データの上に載るエンドユーザー向けアシスタント
+- [データモデル](/docs/build/data)：AI が実際に生成しているもの
+- [アクション](/docs/build/interface/actions)：AI がランタイムのツールとして公開する単位
+- [AI クレジットと上限](/docs/cloud/ai-credits-and-limits)：ObjectOS Cloud の AI 利用枠
+- [AI サービス](/docs/configure/ai)：プロバイダーの設定（OpenAI / Anthropic / Google / DeepSeek / …）

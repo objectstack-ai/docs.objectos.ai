@@ -1,0 +1,164 @@
+---
+title: レポート
+seoTitle: "レポートを構築する：データセット上のサマリー、マトリックス、結合レポート"
+description: ダッシュボードと同じデータセットにバインドされた、グループ化レポートとクロス集計レポート。任意のグラフと、すべての数値の裏にあるレコードへのドリルスルー付きです。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: b9e6f81d52e7e18ec7dd039e188135dbeea353e30700f37dbc327be0018f9a52
+  guide_rev: 1
+  mode: auto
+---
+
+{/*
+  Platform checklist items this page documents (objectstack
+  docs/qa/platform-checklist/areas/dashboards.json):
+  dashboards.dataset-report-authoring, dashboards.drill-through-range,
+  dashboards.analytics-exposure-gate-and-measure-aggregate.
+
+  Deliberately not written: saved personal reports and scheduled report
+  delivery. dashboards.saved-report-ownership and
+  dashboards.report-schedule-dispatch-delivery are retired — the saved-report
+  stack was removed (objectstack #20102), and `subscription` / `schedule` on a
+  report are refused because nothing delivers a report on a timetable. The
+  report `dateRange` and `exportOptions` keys (objectstack #26548) are not
+  documented yet either: the spec accepts them, but the report page does not
+  render them.
+*/}
+
+**レポートは、データセットにバインドされた数値の表です。** データセットのメジャーをディメンションでグループ化し（行方向に、マトリックスでは列方向にも）、同じ数値のグラフを表の上に描くことができます。レポートはデータセットからメジャーを*名前で*選ぶので、レポートの「売上」は[ダッシュボード](/docs/build/interface/dashboards)が表示するのと同じ売上です。
+
+## データセットから始める [#start-from-a-dataset]
+
+レポートとダッシュボードは、ひとつのセマンティックレイヤーを共有します。**データセット**が、ベースのオブジェクト、結合するリレーションシップ、グループ化に使えるディメンション、表示できるメジャーを持ちます。一度定義すれば（[ダッシュボード → まずデータセット](/docs/build/interface/dashboards#datasets-first)を参照）、好きなだけのレポートとウィジェットをそれにバインドできます。
+
+データセットが届かないものには、レポートも届きません。
+
+- API がオフになっているオブジェクトはデータセットのベースにできません。クエリは拒否されます。
+- 内部フィールドは、ディメンション、メジャー、フィルターとして使えません。管理者でも同じです。
+- すべてのクエリは閲覧者の権限で実行されるため、レポートが閲覧者の開けないレコードを数えることはありません。
+
+## レポートの種類 [#report-types]
+
+| `type` | 表示内容 | 選択するもの |
+|---|---|---|
+| `summary` | グループごとに 1 行、列にメジャー | `rows`（ディメンション）と `values`（メジャー） |
+| `matrix` | クロス集計：ひとつのディメンションを縦に、別のものを横に、セルにメジャー | `rows`、`columns`、`values` |
+| `joined` | 複数のサブレポートを 1 ページに積み重ね、それぞれを表として描画 | `blocks` の各エントリが独自に選択 |
+
+レコードの単純な一覧はレポートではありません。代わりにオブジェクトのリスト[ビュー](/docs/build/interface/views)として構築してください。
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+// Estimated hours by task status.
+export const hoursByStatus = defineReport({
+  name: 'hours_by_status',
+  label: 'Hours by Status',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+})
+
+// Status down, priority across.
+export const statusByPriority = defineReport({
+  name: 'status_by_priority',
+  label: 'Status × Priority',
+  type: 'matrix',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  columns: ['priority'],
+  values: ['est_hours'],
+})
+```
+
+`summary` または `matrix` のレポートには、`dataset` と、`values` に少なくとも 1 つのメジャーが必要です。`rows`、`columns`、`values` が指すのはデータセットのディメンションとメジャーであり、オブジェクトの生のフィールドではありません。
+
+### 結合レポート [#joined-reports]
+
+結合レポートは、独立した複数のサブレポートを 1 ページに置きます。たとえば「未完了の作業」の上に「完了した作業」を置くようなものです。各ブロックは独自のデータセットにバインドし、独自の行、列、値を選び、独自の `runtimeFilter` を持ちます。コンテナ自体は何も選択しません。結合レポートの `dataset`、`rows`、`columns`、`values`、`order`、`chart` は拒否され、`dataset` のないブロックは名前を示して拒否されます。ブロックの中に別の結合レポートを入れ子にすることはできません。
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const taskOverview = defineReport({
+  name: 'task_overview',
+  label: 'Task Overview',
+  type: 'joined',
+  blocks: [
+    { name: 'open_block', label: 'Open Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['est_hours'],
+      runtimeFilter: { done: false } },
+    { name: 'done_block', label: 'Completed Tasks', type: 'summary',
+      dataset: 'task_metrics', rows: ['status'], values: ['task_count'],
+      runtimeFilter: { done: true } },
+  ],
+})
+```
+
+コンテナレベルの `runtimeFilter` はすべてのブロックに AND で結合されるので、「今四半期」のようなスコープは一度書くだけで済みます。
+
+## フィルターと並べ替え [#filtering-and-ordering]
+
+- **`runtimeFilter`** は、データセット自身のフィルターに加えて、レポートが集計する行を絞り込みます。
+- **`order`** は結果を並べ替えます。最も重要なキーが先です。各キーはレポートが選択するディメンションまたはメジャーを指し、選択していないキーは作成時のエラーです。並べ替えはサーバー上で結果全体に対して行われます。日付のディメンションはすでに時系列順で返されるので、`order` が必要なのは、メジャーで並べ替えるとき（「大きい順」）、新しいものを先にするとき、または別のディメンションを並べるときだけです。
+
+## グラフを追加する [#adding-a-chart]
+
+`summary` または `matrix` のレポートは、表の上（`columns` を持つマトリックスでは下）にグラフを描けます。グラフの軸は同じデータセットのディメンションとメジャーを指します。
+
+```ts
+import { defineReport } from '@objectstack/spec/ui'
+
+export const hoursByStatusChart = defineReport({
+  name: 'hours_by_status_chart',
+  label: 'Hours by Status (Chart)',
+  type: 'summary',
+  dataset: 'task_metrics',
+  rows: ['status'],
+  values: ['est_hours'],
+  chart: { type: 'bar', xAxis: 'status', yAxis: 'est_hours' },
+})
+```
+
+グラフは表が示すのと同じ数値をプロットします。結合レポートは表だけを描きます。
+
+## ドリルスルー [#drill-through]
+
+集計されたすべての行やセルはクリックできます。その数値の裏にあるレコードを一覧表示するサイドドロワーが開き、グループに正確にスコープされます。日付のディメンションではそのバケットの期間、マトリックスのセルでは行と列の両方です。ドロワーからレコードをクリックして開くか、**Open in list →** でオブジェクトの完全なリストに進みます。`drilldown: false` でオフにできます。
+
+一致するデータがないレポートは、壊れた表ではなく空の状態を表示します。
+
+## レポートを人の前に出す [#putting-a-report-in-front-of-people]
+
+[アプリ](/docs/build/interface/apps)のナビゲーションに `report` 項目を追加します。
+
+```ts
+// One navigation item of an app.
+{ id: 'nav_hours_by_status', type: 'report', label: 'Hours by Status',
+  reportName: 'hours_by_status', icon: 'sigma' }
+```
+
+レポートページには、レポートのラベルと説明、そしてレポートが表示されます。レポートは `⌘K` コマンドパレットの **Reports** の下にも一覧表示されます。[検索](/docs/use/search)を参照してください。
+
+管理者にはレポートページに **Edit** ボタンが表示されます。サイドパネルでレポートの設定が開きます。変更はドラフトとして保存され、公開されるまで他の人には見えません。
+
+ドラフトは不完全でもかまいません。まだ存在しないデータセット、メジャー、ディメンションを指していても許されます。公開時にそれらの参照がチェックされ、存在しないものを指すレポートは拒否されるので、公開されたレポートがエラーなしに空白で表示されることはありません。
+
+## ダッシュボードかレポートか [#dashboards-or-reports]
+
+| 使うもの | とき |
+|---|---|
+| [ダッシュボード](/docs/build/interface/dashboards) | 複数の数値とグラフをひと目で、ダッシュボード全体の日付とフィルターのコントロール付きで |
+| レポート | ひとつの問いへの完全な答え。1 行ずつ読むグループ化された表またはクロス集計と、そのグラフ |
+
+どちらも同じデータセットにバインドし、同じ方法でドリルスルーするので、数値はそれらの間を意味を変えずに行き来します。ダッシュボード全体の期間とグローバルフィルターは、[ダッシュボード → グローバルな期間とフィルター](/docs/build/interface/dashboards#global-date-range-and-filters)で説明しています。
+
+## 次に進む [#where-to-go-next]
+
+| ページ | 理由 |
+|:--|:--|
+| [ダッシュボード](/docs/build/interface/dashboards) | データセット、ウィジェット、グローバルフィルター |
+| [ビュー](/docs/build/interface/views) | 単純なレコードの一覧と、リスト内のグラフ |
+| [アプリ](/docs/build/interface/apps) | レポートをナビゲーションに置く |
+| [権限](/docs/configure/permissions) | すべてのレポートクエリが適用する行レベルセキュリティ |

@@ -1,0 +1,91 @@
+---
+title: IDE スキル（Claude Code / Cursor / Copilot）
+description: ObjectStack のスキルをインストールすると、Claude Code、Cursor、Copilot、Codex などのコーディングエージェントが、正しい ObjectStack メタデータ（ObjectOS が実行するオントロジー）を作成できるようになります。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 1c4b67992500eaa86e4fac4a8e9f8065f54259b7f639e19d1346d5d317b5fc1f
+  guide_rev: 1
+  mode: auto
+---
+
+[AI Builder](./ai-builder) は ObjectOS の中にあり、テナントのデータベースと対話します。しかし、`*.object.ts` を手で編集しているとき、フローを設計しているとき、Cursor に CEL の述語を書かせるときなど、同じドメイン知識を IDE の中で使いたいこともあります。
+
+ObjectStack には、コーディングアシスタントにあらゆる種類の ObjectStack メタデータ（ObjectOS が実行するオントロジー）の作成方法を教える **9 つのファーストパーティのエージェントスキル**が付属します。これらはオープンな [`skills`](https://www.npmjs.com/package/skills) エコシステム（Vercel Labs）を通じて配布され、**Claude Code、Cursor、Copilot、Codex、Gemini CLI、Windsurf、Cline、Continue、Roo、Goose、Kiro、opencode** をはじめとする約 50 のエージェントで動作します。
+
+## インストール [#install]
+
+`@objectstack/*` パッケージを使う任意のプロジェクトで：
+
+```bash
+npx skills add objectstack-ai/objectstack/skills
+```
+
+CLI は設定済みのエージェント（`.claude/`、`.cursor/`、`.github/copilot/`、`AGENTS.md` など）を検出し、スキルを適切な場所に書き込みます。いつでも再実行して最新バージョンを取得できます。
+
+> `package.json` の変更もグローバルインストールも不要です。スキルはリポジトリにコミットされる普通の Markdown ファイルなので、チーム全体と CI のエージェントが同じ指示を共有します。
+
+## 得られるもの [#what-you-get]
+
+| スキル | 読み込むのは、次の作業をしているとき |
+|:------|:-----------------------------|
+| `objectstack-platform` | `defineStack`、ドライバー、アダプター、プラグイン、サービス、`os` CLI、デプロイ |
+| `objectstack-data` | `*.object.ts`、`*.seed.ts`、フィールド、リレーションシップ、検証、インデックス、ライフサイクルフック、RLS |
+| `objectstack-query` | ObjectQL：フィルター、ソート、ページネーション、集計、結合、ウィンドウ関数、全文検索 |
+| `objectstack-ui` | ビュー、アプリ、ページ、ダッシュボード、レポート、グラフ、アクション |
+| `objectstack-automation` | フロー、ワークフロー、トリガー、承認、スケジュール、Webhook |
+| `objectstack-ai` | エージェント、ツール、スキル、会話、モデルレジストリ、MCP |
+| `objectstack-api` | REST エンドポイント、認証プロバイダー、リアルタイムチャネル、エラーエンベロープ、バッチ/バージョニングの契約 |
+| `objectstack-i18n` | 翻訳バンドル、ロケールのフォールバック、カバレッジ |
+| `objectstack-formula` | CEL 式：数式フィールド、検証/共有/表示の述語、条件 |
+
+各スキルは**スコープを認識**しています。いつ自分を読み込み、いつ兄弟スキルに任せるべきかをエージェントに伝えるので、Claude がプラットフォームのスキルでオブジェクトをモデル化しようとしたり、データのスキルで CEL 式を書こうとしたりすることはありません。
+
+## 仕組み [#how-it-works]
+
+各スキルは[フレームワークのリポジトリ](https://github.com/objectstack-ai/objectstack/tree/main/skills)の `skills/` の下にあるフォルダーです。
+
+```
+skills/objectstack-data/
+├── SKILL.md              # YAML frontmatter + prose guide
+├── references/
+│   └── _index.md         # pointers into @objectstack/spec Zod sources
+└── rules/                # optional deep-dive rules
+```
+
+`SKILL.md` のフロントマターは、`skills add` がスキルを適切なエージェントのサーフェスに振り分けるために読むものです。
+
+```yaml
+---
+name: objectstack-data
+description: Design ObjectStack data schemas — objects, fields, ...
+license: Apache-2.0
+compatibility: Requires @objectstack/spec Zod schemas (v4+)
+metadata:
+  domain: data
+  tags: object, field, validation, relationship, hook, permission, rls
+---
+```
+
+すべてのスキルに共通する中核のルールは、**`@objectstack/spec` の Zod スキーマが真実である**ということです。スキルは意図を与え、エージェントは正確なフィールドの形を `node_modules/@objectstack/spec/src/**/*.zod.ts` のスキーマから読み取ります。スキルをインストールすると、でっち上げのフィールドが事実上なくなるのはこのためです。
+
+## スキルと AI Builder の比較 [#skills-vs-ai-builder]
+
+|  | [AI Builder](./ai-builder) | IDE スキル |
+|:--|:--|:--|
+| 実行場所 | ブラウザ | IDE / コーディングエージェント |
+| 変更するもの | テナント内の稼働中のメタデータ | リポジトリ内のファイル |
+| 誰の代わりに動くか | エンドユーザー / 管理者 | 開発者 |
+| 承認モデル | HITL キュー（`ai:approve`） | プルリクエストのレビュー |
+| 最適な用途 | 日々の拡張、ノーコードのユーザー | テンプレート、パッケージ、複雑なフロー、ライブラリのコード |
+
+両者は補完し合います。ほとんどのチームは、テナントのカスタマイズには AI Builder を、**公開するつもりのパッケージ**の作業には IDE スキルを使います（[テンプレート](./templates)と[マーケットプレイス](./marketplace)を参照してください）。
+
+## 更新 [#updating]
+
+スキルは `@objectstack/spec` のバージョンに従います。spec パッケージをアップグレードした後は `npx skills add objectstack-ai/objectstack/skills` を再実行し、エージェントを最新の Zod スキーマ、CEL ヘルパー、メタデータの語彙に合わせてください。
+
+## 関連 [#related]
+
+- [AI Builder](./ai-builder)：ブラウザ内の対になるもの
+- [エージェント](./agents)：ObjectOS の*中で*実行されるサーバー側のエージェントを宣言する
+- [テンプレート](./templates)：公式テンプレートはすべて、これらのスキルを読み込んで構築されています

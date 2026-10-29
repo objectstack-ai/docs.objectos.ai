@@ -1,0 +1,310 @@
+---
+title: データモデル
+seoTitle: "データモデル：オブジェクト、フィールド、リレーションシップ"
+description: オブジェクト、フィールド、リレーションシップ、検証、インデックス。AI に説明するか、TypeScript で書きます。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: dfc4b470748f9d65a343db5a45ca7627a0b01485644546deff2adcd36ffb7430
+  guide_rev: 1
+  mode: auto
+---
+
+データモデルは、アプリの唯一の信頼できる情報源です。オブジェクトが存在すれば、ObjectOS は REST API、生成されたビュー、RBAC のチェックポイント、監査ログのエントリ、AI ツールとしての公開を無償で提供します。
+
+**ほとんどの顧客はスキーマを手で書くことはありません。** [AI Builder](/docs/build/ai-builder) で必要なものを説明すると、プラットフォームがオブジェクト、フィールド、インデックス、翻訳を作成します。このページでは、その土台となる形を説明します。AI が何を生成しているかを理解し、必要なときに直接編集できるようにするためです。
+
+## 作成の道 [#authoring-paths]
+
+| 道 | 見た目 |
+|---|---|
+| **AI Builder**（主要） | *"Create a `support_ticket` object with subject, description, priority, status, assignee."* |
+| **クリックで構築** | **Studio → Objects → New Object** → フォーム |
+| **TypeScript（`*.object.ts`）** | 下に示す TS。通常はフォークした[テンプレート](/docs/build/templates)の中 |
+
+3 つとも同じスキーマを生成します。スキーマが正規のものであり、それ以外はすべて導出されたものです。
+
+## オブジェクトの構造 [#anatomy-of-an-object]
+
+```ts
+// src/objects/task.ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const Task = ObjectSchema.create({
+  name: 'todo_task',
+  label: 'Task',
+  pluralLabel: 'Tasks',
+  icon: 'check-square',
+  description: 'A single unit of work.',
+
+  fields: {
+    subject:     Field.text({ label: 'Subject', required: true, maxLength: 200 }),
+    description: Field.markdown({ label: 'Description' }),
+    status:      Field.select({
+      label: 'Status',
+      options: [
+        { label: 'To Do',       value: 'todo', default: true },
+        { label: 'In Progress', value: 'in_progress' },
+        { label: 'Done',        value: 'done' },
+      ],
+    }),
+    due:         Field.date({ label: 'Due' }),
+    assignee:    Field.lookup('sys_user', { label: 'Assignee' }),
+  },
+
+  enable: {
+    trackHistory: true,    // record field changes in audit log
+    apiEnabled: true,      // expose REST endpoints (default true)
+    feeds: true,           // chatter / comments / @mentions
+  },
+});
+```
+
+スタックに登録します。
+
+```ts
+// objectstack.config.ts
+import { defineStack } from '@objectstack/spec';
+import * as objects from './src/objects';
+
+export default defineStack({
+  manifest: { id: 'my.app', namespace: 'todo', version: '0.1.0', type: 'app', name: 'My App' },
+  objects: Object.values(objects),
+});
+```
+
+すべてのオブジェクト名は、スタックの `namespace` とアンダースコアで始まります。`todo` 名前空間では `todo_task` です。必要なのはそれだけです。`os dev` が再コンパイルし、`/api/v1/data/todo_task`、生成された Task ビュー、その権限の行がすべて現れます。
+
+## フィールドの種類 [#field-types]
+
+ObjectStack には約 25 種類のフィールドが付属します。最もよく使われるもの：
+
+### スカラー [#scalars]
+
+| 種類 | 保存するもの | ヘルパー |
+|---|---|---|
+| `text` | 短い文字列 | `Field.text({ maxLength, required })` |
+| `textarea` | 長い文字列 | `Field.textarea(...)` |
+| `markdown` | Markdown 付きのリッチテキスト | `Field.markdown(...)` |
+| `number` | 数値。`scale` で小数点以下の桁数を設定 | `Field.number({ min, max, scale })` |
+| `currency` | 金額 | `Field.currency(...)` |
+| `boolean` | 真/偽 | `Field.boolean({ defaultValue })` |
+| `date` | 暦日 | `Field.date(...)` |
+| `datetime` | タイムスタンプ | `Field.datetime(...)` |
+| `email` | 検証されたメールアドレス | `Field.email(...)` |
+| `url` | 検証された URL | `Field.url(...)` |
+| `phone` | 検証された電話番号 | `Field.phone(...)` |
+| `json` | 任意の JSON | `Field.json(...)` |
+
+### 選択肢 [#choices]
+
+| 種類 | 用途 |
+|---|---|
+| `select` | 単一の選択（列挙） |
+| `multiselect` | 複数の選択 |
+
+### リレーションシップ [#relationships]
+
+| 種類 | カーディナリティ | ヘルパー |
+|---|---|---|
+| `lookup` | 1 対多（外部キー） | `Field.lookup('sys_user', { label })` |
+| `master_detail` | カスケード削除付きの 1 対多 | `Field.masterDetail('order', { label })` |
+
+### ファイルとメディア [#files--media]
+
+| 種類 | 保存するもの |
+|---|---|
+| `file` | ストレージサービス経由のファイル 1 つ |
+| `image` | プレビュー付きの画像ファイル |
+
+### 計算 / 導出 [#computed--derived]
+
+| 種類 | 動作 |
+|---|---|
+| `formula` | CEL 式から読み取り時に計算 |
+| `summary` | 関連レコードの集計（sum/count/avg） |
+| `autonumber` | 連番（`INV-{000001}`） |
+| `created`、`lastModified` | システムが管理するタイムスタンプ |
+| `createdBy`、`lastModifiedBy` | システムが管理するユーザー参照 |
+
+## 必須 / 一意 / デフォルト [#required--unique--default]
+
+すべてのスカラーフィールドに共通する修飾子：
+
+```ts
+Field.text({
+  label: 'Code',
+  required: true,
+  unique: true,          // unique constraint enforced at DB level
+  defaultValue: '',
+  inlineHelpText: 'Internal short code',
+})
+```
+
+## 検証 [#validation]
+
+インライン：
+
+```ts
+Field.number({ label: 'Quantity', min: 1, max: 9999 })
+Field.text({ label: 'SKU', minLength: 8, maxLength: 8 })
+```
+
+オブジェクトレベルのルール：フィールドをまたぐルールと、パターンのための `format` ルールです。ルールの `condition` は無効なレコードを記述します。それが真のとき、書き込みは拒否されます。
+
+```ts
+ObjectSchema.create({
+  name: 'order',
+  fields: {
+    sku:      Field.text({ label: 'SKU' }),
+    discount: Field.currency({ label: 'Discount' }),
+    total:    Field.currency({ label: 'Total' }),
+  },
+  validations: [
+    {
+      type: 'cross_field',
+      name: 'discount_lt_total',
+      message: 'Discount cannot exceed total',
+      fields: ['discount', 'total'],
+      condition: 'record.discount > record.total',
+    },
+    {
+      type: 'format',
+      name: 'sku_format',
+      message: 'SKU looks like ABC-1234',
+      field: 'sku',
+      regex: '^[A-Z]{3}-[0-9]{4}$',
+    },
+  ],
+});
+```
+
+検証は REST、UI、ObjectQL のすべての書き込みで実行されるので、「裏口」はありません。
+
+## インデックスとパフォーマンス [#indexes--performance]
+
+```ts
+ObjectSchema.create({
+  name: 'order',
+  fields: { /* ... */ },
+  indexes: [
+    { fields: ['status', 'created_at'] },
+    { fields: ['account', 'created_at'], unique: false },
+  ],
+});
+```
+
+ドライバーはスキーマの同期時に実際の DB インデックスを作成します。
+
+## フィールドグループ [#field-groups]
+
+長いフォームでは、フィールドをグループ化します。
+
+```ts
+ObjectSchema.create({
+  name: 'task',
+  fieldGroups: [
+    { key: 'core',     label: 'Task',     icon: 'check-square' },
+    { key: 'planning', label: 'Planning', icon: 'calendar' },
+    { key: 'meta',     label: 'Metadata', icon: 'info', defaultExpanded: false },
+  ],
+  fields: {
+    subject: Field.text({ label: 'Subject', group: 'core' }),
+    due:     Field.date({ label: 'Due',     group: 'planning' }),
+  },
+});
+```
+
+## 機能フラグと所有権 [#capability-flags--ownership]
+
+```ts
+ObjectSchema.create({
+  name: 'task',
+  fields: { subject: Field.text({ label: 'Subject' }) },
+  ownership: 'user',         // 'user' (default) | 'business_unit' | 'org' | 'none'
+  sharingModel: 'private',   // OWD — custom objects default to private (v13)
+  enable: {
+    apiEnabled: true,         // generated REST endpoints (default true)
+    searchable: true,         // index records for global search (default true)
+    trackHistory: true,       // History tab + field-level diffs (opt-in, default false)
+    feeds: true,              // sys_comment / @mentions (default true)
+    activities: true,         // mirror CRUD to sys_activity timeline (default true)
+    files: false,             // Attachments panel (opt-in, default false)
+    clone: true,              // record deep cloning (default true)
+  },
+});
+```
+
+`enable` は**閉じた語彙**です。このブロックは厳格なので、認識されないフラグ（`feedEnabled` のようなタイプミスや、かつて存在したキー）は、黙って捨てられる設定ではなく、そのキーを示す解析エラーになります。上の 7 つのフラグがそのすべてで、さらにキーがもう 1 つあります。
+
+```ts
+// Keys of an object; its name and fields are omitted.
+enable: {
+  apiMethods: ['get', 'list', 'create', 'update'],  // no delete over the API
+}
+```
+
+`apiMethods` は、オブジェクトが公開する API の操作をホワイトリストで指定します。作成できる語彙はちょうど 6 つのプリミティブ、`get`、`list`、`create`、`update`、`delete`、`bulk` です。制限のないアクセスにはキーを省略します。`[]` はすべて拒否を意味します。8 つのレガシーな値（`upsert`、`import`、`export`、`aggregate`、`search`、`history`、`restore`、`purge`）は、宣言するものではなく*導出される*実効的な操作です。保存されているものはまだ解析されますが、置き換え先を示す警告とともに取り除かれます（`upsert` → `create` + `update`、`export`/`aggregate`/`search` → `list`、`history` → `get`。`restore` と `purge` は何からも導出されず、単に削除されます）。ひとつの落とし穴に注意してください。レガシーな値*だけ*のホワイトリストは `[]` に取り除かれ、オブジェクトの API を広げるのではなく閉じてしまいます。
+
+> **ソフトデリートはありません。`enable.trash` は削除されました。** 以前のドキュメントは、廃止されたオブジェクトレベルの `softDelete` プロパティの代わりとして `enable: { trash: true }` を案内していました。これは、はっきり述べておく価値のある形で誤りでした。`trash` にはランタイムの利用者が一度もありませんでした。削除は常にハードデリートだったので、ごみ箱を約束するデフォルト true のフラグは偽りのアフォーダンスでした。作成者は、実行されたことのないソフトデリートを無効にしているつもりで `trash: false` を書いていました。このキー（と隣の `enable.mru`）は現在、無視されるのではなく、ガイダンス付きで**解析時に拒否**されます。ソースから削除するか、`os migrate meta --from 16` を実行して書き換えてください。
+>
+> 復元可能性のためには、フィールドごとの `trackHistory`（何が変わったかの監査証跡）か [`lifecycle`](#data-lifecycle-retention) ポリシーを使ってください。本物のごみ箱は現時点で提供されている機能ではありません。
+
+> **オブジェクトのサーフェスから削除されたものは他にもあります：** `softDelete`、`versioning`、`search`（トップレベルの `searchableFields` を使ってください）、`recordName`（autonumber フィールドを `nameField` として使ってください）、`keyPrefix`、`tags`、`active`、`abstract`。これらのいずれかを渡すと、`ObjectSchema.create` は置き換え先を示す位置付きのエラーを投げます。
+
+ObjectStack 14 以降、`enable.*` のフラグは助言ではなく**強制**されます。`feeds: false` はコメントの作成を 403 `FEEDS_DISABLED` で拒否し、`sys_attachment` の行を作成するには `files` をオプトインする必要があり（そうでなければ 403 `FILES_DISABLED`）、`activities` / `trackHistory` はタイムラインと History タブを制御します。コンプライアンスのための `sys_audit_log` の行は、フラグにかかわらず常に書き込まれます。
+
+## データのライフサイクル（保持） [#data-lifecycle-retention]
+
+大量のデータを持つオブジェクトは `lifecycle` ブロックを宣言でき、プラットフォームがその増加を抑えます（ObjectStack 14.4、ADR-0057）。
+
+```ts
+ObjectSchema.create({
+  name: 'my_event',
+  fields: { payload: Field.json({ label: 'Payload' }) },
+  lifecycle: {
+    class: 'event',               // 'record' | 'audit' | 'telemetry' | 'transient' | 'event'
+    retention: { maxAge: '14d' }, // reaper deletes rows past the window
+    // time-sharded table: 2 shards of 1 week
+    storage: { strategy: 'rotation', shards: 2, unit: 'week' },
+  },
+});
+```
+
+組み込みの LifecycleService（`OS_LIFECYCLE_DISABLED=1` で無効化）は、期限切れの行を刈り取り、時間でシャーディングされたテーブルをローテーションし、監査クラスのオブジェクトをアーカイブします。`sys_activity`（14 日）や `sys_audit_log`（90 日間ホット、その後アーカイブ）のようなプラットフォームのオブジェクトにはライフサイクルの宣言が付属し、`lifecycle.retention_overrides` 設定で環境ごとに調整できます。
+
+## システムオブジェクト（すべてのプロジェクトに無償で付属） [#system-objects-free-with-every-project]
+
+これらを宣言する必要はありません。常に存在します。
+
+| オブジェクト | 内容 |
+|---|---|
+| `sys_user` | ユーザーアカウント |
+| `sys_org` | 組織 / テナント |
+| `sys_member` | 組織のメンバーシップ |
+| `sys_position`、`sys_permission_set` | RBAC のプリミティブ |
+| `sys_audit_log` | 監査証跡（監査機能が読み込まれている場合） |
+| `sys_file`、`sys_attachment` | ファイルのメタデータ（ストレージが読み込まれている場合） |
+| `sys_comment`、`sys_activity` | フィード / チャター（フィードが読み込まれている場合） |
+| `sys_session`、`sys_api_key` | 認証の成果物 |
+| `sys_webhook`、`sys_webhook_delivery` | Webhook の購読（有効な場合） |
+
+`lookup` フィールドでは名前で参照します。例：`Field.lookup('sys_user', { label: 'Owner' })`。
+
+## ポリモーフィックなプラットフォーム機能 [#polymorphic-platform-features]
+
+`feeds: true` と `trackHistory: true` を有効にすると、オブジェクトは自動的に次のものに参加します。
+
+- `sys_comment`（thread_id = `<object>:<id>`）
+- `sys_attachment`（parent_object = `<object>`、parent_id = `<id>`）
+- `sys_activity`（タイムライン）
+- `sys_audit_log`（フィールドレベルの差分）
+
+これらをオブジェクトごとに配線する必要はありません。プラットフォーム上でポリモーフィックに動作します。
+
+## 次に進む [#where-to-go-next]
+
+- [権限](/docs/configure/permissions)：オブジェクトへのアクセスを制御する
+- [フロー / 自動化](/docs/build/automation/flows)：レコードの変更に反応する
+- [API アクセス](/docs/configure/api-access)：生成された REST を呼び出す
+- [`os explain`](/docs/reference/cli)：レンダリングされたスキーマを出力する
+- [`@objectstack/spec` のソース](https://github.com/objectstack-ai/objectstack/tree/main/packages/spec)：スキーマが契約です。ここにあるものはすべてそこから導出されています

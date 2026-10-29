@@ -1,0 +1,164 @@
+---
+title: パッケージ
+seoTitle: "パッケージ：作成、バージョン管理、公開、インストール"
+description: ObjectOS における組織化の単位。バージョン付きで、インストール可能で、共有できます。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: d23055ede31061fdd880d75901375cee4b7968fd7ac57a3a993feae4c88d955c
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS で構築するものはすべて**パッケージ**に置かれます。パッケージは、バージョン付きで自己完結したメタデータの束です。パッケージは、AI Builder が作業する単位であり、マーケットプレイスが配布する単位であり、ObjectOS が更新を追跡する単位です。
+
+## パッケージの中身 [#whats-in-a-package]
+
+```text
+com.acme.crm@1.2.0
+├── manifest          id, version, namespace, dependencies
+├── objects/          *.object.ts, *.state.ts, *.hook.ts
+├── views/            *.view.ts, *.page.ts, *.form.ts
+├── actions/          *.action.ts
+├── flows/            *.flow.ts, *.approval.ts
+├── agents/           *.agent.ts, *.skill.ts
+├── permissions/      *.permission.ts
+├── sharing/          *.sharing.ts
+├── translations/     en.ts, zh-CN.ts, ...
+├── apps/             *.app.ts  (navigation)
+└── data/             defineDataset(...) seed
+```
+
+すべてのメタデータの成果物（オブジェクト、アクション、フローなど）は、ちょうどひとつのパッケージに属します。パッケージ ID は**逆 DNS 形式**（`com.acme.crm`、`org.mycompany.helpdesk`）で、名前空間のプレフィックス（`crm_`、`hd_`）は、同じテナントにインストールされた複数のパッケージ間でテーブル名やオブジェクト名が衝突するのを防ぎます。
+
+## パッケージを作成する [#creating-a-package]
+
+### AI Builder から [#from-the-ai-builder]
+
+> *「社内 CRM 用の新しいパッケージを、名前空間 `crm` で始めて。」*
+
+AI は `create_package` と `set_active_package` を呼び出します。それ以降、説明するすべてのオブジェクト / フィールド / アクションは `crm` に置かれます。
+
+### CLI から [#from-the-cli]
+
+```bash
+os init my-crm -t app
+cd my-crm
+# manifest lives in the `manifest:` block of ./objectstack.config.ts
+pnpm dev
+```
+
+### UI から [#from-the-ui]
+
+**Studio → Packages → New Package**：名前、ID、バージョン、名前空間を指定します。
+
+## アクティブなパッケージ [#active-package]
+
+AI Builder では、会話が**アクティブなパッケージ**を持ちます。新しいメタデータのデフォルトの入れ物です。*「`com.acme.helpdesk` に切り替えて」* のように言うと、AI は `set_active_package` ツールでそれを設定します。CLI では、アクティブなパッケージは単純にプロジェクトの `objectstack.config.ts`（`manifest:` ブロック）で宣言されたものです。
+
+## バージョニング [#versioning]
+
+パッケージは **semver** です。ルールはランタイムと同じです。[変更履歴とバージョニング](/docs/resources/changelog)を参照してください。
+
+バージョンを上げても、公開するまでは何も変わりません。ランタイムはテナントごと、パッケージごとに `installed_version` を追跡し、カタログに新しいバージョンがあると、マーケットプレイスに *"Update available"* のバッジが表示されます。
+
+## 依存関係 [#dependencies]
+
+パッケージは他のパッケージに依存できます。
+
+```json
+{
+  "id": "com.acme.helpdesk",
+  "version": "0.3.0",
+  "dependencies": {
+    "com.acme.crm": "^1.0.0",
+    "sys.feeds":   "*"
+  }
+}
+```
+
+ランタイムはインストール時に依存関係を解決します。`com.acme.crm` がインストールされていない場合、helpdesk のインストールは明確なエラーで失敗します。
+
+システムパッケージ（`sys.*`）は常に存在します。フィード、添付ファイル、監査、ID などです。
+
+## 公開 [#publishing]
+
+```bash
+os cloud login                 # once: stores a cloud token in ~/.objectstack/cloud.json
+os compile                     # → dist/objectstack.json
+os package publish             # → ObjectStack cloud catalog
+```
+
+`os package publish` は、コンパイル済みのマニフェストを `OS_CLOUD_URL` が指すカタログにアップロードします。認証は `os cloud login`（対話型）か、CI では `OS_CLOUD_API_KEY` の Bearer トークンから得られます。プライベート / エアギャップの配布では、公開を省略し、コンパイル済みの `dist/objectstack.json` を対象のインストールに直接渡します（下の「インストール」を参照）。[マーケットプレイス](/docs/build/marketplace)を参照してください。
+
+> **この 2 つの変数は、ビルドマシンの公開用 ID を設定するものです**。パッケージカタログに対する CLI の認証情報です。*デプロイ*がコントロールプレーンに接続する方法ではありません。稼働中のデプロイは、バインドされたときに発行されたトークンで認証し、設定すべき API キーはありません。どちらかの名前をデプロイの設定にコピーする前に、[環境変数](/docs/reference/environment-variables)を確認してください。
+
+## ObjectOS Cloud での 2 つの開発者向けの道 [#two-developer-routes-on-objectos-cloud]
+
+開発者がホスト型の環境に変更を入れる方法は 2 つあります。
+
+| | パッケージの公開 | MCP での構築 |
+|---|---|---|
+| 方法 | ソースで構築し、`os package publish` してから **Marketplace** でインストールする | `metadata:write` スコープで [MCP](/docs/configure/mcp#build-with-an-agent) 経由で接続した自分のエージェントが、環境内で構築する |
+| 届くもの | **バージョン付き**のパッケージ。丸ごとインストールされる | 環境内の**ドラフト**。人が Studio → **Changes** で公開する |
+| 構築できるもの | 環境が実行するすべてのもの。スクリプト、Webhook、API でトリガーされるフローを含む | 環境の AI 構築が提供するもの：データモデル、インターフェース、サンプルデータ、アプリの外枠、レコードやボタンで開始するフロー、ノーコードのアクション |
+| 最適な用途 | リリース：複数の環境での同じバージョン、リポジトリでのレビュー、Marketplace | 反復：ひとつの環境で変更を試し、アプリで確認する |
+
+アプリを素早く形にするには MCP での構築を使い、バージョンが必要になったらパッケージにします。別の環境や組織に出荷するとき、リポジトリで保持するとき、MCP での構築が提供しないメタデータを運ぶときです。
+
+## インストール [#installing]
+
+インストールは**環境内の**操作で、公開とは別のものです。パッケージは（カタログに）一度公開し、その後、対象の環境の*中から*インストールします。インストールはその環境へのログインによって確認され、認可されます。インストールするのに環境 ID を知る必要はありません。
+
+| 方法 | 手順 |
+|---|---|
+| UI で（推奨） | 環境にサインイン → **Marketplace** → パッケージを選択 → **Install**。現在の環境にインストールされます。 |
+| CLI → 稼働中のランタイム | `os package install com.acme.crm --runtime <url>`：ランタイムが設定されたカタログからパッケージを解決し、自身のカーネルにマージします |
+| CLI でエアギャップ | `os package install ./dist/objectstack.json --runtime <url>`：コンパイル済みの成果物をインラインで送り、カタログとの往復はありません |
+| REST | `POST /api/v1/marketplace/install-local`（ボディ：`{ packageId, versionId? }` または `{ manifest }`） |
+| エアギャップ（起動時） | コンパイル済みの `dist/objectstack.json` 成果物をマウントします（[エアギャップ](/docs/deploy/air-gapped)を参照） |
+
+インストールコマンドのパッケージ ID は、安定したマニフェストの ID（`com.acme.crm`）です。内部の `pkg_…` の行 ID は必要ありません。
+
+> **CI のショートカット。** *既知の*環境にデプロイするパイプラインは、公開とインストールを 1 ステップで行えます：`os package publish --env <id> --install [--seed-sample-data]`。これは自動化のための便宜であり、人が使う方法ではありません。対話的なインストールは環境の Marketplace で行います。このステップは全部か無かです。インストールが拒否されると何も公開されず、バージョンは保存されず、コマンドはゼロ以外で終了するので、パイプラインは失敗を検知できます。
+
+インストールはパッケージのメタデータを稼働中のカーネルにマージし、そのオブジェクトを ObjectQL に登録し、最初のインストール時に初期データを投入します。再起動は不要です。キャッシュされたインストールは次回の起動時に再登録されるので、プロセスの再起動後も残ります。
+
+## アンインストール [#uninstalling]
+
+アンインストールすると、パッケージのキャッシュされたマニフェストが削除され、次回の起動時に再登録されなくなります。オブジェクトの登録は追加的なので、すでに稼働しているパッケージのオブジェクトを完全にアンロードするには**カーネルの再起動**が必要です。データはデフォルトで**保持**されるので、再インストールして再開できます。
+
+## パッケージ間の規約 [#cross-package-conventions]
+
+多くのパッケージが共存するときの衝突を防ぐために：
+
+| 成果物 | 規約 |
+|---|---|
+| オブジェクト名 | 常にプレフィックス付き：`crm_account`、`hd_ticket` |
+| アクション名 | プレフィックス付き：`crm_assign_owner`、`hd_close_ticket` |
+| フロー名 | プレフィックス付き：`hd_overdue_alert` |
+| 翻訳キー | 名前空間の下にスコープ：`crm.account.label` |
+| シードの `externalId` | `<prefix>:<key>`、例：`crm:demo-account-1` |
+| システム名 | 予約済み：`sys_*`（カスタムパッケージでは決して使わない） |
+
+CLI と AI Builder はどちらも、作成時にこれを強制します。
+
+## システムパッケージ [#system-packages]
+
+ランタイムには、ポリモーフィックなサービスを提供する、常に存在する少数のパッケージが付属します。
+
+| パッケージ | 提供するもの |
+|---|---|
+| `sys.identity` | `sys_user`、`sys_organization`、`sys_member`、セッション、API キー |
+| `sys.feeds` | `sys_comment`、`sys_activity`、`sys_attachment` |
+| `sys.audit` | `sys_audit_log` |
+| `sys.files` | `sys_file` |
+| `sys.ai` | `ai_conversations`、`ai_pending_actions` |
+| `sys.settings` | `sys_setting` |
+
+オブジェクトで `enable: { feeds: true, trackHistory: true, … }` を指定して有効にします。[データモデル](/docs/build/data)を参照してください。
+
+## 次に進む [#where-to-go-next]
+
+- [マーケットプレイス](/docs/build/marketplace)：パッケージを他のテナントに配布する
+- [データモデル](/docs/build/data)：パッケージの中に入るもの
+- [`os package` コマンド](/docs/reference/cli)：完全な CLI リファレンス
