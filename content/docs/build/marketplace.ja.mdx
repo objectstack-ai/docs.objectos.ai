@@ -1,0 +1,140 @@
+---
+title: マーケットプレイス
+seoTitle: "マーケットプレイス：出来合いのアプリをインストールし、公開する"
+description: コードを書かずに、稼働中の ObjectOS に出来合いのアプリをインストールします。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 5fb581df2aa59854381bb78c50049fa3203dd3c3ded12d2e39d88d4997ff7e68
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS のマーケットプレイスを使うと、構築済みのアプリを稼働中のランタイムにインストールできます。ビルドのステップも、再起動も、ソースのチェックアウトもありません。初日から本物のソフトウェアをユーザーの前に置く最速の方法です。
+
+## 仕組み [#how-it-works]
+
+マーケットプレイスのクライアントは、オープンソースの `@objectstack/cloud-connection` パッケージです。クラウド管理の環境とセルフホストの ObjectOS イメージには、最初から配線された状態で付属します。自分で組み立てるスタックでは、数行の設定で有効にします。
+
+```ts
+import {
+  MarketplaceProxyPlugin,
+  MarketplaceInstallLocalPlugin,
+  RuntimeConfigPlugin,
+  resolveCloudUrl,
+} from '@objectstack/cloud-connection';
+
+const catalogUrl = resolveCloudUrl(); // OS_CLOUD_URL; 'off' disables
+
+plugins: [
+  ...(catalogUrl ? [
+    new MarketplaceProxyPlugin({ controlPlaneUrl: catalogUrl }),
+    new MarketplaceInstallLocalPlugin({ controlPlaneUrl: catalogUrl }),
+  ] : []),
+  new RuntimeConfigPlugin({ controlPlaneUrl: '', singleEnvironment: true, installLocal: true }),
+]
+```
+
+閲覧とインストールの*仕組み*はオープンです。カタログの*サービス*（組織のカタログ、レビュー、有料配布）は、`OS_CLOUD_URL` が指すコントロールプレーンが提供します。アプリはインストールされるとランタイム自身のカーネルに置かれ、実行時に何もカタログへの到達性に依存しません。
+
+ObjectOS（`/_console/`）を開くと、マーケットプレイスのタブが設定されたアプリカタログを問い合わせ、インストール可能なアプリを表示します。
+
+```text
+You ─→ ObjectOS ─→ Marketplace tab ─→ pick app ─→ Install
+                                                  ↓
+                                       Artifact merged into kernel
+                                                  ↓
+                                       The page re-renders with new
+                                       objects / views / permissions
+                                                  ↓
+                                       Done — no restart
+```
+
+## カタログ [#catalogs]
+
+| カタログ | ソース | 使うとき |
+|---|---|---|
+| **Default** | ObjectOS のランタイムイメージにあらかじめ同梱 | 初めての評価、デモ、オフライン |
+| **ObjectStack 公開カタログ** | 公開のアプリレジストリ | 最新のコミュニティ製とファーストパーティのアプリ |
+| **プライベートカタログ** | 自分で公開した成果物 | 公開したくない社内アプリ |
+| **Local** | ランタイムにマウントしたファイル | エアギャップ、カスタムビルド |
+
+カタログのソースは、マーケットプレイスのプラグインまたは環境変数で設定します。[ランタイム設定](/docs/configure/runtime)を参照してください。
+
+## デフォルトカタログの内容 [#whats-in-the-default-catalog]
+
+次のアプリはワンクリックでインストールできます。
+
+| アプリ | 得られるもの |
+|---|---|
+| **Todo** | 汎用のタスクとプロジェクトの管理 |
+| **Contracts** | AI による条項抽出付きの契約ライフサイクル管理（CLM） |
+| **Procurement** | ベンダー、発注書、3 点照合 |
+| **Compliance** | SOC 2 / ISO 27001 の統制 + 証跡の収集 |
+| **Helpdesk** | AI ファーストのカスタマーサポートのチケット管理 |
+| **Content** | 編集カレンダー + チャネル ROI |
+| **HR** | 名簿、組織図、休暇 |
+| **Project** | プロジェクト / タスク / マイルストーンの管理 |
+
+ソースは [github.com/objectstack-ai/templates](https://github.com/objectstack-ai/templates) にあります。どれでもクローンして、カスタムアプリの出発点にできます。
+
+## インストールの流れ [#install-flow]
+
+1. **ObjectOS を開きます**：http://localhost:3000/_console/
+2. **サインインします**：まだアカウントがない場合は `/_console/register` で登録します
+3. **マーケットプレイスのタブに移動します**
+4. **アプリを選び、Install をクリックします**
+5. **ページを再読み込みします**：新しいアプリのオブジェクト、ビュー、フローが表示されます
+
+裏では、マーケットプレイスがアプリのコンパイル済み成果物を取得し、稼働中のカーネルにマージし、そのオブジェクトを ObjectQL に登録します。シードデータは（アプリが定義していれば）最初のインストール時に挿入されます。
+
+## アンインストール [#uninstall]
+
+**Marketplace → インストール済みのアプリ → Uninstall** から行います。アプリのオブジェクトはカーネルから削除され、テーブルはクリーンアップの対象として印が付けられます（データはデフォルトで保持され、テーブルを削除するかどうかは選べます）。
+
+## 自分のアプリを公開する [#publishing-your-own-app]
+
+`os init` で構築したものは、どれでもマーケットプレイスのアプリにできます。
+
+```bash
+os init my-app -t app --install
+cd my-app
+# ... write objects, views, etc. ...
+os compile                                    # → dist/objectstack.json
+os package publish                            # publish to a catalog
+```
+
+公開カタログに公開するには、レジストリのアカウントが必要です（`os login`）。プライベートカタログに公開するには、`OS_PACKAGE_REGISTRY` を自分のものに向けます。
+
+## バージョニング [#versioning]
+
+公開されたアプリはすべて不変です。更新すると新しいバージョンができます。ランタイムはアプリごとに、インストール済みのバージョンと利用可能な更新を追跡します。追跡しているカタログに新しいバージョンが公開されると、ユーザーには「Update available」のバッジが表示されます。
+
+## CLI からインストールする [#installing-from-the-cli]
+
+マーケットプレイスのタブが主要なインストールのサーフェスですが、同じ install-local エンドポイントは CI やエアギャップ運用のためにスクリプトから使えます。
+
+```bash
+# Catalog mode — the runtime resolves the package from its configured catalog
+os package install com.acme.crm --runtime http://localhost:3000 \
+  --email admin@example.com --password …
+
+# Air-gapped mode — send a compiled artifact inline, no catalog round-trip
+os package install ./dist/objectstack.json --runtime http://localhost:3000 \
+  --email admin@example.com --password …
+```
+
+認証情報は**対象のランタイム**のアカウントです（クラウドのログインではありません）。アプリ内のインストールが使うのと同じ認可です。
+
+## 権限 [#permissions]
+
+アプリのインストールには `manage_marketplace` システム権限が必要です。デフォルトでは **Setup Administrator** 権限セットのメンバーだけがそれを持ちます。通常のユーザーにはマーケットプレイスは読み取り専用で表示されます。
+
+## エアギャップのマーケットプレイス [#air-gapped-marketplaces]
+
+インターネットへの出口がないデプロイでは、ネットワーク内でローカルのカタログサーバーを実行し、ObjectOS をそこに向けます。構成は[エアギャップ](/docs/deploy/air-gapped)を参照してください。
+
+## マーケットプレイスではないもの [#what-the-marketplace-is-not]
+
+- **コードの配布チャネルではありません。** 公開されたアプリはコンパイル済みの成果物で、データ + UI + フローを宣言的に記述します。任意の JavaScript は含みません。
+- **サンドボックスではありません。** インストールされたアプリは、カーネル内の他のものと同じようにデータベースにアクセスできます。信頼できないソースのアプリをインストールする前に、成果物を確認してください。
+- **決済プラットフォームではありません**（今のところ）。公開カタログのアプリは無料の Apache-2.0 です。商用 / 有料の配布はロードマップにあります。

@@ -1,0 +1,180 @@
+---
+title: リレーションシップ
+seoTitle: "リレーションシップ：参照、主従、ロールアップ"
+description: 参照と主従でオブジェクトをつなぎます。カスケードのルール、フィルター付きのピッカー、階層、中間オブジェクト、ロールアップ。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 05bc53d30e7cc26ead447169d0a7c3ba0beb76be6a457d9843593253d11f0469
+  guide_rev: 1
+  mode: auto
+---
+
+**リレーションシップは単なるフィールドです。** `lookup` または `masterDetail` フィールドを別のオブジェクトに向けると、ObjectOS がその上のすべてを配線します。外部キーの整合性、レコードピッカー、親ページの関連リスト、クエリの `expand` です。
+
+| 種類 | カーディナリティ | 削除のデフォルト | 用途 |
+|---|---|---|---|
+| `lookup` | 多対 1 | `set_null` | 緩やかな参照（チケット → 担当者） |
+| `master_detail` | 多対 1、所有される | `cascade` | 親子の所有関係（注文 → 明細行） |
+| `tree` | 自己参照 | — | 階層（カテゴリ、組織図） |
+| `user` | 多対 1 | `set_null` | 人のピッカー。`sys_user` に特化した参照 |
+| `summary` | 親へのロールアップ | — | 子の集計（sum、count、avg） |
+
+## 参照（多対 1） [#lookup-many-to-one]
+
+主力です。別のオブジェクトのレコードを参照します。
+
+```ts
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const Contact = ObjectSchema.create({
+  name: 'contact',
+  fields: {
+    account: Field.lookup('account', {
+      label: 'Account',
+      required: true,
+    }),
+  },
+});
+```
+
+プラットフォームは参照されたレコードが存在することを検証します。外部キーの整合性はすべての書き込みで強制されます。
+
+> **ヒント：** フィールドには、指す先のオブジェクトの名前を付けてください。`account_id` ではなく `account` です。関連リスト、`expand`、AI Builder のすべてが、そのほうが読みやすくなります。
+
+### 親が削除されたときに起こること [#what-happens-when-the-parent-is-deleted]
+
+カスケードの動作は `deleteBehavior` で制御します。
+
+| 値 | 親の削除時 |
+|---|---|
+| `set_null` | 子の参照がクリアされます（参照のデフォルト） |
+| `cascade` | 子のレコードも削除されます |
+| `restrict` | 子が存在する間は削除がブロックされます |
+
+## フィルター付きの参照 [#filtered-lookups]
+
+ピッカーが提示するレコードを制限します。静的な条件には `lookupFilters` を、同じレコードの別のフィールドで候補を絞り込むには `dependsOn` を使います。
+
+```ts
+contact: Field.lookup('contact', {
+  label: 'Contact',
+  dependsOn: ['account'],          // only contacts of the chosen account
+  lookupFilters: [
+    { field: 'is_active', operator: 'eq', value: true },
+  ],
+})
+```
+
+> **警告：** レガシーな `referenceFilters: string[]` プロパティ（例：`['is_active = true']`）は **16.0 で削除されました**。解析時に取り除かれ、削除される前でさえレコードピッカーの UI はそれを読んでいなかったので、何もフィルターしていませんでした。上に示した構造化された `lookupFilters` + `dependsOn` が、サポートされる唯一の形です。
+
+## 主従（所有される子） [#master-detail-owned-children]
+
+`masterDetail` は所有のセマンティクスを持つ参照です。子は親に属し、デフォルトでは親とともにカスケード削除され、親のフォームで明細行としてインライン編集できます。
+
+```ts
+export const OrderLine = ObjectSchema.create({
+  name: 'order_line',
+  fields: {
+    order:    Field.masterDetail('order', { label: 'Order' }),
+    product:  Field.lookup('product', { label: 'Product' }),
+    quantity: Field.number({ label: 'Quantity', min: 1 }),
+  },
+});
+```
+
+| 観点 | 動作 |
+|---|---|
+| 削除 | `deleteBehavior: 'restrict'` でない限り、実行時に子へカスケードします |
+| 所有 | 子のレコードは親のレコードが所有します |
+| 編集 | 親のフォームでの明細行のインライン編集（任意） |
+| ロールアップ | `summary` フィールドは主（親）の側でのみ有効です |
+
+参照が任意または共有されるものなら `lookup` を、子のレコードが親なしでは意味をなさないなら `masterDetail` を選んでください。
+
+## 自己参照の参照とツリー [#self-referencing-lookups--trees]
+
+参照は自分自身のオブジェクトを指して階層を構築できます。
+
+```ts
+parent_account: Field.lookup('account', {
+  label: 'Parent Account',
+  description: 'Parent company in hierarchy',
+})
+```
+
+専用の階層（カテゴリ、組織図）には `tree` フィールドの種類を使います。`lookup` と同じように保存され展開される自己参照の参照です。エンジンは書き込み時に循環のチェックを**行わない**ため、自分自身に戻ってくる連鎖が自動的に拒否されることはありません。
+
+> **ヒント：** `tree` / 自己参照のフィールドを[ツリーリストビュー](/docs/build/interface/views)と組み合わせると、階層を入れ子の行として表示できます。
+
+## 関連リスト [#related-lists]
+
+これは無償で得られます。参照が親を指していれば、子のレコードは親の詳細ページに関連リストとして自動的に表示されます。
+
+- Contact が `account: Field.lookup('account')` を持つ
+- → Account の詳細ページに **Contacts** の関連リストが表示される
+
+追加の設定は不要です。
+
+## 多対多：中間オブジェクト [#many-to-many-junction-objects]
+
+ObjectOS には直接の多対多フィールドはありません。**中間オブジェクト**としてモデル化します。両側それぞれへのリレーションシップフィールドを 2 つ持つオブジェクトです。
+
+```ts
+// Student ↔ Course, joined by Enrollment
+export const Enrollment = ObjectSchema.create({
+  name: 'enrollment',
+  fields: {
+    student: Field.masterDetail('student', { label: 'Student' }),
+    course:  Field.masterDetail('course',  { label: 'Course' }),
+    grade:   Field.select({
+      label: 'Grade',
+      options: [
+        { label: 'Pass', value: 'pass' },
+        { label: 'Fail', value: 'fail' },
+      ],
+    }),
+  },
+  indexes: [
+    { fields: ['student', 'course'], unique: true },  // one enrollment per pair
+  ],
+});
+```
+
+どちらの側も中間レコードを関連リストとして見られます。そして中間オブジェクト自体が、組み合わせの属性（成績、役割、参加日）の自然な置き場所になります。
+
+## ロールアップ（`summary` フィールド） [#roll-ups-summary-fields]
+
+`summary` フィールドで子のレコードを親に集計します。主オブジェクト、つまり主従の親の側でのみ有効です。
+
+```ts
+// Fields of an object — this one belongs on the Order object.
+total_lines: {
+  type: 'summary',
+  label: 'Line Count',
+  summaryOperations: {
+    object: 'order_line',    // child object to aggregate
+    field: 'quantity',       // field to aggregate
+    function: 'sum',         // count | sum | min | max | avg
+    filter: { status: 'active' },  // new in 16.0: aggregate only matching children
+  },
+}
+```
+
+サマリーフィールドは読み取り専用で、子から計算されます。直接書き込むことはありません。
+
+**16.0 の新機能：** 任意の `filter` はクエリ形式の `where` 述語です。それに一致する子の行だけが集計され（例：`status == 'active'` の子だけを数える）、子が述語の内外に移ると、ロールアップは再集計されます。また、複数のサマリーが*同じ*子オブジェクトを別々の合計にロールアップできるようになります。
+
+## リレーションシップをまたいでクエリする [#querying-across-relationships]
+
+`expand` を使うと、関連レコードを 1 回の呼び出しで読み込めます。クエリ API は参照フィールドをたどり、参照先のレコードをインライン化するので、クライアントから N+1 のリクエストを発生させずに済みます。
+
+## 次に進む [#where-to-go-next]
+
+| ページ | 理由 |
+|---|---|
+| [データモデル](/docs/build/data) | オブジェクト、フィールド、これらのリレーションシップが存在するスキーマ |
+| [数式](/docs/build/data/formulas) | CEL でレコード全体の値を計算する |
+| [検証ルール](/docs/build/data/validation-rules) | フィールドをまたぐルールと一意制約 |
+| [ビュー](/docs/build/interface/views) | ツリービュー、カンバン、関連リストのサーフェス |
+| [フィールドの種類](/docs/reference/field-types) | `lookup`、`master_detail`、`tree`、`summary` の完全なリファレンス |
+| [AI Builder](/docs/build/ai-builder) | チャットでリレーションシップを説明し、プラットフォームに配線させる |

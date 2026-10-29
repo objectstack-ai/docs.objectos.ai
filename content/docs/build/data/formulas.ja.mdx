@@ -1,0 +1,208 @@
+---
+title: 数式
+seoTitle: "数式フィールド、動的デフォルト、CEL のロジック"
+description: 計算フィールド、動的デフォルト、条件付きロジック。メタデータが考える必要のあるあらゆる場所で、ひとつの CEL 式言語を使います。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 4c94691d64eaae42bb49bfe69035aae77414eb5038b32c992efce1b2768c0aa1
+  guide_rev: 1
+  mode: auto
+---
+
+**ひとつの式言語を、あらゆるサーフェスで。** メタデータが値を計算したり条件を評価したりする必要がある場所では、ObjectOS は [CEL](/docs/reference/cel)（Google の Common Expression Language）を使います。数式フィールド、動的デフォルト、条件付きの表示、検証の条件、フローの判断です。構文を一度覚えれば、どこでも使えます。
+
+| サーフェス | そこで CEL がすること |
+|---|---|
+| **数式フィールド**（`type: 'formula'`） | 他のフィールドから読み取り時の値を計算する |
+| **動的デフォルト**（``defaultValue: cel`...` ``） | コンパイル時ではなく挿入時に評価する |
+| **フィールドの述語**（`visibleWhen`、`readonlyWhen`、`requiredWhen`） | 条件に応じてフィールドを表示 / ロック / 必須にする |
+| **[検証ルール](/docs/build/data/validation-rules)**（`condition`） | 無効なレコードに印を付ける |
+| **[ビュー](/docs/build/interface/views)**（`visibleOn`、`conditionalFormatting`） | 条件付きのセクションと行のスタイル |
+| **[フロー](/docs/build/automation/flows)**（判断、フックの条件） | レコードの状態で分岐する |
+
+このページでは、ビルダーが数式を*使う*方法を扱います。演算子、標準ライブラリ、`Expression` エンベロープなどの言語全体は [CEL リファレンス](/docs/reference/cel)にあります。
+
+## 数式フィールド [#formula-fields]
+
+数式フィールドは、CEL 式から読み取り時に値を計算します。読み取り専用で、直接書き込むことはできません。
+
+```ts
+import { F } from '@objectstack/spec';
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+export const Invoice = ObjectSchema.create({
+  name: 'invoice',
+  fields: {
+    subtotal: Field.currency({ label: 'Subtotal' }),
+    tax_rate: Field.number({ label: 'Tax Rate', scale: 4 }),
+
+    total: Field.formula({
+      label: 'Total',
+      returnType: 'number',
+      expression: F`record.subtotal + record.subtotal * record.tax_rate`,
+    }),
+  },
+});
+```
+
+重要なキーは 2 つです。
+
+| キー | 機能 |
+|---|---|
+| `expression` | CEL のソース。ランタイムが評価する**唯一の**キーです |
+| `returnType` | 数式が返すもの：`'number'`、`'text'`、`'boolean'`、`'date'`。ダッシュボードと書式設定が読み取ります |
+
+> **警告：** 数式フィールドの `type` は常に `formula` です。`Field.formula` に `type: 'currency'` や `type: 'number'` を**渡さないでください**。`type: 'formula'` を上書きしてしまい、フィールドは黙って一度も計算されなくなります。値の型は代わりに `returnType` で宣言してください。
+
+### よく使うパターン [#everyday-patterns]
+
+```ts
+// Tiered label
+Field.formula({
+  label: 'Discount Tier',
+  returnType: 'text',
+  expression: `
+    record.amount > 1000000 ? "Platinum" :
+    record.amount > 500000 ? "Gold" :
+    record.amount > 100000 ? "Silver" : "Bronze"
+  `,
+})
+
+// Days until close
+Field.formula({
+  label: 'Days to Close',
+  returnType: 'number',
+  expression: 'daysBetween(record.close_date, today())',
+})
+
+// Full name — joinNonEmpty skips blank parts
+Field.formula({
+  label: 'Full Name',
+  returnType: 'text',
+  expression: F`joinNonEmpty([record.salutation, record.first_name, record.last_name], ' ')`,
+})
+
+// Gross margin with 2 decimal places
+Field.formula({
+  label: 'Gross Margin %',
+  returnType: 'number',
+  expression: 'record.revenue > 0 ? ((record.revenue - record.cost) / record.revenue) * 100 : 0',
+  scale: 2,
+})
+```
+
+> **ヒント：** CEL は `null + string` で例外を投げるので、連結するときは null になりうるオペランドを `coalesce(record.x, '')` で包んでください。あるいは `joinNonEmpty` を使えば手間が省けます。
+
+### 16.0 の新機能 [#new-in-160]
+
+- **日付と数値の演算はビルド時のエラーです。** `record.end_date - record.start_date + 1` や `today() + 30` のような式は、実行時に常に失敗していました（黙って null に評価されていました）。現在はビルドがそれらを拒否し、期間には `daysBetween(a, b)` を、ずらすには `daysFromNow(n)` / `addDays(d, n)` / `addMonths(d, n)` を案内するエラーを出します。
+- **null ガードの三項演算子がコンパイルできます。** `cond ? value : null`（例：`record.end_date != null ? daysBetween(record.start_date, record.end_date) + 1 : null`）は、入力がそろうまで数式を空白に保つための推奨される方法です。
+- **`floor(x)` / `ceil(x)` が登録されました。** これらは −∞ / +∞ の方向に丸めます（つまり `floor(-1.2) == -2`）。整数除算のようにゼロの方向ではありません。
+- **`today()` との日付の等価比較が一致するようになりました。** 時間の値は比較の前に型変換されるので、`record.due_date == today()` も `daysBetween(today(), record.due_date) == 0` も期待どおりに動作します。
+
+### レコードのタイトルとしての数式 [#formula-as-record-title]
+
+ADR-0079 以降、レコードのタイトルは `nameField` で指定されたフィールドです。複合的なタイトルにはテキストの数式を使います。
+
+```ts
+ObjectSchema.create({
+  name: 'invoice',
+  nameField: 'display_title',
+  fields: {
+    display_title: Field.formula({
+      returnType: 'text',
+      expression: F`"Invoice " + string(record.invoice_no) + " – " + record.customer.name`,
+    }),
+  },
+});
+```
+
+## 動的デフォルト [#dynamic-defaults]
+
+`` cel`...` `` で包んだ `defaultValue` は**挿入時**に評価されます。あなたのノート PC ではなく、ユーザーの時刻と ID で評価されます。
+
+```ts
+import { cel } from '@objectstack/spec';
+
+issued_date: Field.date({
+  defaultValue: cel`today()`,
+}),
+due_date: Field.date({
+  defaultValue: cel`daysFromNow(30)`,
+}),
+```
+
+同じ手法はシードデータにも使えます。``close_date: cel`daysFromNow(45)` `` を持つシードレコードはパッケージのインストール時に解決されるので、デモデータはコンパイル時のタイムスタンプを運ぶのではなく、常に新しいものになります。
+
+## 条件付きのフィールドの動作 [#conditional-field-behavior]
+
+述語を使うと、フィールドがレコードの他の部分に反応します。
+
+```ts
+import { P } from '@objectstack/spec';
+
+po_number: Field.text({
+  label: 'PO Number',
+  requiredWhen: P`record.amount > 10000`,
+}),
+rating: Field.select({
+  label: 'Rating',
+  options: [
+    { label: 'Hot', value: 'hot' },
+    { label: 'Cold', value: 'cold' },
+  ],
+  visibleWhen: P`record.status == 'qualified'`,
+}),
+notes: Field.textarea({
+  readonlyWhen: P`record.status == 'approved'`,
+}),
+```
+
+`F`（formula）、`P`（predicate）、`cel` のタグ付きテンプレートのヘルパーは交換可能です。呼び出し箇所で最も読みやすいものを選んでください。
+
+## 30 秒でわかる CEL [#cel-in-30-seconds]
+
+| 概念 | 構文 |
+|---|---|
+| 現在のレコードのフィールド | `record.amount` |
+| 更新前の値 | `previous.status` |
+| 等価 / 論理 | `==` `!=` `&&` `\|\|` `!` |
+| 条件 | `cond ? then : else` |
+| 包含 | `record.region in ['us', 'eu']` |
+| 空白のチェック | `isBlank(record.phone)` |
+| 日付 | `today()`、`now()`、`daysBetween(a, b)`、`addDays(d, n)` |
+| 文字列 | `upper`、`lower`、`trim`、`contains`、`matches` |
+
+演算子の完全な表と標準ライブラリ：[CEL リファレンス](/docs/reference/cel)。
+
+> **警告：** 述語は素の CEL です。フィールドの参照を決して波括弧で包まないでください。`{record.rating} >= 4` は**マップリテラル**で、解析エラーになります。`record.rating >= 4` と書いてください。波括弧が使われるのは `{{ … }}` のテキストテンプレートだけです。不正な式はビルドに失敗し、実行時には例外を投げます。黙って `false` に評価されることはありません。
+
+> **ヒント：** `has(record.x)` は、キーが存在すれば値が `null` でも真になります。「空白でない」ことをチェックするには、`isBlank(...)` か `record.x != null` を使ってください。
+
+## ベストプラクティス [#best-practices]
+
+| すること | しないこと |
+|---|---|
+| 数式をシンプルで読みやすく保つ | 循環参照を作る |
+| エッジケース（null、ゼロ、空）をテストする | 三項演算子を 5 段も入れ子にする |
+| `coalesce` / `isBlank` で null を扱う | 頻繁に変わるデータに数式を使う |
+| すべての数式で `returnType` を宣言する | 検証ルールが担うべきロジックを作り直す |
+
+## チャットで構築する [#build-by-chat]
+
+数式を手で書くことはめったにありません。[AI Builder](/docs/build/ai-builder) にこう伝えます。
+
+> *「opportunity に Days to Close の数式を追加して。close_date と今日の間の日数。」*
+
+AI Builder は CEL を出力し、`returnType` を推論して付け、式は出荷前に検証されます。無効な数式は、位置付きのエラーでビルドに失敗します。
+
+## 次に進む [#where-to-go-next]
+
+| ページ | 理由 |
+|---|---|
+| [CEL リファレンス](/docs/reference/cel) | 言語全体：演算子、標準ライブラリ、式のエンベロープ |
+| [データモデル](/docs/build/data) | 数式フィールドが置かれる場所 |
+| [検証ルール](/docs/build/data/validation-rules) | 不正な書き込みをブロックする CEL の条件 |
+| [ビュー](/docs/build/interface/views) | `visibleOn` と `conditionalFormatting` の CEL |
+| [フロー](/docs/build/automation/flows) | 判断とフックの条件の CEL |
+| [フィールドの種類](/docs/reference/field-types) | `formula`、`summary`、`autonumber` など |

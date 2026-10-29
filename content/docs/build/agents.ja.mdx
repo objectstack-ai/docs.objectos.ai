@@ -1,0 +1,162 @@
+---
+title: エージェント
+seoTitle: "AI エージェント：エージェント、スキル、ツールを定義する"
+description: エンドユーザー向けの AI アシスタント。Agent → Skill → Tool の構成で、データとアクションから組み立てます。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: a79f76287f957b73a7b772cee68ed44718d9d50857f83da882622e1206d1122a
+  guide_rev: 1
+  mode: auto
+---
+
+エージェントは、**エンドユーザー**がチャットする AI アシスタントです。ヘルプデスクのコパイロット、営業の BDR、社内 HR の Q&A ボットなどです。エージェントはすでに定義したデータとアクションの上に載ります。新しいコードは書かず、既存のプリミティブを組み合わせてペルソナを作ります。
+
+Salesforce Agentforce、Microsoft Copilot Studio、ServiceNow Now Assist にそろえた 3 層のアーキテクチャです。
+
+```text
+Agent  ──→  Skill  ──→  Tool
+(persona)   (capability)  (callable function)
+```
+
+| 層 | 内容 | 例 |
+|---|---|---|
+| **Tool** | 呼び出し可能な関数ひとつ（アクション、クエリ、ナレッジ検索、MCP メソッド） | `create_ticket`、`get_order_status`、`search_kb` |
+| **Skill** | 関連するツールを、共通の LLM 指示とともにまとめた名前付きの束 | `ticket_management` = 作成 + 更新 + クローズ + エスカレーション |
+| **Agent** | 役割、システムプロンプト、付属するスキルを持つペルソナ | `tier1_support` = 共感的で、本人確認を行い、`ticket_management` + `kb_search` を持つ |
+
+## エージェントを定義する（ファイル 1 つ） [#define-an-agent-one-file]
+
+```ts
+// src/agents/tier1_support.agent.ts
+import { defineAgent } from '@objectstack/spec/ai';
+
+export const tier1Support = defineAgent({
+  name: 'tier1_support',
+  label: 'First Line Support',
+  role: 'Help Desk Assistant',
+  instructions: `
+    You are a friendly first-line support agent.
+    Always verify the user's identity before discussing account specifics.
+    Search the FAQ and the policy articles before you answer a how-to question.
+    Escalate to tier 2 if the issue involves billing or security.
+  `,
+  skills: ['ticket_management', 'knowledge_search'],
+  model: { provider: 'openai', model: 'gpt-4o', temperature: 0.3 },
+  memory: { longTerm: { enabled: true, maxEntries: 50 }, reflectionInterval: 10 },
+});
+```
+
+エージェントには `knowledge` ブロックはありません。`search_knowledge` ツールがどのソースを読めるかは、ナレッジサービスでソースごとに制限されます。エージェントがどのソースに基づいて答えるべきかは `instructions` に書いてください。
+
+UI からは：**Studio → Agents → New Agent**。
+
+あるいは、そしてこれが要点ですが、AI Builder にこう伝えます。
+
+> *「チケット管理を担当し、FAQ を検索する Tier 1 サポートエージェントを作って。アカウントの詳細について話す前に本人確認をすること。」*
+
+## スキルを定義する [#define-a-skill]
+
+```ts
+// src/skills/ticket_management.skill.ts
+import { defineSkill } from '@objectstack/spec/ai';
+
+export const ticketManagement = defineSkill({
+  name: 'ticket_management',
+  label: 'Ticket Management',
+  instructions: `
+    Always confirm the ticket subject and priority before creating one.
+    Use 'urgent' priority sparingly — only for outages or security incidents.
+  `,
+  tools: [
+    'create_ticket',
+    'update_ticket',
+    'close_ticket',
+    'escalate_ticket',
+    'action_*',         // wildcard: every action the app exposes to AI (`ai.exposed`)
+  ],
+});
+```
+
+スキルは**再利用に適した単位**です。ひとつのスキルが多くのエージェントで機能します。
+
+## ツールは宣言したメタデータから生まれる [#tools-come-from-your-declared-metadata]
+
+アクションは、**作成者がそれを AI に公開したとき**（40 文字以上の `ai.description` を伴う `ai: { exposed: true }`）、かつその種類が UI なしで実行される（`script`、`flow`、`api`）場合に、`action_<name>` ツールになります。それ以外に配線は不要です。`support_ticket` オブジェクトの `escalate_ticket` が公開されていれば、AI Builder もあなたのエージェントもそれを呼び出せます。公開されていないアクションはエージェントからは見えず、呼び出し元がどのような権限を持っていても、呼び出されれば拒否されます。
+
+呼び出しは**ユーザーとして**チェックされます。アクションの `requiredPermissions` が実行してよいかを決め、アクションはそのユーザーとしてレコードを読み込みます。その後 `script` の本体は信頼されたアプリコードとして実行されるので、それらのチェックを通過する誰に対しても本体を安全に実行できる場合にだけ、アクションを公開してください。[アクション](/docs/build/interface/actions#permissions)を参照してください。
+
+次のものも公開できます。
+
+| ツールの種類 | ソース |
+|---|---|
+| **アクション** | インストールされた任意のパッケージで、AI に公開された（`ai.exposed`）任意のアクション |
+| **フロー** | 公開された `type: 'flow'` のアクション。エージェントがアクションを呼び出し、アクションがフローを開始します |
+| **クエリ** | 保存された ObjectQL クエリ（`*.query.ts`） |
+| **ナレッジ検索** | ユーザーが読めるソースを対象とする `search_knowledge` ツール |
+| **MCP メソッド** | 接続された MCP サーバーが公開するもの |
+| **組み込みのメタデータツール** | `create_object`、`add_field` など。ただし管理者向けエージェントのみ |
+
+## アンビエントアシスタントのパターン [#ambient-assistant-pattern]
+
+ユーザーにエージェントを選ばせる代わりに、**アプリ全体でひとつのチャットボックス**（Claude Code / Agentforce のスタイル）が欲しい場合は、App メタデータで `defaultAgent` を宣言し、アプリのコンテキストを付けてアンビエントチャットのエンドポイントを呼び出します。
+
+```text
+POST /api/v1/ai/chat   { context: { appName: 'crm' }, ... }
+```
+
+`context.appName` が `defaultAgent` を宣言しているアプリに解決されると、ランタイムはそのエージェントを自動的に選択します。ユーザーが一覧から選ぶことはありません。組み込みの AI パネルはこの仕組みを使っています。ランタイムは次のものを解決します。
+
+1. アクティブなアプリの**デフォルトエージェント**（アプリの `defaultAgent`）、またはユーザーがアクセスできる最初のエージェント。
+2. **アクティブなスキル**：Skill Registry から読み込まれたエージェントの `skills:` の一覧を、ユーザーの権限セットと現在のオブジェクト/レコードのコンテキストでフィルターしたもの。
+
+どのエージェントをどこに表示するかを配線する必要はありません。アプリを宣言し、その `defaultAgent` を設定すれば表示されます。
+
+## 権限 [#permissions]
+
+| 機能 | 権限 |
+|---|---|
+| エージェントとチャットする | `ai:chat`（とエージェントのスキルのツールへのアクセス） |
+| メタデータの変更を承認する | `ai:approve` |
+| エージェントとスキルを定義 / 編集する | `ai:author`（通常は Setup Administrator） |
+| AI の会話を読む（監査） | `ai:read` |
+
+会話はユーザーにスコープされます。委任された許可がない限り、あるユーザーが別のユーザーのチャット履歴を見ることはできません。
+
+## メモリと会話の状態 [#memory-and-conversation-state]
+
+エージェントの `memory` ブロックは長期メモリを設定します。各ユーザーについて抽出され、セッションをまたいで引き継がれるメモです。
+
+| フィールド | 機能 |
+|---|---|
+| `longTerm.enabled` | セッションをまたいでメモを保持する（デフォルト `false`） |
+| `longTerm.maxEntries` | ユーザーごとに保持するメモの数。新しいものから想起されます。`enabled` が true の場合は必須 |
+| `reflectionInterval` | 振り返りの間に何回のやり取りがあるか。メモを書くのは振り返りです。`enabled` が true の場合は必須 |
+
+短期メモリのブロックはありません。1 回のリクエストのコンテキストウィンドウはトークン予算で制限されます。メモをどこに保存するかはプラットフォームが選ぶことであり、エージェントのメタデータではありません。
+
+稼働中のコンテキストウィンドウの刈り込みは、会話のトークン予算の戦略で制御されます。`sliding_window`（デフォルト）、`fifo`、`importance`、`semantic`、`summary` です。
+
+会話の行は `ai_conversations` に保存されます。ツール呼び出しの結果と保留中のアクションは、監査のために元の会話を相互参照します。
+
+## 可観測性 [#observability]
+
+エージェントの実行はすべて次のものを出力します。
+
+- `audit:ai:chat` イベント（ターンごと）
+- `audit:ai:tool` イベント（ツール呼び出しごと、入力と出力付き）
+- `audit:ai:pending_action` イベント（変更がキューに入ったとき）
+- チャージバックのための、監査ログへのトークン数のメトリクス（モデルごと、プロバイダーごと）
+
+これらは普段使っている可観測性スタックにつなげられます。[可観測性](/docs/operate/observability)を参照してください。
+
+## マルチテナントに関する注意 [#multi-tenant-note]
+
+エージェントは環境ごとです。テナント A の `tier1_support` エージェントがテナント B のデータ、会話、ナレッジを見ることは決してありません。同じエージェント定義をマーケットプレイスのパッケージで配布していても同じです。
+
+## 次に進む [#where-to-go-next]
+
+- [AI Builder](/docs/build/ai-builder)：構築時のアシスタント
+- [IDE スキル](/docs/build/ai-skills)：`npx skills add objectstack-ai/objectstack/skills` で、IDE のエージェントがメタデータを正しく作成できるようにする
+- [アクション](/docs/build/interface/actions)：エージェントが使うツールを宣言する
+- [AI サービス](/docs/configure/ai)：プロバイダー、エンベッダー、MCP の設定
+- [`@objectstack/spec/ai`](https://github.com/objectstack-ai/objectstack/tree/main/packages/spec/src/ai)：完全なスキーマ

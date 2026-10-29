@@ -1,0 +1,237 @@
+---
+title: 検証ルール
+seoTitle: "検証ルール：必須、一意、CEL のルール"
+description: 必須フィールド、一意制約、そして CEL によるルールで、プラットフォームのレベルで不正なデータを止めます。エラーメッセージは自分で制御できます。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 1f582742d9d1e87e240b1d6d773f281c8036338f52226387f84a0549f02bc5c1
+  guide_rev: 1
+  mode: auto
+---
+
+**検証はすべての書き込み経路で実行されます。** REST、フォーム、ObjectQL のどこでも同じルールが発動するので、不正なデータのための裏口はありません。16.0 以降は複数行の更新も含まれます。一括更新は、一致した行ごとにルールを 1 回評価します。検証ルールは、単一のレコードに対する決定的で同期的な副作用のない述語です。入ってくる書き込み（更新時には以前のレコードも）から I/O なしで判定できます。
+
+検証は層になっています。ルールを表現できる最も低い層を使ってください。
+
+| 層 | 表現するもの | 例 |
+|---|---|---|
+| **フィールドの修飾子** | 存在、一意性 | `required: true`、`unique: true` |
+| **フィールドの制約** | フィールドごとの形 | `min`、`max`、`maxLength`、`format` |
+| **条件付きの修飾子** | 文脈に依存する存在 | ``requiredWhen: P`record.amount > 10000` `` |
+| **オブジェクトの検証ルール** | フィールドをまたぐビジネスロジック | 「値引きは合計を超えられない」 |
+| **一意インデックス** | 複合 / スコープ付きの一意性 | `{ fields: ['code', 'organization'], unique: true }` |
+| **ライフサイクルフック** | 任意の検証コード、削除のガード | `beforeInsert` / `beforeUpdate` / `beforeDelete` |
+
+## フィールドレベル：必須、一意、制約 [#field-level-required-unique-constraints]
+
+汎用の修飾子は、すべてのフィールドの種類で動作します。
+
+```ts
+// Fields of an object; the object around them is omitted.
+import { ObjectSchema, Field } from '@objectstack/spec/data';
+
+fields: {
+  email: Field.email({ label: 'Contact Email', required: true, unique: true }),
+  quantity: Field.number({ label: 'Quantity', min: 1, max: 9999 }),
+  code: Field.text({ label: 'Code', minLength: 3, maxLength: 20 }),
+}
+```
+
+| 修飾子 | 動作 |
+|---|---|
+| `required: true` | 実行時に `null` / `undefined` を拒否します |
+| `unique: true` | データベースレベルの一意制約。競合しやすいアプリケーション側のチェックではありません |
+| `min` / `max` | 数値の範囲（number、currency、percent、rating、slider など） |
+| `minLength` / `maxLength` | テキストの種類の文字数の範囲 |
+| `format` | 組み込みの形のチェック。`email`、`url`、`phone` のフィールドの種類はデフォルトでそれを持ちます |
+| `readonly: true` | 挿入時と更新時にサーバーで強制されます。システム以外によるそのフィールドへの書き込みは捨てられ、レスポンスの `droppedFields` で報告されます。書き込みが `strictReadonlyWrites` オプションを渡した場合は完全に拒否されます。作成時に読み取り専用フィールドへ初期値を入れるには、システムとして書き込みます。シード、システムフック、または `runAs: 'system'` のフローです |
+
+フィールドの種類も無償で自分自身を検証します。`email` は `local@domain` の形をチェックし、`url` はプロトコルを必要とし、`select` の値は選択肢に一致しなければならず、`lookup` は参照先のレコードが存在することを強制し、`json` は解析できなければなりません。すべてのデフォルトは[フィールドの種類のリファレンス](/docs/reference/field-types)を参照してください。
+
+### 条件付きの必須 / 読み取り専用 / 表示 [#conditional-required--read-only--visible]
+
+存在の要否は、CEL の述語でレコードの他の部分に依存させられます。
+
+```ts
+import { P } from '@objectstack/spec';
+
+po_number: Field.text({
+  label: 'PO Number',
+  requiredWhen: P`record.amount > 10000`,
+}),
+```
+
+`visibleWhen`、`readonlyWhen`、`requiredWhen` はすべて CEL の述語を取ります。[数式](/docs/build/data/formulas)を参照してください。これらはレコード自身のフィールドだけを読みます。評価できない `requiredWhen` や `readonlyWhen`（綴りを間違えたフィールド、`null` に対する大小比較、`record.account.tier` のような参照をたどる読み取り）は、書き込みを通すのではなく `VALIDATION_FAILED` で拒否します。関連レコードを読む必要があるチェックは[検証ルール](#reading-a-related-record)に置いてください。
+
+## オブジェクトレベルの検証ルール [#object-level-validation-rules]
+
+フィールドをまたぐビジネスロジックは、オブジェクトの `validations` 配列に置きます。
+
+```ts
+export const Order = ObjectSchema.create({
+  name: 'order',
+  fields: {
+    amount: Field.currency({ label: 'Amount', required: true }),
+    status: Field.select({
+      label: 'Status',
+      options: [
+        { label: 'Draft', value: 'draft' },
+        { label: 'Submitted', value: 'submitted' },
+      ],
+    }),
+  },
+
+  validations: [
+    {
+      name: 'amount_positive',
+      type: 'script',
+      severity: 'error',
+      message: 'Amount must be greater than zero',
+      // CEL predicate — TRUE means the record is INVALID.
+      condition: 'record.amount <= 0',
+      events: ['insert', 'update'],
+    },
+  ],
+});
+```
+
+> **警告：** `script` ルールの `condition` は**失敗の**述語です。それが TRUE に評価されると検証は失敗します。*不正な*状態のテストを書いてください。`record.amount <= 0` は正でない金額を拒否します。
+
+### 共通のプロパティ [#common-properties]
+
+すべてのルールの種類は、次の基本の形を共有します。
+
+| プロパティ | 必須 | 説明 |
+|---|---|---|
+| `name` | はい | 一意のルール名（`snake_case`） |
+| `message` | はい | ユーザー向けのエラーメッセージ |
+| `type` | はい | `script`、`state_machine`、`format`、`cross_field`、`json_schema`、`conditional` |
+| `severity` | いいえ | `error`（保存をブロック、デフォルト）、`warning`（保存を許可）、`info` |
+| `events` | いいえ | `insert`、`update`。デフォルトは `['insert', 'update']`。`delete` イベントは 16.0 で削除されました。評価器は削除時に一度も実行されず（削除はレコードのペイロードを持たない）、黙って何もしていなかったためです。削除は `beforeDelete` フックでガードしてください |
+| `priority` | いいえ | 0〜9999、小さいほど先に実行（デフォルト 100） |
+| `active` | いいえ | 削除せずに切り替える（デフォルト `true`） |
+
+### 6 種類のルール [#the-six-rule-types]
+
+| 種類 | チェックするもの | 主な設定 |
+|---|---|---|
+| `script` | 任意の CEL 述語 | `condition`（TRUE = 無効） |
+| `state_machine` | 許可されたステータスの遷移 | `field`、`transitions` のマップ、任意の `initialStates` |
+| `format` | 1 つのフィールドを正規表現または組み込みの形式に照らす | `field`、`regex` または `format: 'email' \| 'url' \| 'phone' \| 'json'` |
+| `cross_field` | フィールド間の関係 | `fields`、`condition` |
+| `json_schema` | JSON フィールドを JSON Schema に照らす | `field`、`schema` |
+| `conditional` | 述語が成り立つときだけ入れ子のルールを適用する | `when`、`then`、任意の `otherwise` |
+
+いつも使うことになる 2 つのルール：
+
+```ts
+// Two validation rules, entries of the object's `validations` array.
+
+// State machine — enforce the status flow
+{
+  name: 'order_status_transitions',
+  type: 'state_machine',
+  severity: 'error',
+  message: 'Invalid status transition',
+  field: 'status',
+  transitions: {
+    draft: ['submitted', 'cancelled'],
+    submitted: ['approved', 'rejected', 'cancelled'],
+    approved: ['completed'],
+    rejected: ['draft'],
+    cancelled: [],
+    completed: [],
+  },
+  initialStates: ['draft'],  // new in 16.0: states a record may be CREATED in
+  events: ['insert', 'update'],  // include 'insert' so initialStates is checked
+}
+
+// Cross-field — dates in order
+{
+  name: 'date_range_valid',
+  type: 'cross_field',
+  severity: 'error',
+  message: 'End date must be after start date',
+  fields: ['start_date', 'end_date'],
+  condition: 'record.end_date <= record.start_date',
+  events: ['insert', 'update'],
+}
+```
+
+**16.0 の新機能：** `state_machine` ルールは `initialStates`、つまりレコードを*作成*できる状態を宣言できます。状態フィールドが一覧外の値を持つ挿入は拒否されます（`invalid_initial_state`）。`transitions` は更新だけを制御し、`select` フィールドは宣言された任意の選択肢を初期値として許すので、`initialStates` がないとレコードはフローの途中で生まれることがあります（例：最初から `approved` で作成される）。省略するとレガシーな動作（挿入時に初期状態をチェックしない）のままです。チェックを実行するには、ルールの `events` に `insert` が含まれていなければなりません。
+
+更新時の条件では、`previous` が変更前のスナップショットを保持します。`record.stage != previous.stage` で変更を検出できます。
+
+### 関連レコードを読む [#reading-a-related-record]
+
+ObjectStack 17.5 以降、`script` または `cross_field` ルールは、`lookup`、`master_detail`、`user`、`tree` のフィールドを通じて **1 ホップ**だけ読めます。
+
+```ts
+// One validation rule, an entry of the object's `validations`
+{
+  name: 'partner_deal_cap',
+  type: 'script',
+  severity: 'error',
+  message: 'Partner deals over 10,000 need a direct contract',
+  condition: "record.account.type == 'partner' && record.amount > 10000",
+  events: ['insert', 'update'],
+}
+```
+
+エンジンは、条件が名前を挙げた関連フィールドだけを、参照フィールドごとに 1 回のまとめた読み取りで読み込み、たどるルールがなければ何も読みません。2 ホップ目（`record.account.owner.email`）は拒否され、たどりながら参照の ID を比較することも拒否されます。フィールドレベルの述語と行レベルセキュリティは、レコード自身のフィールドにとどまります。
+
+ルールが見るのは `record` と `previous` だけで、それ以外は見えません。誰が保存しているかを尋ねることはできません。`current_user.can(...)` に答えるのは別の場所で（[CEL → 権限チェック](/docs/reference/cel#permission-checks)を参照）、検証ルールの中では評価できないため、そのルールは実行されるすべての書き込みを拒否します。
+
+## 一意性：ルールではなくインデックスを使う [#uniqueness-use-an-index-not-a-rule]
+
+`uniqueness` という検証の種類は**ありません**。意図的です。SELECT してから INSERT するチェックは本質的に競合します（TOCTOU）。データベースの一意制約はそうではありません。一意性はデータ層で強制してください。
+
+```ts
+// Keys of an object; its name and its other fields are omitted.
+fields: {
+  // Field-level
+  email: Field.email({ label: 'Contact Email', unique: true }),
+},
+
+// Composite / scoped via indexes
+indexes: [
+  { fields: ['code', 'organization'], unique: true },
+  // add `partial` for a scoped/conditional constraint
+],
+```
+
+同じ理屈で、非同期/リモートの検証（クライアントのフォームの関心事であり、書き込み経路での SSRF/レイテンシーの危険）とカスタムハンドラーも除外されています。任意の検証コードは `beforeInsert` / `beforeUpdate` のライフサイクルフックに、削除時のガードは `beforeDelete` フックに置きます。
+
+## カスタムのエラーメッセージ [#custom-error-messages]
+
+`message` は、ルールが発動したときにユーザーが目にするものです。フォームでも API のエラーレスポンスでも表示されます。行動につながるものにしてください。
+
+| 弱い | 強い |
+|---|---|
+| "Invalid input" | "Close date is required for closed deals" |
+| "Validation failed" | "Phone must match format: +1-XXX-XXX-XXXX" |
+| "Error" | "Discount cannot exceed total" |
+
+`severity` で調整します。`error` は保存をブロックし、`warning` はメッセージを表示しつつ保存を通し、`info` は純粋に情報提供です。
+
+> **警告：** 述語を評価できないルール（解析エラー、綴りを間違えたフィールド、比較できない値）は**安全側に失敗**します。書き込みは `VALIDATION_FAILED` で拒否され、ルールをスキップして保存されることは決してありません。新しいルールは、公開する前に実際のレコードでテストしてください。
+
+## ベストプラクティス [#best-practices]
+
+| すること | しないこと |
+|---|---|
+| できるだけ低い層で検証する（フィールド → ルール → フック） | フィールドの修飾子で表現できることにフックを使う |
+| 明確で行動につながるメッセージを書く | 同じチェックを複数の層で重複させる |
+| `priority` を使って安価な形式チェックを先に実行する | 複雑すぎる条件を作る |
+| 実際のデータでルールをテストする | 正当なエッジケースをブロックする |
+
+## 次に進む [#where-to-go-next]
+
+| ページ | 理由 |
+|---|---|
+| [データモデル](/docs/build/data) | これらのルールが守るオブジェクトとフィールド |
+| [数式](/docs/build/data/formulas) | `condition` と `requiredWhen` の背後にある CEL 言語 |
+| [リレーションシップ](/docs/build/data/relationships) | オブジェクトをまたぐ参照整合性 |
+| [CEL リファレンス](/docs/reference/cel) | 条件のための演算子と標準ライブラリの完全なリファレンス |
+| [フィールドの種類](/docs/reference/field-types) | フィールドの種類ごとの組み込みの検証のデフォルト |
+| [フロー](/docs/build/automation/flows) | （有効な）レコードの変更に自動化で反応する |
