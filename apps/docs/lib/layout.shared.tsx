@@ -12,6 +12,12 @@ export const gitConfig = {
 const WEBSITE_URL = 'https://www.objectos.ai';
 
 /**
+ * The ObjectOS Cloud console's sign-in page. `cloud.objectos.ai/` itself
+ * redirects to the marketing site, so the link names the console's page.
+ */
+const CLOUD_SIGNIN_URL = 'https://cloud.objectos.ai/_console/login';
+
+/**
  * The header shared by the docs and the legal pages.
  *
  * The logo goes to the docs home, in the reader's language (#301). It used to
@@ -40,6 +46,13 @@ export function baseOptions(lang: string = 'en'): BaseLayoutProps {
       transparentMode: 'top',
     },
     links: [
+      // The hosted product, by its name, which needs no translation: a reader
+      // who already has an account signs in from any docs page.
+      {
+        text: 'ObjectOS Cloud',
+        url: CLOUD_SIGNIN_URL,
+        external: true,
+      },
       {
         type: 'icon',
         url: WEBSITE_URL,
