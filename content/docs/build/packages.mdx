@@ -154,6 +154,9 @@ Package ids in install commands are the stable manifest id
 > and install in one step: `os package publish --env <id> --install
 > [--seed-sample-data]`. This is a convenience for automation, not the path a
 > person uses — interactive installs happen in the environment's Marketplace.
+> The step is all-or-nothing: if the install is refused, nothing is published —
+> no version is stored and the command exits non-zero, so the pipeline sees the
+> failure.
 
 Install merges the package's metadata into the live kernel, registers
 its objects with ObjectQL, and seeds initial data on first install —
