@@ -1,4 +1,4 @@
 {
   "title": "許可權",
-  "pages": ["index", "managing-access", "positions", "permission-sets", "record-access", "field-level-security"]
+  "pages": ["index", "managing-access", "positions", "permission-sets", "record-access", "hierarchy-visibility", "field-level-security"]
 }
