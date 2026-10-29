@@ -1,0 +1,107 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 層級可見性
+seoTitle: "層級可見性：讓經理看到下屬的記錄"
+description: 按讀者所處的位置 —— 其業務單元、其下級單元或其彙報線 —— 放寬誰能讀取一條記錄，使用 unit、unit_and_below 和 own_and_reports 範圍。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 11e8c60b7087869d03eca49ac3513df7dd066eef47d302fd1b95ffe53d110258
+  guide_rev: 1
+  mode: auto
+---
+
+**層級可見性**按一個人在組織中*所處的位置*，放寬他能讀取哪些記錄。區域經理能看到其區域內任何人擁有的每條記錄；團隊負責人能看到其直接和間接下屬的記錄。它在[許可權集](/docs/configure/permissions/permission-sets)上按物件設定，作為讀取（或寫入）**範圍**。
+
+> **在哪裡可用。**在自管理的 ObjectOS Enterprise 部署上，需要包含 `hierarchySecurity` 特性的許可證。在 ObjectOS Cloud 上，需要 Enterprise 合同。在其他任何地方，本頁的三個範圍授予的都不會超出負責人自己的記錄 —— 它們從不以*放開*的方式失效。參見[要求](#requirements)。
+
+## 三個範圍 [#the-three-scopes]
+
+`own`（記錄的負責人）和 `org`（組織中的所有人）在每個版本中都可用。三個層級範圍介於兩者之間：
+
+| 範圍 | 讀者能看到其擁有的記錄的人 | 依據 |
+|---|---|---|
+| `unit` | 讀者本人及其業務單元中的其他所有成員。不向下延伸。 | 讀者的崗位任職，否則用其單元成員資格 |
+| `unit_and_below` | 讀者的業務單元**及樹中其下的每個單元**，連同其中所有成員 | 業務單元樹 |
+| `own_and_reports` | 讀者本人及管理鏈上其下的每個人，直接和間接都算 | 每個使用者的經理 |
+
+範圍只會**放寬**一個人能讀取的內容。它疊加在共享規則和記錄共享之上，從不移除某人已有的訪問，也從不超出 `org`。它決定一項許可權作用於*哪些記錄*；它從不授予新許可權。
+
+### 示例 [#example]
+
+業務單元樹中有 **Region**，其下是 **Team**，還有一個同級單元 **Other**。Alice 和 Carol 在 Region，Bob 在 Team，Dave 在 Other。Bob 向 Alice 彙報。
+
+- 用 `unit` 的 Alice 看到 **Alice、Carol** —— 看不到 Bob，也看不到 Dave。
+- 用 `unit_and_below` 的 Alice 看到 **Alice、Carol、Bob** —— Region 向下延伸到 Team。Dave 所在的同級單元不在其中。
+- 用 `unit_and_below` 的 Bob **只看到 Bob** —— 下面沒有單元的單元不會向*上*匯入其父單元。
+- 用 `own_and_reports` 的 Alice 看到 **Alice、Bob** —— Bob 是她的下屬，無論他在哪個單元。
+
+## 設定範圍 [#set-a-scope]
+
+在許可權集的物件條目上設定 `readScope`（如有需要，再加上 `writeScope`）。讀取整個區域的銷售代表：
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  opportunity: { allowRead: true, allowEdit: true, readScope: 'unit_and_below' },
+}
+```
+
+僅限於自己彙報線的團隊負責人：
+
+```ts
+// Keys of a permission set; its other keys are omitted.
+objects: {
+  opportunity: { allowRead: true, readScope: 'own_and_reports' },
+}
+```
+
+以程式碼編寫、使用層級範圍的 stack 必須宣告 `requires: ['hierarchy-security']`；沒有它，stack 無法構建。無法解析這些範圍的環境會拒絕釋出使用它們的後設資料，並在儲存這樣的草稿時發出警告。
+
+## 哪個單元算你的 [#which-unit-is-yours]
+
+對於 `unit` 和 `unit_and_below`，讀者的單元首先取自其**崗位任職**：每條當前任職所在的業務單元。只有沒有任何帶單元的任職的讀者，才會回退到其作為**成員**所屬的單元。
+
+這對屬於多個單元、但只管理其中一個的人很重要。Alice 是 **Region** 和一個跨職能 **Project** 單元的成員，但她的銷售經理崗位任職在 Region。用 `unit` 時她只看到 Region 的成員；Project 成員資格不會放寬她能讀取的內容。
+
+- **多條帶單元的任職會累加**：讀者的單元是它們全部。
+- **過期的任職不算數**：超出其生效起止時間視窗的任職不再授予該單元。
+
+任職和業務單元樹參見[崗位](/docs/configure/permissions/positions)。
+
+## 需要填充什麼 [#what-to-populate]
+
+這些範圍讀取的是你的目錄或 HR 資料來源提供的資料 —— 通過 SCIM、整合或管理介面：
+
+| 資料 | 使用者 |
+|---|---|
+| 業務單元樹（每個單元的父單元） | `unit_and_below` |
+| 崗位任職，帶其業務單元和有效時間視窗 | `unit`、`unit_and_below`（首選） |
+| 業務單元成員資格 | `unit`、`unit_and_below`（回退） |
+| 每個使用者的**經理** | `own_and_reports` |
+
+兩種遍歷都限制在 20 層以內，因此格式錯誤的樹或意外的彙報迴圈永遠不會無限迴圈。結果按使用者短暫快取，並在樹、成員資格、任職或使用者的經理發生變化時清除。
+
+## 彙報線不跨組織 [#a-reporting-line-stays-inside-one-organization]
+
+在有多個組織的部署上，經理和其下屬必須至少共享一個組織。
+
+- **跨組織設定經理會被拒絕。**當下屬和擬定的經理都屬於某些組織、但沒有共同的組織時，寫入會以 `400 INVALID_REFERENCE`（`reason: 'cross-organization-manager'`）被拒絕 —— 無論來自管理介面、API、匯入還是系統程式碼。解決辦法是讓兩人共享一個組織，或在下屬自己的組織內選擇經理。
+- **是"共享一個組織"，而不是"同一個組織"。**同時是集團和某個工廠成員的集團級經理，可以管理其中任一方的人。
+- **尚未屬於任何組織的使用者從不被拒絕**，也從不會從遍歷中被剔除。
+- **讀取遵循同樣的規則。**`own_and_reports` 在邊界處停止：只屬於另一個組織的下屬會被排除，其下的所有人也一樣。
+
+要實現集團級監管，給那個人一個其所監管組織的成員資格，在那裡授予一個範圍更寬的許可權集，或在單個組織內使用業務單元樹。
+
+## 要求 [#requirements]
+
+- **自管理 ObjectOS Enterprise：**特性中包含 `hierarchySecurity` 的許可證（預設的 Enterprise 特性集包含它）。沒有它，這些範圍的行為等同於 `own`。
+- **ObjectOS Cloud：**Enterprise 合同。在 Free 和 Team 上，這些範圍的行為等同於 `own`，環境也會拒絕釋出使用它們的後設資料。
+- **ObjectOS Community：**不可用；這些範圍的行為等同於 `own`。
+
+與每項 Enterprise 能力一樣，失去授權只會收窄訪問；它從不會讓執行時停止。
+
+## 下一步 [#next]
+
+- [許可權集](/docs/configure/permissions/permission-sets) —— 設定範圍的地方。
+- [記錄訪問](/docs/configure/permissions/record-access) —— 共享規則和記錄共享，範圍疊加在它們之上。
+- [崗位](/docs/configure/permissions/positions) —— 任職和業務單元樹。

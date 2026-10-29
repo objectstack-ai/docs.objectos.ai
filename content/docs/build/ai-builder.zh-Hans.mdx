@@ -1,0 +1,160 @@
+---
+title: AI Builder
+seoTitle: "AI Builder：用自然语言对话构建应用"
+description: 把自然语言需求变成可运行元数据的内置对话，以及回答你数据相关问题的助手 —— 各自如何工作、调用哪些工具、变更如何审批。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 3dc30df8f6289a706b6eb8101c4160ba800617f579063fc3b62f98518b34fad2
+  guide_rev: 1
+  mode: auto
+---
+
+AI Builder 是客户扩展 ObjectOS 的**主要方式**。打开 ObjectOS，用自然语言描述你的需求，它就会为你构建元数据 —— 对象、字段、视图、仪表盘、流程，乃至完整的应用。在你批准计划之前什么都不会构建，而它构建的一切都是普通的 ObjectStack 元数据，你可以阅读、修改和打包。
+
+## 两个 Agent：Builder 与 Assistant [#two-agents-the-builder-and-the-assistant]
+
+ObjectOS 自带两个 AI Agent。你不需要在它们之间选择：**在哪里提问**决定由哪一个回答。
+
+| | **Builder**（`build`，构建者） | **Assistant**（`ask`，助手） |
+|---|---|---|
+| 位置 | AI Builder，位于构建应用的界面中 | 数据控制台中的对话，就在你的记录旁边 |
+| 它做什么 | 设计和修改**应用**：对象、字段、视图、仪表盘、流程 | 回答关于你**数据**的问题、绘制图表，并运行你的应用所暴露的动作 |
+| 它从不做什么 | — | 修改应用。到达它这里的构建请求会被拒绝并指向 Builder，从不会被悄悄转交 |
+
+两者都**以已登录的人的身份**运行。每次工具调用都会对照此人的权限、记录访问和字段级安全进行检查，因此 AI 能看到或修改的永远不会超过此人自己能做的。
+
+**谁可以使用 Builder。**仅有 AI 席位还不够：Builder 会修改你应用的元数据，所以还需要 `manage_metadata` 或 `studio.access` 权限。两者都没有的成员只能看到 Assistant，直接向 Builder 发出的请求会以 `403 PERMISSION_DENIED` 被拒绝，并且每个构建工具在运行时都会再次检查该权限。
+
+## 试一试 [#try-it]
+
+```
+You: I need to track customer support tickets.
+     Each ticket has a subject, description, priority (low/medium/high/urgent),
+     status (new/open/pending/resolved/closed), and assignee.
+
+AI:  Here's the plan:
+     • Object `support_ticket` with 5 fields
+     • A kanban view grouped by status
+     • A dashboard of open tickets by priority
+     • A few sample tickets to try it with
+
+     Shall I build it?
+
+You: Yes
+
+AI:  ✓ Object created
+     ✓ Kanban view and dashboard created
+     ✓ Sample data added
+     Published — open Support Tickets to try it.
+```
+
+现在你就有了一个可用的工单应用 —— REST 端点、生成的视图、审计日志条目、权限检查点，一应俱全。没有编辑任何文件；也没有发生重启。
+
+## 构建如何运行 [#how-a-build-runs]
+
+1. **计划。**对于任何大于单个变更的需求 —— "帮我构建一个招聘系统" —— Builder 会先提出一份**蓝图**：它打算创建的对象、字段、关系、视图、仪表盘和示例数据，以及它的假设。这一步不会创建任何东西。
+2. **批准。**你在对话中回答：批准它，或要求修改并得到一份修订后的计划。Builder 只在你于该对话中批准之后才进行变更。
+3. **构建为草稿。**批准的变更被写为**草稿** —— 已暂存，尚未生效。
+4. **校验。**Builder 对照平台规则检查草稿，并在任何内容生效之前修复它能修复的问题。
+5. **发布。**草稿被发布到你正在构建的环境中，应用连同其示例数据出现在那里。状态面板会显示实际已发布的内容；Builder 从不会把未发布的变更报告为已交付。
+
+要扩展现有应用，直接说明即可 —— *"给支持应用加一个满意度调查"* —— Builder 会把新部分设计为关联到该应用的对象，并把它们加入其导航，而不是另建一个独立的应用。
+
+## 你可以要求什么 [#what-you-can-ask-for]
+
+| 目标 | 提示 |
+|---|---|
+| 新对象 | *"创建一个 `product` 对象，包含 name、sku、price、category。"* |
+| 添加字段 | *"给 `order` 添加一个 `discount` 小数字段，最大 50。"* |
+| 修改选项列表 | *"在 `task.status` 上，在 'open' 和 'done' 之间添加 'blocked'。"* |
+| 关系 | *"让 `order_line` 与 `order` 建立主从关系。"* |
+| 校验 | *"在 `invoice` 上，折扣不能超过小计。"* |
+| 流程 | *"当一张高优先级工单在 'new' 状态停留 30 分钟时，通知经理。"* |
+| 动作 | *"创建一个动作 `approve_invoice`，把状态设为 approved。"* |
+| 权限集 | *"创建 `agent` 权限集，对 support_ticket 有读取/创建/编辑权限，对 customer 有读取权限。"* |
+| 翻译 | *"把 support_ticket 的标签和选项列表翻译成西班牙语。"* |
+
+如果 AI 做不到，它会直说 —— 并给你指出手动操作的路径。
+
+## Agent 调用的工具 [#the-tools-the-agents-call]
+
+Agent 的能力就是它的工具。查看某个环境的实时目录：`GET /api/v1/ai/tools`。
+
+**Builder 的创作工具**作用于[包](/docs/build/packages)及其元数据，并依据 `@objectstack/spec` 进行校验：
+
+| 领域 | 工具 |
+|---|---|
+| 计划 | `propose_blueprint`、`apply_blueprint` |
+| 包 | `create_package`、`list_packages`、`get_package`、`get_active_package`、`set_active_package` |
+| 对象 | `create_object`、`list_objects`、`describe_object` |
+| 字段 | `add_field`、`modify_field`、`delete_field` |
+
+**Assistant 的数据工具**读取记录并对其执行操作：
+
+| 工具 | 用途 |
+|---|---|
+| `query_records` | 用过滤条件、字段选择、排序和分页查询对象。每条记录都带着其 `id` 返回，因此回答可以链接到它提到的记录。 |
+| `get_record` | 按 id 获取一条记录。 |
+| `aggregate_data` | 服务端的 `count`、`sum`、`avg`、`min`、`max` 和 `count_distinct`，可选分组和过滤。 |
+| `query_data` | 回答一个自然语言请求：它找到相关对象、编写查询、运行查询并返回记录。 |
+| `visualize_data` | 唯一绘制图表的工具：它按一个维度、基于一个或多个度量对对象进行聚合，并在对话中绘制柱形图、条形图、水平条形图、折线图、面积图、饼图、环形图、雷达图或散点图。坐标轴显示的是展示值 —— 选项标签、记录名称 —— 使用对话的语言。需要环境的分析服务。 |
+| `search_knowledge` | 搜索你登记的知识源（记录快照、文件、URL）。结果已经过滤为此人可见的内容。配置了知识服务时才会出现。 |
+| `action_<name>` | 运行你应用中一个暴露给 AI 的业务动作（见下文）。 |
+
+`aggregate_data` 属于产品内置的 AI。通过 [MCP](/docs/configure/mcp) 从外部接入的 Agent 有自己的工具集，在那里有说明。
+
+## 动作即工具 [#actions-as-tools]
+
+当动作的作者**把它暴露给 AI** 时，它就成为一个名为 `action_<name>` 的工具 —— `ai: { exposed: true }` 加上不少于 40 个字符的 `ai.description`，且类型可以在无 UI 的情况下运行（`script`、`flow` 或 `api`）。一旦暴露，AI 就可以像调用任何内置工具一样调用它，并受调用者权限约束；未暴露的动作永远不会成为工具。参见[动作](/docs/build/interface/actions#from-an-ai-agent)。
+
+**动作运行前的审批。**声明了 `ai.requiresConfirmation: true` 的动作 —— 或看起来具有破坏性且未另行声明的动作 —— 不会立即运行。AI 会把它登记为一个**待处理动作**，只有获得批准后才会运行：
+
+| 端点 | 用途 |
+|---|---|
+| `GET  /api/v1/ai/pending-actions` | 列出你的待处理动作（按状态过滤） |
+| `GET  /api/v1/ai/pending-actions/:id` | 你的某个待处理动作 |
+| `POST /api/v1/ai/pending-actions/:id/approve` | 批准并运行它 |
+| `POST /api/v1/ai/pending-actions/:id/reject` | 拒绝它，可附带原因 |
+
+待处理动作属于提出它的那次对话的主人：只有此人可以读取、批准或拒绝它。其他任何人，包括管理员，得到的回应都如同它不存在一样。
+
+## 通过 API 对话 [#chatting-through-the-api]
+
+按名称（`ask` 或 `build`）向 Agent 发送一段对话：
+
+```bash
+curl -X POST https://your-environment-host/api/v1/ai/agents/ask/chat \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{ "role": "user", "content": "How many open opportunities over $50k?" }],
+    "context": { "appName": "crm", "objectName": "opportunity" }
+  }'
+```
+
+- **`messages`** —— 到目前为止的对话。客户端只能提交 `user` 和 `assistant` 轮次。
+- **`context`** —— 此人所在的位置：`appName`、`objectName`、`viewName`、`recordId`。Skill 用它来判断什么是相关的。
+- **`conversationId`**（可选）—— 继续一段已有对话。
+
+回答默认以 Server-Sent Events **流式**返回（Vercel AI 数据流协议，`x-vercel-ai-ui-message-stream: v1`）；图表以 `data-chart` 部分出现在流中。发送 `"stream": false` 则改为返回单个 JSON 回答。
+
+对话保存在 `/api/v1/ai/conversations` 下，每个人只能看到自己的对话。
+
+## 限制 [#limits]
+
+- **数据访问遵循此人自己的权限**，读取和动作都一样。
+- **系统包不可触碰。**要求 AI 修改系统包（`sys_*`）会被拒绝。
+- **大型构建分步进行效果更好。**"构建一个完整的 HR 应用"是可行的，但一系列较小的对话、每次落地一个领域，更便于评审。
+- **在 ObjectOS Cloud 上**，AI 消耗环境的 [AI 额度](/docs/cloud/ai-credits-and-limits)，并且一个环境最多容纳 500 个未发布的草稿（[存储与限制](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)）。在自管理的 Enterprise 部署上，模型由你自己提供，在 [AI 服务](/docs/configure/ai)中配置。
+
+## 超越构建期 AI [#going-beyond-build-time-ai]
+
+同一套 AI 基础设施也为面向终端用户的**运行时 Agent** 提供支持 —— 支持助手、销售副驾驶、内部问答机器人 —— 它们构建在相同的 Agent → Skill → Tool 架构之上。参见 [Agent](/docs/build/agents)。
+
+## 下一步 [#where-to-go-next]
+
+- [Agent](/docs/build/agents) —— 基于你数据的终端用户助手
+- [数据模型](/docs/build/data) —— AI 实际生成的是什么
+- [动作](/docs/build/interface/actions) —— AI 作为运行时工具暴露的单元
+- [AI 点数与限制](/docs/cloud/ai-credits-and-limits) —— ObjectOS Cloud 上的 AI 额度
+- [AI 服务](/docs/configure/ai) —— Provider 配置（OpenAI / Anthropic / Google / DeepSeek / …）

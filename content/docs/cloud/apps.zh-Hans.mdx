@@ -1,0 +1,153 @@
+---
+title: 应用
+seoTitle: "ObjectOS Cloud 应用：通过 CLI 安装、更新、发布和部署"
+description: 将应用安装到 ObjectOS Cloud 环境中、检查更新、把一个环境的应用作为包发布给你的组织，以及通过 os CLI 部署在本地构建的应用。
+editions: [cloud]
+translation:
+  source_sha: 0adc0c246817f68e5c28824736e064a5591eadd4b69aa953dd25f91a3c85a4a0
+  guide_rev: 1
+  mode: auto
+---
+
+应用通过三种方式之一进入 ObjectOS Cloud 环境：你从市场或组织的注册表中
+**安装**一个应用，你在环境中**构建**它（使用 [AI Builder](/docs/build/ai-builder)
+或手动构建），或者你用 `os` CLI 从自己的机器上**发布**它。
+无论走哪条路，安装的都是一个[包](/docs/build/packages)：一个有版本的、
+由对象、视图、流程等组成的集合。
+
+## 安装应用 [#install-an-app]
+
+在云控制台中，打开环境的 **Settings → Apps**，选择
+**Install an app**（**Install Application**）。挑选应用，然后：
+
+- **Include sample data**（包含示例数据）—— 用包的演示记录填充环境，
+  让你可以马上开始探索。对于干净的生产环境，请不要勾选。
+- **Accept additional permissions**（接受额外权限）—— 首次安装时不要勾选。
+  它用于某次更新请求的权限多于此前授予该应用的权限的情况（参见[检查更新](#check-for-updates)）。
+
+应用会在环境的下一次请求时出现，无需重启。安装后的消息会说明安装的
+结果 —— 已安装、已重新安装、已更新或已回滚，并附带版本号 —— 以及你应当
+知道的任何情况，例如应用使用了你的套餐不包含的某项能力。
+
+你也可以在环境内部安装：打开环境的 **Marketplace**（市场），
+找到应用并选择 **Install**。两种方式都会把同一个包安装到同一个环境中；
+参见[市场](/docs/build/marketplace)。
+
+安装仅限组织的所有者和管理员。
+
+## 检查更新 [#check-for-updates]
+
+**Settings → Apps → Check for app updates** 会把每个已安装的应用与
+已发布的最新版本进行比较，并告诉你是有可用更新、所有应用都已是最新，
+还是尚未安装任何应用。
+
+要更新一个应用，就再安装一次：安装一个已经安装的应用，会将它就地
+升级到已发布的最新版本。
+
+如果新版本请求了此前未授予该应用的权限，更新会以
+`PERMISSION_RECONSENT_REQUIRED` 被拒绝，消息中会列出它新增的
+每一项权限。阅读它们，然后勾选 **Accept additional permissions**
+再次安装，以授予这些权限。
+
+## 将环境发布为包 [#publish-an-environment-as-a-package]
+
+**Settings → Apps → Publish as a package**（**Publish to Registry**）会获取
+在此环境中构建的应用，并将它们作为组织注册表中某个包的新版本发布。
+之后它可以被安装到组织的任何其他环境中 —— 在开发环境中构建的应用
+就是这样进入生产环境的。
+
+| 字段 | 含义 |
+|---|---|
+| **App Name** | 在注册表中显示的名称。默认为环境的名称。 |
+| **Version** | 语义化版本号，例如 `1.2.0`。留空则在最新版本之后发布下一个补丁版本。 |
+| **Visibility** | **Private** —— 只有你的组织可以安装；**Organization** —— 在你的组织内共享。 |
+| **Description** | 应用的整体用途。 |
+| **Release notes** | 此版本的变更内容；与版本一起显示。 |
+| **Package ID**（高级） | 反向域名形式的标识符。留空时，从环境名称派生。 |
+
+在公共市场上架是一个单独的步骤，需要经过审核；这里不提供该选项。
+侧边栏中的 **Advanced → Packages** 列出了你的组织发布过的所有内容。
+
+## 通过 CLI 部署 [#deploy-from-the-cli]
+
+如果你以代码形式开发应用 —— 在自己机器上的一个 ObjectStack 项目 ——
+`os` CLI 会把它发布到你的组织，并可以将它安装到某个环境中。
+流程是**登录 → 构建 → 发布 → 安装**。
+
+你需要一个 ObjectStack 项目（参见
+[路径 B —— `os init`](/docs/start/community#path-b--os-init-developer)）、
+`os` CLI，以及一个带有环境的 ObjectOS Cloud 账户。
+
+### 1. 登录 [#1-log-in]
+
+```bash
+os cloud login
+```
+
+这会打开浏览器登录，并将云令牌保存在
+`~/.objectstack/cloud.json` 中。使用 `--no-browser` 可以打印登录链接，
+而不是打开它。在 CI 中，跳过登录，通过 `--token` 或 `OS_CLOUD_API_KEY`
+变量给 `os package publish` 提供一个 API 密钥。
+
+云登录与 `os login` 是分开的，后者让你登录到某个运行时；
+发布始终使用云登录。
+
+### 2. 构建 [#2-build]
+
+```bash
+os build
+```
+
+这会把项目编译为一个产物 `dist/objectstack.json`：你的
+对象、视图、应用、仪表盘、流程以及任何示例数据。之后只会上传这个产物
+—— 绝不会上传源文件、`node_modules` 或本地凭据。
+
+### 3. 发布 [#3-publish]
+
+```bash
+os package publish
+```
+
+在项目根目录下运行它。它会在你的组织中注册该包
+（只注册一次，以反向域名形式的包 id 为键，例如 `com.acme.crm`），并将
+产物作为一个新的、不可变的版本发布。同一个版本不能发布两次：提高
+`manifest.version` 或传入 `--version`。
+
+| 参数 | 用途 |
+|---|---|
+| `--manifest-id <id>` | 反向域名形式的包 id。默认：从产物派生 |
+| `--version <semver>` | 要发布的版本。默认：`manifest.version` |
+| `--visibility <private\|org\|marketplace>` | 谁可以查看和安装它。在 ObjectOS Cloud 上，新包默认为 `org`；省略此参数则保留已有包的可见性 |
+| `--install` | 立即将新版本安装到某个环境中 |
+| `--env <id>` | `--install` 的目标环境。默认：`os environments switch` 选中的那个 |
+| `--seed-sample-data` | 安装时包含产物的示例数据 |
+| `--note "<text>"` | 发布说明 |
+| `--submit` | 将 `marketplace` 包的新版本提交审核 |
+
+### 4. 安装 [#4-install]
+
+用户从环境中安装：打开环境的 **Marketplace**，找到你的
+包并选择 **Install** —— 或者使用云控制台中的 **Install an app**，见[上文](#install-an-app)。
+
+部署到已知环境的流水线可以用一条命令完成发布和安装：
+
+```bash
+os package publish --env <environment-id> --install --seed-sample-data
+```
+
+这是全有或全无的。如果安装被拒绝 —— 你可能无权安装到
+该环境、该环境不存在，或该版本未获准用于该环境 ——
+则不会发布任何内容：命令会打印拒绝原因并以非零状态退出，因此
+流水线会失败。修复原因后，再次发布同一个版本。
+
+### 市场上架 [#marketplace-listings]
+
+`--visibility marketplace` 让包有资格进入公共目录，但
+每个新版本仍然以**草稿**形式到达。传入 `--submit` 将其送交
+审核。私有包和组织包无需审核，你的组织可以立即安装。
+
+## 下一步 [#next]
+
+- [包](/docs/build/packages) —— 包包含什么，以及版本如何运作。
+- [市场](/docs/build/marketplace) —— 在环境内部浏览和安装。
+- [CLI 参考](/docs/reference/cli) —— 每一个 `os` 命令。

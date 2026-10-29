@@ -1,0 +1,102 @@
+---
+title: 套餐与 AI 席位
+seoTitle: "ObjectOS Cloud 套餐：Free、Team、Enterprise 与 AI 席位"
+description: ObjectOS Cloud 的套餐 —— Free、Team 和 Enterprise —— AI 席位是唯一付费的席位、如何升级，以及控制台在哪里显示你的套餐不包含什么。
+editions: [cloud]
+translation:
+  source_sha: c5f15cf821325b61b91091b0b7377b4a9750dc285a87202f969b73eae1eb8b97
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Cloud 有三个套餐。套餐属于**组织**，适用于它的每一个环境。只有
+**AI 席位**需要付费：组织中的其他人都可以免费使用和查看应用。
+
+| | **Free** | **Team** | **Enterprise** |
+|---|---|---|---|
+| 价格 | 0 美元 | 24 美元 / AI 席位 / 月，或按年付费 20 美元 / AI 席位 / 月 | 按合同 |
+| 生产环境 | 1 | 1 | 1 |
+| [开发环境](/docs/cloud/environments) | — | 两个，外加每个 AI 席位一个 | ✓ |
+| 已归档开发环境的保留时长 | — | 30 天 | 一年 |
+| [AI 额度](/docs/cloud/ai-credits-and-limits) | 每周额度 | 更高的额度，随 AI 席位增长，外加 [AI 点数包](/docs/cloud/ai-credits-and-limits#buy-ai-credits) | 随 AI 席位增长，外加 AI 点数包 |
+| [每个环境的存储](/docs/cloud/storage-and-limits) | 1 GB | 20 GB | 不设上限 |
+| [AI Agent 访问（MCP）](/docs/configure/mcp#on-objectos-cloud) | 每分钟 20 次请求，每天 1,000 次 | 每分钟 120 次请求，无每日上限 | 每分钟 120 次请求，无每日上限 |
+| 品牌平台子域名 | ✓ | ✓ | ✓ |
+| [你自己的域名](/docs/cloud/domains) | — | 每个生产环境一个 | ✓ |
+| 审批工作流 | — | — | ✓ |
+| 登录 | ObjectOS Cloud 登录 | ObjectOS Cloud 登录 | ObjectOS Cloud 登录；按合同提供与你的身份提供商的单点登录 |
+| 支持 | 社区 | 标准 | 优先 |
+
+ObjectOS Cloud 处于[公开预览](/docs/editions/public-preview)阶段：
+价格为预览期价格，任何变更都会提前公告。
+
+## AI 席位 [#the-ai-seat]
+
+**AI 席位**是指能够用 AI 构建、并就你的数据向 AI 提问的成员 ——
+即使用 [AI Builder](/docs/build/ai-builder) 和应用内助手。它是唯一付费的
+席位。没有 AI 席位的成员、只读用户，以及通过自己的 AI 客户端经
+[MCP](/docs/configure/mcp) 构建的开发者，都不收费。
+
+你购买的 AI 席位数量是组织的一项设置，在结账时选定，之后可以更改。它决定
+三件事的规模：
+
+- 组织的 **AI 额度**，按席位计算
+  （[AI 点数与限制](/docs/cloud/ai-credits-and-limits)）；
+- **开发环境池**，两个外加每个席位一个
+  （[环境](/docs/cloud/environments)）；
+- 在开启了按人分配席位的环境中，能被**分配** AI 席位的人数。
+
+## 升级 [#upgrade]
+
+升级由所有者或管理员在某个环境的页面上进行：它的页头，或
+**Settings → Plan and billing**。
+
+1. 选择 **Upgrade Plan**。对话框会询问套餐（Team）、计费周期（按月，或
+   按年，每个 AI 席位每月 20 美元）以及 AI 席位数量。
+2. 一个安全结账页面会在新标签页中打开。费用计入你的组织，
+   而不是某一个环境。
+3. 付款完成后，组织的套餐随之变更，它的每一个环境都会采用新套餐，
+   无需重新部署。
+
+在你的组织尚未开放在线支付时，按钮显示为
+**Upgrade to Team**，并改为打开 **Billing**，在那里 Team 的
+**Contact sales** 按钮会与我们一起开始升级。
+
+Enterprise 由销售协助：在 **Billing** 的 Enterprise 一列点击 **Contact sales**。
+
+## 查看你的套餐不包含什么 [#see-what-your-plan-leaves-out]
+
+控制台中有两个地方会告诉你，中间无需经过销售页面：
+
+- **Billing** 把三个套餐并排对比，并用 **Current plan** 标出你当前
+  所在的套餐。每个成员都能阅读它；只有所有者和管理员能看到其中的按钮。
+- 环境的 **Overview** 标签页上有一行折叠内容，
+  **Features that need a higher plan: N · View**。展开后会列出当前套餐
+  不包含的每项功能，以及包含它的套餐。
+  当某个锁定功能出现在控制台的其他地方时，它会带一个简短的标记，注明
+  它所属的套餐，例如 **Team plan and above**，点击后进入
+  **Billing**。
+
+## 降级 [#downgrading]
+
+降到更低的套餐从不会删除数据：
+
+- 开发环境继续运行；Free 只是拒绝创建或恢复开发环境
+  （[环境](/docs/cloud/environments#after-a-downgrade-to-free)）。
+- 超出 Free 存储额度的环境保留每一个字节，仍可读取和导出，
+  只是不再接受上传和导入
+  （[存储与限制](/docs/cloud/storage-and-limits)）。
+- 你自己的域名会被暂停而不是释放，并会在之后升级时自动恢复
+  （[域名](/docs/cloud/domains#downgrade-and-upgrade)）。
+
+## Business [#business]
+
+**Business** 是 ObjectOS Enterprise 在托管服务上的一个合同选项，由
+[销售](/docs/editions/license)而不是 **Billing** 售卖。在 ObjectOS Cloud
+上，它增加了审批工作流，以及已归档开发环境 90 天的保留期。它的价格以及
+合同涵盖的内容见[许可与定价](/docs/editions/license)。
+
+## 下一步 [#next]
+
+- [版本对比](/docs/editions/compare) —— 这些套餐与 Community 和 Enterprise 的并列对比。
+- [AI 点数与限制](/docs/cloud/ai-credits-and-limits) —— AI 额度如何运作。

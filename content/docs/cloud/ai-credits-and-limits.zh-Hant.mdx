@@ -1,0 +1,92 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: AI 點數與限制
+seoTitle: "ObjectOS Cloud AI 額度：每週限制、節奏與點數包"
+description: ObjectOS Cloud 上的產品內 AI 如何計量 —— 構建和提問共用一份額度、滾動的每週限制和五小時節奏、點數包、每個套餐使用的模型，以及拒絕時會說明什麼。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 67429e9e53ae8850c44792b0659fead909aa7791fb06d24d6153d6be29182837
+  guide_rev: 1
+  mode: auto
+---
+
+在 ObjectOS Cloud 上，AI 模型由我們為你執行，因此產品內 AI ——
+[AI Builder](/docs/build/ai-builder) 以及回答關於你的資料的問題的助手 ——
+會消耗一份 **AI 額度**。在自管理的 ObjectOS Enterprise 部署上，你改為自帶
+模型，本頁的任何限制都不適用：參見[在 ObjectOS Enterprise 上](#on-objectos-enterprise)。
+
+## 所有 AI 工作共用一份額度 [#one-allowance-for-all-ai-work]
+
+構建應用、就你的資料提問，以及通過助手執行動作，都消耗**同一份額度**。
+沒有按工作型別劃分的單獨預算。每個請求按模型為它所做的工作量按比例消耗
+額度；在你的套餐提供模型選擇的情況下，能力更強的模型消耗更多。
+
+額度按**環境**計算。雲控制台中的 **Home** 會顯示本週額度已用了多少。
+
+## 兩個滾動視窗 [#two-rolling-windows]
+
+每個套餐都有同樣的兩個限制，並且兩者都是**滾動**的：用量在固定時長內計入，
+然後移出，因此可用空間是持續恢復的，而不是在某個日曆日期重置。裁定見
+[cloud#2059](https://github.com/objectstack-ai/cloud/issues/2059)。
+
+| 視窗 | 是什麼 | Free | Team 及以上 |
+|---|---|---|---|
+| **7 天** | 預算：一週能容納多少 AI 工作 | 每個環境一份每週額度；硬性限制 | 每個 AI 席位一份更大的額度，乘以組織的 AI 席位數；[點數包](#buy-ai-credits)可以提高它 |
+| **5 小時** | 節奏：短時間內的突發能容納多少，以免一個失控的會話花光一週的額度 | 適用，但高於 Free 的每週額度 | 按 AI 席位計算，乘以席位數；點數包不會提高它 |
+
+在 ObjectOS Cloud 處於[公開預覽](/docs/editions/public-preview)期間，額度的
+具體大小不公開。Free 的額度足以覆蓋完整的首次體驗：構建一個應用，修改它
+好幾次，並且仍能向它提問。
+
+## 達到限制時 [#when-a-limit-is-reached]
+
+請求會被拒絕，返回 HTTP `429`，聊天中會顯示一條訊息，說明是哪個限制，以及
+何時釋放：
+
+| 情況 | 程式碼 | 訊息 |
+|---|---|---|
+| Free，每週額度已用完 | `AI_DESIGN_QUOTA_EXHAUSTED` | *You've used this week's free AI quota. It resets on DATE — upgrade to keep going.* |
+| 付費套餐，每週額度已用完 | `AI_ALLOWANCE_EXHAUSTED` | *Your AI allowance for this week is used up. It resets on DATE, or buy a credit pack to continue now.* |
+| 任意套餐，達到五小時節奏 | Free 上為 `AI_DESIGN_QUOTA_EXHAUSTED`，付費套餐上為 `AI_ALLOWANCE_EXHAUSTED` | *You've hit the five-hour AI usage limit. It resets within five hours — then you're good to go.* |
+
+日期是仍被計入的最早用量離開視窗的時刻；錯誤的
+`details.resetsAt` 以 ISO 時間戳的形式攜帶同一時刻。環境中的其他一切都
+不受影響：你的應用、資料和整合照常工作。
+
+## 購買 AI 點數 [#buy-ai-credits]
+
+在付費套餐上，所有者或管理員可以用一次性的 **AI 點數包**補充每週額度：
+開啟環境的 **Settings → Plan and
+billing**，然後 **AI credits** → **Buy AI Credits**。一個安全結賬頁面會在
+新標籤頁中開啟。
+
+- 點數包只提高 **7 天**預算。五小時節奏是一個速率限制，任何購買都無法
+  解除它。
+- Free 不接受點數包；越過 Free 每週限制的辦法是
+  [升級到 Team](/docs/cloud/plans-and-seats#upgrade)。
+- 如果你的組織尚未開售點數包，按鈕會說明這一點，而不是開啟結賬頁面。
+
+## 由哪個模型回答 [#which-model-answers]
+
+每個套餐都用**同一個預設模型**回答：付費套餐與 Free 的區別在於額度的
+大小，而不是更強的模型。在付費環境提供多個模型可選的情況下，AI 聊天會讓
+你選擇一個，而能力更強的模型消耗額度更快。
+
+## 通過你自己的客戶端使用 AI 不在這裡計量 [#ai-through-your-own-client-is-not-metered-here]
+
+你通過 [MCP](/docs/configure/mcp) 連線的 Agent —— Claude Code、Cursor 之類
+—— 執行在**你的**模型和你自己的 token 上。它不消耗 AI 額度。約束它的是
+環境的 MCP 請求限制
+（[儲存與限制](/docs/cloud/storage-and-limits#mcp-limits)）。
+
+## 在 ObjectOS Enterprise 上 [#on-objectos-enterprise]
+
+自管理的 Enterprise 部署自帶模型和金鑰，在
+[AI 服務](/docs/configure/ai)中配置，並直接向它的模型提供商付費。沒有
+平臺 AI 點數、沒有額度，也沒有計量：按 AI 席位收取的費用是許可費，而不是
+用量套餐。你的部署能做多少 AI 工作，只受你自己的提供商賬戶限制。
+
+## 下一步 [#next]
+
+- [套餐與 AI 席位](/docs/cloud/plans-and-seats) —— 每個套餐包含什麼。
+- [AI Builder](/docs/build/ai-builder) —— AI 能構建什麼。

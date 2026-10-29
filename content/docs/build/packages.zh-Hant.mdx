@@ -5,7 +5,7 @@ seoTitle: "包：建立、版本、釋出和安裝"
 description: ObjectOS 中的組織單元 —— 有版本、可安裝、可共享。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 70f6f415a52b419b4e4bd5c5a098a219d44cec7e84d230ad689ef57aed35512a
+  source_sha: 23408ab30233b4fd652a84dc8c40f5ed385817d4549bc0f84ba41f9f09f5a2bb
   guide_rev: 1
   mode: auto
 ---
@@ -111,6 +111,20 @@ os package publish             # → ObjectStack cloud catalog
 > 憑據。它們不是*部署*連線控制平面的方式：一個執行中的部署用它被繫結時
 > 簽發的令牌進行認證，沒有需要配置的 API 金鑰。在把這兩個名字中的任何一個
 > 複製到部署的配置中之前，請先檢視[環境變數](/docs/reference/environment-variables)。
+
+## ObjectOS Cloud 上的兩條開發者路線 [#two-developer-routes-on-objectos-cloud]
+
+開發者可以通過以下兩種方式之一，把變更帶進託管環境：
+
+| | 包釋出 | MCP 構建 |
+|---|---|---|
+| 怎麼做 | 在原始碼中構建，然後 `os package publish`，再從 **Marketplace** 安裝 | 你自己的 Agent 通過 [MCP](/docs/configure/mcp#build-with-an-agent) 以 `metadata:write` scope 接入，在環境中構建 |
+| 落地的是什麼 | 一個**有版本的**包，整體安裝 | 環境中的**草稿**，由人在 Studio → **Changes** 中釋出 |
+| 能構建什麼 | 環境執行的一切，包括指令碼、Webhook 和 API 觸發的流程 | 環境的 AI 構建所提供的內容：資料模型、介面、示例資料、應用外殼、由記錄和按鈕觸發的流程、無程式碼動作 |
+| 最適合 | 釋出版本：多個環境中的同一版本、在你的倉庫中評審、Marketplace | 迭代：在一個環境中嘗試變更並在應用中看到它 |
+
+用 MCP 構建快速塑造一個應用；一旦它需要版本，就改用包：把它交付到另一個
+環境或組織、把它儲存在倉庫中，或承載 MCP 構建不提供的後設資料。
 
 ## 安裝 [#installing]
 

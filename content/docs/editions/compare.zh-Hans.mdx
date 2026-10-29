@@ -4,7 +4,7 @@ seoTitle: "ObjectOS 版本对比：Community、Free、Team、Enterprise"
 description: 逐行列出每个 ObjectOS 版本和套餐包含什么 —— Community、Cloud Free、Cloud Team 和 Enterprise —— 以及每项差异在哪里强制执行。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: eb15d8f8d00d8f367e2796c6b7d628074105a7ec4d98ed3a4cc27e9510db1fc1
+  source_sha: 453d01cdf9083450d82f8221495bfac52b798f6ccb9ac8ffbbc5796920086128
   guide_rev: 1
   mode: auto
 ---
@@ -24,11 +24,11 @@ ObjectOS 是一个产品、三个版本。**ObjectOS Community** 是你自己运
 |---|---|---|---|---|
 | 交付方式 | 自管理 | 托管 | 托管 | 自管理 |
 | 价格 | 免费（Apache-2.0） | 免费 | 24 美元 / AI 席位 / 月 | 按合同 |
-| 文件存储 | 你自己的（[存储](/docs/configure/storage)） | 1 GB | 20 GB | 你自己的（[存储](/docs/configure/storage)） |
-| 开发环境 | n/d | —（仅生产环境） | n/d | n/d |
-| MCP 请求 | 由你的部署设定 | 每分钟 20 次，每天 1,000 次 | n/d | 由你的部署设定 |
+| 文件存储 | 你自己的（[存储](/docs/configure/storage)） | 每个环境 1 GB | 每个环境 20 GB | 你自己的（[存储](/docs/configure/storage)） |
+| 开发环境 | 你部署多少就有多少 | —（仅生产环境） | 两个，外加每个 AI 席位一个 | 你部署多少就有多少 |
+| MCP 请求 | 由你的部署设定 | 每分钟 20 次，每天 1,000 次 | 每分钟 120 次，无每日上限 | 由你的部署设定 |
 | 自定义域名 | 你自己的主机 | — | ✓ | 你自己的主机 |
-| 记录级和字段级安全 | ✓ | — | n/d | ✓ |
+| 记录级和字段级安全 | ✓ | — | ✓ | ✓ |
 | UI 内 AI（AI Builder、"问你的数据"） | 仅 MCP —— 自带模型 | 体验版 | ✓ | ✓ |
 | AI 治理（动作审计、护栏、权限范围限定） | — | — | — | ✓ |
 | 与你的身份提供商单点登录 | ✓（[身份认证](/docs/configure/authentication)） | — | — | ✓ |
@@ -37,9 +37,6 @@ ObjectOS 是一个产品、三个版本。**ObjectOS Community** 是你自己运
 | 单个部署承载多个组织 | — | — | — | ✓ |
 | 物理隔离运行 | — | — | — | ✓ |
 | 支持 | 社区 | 社区 | 标准 | SLA + 专属 |
-
-**n/d** —— 这里尚未记录。这些单元格正在与产品核实，之后会补上；在此之前，
-请咨询 [sales@objectstack.ai](mailto:sales@objectstack.ai)。
 
 在 ObjectOS Cloud 上，单点登录和 AI 治理随 **Business** 提供，它是
 ObjectOS Enterprise 在托管服务上的一个合同选项。在自管理部署上，Community
@@ -60,6 +57,12 @@ ObjectOS Enterprise 在托管服务上的一个合同选项。在自管理部署
 - **物理隔离运行是一种许可证模式。** 普通许可证会针对控制平面在线校验；
   物理隔离许可证在本地校验，并且部署还必须声明没有控制平面。无法工作的
   组合会在启动时被拒绝。参见[物理隔离部署](/docs/deploy/air-gapped)。
+- **在 ObjectOS Cloud 上，套餐按环境强制执行。** 开发环境在 Free 上会被
+  拒绝（`403 DEV_ENV_PLAN_LOCKED`）；存储已满的环境会拒绝附件上传和批量导入，
+  但绝不拒绝单条记录的写入、读取或导出（`403 STORAGE_LIMIT_REACHED`，从 80%
+  起发出警告）；超过套餐的请求限额后，MCP 端点会返回 `429`。参见
+  [环境](/docs/cloud/environments)和
+  [存储与限制](/docs/cloud/storage-and-limits)。
 - **许可证过期绝不会让运行时停止。** Business Self-Managed 会关闭它的付费
   功能，保持你的数据和运行时正常工作；完整的 Enterprise 部署会保留最后
   一个已付费的版本。参见[许可与定价](/docs/editions/license#faq)。

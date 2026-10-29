@@ -1,0 +1,86 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 儲存與限制
+seoTitle: "ObjectOS Cloud 限制：每個環境的儲存和 MCP 請求限制"
+description: ObjectOS Cloud 環境的用量限制 —— 1 GB 和 20 GB 的儲存額度、儲存滿的環境會停止什麼以及從不停止什麼、80% 警告，以及每個套餐的 MCP 請求限制和草稿限制。
+editions: [cloud]
+translation:
+  source_sha: d814bf7b8ecb5b58b6975c5ccb4927b9788c2e96517b9d44980d7da7b2c72a30
+  guide_rev: 1
+  mode: auto
+---
+
+每個 ObjectOS Cloud 環境都有幾項自己的限制。本頁列出這些限制，以及每個
+數字所屬的套餐。AI 額度有它自己的頁面：
+[AI 點數與限制](/docs/cloud/ai-credits-and-limits)。
+
+| 限制 | Free | Team 及以上 | Enterprise |
+|---|---|---|---|
+| [每個環境的儲存](#storage) | 1 GB | 20 GB | 不設上限 |
+| [每分鐘 MCP 請求數](#mcp-limits) | 20 | 120 | 120 |
+| [每個 UTC 日的 MCP 請求數](#mcp-limits) | 1,000 | 無每日上限 | 無每日上限 |
+| [每個 UTC 日通過 MCP 的編寫寫入](#drafts-and-authoring-writes) | 200 | 2,000 | 2,000 |
+| [每個環境的未釋出草稿](#drafts-and-authoring-writes) | 500 | 500 | 500 |
+
+## 儲存 [#storage]
+
+每個環境都有一份**儲存額度**：Free 上 **1 GB**，Team 上 **20 GB**，
+**按環境**計算。開發環境得到與生產環境相同的額度。Enterprise 合同不設
+儲存數字。（產品負責人裁定，2026-09-08：這些數字是最終的。）
+
+**計入什麼。** 環境的資料庫加上它的附件。用量大約每小時重新測量一次，
+因此一次大的上傳或匯入會在一小時內反映到讀數中；這種延遲是有意為之。
+
+**儲存滿的環境會停止什麼。** 從額度的 100% 起，兩件事會被拒絕：
+
+- **附件上傳**（檔案和圖片欄位）；
+- 記錄的**批次匯入**。
+
+拒絕返回 `403`，程式碼為 `STORAGE_LIMIT_REACHED`，並附上升級的途徑。
+
+**它從不停止什麼。** 建立、編輯或刪除單條記錄；讀取任何內容；匯出；以及
+刪除附件以釋放空間。使用基於該環境構建的應用的人，永遠不會因為環境接近
+額度而無法儲存表單。
+
+**警告。** 達到 **80%** 時，控制台會顯示一條橫幅。它是警告，不是
+限制：在達到 100% 之前，上傳和匯入仍會正常進行。
+
+**降級不會刪除任何東西。** 降級後超出 Free 額度的環境保留每一個位元組，
+仍可讀取和匯出，只是不再接受上傳和匯入，直到再次升級或釋放出空間。
+
+## MCP 限制 [#mcp-limits]
+
+每個環境的 [MCP 端點](/docs/configure/mcp#on-objectos-cloud)
+接受固定數量的請求，由連線到該環境的所有 Agent 共享。裁定見
+[cloud#3203](https://github.com/objectstack-ai/cloud/issues/3203)。
+
+- **Free：**每分鐘 20 次請求，每個 UTC 日 1,000 次。
+- **Team 及以上：**每分鐘 120 次請求，無每日上限。
+
+一次請求就是一條 MCP 訊息：一次工具呼叫、一次列出、連線握手的每一步。
+批處理會計入其中的每一條訊息，當天剩餘次數容納不下的批處理會被整體拒絕。
+每分鐘額度是持續補充的，因此不超過每分鐘數值的短時突發沒有問題。
+
+超過限制時，端點返回 `429 Too Many Requests` 和 `Retry-After`
+頭，響應體的 `error.code` 為 `RATE_LIMIT_EXCEEDED`。訊息會說明觸及了
+哪個限制以及何時重置；在 Free 上還會指向升級到 Team。被拒絕的請求沒有
+執行，也不佔用任何一個限制，等待之後的下一個請求會正常處理。由人驅動的
+Agent 遠低於付費套餐的限制；觸及限制的通常是一個反覆呼叫同一工具的迴圈。
+
+## 草稿與編寫寫入 [#drafts-and-authoring-writes]
+
+對應用設計的變更在釋出之前會暫存為**草稿**。
+一個環境最多容納 **500 個未釋出草稿**，在每個套餐上都是如此，無論它們是
+以哪種方式產生的。超過這個數量後，會再暫存一個草稿的變更會被拒絕，直到
+草稿被髮布或丟棄；這一項沒有任何時鐘會重置。
+
+通過 MCP 到達的編寫寫入 —— 建立或更改後設資料的構建工具 —— 也按 UTC 日
+計數：Free 上 **200** 次，Team 及以上 **2,000** 次。讀取和檢查不計數。
+兩種拒絕都使用與請求限制相同的 `RATE_LIMIT_EXCEEDED` 應答，附帶計數、限制
+以及何時重置。裁定見
+[cloud#3303](https://github.com/objectstack-ai/cloud/issues/3303)。
+
+## 下一步 [#next]
+
+- [套餐與 AI 席位](/docs/cloud/plans-and-seats) —— 每個套餐包含什麼。
+- [連線 AI 工具（MCP）](/docs/configure/mcp#on-objectos-cloud) —— 開啟環境的 MCP 端點。

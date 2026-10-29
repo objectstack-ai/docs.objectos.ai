@@ -3,7 +3,7 @@ title: 接入 AI 工具（MCP）
 description: 把 Claude Code、Claude Desktop 或任意 MCP 客户端指向你的 ObjectOS 应用，让 Agent 在你的权限模型约束下处理你的数据。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: dbab6b08c28ab977e12bec3cb19d901665254a266942968a049415e8f0fca7d0
+  source_sha: 284d38d7199dbc99e3df09c43ffc520333a1fff28e22d0681d8b885d554bf1e0
   guide_rev: 1
   mode: auto
 ---
@@ -11,6 +11,8 @@ translation:
 每个 ObjectOS 部署天生就是一个 MCP 服务器。运行时在 **`/api/v1/mcp`** 上提供 [Model Context Protocol](https://modelcontextprotocol.io) 服务——默认开启，无需安装插件，无需配置步骤。你的对象和已暴露的动作在定义的那一刻就成为带类型的工具；剩下唯一要做的就是接入一个客户端并验证它能用。
 
 > 要关闭这个入口，设置 `OS_MCP_SERVER_ENABLED=false`——端点将返回 404，**Setup → Connect an Agent**（接入 Agent）页面也随之消失。
+
+> **在 ObjectOS Cloud 上正好相反：**每个环境的 MCP 端点**在所有者或管理员开启之前都是关闭的**，并且每个套餐都有请求上限。参见[在 ObjectOS Cloud 上](#on-objectos-cloud)。
 
 本页讲的是把*外部* AI 工具接入你的应用。服务端 AI 栈——聊天 Provider、Embedder、RAG，以及在代码中显式注册 MCP 服务器插件——参见 [AI 服务](/docs/configure/ai)。
 
@@ -105,7 +107,7 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 ## 权限强制执行 [#permission-enforcement]
 
 - **每次调用都以调用者身份运行。**MCP 桥接解析的执行上下文与 REST 请求相同，因此对象权限、[记录访问](/docs/configure/permissions/record-access)和[字段级安全](/docs/configure/permissions/field-level-security)对 Agent 的作用与对 UI 中的真人完全一致。结果稀疏或写入被拒，通常意味着治理在*正常工作*，而不是连接坏了。
-- **OAuth scope 会收窄工具集。**Token 携带 `data:read`、`data:write` 和 `actions:execute` 这些 scope——不在已授予 scope 内的工具，在该会话中根本不会被注册。API Key 和会话调用者获得完整工具集，但每次调用仍会做权限检查。
+- **OAuth scope 会收窄工具集。**Token 携带 `data:read`、`data:write` 和 `actions:execute` 这些 scope——不在已授予 scope 内的工具，在该会话中根本不会被注册。API Key 和会话调用者获得完整工具集，但每次调用仍会做权限检查。第四个 scope `metadata:write` 只在部署提供构建工具的地方才开放这些工具：在 ObjectOS Cloud 上，参见[用 Agent 构建](#build-with-an-agent)。
 - **动作体一经调用即作为可信应用代码运行**（`ai.exposed` 门槛和 `requiredPermissions` 在*调用*时检查）。把编写动作当作值得代码评审的行为——那才是真正的安全边界。
 - 动作还可以声明 `ai.requiresConfirmation`；看起来具有破坏性的动作默认要求确认。
 
@@ -120,6 +122,95 @@ What objects does this app have, and what fields does the main one carry?
 你应该看到 `list_objects` 和 `describe_object` 被触发。Agent 的自然工作模式是 `list_objects` → `describe_object` → `query_records` → `run_action`——四者都能跑通，连接就完全就绪了。
 
 > 配上应用的 **skill 文件**，Agent 的表现会明显更好：从 `GET /api/v1/mcp/skill` 下载它，或安装[官方 Claude 插件](https://github.com/objectstack-ai/claude-plugin)（`claude plugin marketplace add objectstack-ai/claude-plugin`），后者打包了该 skill 和一个引导式的 `/objectstack:connect` 命令。
+
+## 在 ObjectOS Cloud 上 [#on-objectos-cloud]
+
+一旦端点开启，上述所有内容都适用于 ObjectOS Cloud 环境。有四处不同：开关、上限、连接信息所在的位置，以及 Agent 可以把应用构建为草稿。
+
+### 开启 AI Agent 访问 [#turn-on-ai-agent-access]
+
+把环境的数据暴露给外部 AI 客户端是组织的决定，因此在 ObjectOS Cloud 上，端点在每个套餐上都按环境**默认关闭**（裁定见 [cloud#1248](https://github.com/objectstack-ai/cloud/issues/1248)）。
+
+1. 在云控制台中，打开该环境的页面及其 **Settings**（设置）标签页。在 **Access and sign-in** 下，**AI agent access (MCP)** 一行显示 **Now: off**。
+2. 选择 **Enable AI Agent Access** 并确认。只有组织的所有者和管理员会看到这个选项。
+3. 稍等几秒：环境会自行获取变更，无需重新部署。随后这一行显示 **Now: on**，环境的 **Overview** 也会显示同样的状态。
+
+开启后，**Connect an Agent** 会出现在环境自己的控制台中，有两个入口打开的是同一个页面：**Account → Developer**，所有已登录用户都能看到；以及 **Setup → Integrations**，拥有 Manage Platform Settings 的用户能看到。该页面显示环境的端点 URL——其地址后接 `/api/v1/mcp`——以及每个客户端的接入卡片、skill 文件和 API Key 签发器。
+
+### 接入 [#connect]
+
+交互式客户端使用上文描述的浏览器登录：Agent 随后以**你**的身份行事，处于你自己的权限、行级安全和字段访问之内。无头客户端——CI、脚本——使用在 **Connect an Agent** 的 **API keys · headless** 卡片中签发的 [API Key](#headless-api-keys)；Key 以签发它的人的身份行事，并且永远不能替其他人签发。
+
+### 用 Agent 构建 [#build-with-an-agent]
+
+Agent 还可以**构建应用**：创建和修改它的对象、字段、视图、页面、仪表盘、流程和动作，而不只是它的记录。它构建的一切在有人发布之前都是**草稿**。
+
+**请求 `metadata:write`。**构建工具只提供给授权中包含 `metadata:write` scope 的浏览器登录。环境会把它与 `data:read`、`data:write` 和 `actions:execute` 一起公布，因此请求环境所公布 scope 的客户端，在你登录时就会获得它。如果你的客户端按名称请求 scope，加上 `metadata:write`；如果你登录时没有它，重新连接。[API Key](#headless-api-keys) 永远不会开放构建工具。该 scope 只开放工具，仅此而已：每次调用都以你的身份运行，并需要你在该环境中拥有 `manage_metadata` 或 `studio.access` 权限，与 [AI Builder](/docs/build/ai-builder) 相同。
+
+**这些工具做什么。**
+
+| 工具 | 用途 |
+|---|---|
+| `get_authoring_rules`、`get_metadata_schema` | 该环境遵循的构建规则，以及某种元数据类型的结构 |
+| `list_metadata`、`describe_metadata`、`list_packages`、`get_package` | 环境当前包含的内容 |
+| `propose_blueprint`、`apply_blueprint` | 根据描述设计一个应用或功能，然后暂存整个设计 |
+| `create_object`、`add_field`、`modify_field`、`delete_field` | 修改对象和字段 |
+| `create_metadata`、`update_metadata`、`apply_edit` | 创建环境可构建的任意类型、修改其中之一，或对现有应用应用一次结构化编辑 |
+| `create_seed` | 添加示例数据 |
+| `create_package` | 创建一个用于构建的包 |
+| `verify_build` | 对照平台规则检查草稿，并报告它拒绝的内容 |
+
+每次调用都要指明它的包（`packageId` 或 `targetApp`）；没有任何东西会把工作包从一次调用带到下一次。这里不提供 `toggle_flow` 和 `test_flow`，因为 Agent 暂存的流程是不会运行的草稿。
+
+**每次写入都是草稿，在每个环境中都是。**包括生产环境。没有工具会发布，也没有工具会丢弃。每次写入的结果都会说明变更尚未生效，并带有一个 `staged` 块，列出这些草稿以及发布它们的地址。
+
+**由人在 Studio → Changes 中发布。**在 Studio 中打开该包及其 **Changes** 视图（环境中的 `/_console/studio/<package>/data`），评审 Agent 暂存的内容，然后发布或丢弃。告诉你它已经创建了某样东西的 Agent，其实是起草了它；发布之后应用才会显示它。
+
+**删除或收窄需要 `confirm: true`。**`delete_field`、`modify_field`、`apply_edit` 和 `update_metadata` 接受一个 `confirm` 参数。会删除字段、改变字段类型或从流程中删去步骤的调用，在没有 `confirm: true` 时什么都不会暂存，并且回答会指出发布它将失去什么。只做添加的变更永远不需要它。
+
+**Agent 能构建多少。**构建调用也是 MCP 请求，因此[请求上限](#limits)对它们适用。另有两项上限计入构建（[存储与限制](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)）：
+
+| | Free | Team 及以上 |
+|---|---|---|
+| 通过 MCP 的构建写入，每个环境每个 UTC 日 | 200 | 2,000 |
+| 每个环境的未发布草稿，无论以何种方式产生 | 500 | 500 |
+
+读取和 `verify_build` 不计为写入。超过任一上限后，工具调用会以 `RATE_LIMIT_EXCEEDED` 被拒绝，并附上计数和重置条件：写入在下一个 UTC 日重置，草稿在发布或丢弃后重置。
+
+> **为什么我的流程被拒绝？**它用到了 Agent 在这里无法构建的东西，拒绝信息会指出是哪一项：Free 上的定时或相对时间流程、套餐不包含审批工作流时的审批步骤，或者一种需在源码中构建并作为[包](/docs/build/packages)发布的类型。
+
+Agent 可以构建由记录变更或按钮启动的流程，使用创建、更新和删除记录、赋值、判断、循环和等待步骤。定时和相对时间流程在 Team 及以上可以构建，审批步骤则在套餐包含[审批工作流](/docs/cloud/plans-and-seats)时可以构建。脚本、Webhook、API 触发的流程和屏幕流程，以及 script、webhook、API、job、邮件模板、翻译、主题、插件、agent、skill 和数据源这些类型，在任何套餐上都在源码中构建。
+
+### 上限 [#limits]
+
+每个环境的端点接受一定数量的请求，由连接到它的所有 Agent 共享（裁定见 [cloud#3203](https://github.com/objectstack-ai/cloud/issues/3203)）：
+
+| 套餐 | 每分钟 | 每个 UTC 日 |
+|---|---|---|
+| Free | 20 | 1,000 |
+| Team 及以上 | 120 | 无每日上限 |
+
+超过上限后，端点以 `429` 加 `Retry-After` 和代码 `RATE_LIMIT_EXCEEDED` 应答；消息会说明触发了哪个上限以及何时重置。什么算作一次请求，以及与之并列的草稿和创作写入上限，参见[存储与限制](/docs/cloud/storage-and-limits#mcp-limits)。开关在套餐变更时保持不变，因此降级或升级永远不会把它打开或关闭。
+
+### 关闭 [#turn-it-off]
+
+在同一行中，**Disable AI Agent Access** 会在几秒内让环境停止提供端点，切断所有已连接的 Agent——浏览器登录和 API Key 都一样。它不会吊销其他任何东西：
+
+- **API Key 对 REST API 仍然有效。**要停用 Key 本身，从 **Account → Developer → API Keys**（你自己的）或 **Setup → Access Control → API Keys**（所有人的，需要 Manage Platform Settings）中删除它。
+- **浏览器登录不会被吊销**，但它们的 token 只被 MCP 端点接受，所以端点关闭期间它们什么也访问不到。
+
+### 在 ObjectOS Cloud 上：故障排查 [#on-objectos-cloud-troubleshooting]
+
+| 症状 | 原因 |
+|---|---|
+| 环境的 **Settings** 上没有 **AI agent access (MCP)** 一行 | 只有组织的所有者和管理员能看到它 |
+| **Connect an Agent** 既不在 **Account → Developer** 中，也不在 **Setup → Integrations** 中 | AI Agent 访问仍处于关闭状态，或刚刚才开启——重新加载 |
+| **Connect an Agent** 只出现在 **Account → Developer** 下 | 你在该环境中没有 Manage Platform Settings；Account 入口打开的是同一个页面 |
+| 客户端收到 `429` | 环境的 Agent 超过了上限；等待 `Retry-After` 秒数，并排查是否有 Agent 在重复同一个调用 |
+| 连接上没有构建工具 | 登录时没有授予 `metadata:write`，或客户端使用的是 API Key；用浏览器登录重新连接并授予它 |
+| 构建工具返回 `PERMISSION_DENIED` | 你在该环境中既没有 `manage_metadata` 也没有 `studio.access` |
+| Agent 构建了应用中看不到的东西 | 它是草稿；在 Studio → **Changes** 中发布它 |
+| 构建工具返回 `RATE_LIMIT_EXCEEDED`，并指明构建写入或草稿 | 当天的构建写入或草稿上限已用完；等到下一个 UTC 日，或发布或丢弃草稿 |
 
 ## 故障排查 [#troubleshooting]
 

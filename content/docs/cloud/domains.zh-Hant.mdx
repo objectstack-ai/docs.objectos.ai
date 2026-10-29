@@ -1,0 +1,99 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 域名
+seoTitle: "ObjectOS Cloud 域名：平臺子域名與你自己的域名"
+description: 每個 ObjectOS Cloud 套餐都包含一個品牌化的平臺子域名；Team 及以上套餐可以為生產環境新增你自己的域名，通過 TXT 記錄證明所有權，證書由平臺為你簽發。
+editions: [cloud]
+translation:
+  source_sha: e09fb1bee012ece2c40eb7165542858668830bbe291102a95f4b038ffa7c7e77
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Cloud 上的環境可以通過兩類地址訪問。
+
+| | **平臺子域名** | **你自己的域名** |
+|---|---|---|
+| 形式 | 平臺域名上的 `acme` | `app.acme.com` |
+| 套餐 | 所有套餐，包括 Free | Team 及以上 |
+| 環境 | 生產環境；開發環境保留其固定地址 | 僅生產環境 |
+| 數量 | 想加多少就加多少 | Team 上每個生產環境一個；更多需按合同 |
+| 證書 | 由平臺自己的證書覆蓋 | 證明所有權後為你簽發 |
+
+本頁的規則依據
+[cloud#1087](https://github.com/objectstack-ai/cloud/issues/1087)（平臺
+子域名在所有套餐上免費）和
+[cloud#2136](https://github.com/objectstack-ai/cloud/issues/2136)（你自己的
+域名）的裁定。
+
+## 平臺子域名 [#platform-subdomains]
+
+生產環境的地址是你組織的
+[slug](/docs/cloud/organization#the-organization-slug) 加上平臺域名。
+它在所有套餐上都免費，你選擇的任何其他品牌化標籤也一樣。
+
+要修改它，開啟環境的 **Settings → Name and domain**，選擇
+**Change Hostname**。只需輸入標籤：平臺域名會自動為你加上。
+標籤由 4 到 63 個小寫字母、數字和連字元組成，兩端不能是連字元，
+也不能有兩個連字元相連，少數保留詞會被拒絕。它不必
+以你組織的 slug 開頭。
+
+要新增第二個平臺子域名而不是替換第一個，請使用同一部分中的
+**Add Domain**。環境 **Overview** 上顯示的地址，就是你應該告訴別人的那個。
+
+## 你自己的域名 [#your-own-domain]
+
+在 **Team** 及以上套餐上，生產環境還可以通過你擁有的某個域名的
+子域名來訪問，例如 `app.acme.com`。
+
+1. **新增它。** 在 **Settings → Name and domain** 中，選擇 **Add Domain**（或
+   **Change Hostname**），輸入完整的主機名。它必須是子域名 ——
+   至少三級標籤。像 `acme.com` 這樣的根域名會被拒絕：請使用
+   `www.acme.com` 或其他子域名。
+2. **證明你擁有它。** 域名建立後處於 **Pending Verification** 狀態，
+   控制台會顯示一條需要釋出的 TXT 記錄：名稱為
+   `_objectos-challenge.<your hostname>`，值對該域名唯一。
+   它還會顯示你的主機名應指向的 CNAME 目標。
+3. **驗證。** TXT 記錄釋出後，在該域名上選擇 **Verify DNS**。
+   ObjectOS Cloud 會檢查該記錄，然後申請證書；
+   域名會依次經過 **Verified** 和 **Provisioning Certificate**，最終變為
+   **Active**。如果它停在某一步，再次選擇 **Verify DNS** 推動它繼續。
+4. **設為主域名**（可選）。**Set as Primary** 決定登入重定向、
+   郵件連結和共享連結使用哪個地址。平臺子域名
+   在它旁邊繼續可用。
+
+會話只屬於一個地址：在平臺子域名和
+你自己的域名之間切換，需要重新登入。
+
+### 出現問題時 [#when-something-goes-wrong]
+
+| 你看到的 | 原因，以及該怎麼做 |
+|---|---|
+| `403 CUSTOM_DOMAIN_PLAN_LOCKED` | 組織使用的是 Free 套餐。升級到 Team。 |
+| `403 DEV_ENV_DOMAIN_LOCKED` | 這是一個開發環境。請把域名新增到生產環境。 |
+| `400 INVALID_FORMAT`，要求使用 www 或子域名 | 你輸入的是根域名。請使用子域名，例如 `www.acme.com`。 |
+| `403 CONTACT_SALES_PLAN` | 該環境已經有了它唯一的那個域名。多於一個屬於 Enterprise 安排。 |
+| `409 DUPLICATE_VALUE` | 另一個環境已經在使用該主機名。 |
+| 驗證回覆說 TXT 記錄尚不可見 | DNS 尚未傳播，或者記錄名稱或值不一致。回覆中會重複給出期望的記錄。 |
+| **Failed** | 證書無法簽發。檢查 CNAME 並再次選擇 **Verify DNS**；它會先重新證明所有權。 |
+
+### 降級與升級 [#downgrade-and-upgrade]
+
+降級會**暫停**你自己的域名；絕不會釋放它。域名變為
+**Suspended**，停止提供服務，其證書被撤回，但記錄
+仍然保留。如果它是主域名，連結會回退到平臺子域名，後者
+不受影響。之後任何一次升級時，只要你的 CNAME 仍指向我們，
+域名都會自動重新配置。不存在"N 天后釋放"這回事。
+
+被暫停的域名不會阻礙其他能夠證明該主機名所有權的人：
+如果另一個環境證明了所有權，被暫停的認領就會被放棄。
+
+### 移除域名 [#removing-a-domain]
+
+在域名上選擇 **Delete** 會使其停止提供服務並釋放主機名。永久
+刪除環境會連同其所有域名一起移除。
+
+## 下一步 [#next]
+
+- [環境](/docs/cloud/environments) —— 生產環境與開發環境。
+- [套餐與 AI 席位](/docs/cloud/plans-and-seats) —— Team 增加了什麼。

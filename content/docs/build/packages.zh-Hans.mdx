@@ -4,7 +4,7 @@ seoTitle: "包：创建、版本、发布和安装"
 description: ObjectOS 中的组织单元 —— 有版本、可安装、可共享。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 70f6f415a52b419b4e4bd5c5a098a219d44cec7e84d230ad689ef57aed35512a
+  source_sha: 23408ab30233b4fd652a84dc8c40f5ed385817d4549bc0f84ba41f9f09f5a2bb
   guide_rev: 1
   mode: auto
 ---
@@ -110,6 +110,20 @@ os package publish             # → ObjectStack cloud catalog
 > 凭据。它们不是*部署*连接控制平面的方式：一个运行中的部署用它被绑定时
 > 签发的令牌进行认证，没有需要配置的 API 密钥。在把这两个名字中的任何一个
 > 复制到部署的配置中之前，请先查看[环境变量](/docs/reference/environment-variables)。
+
+## ObjectOS Cloud 上的两条开发者路线 [#two-developer-routes-on-objectos-cloud]
+
+开发者可以通过以下两种方式之一，把变更带进托管环境：
+
+| | 包发布 | MCP 构建 |
+|---|---|---|
+| 怎么做 | 在源码中构建，然后 `os package publish`，再从 **Marketplace** 安装 | 你自己的 Agent 通过 [MCP](/docs/configure/mcp#build-with-an-agent) 以 `metadata:write` scope 接入，在环境中构建 |
+| 落地的是什么 | 一个**有版本的**包，整体安装 | 环境中的**草稿**，由人在 Studio → **Changes** 中发布 |
+| 能构建什么 | 环境运行的一切，包括脚本、Webhook 和 API 触发的流程 | 环境的 AI 构建所提供的内容：数据模型、界面、示例数据、应用外壳、由记录和按钮触发的流程、无代码动作 |
+| 最适合 | 发布版本：多个环境中的同一版本、在你的仓库中评审、Marketplace | 迭代：在一个环境中尝试变更并在应用中看到它 |
+
+用 MCP 构建快速塑造一个应用；一旦它需要版本，就改用包：把它交付到另一个
+环境或组织、把它保存在仓库中，或承载 MCP 构建不提供的元数据。
 
 ## 安装 [#installing]
 

@@ -1,0 +1,161 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: AI Builder
+seoTitle: "AI Builder：用自然語言對話構建應用"
+description: 把自然語言需求變成可執行後設資料的內建對話，以及回答你資料相關問題的助手 —— 各自如何工作、呼叫哪些工具、變更如何審批。
+editions: [cloud, enterprise]
+translation:
+  source_sha: 3dc30df8f6289a706b6eb8101c4160ba800617f579063fc3b62f98518b34fad2
+  guide_rev: 1
+  mode: auto
+---
+
+AI Builder 是客戶擴充套件 ObjectOS 的**主要方式**。開啟 ObjectOS，用自然語言描述你的需求，它就會為你構建後設資料 —— 物件、欄位、檢視、儀表盤、流程，乃至完整的應用。在你批准計劃之前什麼都不會構建，而它構建的一切都是普通的 ObjectStack 後設資料，你可以閱讀、修改和打包。
+
+## 兩個 Agent：Builder 與 Assistant [#two-agents-the-builder-and-the-assistant]
+
+ObjectOS 自帶兩個 AI Agent。你不需要在它們之間選擇：**在哪裡提問**決定由哪一個回答。
+
+| | **Builder**（`build`，構建者） | **Assistant**（`ask`，助手） |
+|---|---|---|
+| 位置 | AI Builder，位於構建應用的介面中 | 資料控制台中的對話，就在你的記錄旁邊 |
+| 它做什麼 | 設計和修改**應用**：物件、欄位、檢視、儀表盤、流程 | 回答關於你**資料**的問題、繪製圖表，並執行你的應用所暴露的動作 |
+| 它從不做什麼 | — | 修改應用。到達它這裡的構建請求會被拒絕並指向 Builder，從不會被悄悄轉交 |
+
+兩者都**以已登入的人的身份**執行。每次工具呼叫都會對照此人的許可權、記錄訪問和欄位級安全進行檢查，因此 AI 能看到或修改的永遠不會超過此人自己能做的。
+
+**誰可以使用 Builder。**僅有 AI 席位還不夠：Builder 會修改你應用的後設資料，所以還需要 `manage_metadata` 或 `studio.access` 許可權。兩者都沒有的成員只能看到 Assistant，直接向 Builder 發出的請求會以 `403 PERMISSION_DENIED` 被拒絕，並且每個構建工具在執行時都會再次檢查該許可權。
+
+## 試一試 [#try-it]
+
+```
+You: I need to track customer support tickets.
+     Each ticket has a subject, description, priority (low/medium/high/urgent),
+     status (new/open/pending/resolved/closed), and assignee.
+
+AI:  Here's the plan:
+     • Object `support_ticket` with 5 fields
+     • A kanban view grouped by status
+     • A dashboard of open tickets by priority
+     • A few sample tickets to try it with
+
+     Shall I build it?
+
+You: Yes
+
+AI:  ✓ Object created
+     ✓ Kanban view and dashboard created
+     ✓ Sample data added
+     Published — open Support Tickets to try it.
+```
+
+現在你就有了一個可用的工單應用 —— REST 端點、生成的檢視、審計日誌條目、許可權檢查點，一應俱全。沒有編輯任何檔案；也沒有發生重啟。
+
+## 構建如何執行 [#how-a-build-runs]
+
+1. **計劃。**對於任何大於單個變更的需求 —— "幫我構建一個招聘系統" —— Builder 會先提出一份**藍圖**：它打算建立的物件、欄位、關係、檢視、儀表盤和示例資料，以及它的假設。這一步不會建立任何東西。
+2. **批准。**你在對話中回答：批准它，或要求修改並得到一份修訂後的計劃。Builder 只在你於該對話中批准之後才進行變更。
+3. **構建為草稿。**批准的變更被寫為**草稿** —— 已暫存，尚未生效。
+4. **校驗。**Builder 對照平臺規則檢查草稿，並在任何內容生效之前修復它能修復的問題。
+5. **釋出。**草稿被髮布到你正在構建的環境中，應用連同其示例資料出現在那裡。狀態面板會顯示實際已釋出的內容；Builder 從不會把未釋出的變更報告為已交付。
+
+要擴充套件現有應用，直接說明即可 —— *"給支援應用加一個滿意度調查"* —— Builder 會把新部分設計為關聯到該應用的物件，並把它們加入其導航，而不是另建一個獨立的應用。
+
+## 你可以要求什麼 [#what-you-can-ask-for]
+
+| 目標 | 提示 |
+|---|---|
+| 新物件 | *"建立一個 `product` 物件，包含 name、sku、price、category。"* |
+| 新增欄位 | *"給 `order` 新增一個 `discount` 小數字段，最大 50。"* |
+| 修改選項列表 | *"在 `task.status` 上，在 'open' 和 'done' 之間新增 'blocked'。"* |
+| 關係 | *"讓 `order_line` 與 `order` 建立主從關係。"* |
+| 校驗 | *"在 `invoice` 上，折扣不能超過小計。"* |
+| 流程 | *"當一張高優先順序工單在 'new' 狀態停留 30 分鐘時，通知經理。"* |
+| 動作 | *"建立一個動作 `approve_invoice`，把狀態設為 approved。"* |
+| 許可權集 | *"建立 `agent` 許可權集，對 support_ticket 有讀取/建立/編輯許可權，對 customer 有讀取許可權。"* |
+| 翻譯 | *"把 support_ticket 的標籤和選項列表翻譯成西班牙語。"* |
+
+如果 AI 做不到，它會直說 —— 並給你指出手動操作的路徑。
+
+## Agent 呼叫的工具 [#the-tools-the-agents-call]
+
+Agent 的能力就是它的工具。檢視某個環境的即時目錄：`GET /api/v1/ai/tools`。
+
+**Builder 的創作工具**作用於[包](/docs/build/packages)及其後設資料，並依據 `@objectstack/spec` 進行校驗：
+
+| 領域 | 工具 |
+|---|---|
+| 計劃 | `propose_blueprint`、`apply_blueprint` |
+| 包 | `create_package`、`list_packages`、`get_package`、`get_active_package`、`set_active_package` |
+| 物件 | `create_object`、`list_objects`、`describe_object` |
+| 欄位 | `add_field`、`modify_field`、`delete_field` |
+
+**Assistant 的資料工具**讀取記錄並對其執行操作：
+
+| 工具 | 用途 |
+|---|---|
+| `query_records` | 用過濾條件、欄位選擇、排序和分頁查詢物件。每條記錄都帶著其 `id` 返回，因此回答可以連結到它提到的記錄。 |
+| `get_record` | 按 id 獲取一條記錄。 |
+| `aggregate_data` | 服務端的 `count`、`sum`、`avg`、`min`、`max` 和 `count_distinct`，可選分組和過濾。 |
+| `query_data` | 回答一個自然語言請求：它找到相關物件、編寫查詢、執行查詢並返回記錄。 |
+| `visualize_data` | 唯一繪製圖表的工具：它按一個維度、基於一個或多個度量對物件進行聚合，並在對話中繪製柱形圖、條形圖、水平條形圖、折線圖、面積圖、餅圖、環形圖、雷達圖或散點圖。座標軸顯示的是展示值 —— 選項標籤、記錄名稱 —— 使用對話的語言。需要環境的分析服務。 |
+| `search_knowledge` | 搜尋你登記的知識源（記錄快照、檔案、URL）。結果已經過濾為此人可見的內容。配置了知識服務時才會出現。 |
+| `action_<name>` | 執行你應用中一個暴露給 AI 的業務動作（見下文）。 |
+
+`aggregate_data` 屬於產品內建的 AI。通過 [MCP](/docs/configure/mcp) 從外部接入的 Agent 有自己的工具集，在那裡有說明。
+
+## 動作即工具 [#actions-as-tools]
+
+當動作的作者**把它暴露給 AI** 時，它就成為一個名為 `action_<name>` 的工具 —— `ai: { exposed: true }` 加上不少於 40 個字元的 `ai.description`，且型別可以在無 UI 的情況下執行（`script`、`flow` 或 `api`）。一旦暴露，AI 就可以像呼叫任何內建工具一樣呼叫它，並受呼叫者許可權約束；未暴露的動作永遠不會成為工具。參見[動作](/docs/build/interface/actions#from-an-ai-agent)。
+
+**動作執行前的審批。**聲明瞭 `ai.requiresConfirmation: true` 的動作 —— 或看起來具有破壞性且未另行宣告的動作 —— 不會立即執行。AI 會把它登記為一個**待處理動作**，只有獲得批准後才會執行：
+
+| 端點 | 用途 |
+|---|---|
+| `GET  /api/v1/ai/pending-actions` | 列出你的待處理動作（按狀態過濾） |
+| `GET  /api/v1/ai/pending-actions/:id` | 你的某個待處理動作 |
+| `POST /api/v1/ai/pending-actions/:id/approve` | 批准並執行它 |
+| `POST /api/v1/ai/pending-actions/:id/reject` | 拒絕它，可附帶原因 |
+
+待處理動作屬於提出它的那次對話的主人：只有此人可以讀取、批准或拒絕它。其他任何人，包括管理員，得到的回應都如同它不存在一樣。
+
+## 通過 API 對話 [#chatting-through-the-api]
+
+按名稱（`ask` 或 `build`）向 Agent 傳送一段對話：
+
+```bash
+curl -X POST https://your-environment-host/api/v1/ai/agents/ask/chat \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "messages": [{ "role": "user", "content": "How many open opportunities over $50k?" }],
+    "context": { "appName": "crm", "objectName": "opportunity" }
+  }'
+```
+
+- **`messages`** —— 到目前為止的對話。客戶端只能提交 `user` 和 `assistant` 輪次。
+- **`context`** —— 此人所在的位置：`appName`、`objectName`、`viewName`、`recordId`。Skill 用它來判斷什麼是相關的。
+- **`conversationId`**（可選）—— 繼續一段已有對話。
+
+回答預設以 Server-Sent Events **流式**返回（Vercel AI 資料流協議，`x-vercel-ai-ui-message-stream: v1`）；圖表以 `data-chart` 部分出現在流中。傳送 `"stream": false` 則改為返回單個 JSON 回答。
+
+對話儲存在 `/api/v1/ai/conversations` 下，每個人只能看到自己的對話。
+
+## 限制 [#limits]
+
+- **資料訪問遵循此人自己的許可權**，讀取和動作都一樣。
+- **系統包不可觸碰。**要求 AI 修改系統包（`sys_*`）會被拒絕。
+- **大型構建分步進行效果更好。**"構建一個完整的 HR 應用"是可行的，但一系列較小的對話、每次落地一個領域，更便於評審。
+- **在 ObjectOS Cloud 上**，AI 消耗環境的 [AI 額度](/docs/cloud/ai-credits-and-limits)，並且一個環境最多容納 500 個未釋出的草稿（[儲存與限制](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)）。在自管理的 Enterprise 部署上，模型由你自己提供，在 [AI 服務](/docs/configure/ai)中配置。
+
+## 超越構建期 AI [#going-beyond-build-time-ai]
+
+同一套 AI 基礎設施也為面向終端使用者的**執行時 Agent** 提供支援 —— 支援助手、銷售副駕駛、內部問答機器人 —— 它們構建在相同的 Agent → Skill → Tool 架構之上。參見 [Agent](/docs/build/agents)。
+
+## 下一步 [#where-to-go-next]
+
+- [Agent](/docs/build/agents) —— 基於你資料的終端使用者助手
+- [資料模型](/docs/build/data) —— AI 實際生成的是什麼
+- [動作](/docs/build/interface/actions) —— AI 作為執行時工具暴露的單元
+- [AI 點數與限制](/docs/cloud/ai-credits-and-limits) —— ObjectOS Cloud 上的 AI 額度
+- [AI 服務](/docs/configure/ai) —— Provider 配置（OpenAI / Anthropic / Google / DeepSeek / …）
