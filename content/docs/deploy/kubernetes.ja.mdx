@@ -1,0 +1,112 @@
+---
+title: Kubernetes
+seoTitle: "Kubernetes：プローブ、シークレット、固定、マイグレーション"
+description: Kubernetes で ObjectOS イメージを実行します。参照用の Deployment、正しいエンドポイントへの正しいプローブ、Secret からのシークレット、そしてマルチレプリカの Enterprise デプロイメントが維持すべきものを説明します。
+editions: [community, enterprise]
+translation:
+  source_sha: 2270aa161805c5ab5a80c2c48562ac8ab6c54573019e3c7d17acc51587a2d6c0
+  guide_rev: 1
+  mode: auto
+---
+
+**Helm チャートや公式のマニフェスト一式はありません。** イメージは Kubernetes でもそのまま動作するため、このページでは最小限の参照例と、マニフェストが維持しなければならない性質を示します。それぞれ、ランタイムが依存するか強制するものです。[Docker](/docs/deploy/docker) の内容はすべて当てはまります。同じイメージ、同じ変数、同じアップグレードのルールです。
+
+## 参照用の Deployment [#a-reference-deployment]
+
+Community イメージのレプリカ 1 つ、`Secret` からのシークレット、それぞれ専用のエンドポイントに向けたプローブ：
+
+```yaml title="deployment.yaml"
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: objectos
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app: objectos }
+  template:
+    metadata:
+      labels: { app: objectos }
+    spec:
+      containers:
+        - name: objectos
+          image: registry.example.com/crm:2.2.2   # your image FROM ghcr.io/objectstack-ai/objectstack:X.Y.Z
+          ports:
+            - containerPort: 8080
+          envFrom:
+            - secretRef:
+                name: objectos-secrets   # OS_DATABASE_URL, OS_AUTH_SECRET, OS_SECRET_KEY
+          livenessProbe:
+            httpGet: { path: /api/v1/health, port: 8080 }
+            periodSeconds: 30
+          readinessProbe:
+            httpGet: { path: /api/v1/ready, port: 8080 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: objectos
+spec:
+  selector: { app: objectos }
+  ports:
+    - port: 80
+      targetPort: 8080
+```
+
+## 維持すべき性質 [#properties-to-preserve]
+
+### イメージが正確に固定されている [#the-image-is-pinned-exactly]
+
+イメージは `@sha256:` ダイジェストで参照し、読み取り元の正確なバージョンを横に書いておきます。移動するタグでは決して参照しないでください。オーケストレーターでは、単一ホストよりもこれが重要です。プルポリシーと移動するタグの組み合わせでは、「同じ」Deployment の 2 つの Pod が異なるビルドを実行することがあります。移動するタグはリリースのたびに動き、正確なバージョンタグもそのバージョンが再ビルドされれば動きます。[Docker → イメージを固定する](/docs/deploy/docker#pin-the-image)を参照してください。
+
+### プローブが正しいエンドポイントに向いている [#probes-address-the-right-endpoints]
+
+`/api/v1/health` は liveness です。`/api/v1/ready` は readiness です。readiness は、ランタイムの起動中、シャットダウン中、そしてデータドライバーが応答しなくなったときに **503** を返します。そのため、ローリング再起動はきれいにドレインされ、データベースを失った Pod はエラーを返す代わりに Service のエンドポイントから外れます。
+
+readiness を liveness プローブに使わないでください。そうしないと、データベースの障害ですべての Pod が一斉に再起動し（それではデータベースは戻りません）、設定の不具合はその不具合自体ではなく `CrashLoopBackOff` として現れます。データベースが戻れば Pod は自動的に回復します。readiness プローブが、不在の間は Pod をドレインし、その後に再び受け入れます。
+
+### シークレットは Secret から [#secrets-come-from-a-secret]
+
+`OS_AUTH_SECRET` と `OS_SECRET_KEY` は `Secret` に入れ、一度だけ生成してすべての Pod にマウントします。Pod ごとに生成したり、イメージに焼き込んだりは決してしないでください。独自のシークレットキーを生成した Pod は、次の再スケジュールでそのキーを失い、それで暗号化されたすべてのシークレットも一緒に失います。
+
+### 業務データはクラスターの外に置く [#business-data-lives-outside-the-cluster]
+
+デプロイメントはマネージド PostgreSQL に向けます。クラスター内の永続ボリュームは、業務データの置き場所として想定されていません。
+
+### Community ではレプリカ 1 つ [#one-replica-on-community]
+
+Community の調整はプロセス内で行われるため、`replicas: 1` のままにします。それ以上を宣言すると（`OS_CLUSTER_REPLICAS` が 1 より大きい）、ライセンスなしでは起動が拒否されます。マルチレプリカは Enterprise の機能です（後述）。
+
+### Ingress [#ingress]
+
+TLS はエッジで終端し、`OS_AUTH_URL` と `OS_TRUSTED_ORIGINS` を公開アドレスに設定します。クロスオリジンのフロントエンドは `OS_CORS_ORIGIN` に明示的に列挙し、ワイルドカードのオリジンと認証情報付きのリクエストを組み合わせないでください。ランタイムがプロキシの背後にある場合は、クライアントが指定した forwarded-for ヘッダーをプロキシが自身のもので置き換えるようにしてください。レート制限と監査証跡は、呼び出し元の識別情報が信頼できることに依存しています。
+
+## Enterprise で追加されるもの [#enterprise-adds]
+
+**私たちが提供するのは Compose スタックであり、Helm チャートや Kubernetes マニフェストではありません。** リリースのデプロイバンドルが、サポートされテストされた構成です。Kubernetes ではマニフェストを自分で組み立てることになるため、そのスタックの次の性質も再現してください。オーケストレーターが何であれ、デプロイメントが受けられる権利は変わりません。
+
+### イメージはダイジェストで固定する [#the-image-is-pinned-by-digest]
+
+Pod の spec では、Enterprise イメージを `@sha256:` ダイジェストで参照します。プルには、ライセンスされたレジストリの認証情報を持つプルシークレットが必要です。
+
+### マイグレーションは、レプリカが提供を始める前に一度だけ、完了まで実行する [#migrations-run-once-to-completion-before-replicas-serve]
+
+Compose スタックは、アプリケーションのレプリカが起動する前に完了しなければならない 1 回限りのマイグレーションコンテナを実行します。Kubernetes ではこれは Job（または同等の提供前フック）であり、各レプリカの init コンテナではありません。要点は、スキーマ変更がレプリカごとに並行してではなく**一度だけ**実行されることです。イメージはまさにこのためにマイグレーションして終了するモードをサポートしており、その変数はバンドルに記載されています。
+
+### すべてのレプリカに同一のシークレットを渡す [#every-replica-gets-identical-secrets]
+
+マルチレプリカは、レプリカ数を増やすだけの問題ではありません。
+
+- Redis をバックエンドとする**クラスタードライバー**を有効にする必要があります。
+- **共有シークレットキー**が必須になります。クラスタードライバーがない場合、各レプリカは独自のキーを生成します。レプリカ間ではそれらが食い違うことになるため、食い違う代わりに**ランタイムは起動を拒否します**。1 つの値を、すべてのレプリカにマウントしてください。
+- **認証シークレット**も同様に、すべてのレプリカで同一でなければなりません。
+
+### ライセンスとクラウドの姿勢はデプロイメント全体で共通 [#license-and-cloud-posture-are-deployment-wide]
+
+ライセンスキー、ライセンスモード、クラウドの姿勢の設定は、デプロイメントの識別情報の一部です。すべてのレプリカで同じでなければならず、サポートされる組み合わせは**起動時に**確認されます。設定が食い違う Pod は劣化した状態で動くのではなく、終了します。組み合わせについては[エアギャップ](/docs/deploy/air-gapped)を参照してください。
+
+### ローリングアップグレードはダイジェストを変更する [#rolling-upgrades-change-the-digest]
+
+アップグレードとはイメージのダイジェストの変更であり、新しいレプリカが提供を始める前にマイグレーションの Job が完了まで実行されます。スキーマのマイグレーションは前にしか進みません。イメージをロールバックしてもスキーマはロールバックされないため、先にバックアップを取り、ロールバック先として以前のダイジェストを残しておいてください。アプリ自体は、公開済みアーティファクトとして提供される場合、イメージとは独立してバージョン管理されます。[デプロイ](/docs/deploy#three-run-shapes)の実行形態を参照してください。
