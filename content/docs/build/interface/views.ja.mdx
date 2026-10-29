@@ -1,0 +1,294 @@
+---
+title: ビュー
+seoTitle: "ビュー：リスト、カンバン、カレンダー、ガント、フォーム"
+description: リスト、フォーム、カンバン、カレンダー、ガントなど。すべてのオブジェクトの画面がどう宣言されるか。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: f7208e0810feac70de2d69b3c01e2700665308487ccc26ac2e84bd3f0357fc0d
+  guide_rev: 1
+  mode: auto
+---
+
+**ビュー**は、ユーザーがレコードを見て編集するための方法です。ビューは宣言的なメタデータで、オブジェクトと同じライフサイクルを持ちます。一度宣言し、パッケージとともに出荷し、どこでもレンダリングできます。
+
+2 つの種類があります。
+
+- **リストビュー**：多数のレコードを可視化します（グリッド、カンバン、カレンダー……）
+- **フォームビュー**：単一のレコードを表示 / 編集します（シンプル、タブ、ウィザード……）
+
+スキーマのソース：[`packages/spec/src/ui/view.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/ui/view.zod.ts)。
+
+## 最短の宣言 [#the-shortest-possible-declaration]
+
+ビューを 1 つも宣言しなくても、すべてのオブジェクトには自動的にデフォルトのグリッドリストとシンプルなフォームが用意されます。それらを上書きまたは拡張するには、オブジェクトのビューを、オブジェクトの中ではなくその隣にある `defineView` コンテナで宣言します。`list` がデフォルトのリスト、`form` がデフォルトのフォームで、各ビューは `data` で自分のオブジェクトを指定します。
+
+```ts
+// src/ui/views/support_ticket.view.ts
+import { defineView } from '@objectstack/spec';
+
+const data = { provider: 'object' as const, object: 'support_ticket' };
+
+export const SupportTicketViews = defineView({
+  list: {
+    type: 'grid',
+    data,
+    columns: ['subject', 'status', 'priority', 'assignee'],
+  },
+  form: {
+    type: 'simple',
+    data,
+    sections: [
+      { name: 'details', label: 'Details', fields: ['subject', 'description', 'priority', 'status', 'assignee'] },
+    ],
+  },
+});
+```
+
+コンテナを、それが記述するオブジェクトの隣に、スタックに登録します。
+
+```ts
+// objectstack.config.ts
+export default defineStack({
+  // ...
+  views: [SupportTicketViews],
+});
+```
+
+複数のビューを持つオブジェクト（たとえば同じデータに対するカンバン*と*カレンダー）では、同じコンテナに名前付きのビューを追加します。ビュー切り替え用には `listViews`、名前で開くフォーム用には `formViews` です。すべてのリストビューは、種類にかかわらずトップレベルの `columns` を持ちます。
+
+```ts
+export const SupportTicketViews = defineView({
+  list: { type: 'grid', data, columns: ['subject', 'status', 'priority', 'assignee'] },
+  listViews: {
+    by_status: {
+      label: 'By status', type: 'kanban', data, columns: ['subject', 'priority'],
+      kanban: { groupByField: 'status', columns: ['subject', 'priority'] },
+    },
+    schedule: {
+      label: 'Schedule', type: 'calendar', data, columns: ['subject', 'due_at'],
+      calendar: { startDateField: 'due_at', titleField: 'subject' },
+    },
+    by_owner: {
+      label: 'By owner', type: 'grid', data, columns: ['assignee', 'subject', 'status', 'priority'],
+      sort: [{ field: 'assignee', order: 'asc' }],
+    },
+  },
+  formViews: {
+    quick: { type: 'modal', data, sections: [{ name: 'quick', label: 'Quick edit', fields: ['status', 'priority', 'assignee'] }] },
+    full: {
+      type: 'tabbed', data,
+      sections: [
+        { name: 'details', label: 'Details', fields: ['subject', 'description'] },
+        { name: 'triage', label: 'Triage', fields: ['status', 'priority', 'assignee'] },
+      ],
+    },
+  },
+});
+```
+
+コンテナとそのルールは、ObjectStack の [View metadata](https://objectstack.ai/docs/ui/views) に完全に記載されています。
+
+## リストビューの種類 [#list-view-types]
+
+すべてのリストビューには、種類にかかわらずトップレベルの `columns` が必要です。その種類のそれ以外の設定は、種類の名前を付けた設定ブロックに入れます。
+
+| `type` | レンダリングするもの | 設定ブロックとその必須キー | よく使う省略可能なキー |
+|:--|:--|:--|:--|
+| `grid` | データテーブル（デフォルト） | — | |
+| `kanban` | 列のあるボード | `kanban: { groupByField, columns }` | `summarizeField`、`titleField` |
+| `gallery` | カードの束 | `gallery`（必須キーなし） | `coverField`、`titleField` |
+| `calendar` | 月 / 週 / 日 | `calendar: { startDateField }` | `endDateField`、`titleField`、`colorField` |
+| `timeline` | 時系列のフィード | `timeline: { startDateField, titleField }` | `endDateField`、`groupByField` |
+| `gantt` | プロジェクトのタイムライン + 依存関係 | `gantt: { startDateField, endDateField, titleField }` | `progressField`、`dependenciesField` |
+| `map` | 地図上のピン | `map`（必須キーなし） | `locationField`、または `latitudeField` + `longitudeField` |
+| `tree` | 自己参照の階層 | `tree`（必須キーなし） | `parentField`、`labelField` |
+| `chart` | 埋め込みのチャート | `chart: { dataset, values }` | `chartType`、`dimensions` |
+
+以下の断片はそれぞれ単一のリストビューです。どれも上のように、`data` で自分のオブジェクトを指定して、`defineView` コンテナの `list` として、または `listViews` のエントリとして入れます。
+
+### リストの共通オプション [#common-list-options]
+
+```ts
+// One list view; the container and `data` are omitted (see above).
+// P is the predicate template tag: import { P } from '@objectstack/spec'
+{
+  type: 'grid',
+  columns: ['subject','status','priority','assignee','created_at'],
+
+  filter: [ { field: 'archived', operator: 'equals', value: false } ],
+  sort:   [ { field: 'created_at', order: 'desc' } ],
+  pagination: { pageSize: 25 },
+  searchableFields:   ['subject','description'],
+  filterableFields:   ['status','priority','assignee'],
+
+  navigation: { mode: 'drawer' },                       // 'page' | 'drawer' | 'modal' | 'split' | 'popover' | 'new_window' | 'none'
+  selection:  { type: 'multiple' },                     // 'none' | 'single' | 'multiple'
+
+  rowActions:  ['close_ticket','assign_to_me'],
+  bulkActions: ['bulk_close','bulk_export'],
+
+  conditionalFormatting: [
+    { condition: P`record.priority == 'urgent'`, style: { background: '#fef2f2', fontWeight: '600' } }   // style values are strings
+  ],
+
+  exportOptions: ['csv','xlsx'],
+  emptyState:   { title: 'No tickets yet', message: 'Create one to get started', icon: 'inbox' }
+}
+```
+
+`filter` と `sort` は [ObjectQL](/docs/reference/objectql) にコンパイルされます。`rowActions` と `bulkActions` は名前で[アクション](./actions)を参照します。
+
+### カンバン [#kanban]
+
+```ts
+// One list view; the container and `data` are omitted (see above).
+{
+  type: 'kanban',
+  columns: ['subject', 'priority', 'assignee'],  // still required at the top level
+  kanban: {
+    groupByField:   'status',                // discrete field — usually a select
+    summarizeField: 'amount',                // optional total per column
+    columns: ['subject', 'priority', 'assignee']  // fields shown on each card
+  }
+}
+```
+
+ボードの列は `groupByField` の値から作られ、その順序と色はそのフィールドの `select` の選択肢の定義から取られます。
+
+列の間でドラッグ＆ドロップすると、グループ化しているフィールドを設定する更新が発行されます。権限のルールは手動での編集と同じです。
+
+### カレンダー [#calendar]
+
+```ts
+// One list view; the container and `data` are omitted (see above).
+{
+  type: 'calendar',
+  columns: ['subject', 'start_at', 'end_at', 'priority'],
+  calendar: {
+    startDateField: 'start_at',
+    endDateField:   'end_at',                // optional — single-point if omitted
+    titleField:     'subject',
+    colorField:     'priority'               // optional — colours events by value
+  }
+}
+```
+
+### ガント [#gantt]
+
+```ts
+// One list view; the container and `data` are omitted (see above).
+{
+  type: 'gantt',
+  columns: ['name', 'start_at', 'due_at', 'percent_complete'],
+  gantt: {
+    startDateField:    'start_at',
+    endDateField:      'due_at',
+    titleField:        'name',
+    progressField:     'percent_complete',   // optional, drives the progress bar
+    dependenciesField: 'depends_on'          // optional — multiselect lookup to same object
+  }
+}
+```
+
+### ツリー [#tree]
+
+```ts
+// One list view; the container and `data` are omitted (see above).
+{
+  type: 'tree',
+  columns: ['name'],
+  tree: {
+    parentField: 'parent_id',                // self-lookup that builds the hierarchy
+    labelField:  'name',                     // shown indented in the first column
+    defaultExpandedDepth: 1                   // optional — 0 = roots only, omit = expand all
+  }
+}
+```
+
+自己参照するオブジェクト（カテゴリー、部品表、組織単位、入れ子のコメント）では、ツリーグリッドが `parentField` のポインターに従って行を入れ子にします。
+
+### チャート（インライン） [#chart-inline]
+
+`chart` リストビューは、名前付きの**データセット**（セマンティックな分析レイヤー、ADR-0021）にバインドし、そのディメンションとメジャーを**名前で**選びます。指標を一度定義すれば、同じデータセットにバインドされたすべてのチャート、ダッシュボード、レポートの一貫性が保たれます。
+
+```ts
+// One list view; the container and `data` are omitted (see above).
+{
+  type: 'chart',
+  columns: ['status'],
+  chart: {
+    chartType:  'bar',                       // 'bar' | 'line' | 'pie' | 'area' | 'scatter'
+    dataset:    'tickets_by_status',         // a dataset declared with defineDataset(...)
+    dimensions: ['status'],                  // dataset dimension name(s) — X / group / split
+    values:     ['ticket_count']             // dataset measure name(s) — the value axis
+  }
+}
+```
+
+インラインの `xAxisField` / `yAxisFields` / `aggregation` / `groupByField` という形は 9.0 で削除されました。今では、すべてのチャート、ダッシュボードのウィジェット、レポートがデータセットにバインドします。より高度な、オブジェクトをまたぐ分析には、専用のレポート画面を使ってください。
+
+## フォームビューの種類 [#form-view-types]
+
+| `type` | レイアウト |
+|:--|:--|
+| `simple` | 単一の列またはセクション（デフォルト） |
+| `tabbed` | タブ付きのセクション |
+| `wizard` | ステップごとの流れ |
+| `split` | マスター / 詳細の 2 ペイン |
+| `drawer` | サイドパネルのフォーム |
+| `modal` | ダイアログのフォーム |
+
+```ts
+// One form view; the container and `data` are omitted (see above).
+{
+  type: 'tabbed',
+  sections: [
+    { label: 'Overview', fields: ['subject','status','priority','assignee'] },
+    { label: 'Customer', fields: ['customer','contact','email','phone'] },
+    { label: 'Resolution', fields: ['resolution_notes','resolved_at'] }
+  ],
+  submitBehavior: { kind: 'next-record' }   // 'thank-you' | 'redirect' | 'continue' | 'next-record'
+}
+```
+
+### 公開フォーム [#public-forms]
+
+フォームは匿名でアクセスできるようにできます。
+
+```ts
+// One form view; the container and `data` are omitted (see above).
+{
+  type: 'simple',
+  sections: [ { fields: ['name','email','message'] } ],
+  sharing: {
+    enabled: true,
+    publicLink: 'contact-us',                // slug under /forms/
+    allowAnonymous: true
+  },
+  submitBehavior: { kind: 'thank-you' }
+}
+```
+
+これにより `GET /api/v1/forms/contact-us` と `POST /api/v1/forms/contact-us/submit` が自動的に公開されます。認証を必要としない公開フォームのルートです。[REST API → Public forms](/docs/reference/rest-api#public-forms) を参照してください。
+
+## 表示条件、ARIA、テーマ [#visibility-aria-theming]
+
+- `visibleOn: P\`...\``：フォームの**セクション**と**フィールド**で、ユーザー / レコード / 環境に基づいてそれらを隠します（CEL の述語）
+- `aria: { label, description, ... }`：スクリーンリーダー向けの ARIA 属性（リストビューとフォームビュー）
+- `appearance: { showDescription, allowedVisualizations: [...] }`：リストビューで、エンドユーザーが切り替えられるリストの種類を制限します
+
+## チャットで構築する [#build-by-chat]
+
+ビューのメタデータを手で書くことは通常ありません。AI Builder にこう伝えます。
+
+> *「support_ticket オブジェクトのカンバンビューを、ステータスでグループ化して追加して。カードには件名と優先度を表示して。列はステータスに応じて赤 / 黄 / 緑に色分けして。」*
+
+AI Builder はメタデータツールを呼び出し、差分をキューに入れ、あなたが承認するとビューが表示されます。[AI Builder](/docs/build/ai-builder) を参照してください。
+
+## 関連項目 [#see-also]
+
+- [データモデル](/docs/build/data)：ビューが読み取るオブジェクト
+- [アクション](./actions)：`rowActions` / `bulkActions` が参照するもの
+- [ObjectQL](/docs/reference/objectql)：`filter` / `sort` のコンパイル先
+- [CEL](/docs/reference/cel)：`conditionalFormatting`、`visibleOn`
+- [`@objectstack/spec/ui/view.zod.ts`](https://github.com/objectstack-ai/objectstack/blob/main/packages/spec/src/ui/view.zod.ts)：スキーマ
