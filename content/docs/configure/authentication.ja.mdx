@@ -1,0 +1,146 @@
+---
+title: 認証
+seoTitle: "認証：OAuth、OIDC/SSO、デバイスフロー"
+description: サインイン、セッション、OAuth、OIDC/SSO、デバイスフローを設定します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: f5ecbdd5472f71c9839f722534cf88e4aba12301b053b26ef38e7fa713fc91f3
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS は、Better Auth を基盤とする ObjectStack の認証プラグインを使います。認証はプロジェクトごとに閉じています。各プロジェクトが独自のアイデンティティのテーブルとセッションのスコープを持ちます。
+
+## サポートされるもの [#what-is-supported]
+
+パッケージ化されたアプリケーションと有効にした設定に応じて、ObjectOS は次のものをサポートできます。
+
+- メール / パスワードによるサインイン
+- セッションの管理
+- パスワードのリセットとメールアドレスの確認
+- Google、GitHub、Microsoft、Apple などのソーシャル OAuth プロバイダー
+- Okta、Entra ID、Keycloak、Ping などのエンタープライズ OIDC/SSO
+- 二要素認証
+- パスキー / WebAuthn
+- マジックリンク
+- SMS の OTP による電話番号でのサインイン（オプトイン）
+- CLI / ブラウザのデバイスフロー
+
+## 誰がサインアップできるか（ObjectStack 17.3+） [#who-may-sign-up-objectstack-173]
+
+セルフ登録は**デフォルトで閉じています**。誰が自分のアカウントを作成できるかは、**Setup → Authentication → Audience** という 1 つの設定で決まります。
+
+| Audience | サインアップできる人 |
+|---|---|
+| `invite_only`（デフォルト） | 保留中の招待を持つアドレスだけ |
+| `email_domain` | 許可したドメインのアドレス。完全一致で、大文字と小文字は区別しません。サブドメインには個別のエントリが必要です |
+| `open` | 誰でも |
+
+Audience は、セルフサービスのすべての経路を判定します。メール / パスワードによるサインアップ、ソーシャルプロバイダーによる初回サインイン、マジックリンク、OTP、電話です。拒否されたサインアップは `403 SELF_REGISTRATION_CLOSED`（`email_domain` のもとでは `403 EMAIL_DOMAIN_NOT_ALLOWED`）で応答します。登録を開くには 2 つのルールが伴います。
+
+- `email_domain` と `open` のどちらにも、**セルフ登録用の権限セット**が必要です。セルフ登録した各人が受け取るセットです（`member_default` は問題ありませんが、`admin_full_access` は拒否されます）。
+- どちらもメールアドレスの確認を有効にします。`email_domain` では常に、`open` ではデプロイメント自身の設定で無効にしない限りです。
+
+*Email and password* の下にある **Allow self-service registration** のトグルは Audience を上書きしません。Audience が `invite_only` なら、そのトグルがオンでもサインアップは閉じたままです。
+
+自分で人を作成することは、Audience で決してゲートされません。招待、**Create User**、一括インポート、エンタープライズ SSO は、どの設定のもとでも機能します（[ユーザー](/docs/configure/users#add-people)を参照）。新規インストールの一番最初のアカウントも例外です。
+
+> **17.2 以前からのアップグレード：** 以前は、Audience が宣言されていなければ、メール / パスワードによるサインアップが開いていることを意味していました。今は `invite_only` を意味し、アップグレード時に何も失敗しません。開いたサインアップに頼っていたデプロイメントは、単にそれを受け付けなくなります。維持するには、（セルフ登録用の権限セットとともに）`open` を選んでください。
+
+Audience は**メンバーシップのポリシー**（**Setup → Authentication → Membership**、または `OS_AUTH_MEMBERSHIP_POLICY`。[環境変数](/docs/reference/environment-variables#multi-organization-deployments)を参照）とは別の判断です。Audience は、そもそも誰かがユーザーになれる*かどうか*を決め、メンバーシップのポリシーは、新しいユーザーが*どの組織*に参加するかを決めます。
+
+## 電話でのサインインと SMS（ObjectStack 14.3+） [#phone-sign-in--sms-objectstack-143]
+
+電話番号による認証は `auth.plugins.phoneNumber` の設定で有効にします。有効にすると：
+
+- `POST /sign-in/phone-number` が電話番号 + パスワードを受け付けます。
+- SMS の OTP がサインインの確認とセルフサービスのパスワードリセットをカバーします。番号ごとのクールダウン、直近 1 時間ごとの上限、IP ごとのレート制限があります。
+- `sys_user` に一意の `phone_number` と `phone_number_verified` の列が追加されます。電話番号だけのアカウントには仮のメールアドレスが付きます。
+
+SMS の配信は `@objectstack/plugin-sms` が提供し、Aliyun SMS、Twilio、または開発用のログへのフォールバックを、`sms` 設定名前空間で設定します。OTP のコードを含むメッセージ本文が永続化されたりログに記録されたりすることはありません。通知も `notify(channels: ['sms'])` で `sms` チャネルを対象にできます。
+
+## 管理者によるユーザー管理（ObjectStack 14.3+） [#admin-user-management-objectstack-143]
+
+プラットフォームの管理者は、メールの招待フローなしにアカウントをプロビジョニングできます。
+
+- `POST /api/v1/auth/admin/create-user` はユーザーを直接作成します。省略可能なワンタイムパスワード（一度だけ返され、永続化されません）を付けられます。`must_change_password` フラグは初回サインイン時の変更を強制します（変更するまで 403 `PASSWORD_EXPIRED`）。
+- `POST /api/v1/auth/admin/import-users` は、行 / CSV / XLSX（1 リクエストあたり最大 500 行）を、ドライランと、メールアドレスまたは電話番号による upsert のモードで一括インポートします。既存のユーザーのパスワードがリセットされることはありません。16.0 以降、デフォルトの `passwordPolicy` は `'auto'` です。配信可能なチャネル（実在のメールアドレス + 接続済みのメールサービス、または電話番号 + SMS の招待経路）を持つ行は**招待され**、届かない行だけが一時パスワード（一度だけ返され、`must_change_password`）を受け取ります。アイデンティティだけを作る旧来のデフォルトに頼っていた呼び出し元は、今は `passwordPolicy: 'none'` を明示的に渡さなければなりません。行ごとの結果は `rows[].delivery` にあり、`summary.delivery` に内訳があります。
+
+## 必要なシークレット [#required-secret]
+
+次を設定します。
+
+```bash
+OS_AUTH_SECRET=replace-with-a-strong-random-secret
+```
+
+ObjectOS は、この値とプロジェクトの環境 ID から、安定したプロジェクトごとのシークレットを導き出します。つまり：
+
+- セッションはコンテナの再起動を越えて残ります。
+- あるプロジェクトのトークンを別のプロジェクトで再利用することはできません。
+- `OS_AUTH_SECRET` をローテーションすると、セッションは無効になります。
+
+旧来の `AUTH_SECRET` エイリアスを含む、認証関連の設定の完全な一覧は[環境変数](/docs/reference/environment-variables)を参照してください。
+
+## セッションの分離 [#session-isolation]
+
+複数プロジェクトのデプロイメントでは、Cookie はプロジェクトのホスト名にスコープされます。ObjectOS は、プロジェクトのセッションにルートドメイン全体の Cookie を使うことを意図的に避けています。これにより、セッションが顧客のプロジェクトをまたいで漏れることを防ぎます。
+
+## ソーシャルログイン [#social-login]
+
+アプリケーションのパッケージが認証の設定をどう公開しているかに応じて、プロバイダーの認証情報を環境変数またはシステム設定で構成します。
+
+プロバイダーのコールバック URL は、プロバイダーの種類によって異なります。ObjectStack は 2 つの異なるコールバックのパスを公開しており、それらは相互に置き換えられ**ません**。
+
+| プロバイダーの種類 | コールバックのパス |
+|---|---|
+| 組み込みのソーシャル（Google、GitHub、Microsoft、Apple など） | `/api/v1/auth/callback/<provider>` |
+| 汎用の OIDC / OAuth2（Okta、Entra ID、Keycloak、Ping など） | `/api/v1/auth/oauth2/callback/<provider>` |
+
+例：
+
+```text
+https://crm.example.com/api/v1/auth/callback/google
+https://crm.example.com/api/v1/auth/callback/microsoft
+https://crm.example.com/api/v1/auth/oauth2/callback/okta
+https://crm.example.com/api/v1/auth/oauth2/callback/entra
+```
+
+ObjectOS でプロバイダーを有効にする前に、アイデンティティプロバイダーのアプリケーション登録で、対応するリダイレクト URI を設定してください。
+
+## エンタープライズ OIDC/SSO [#enterprise-oidcsso]
+
+OIDC プロバイダーは汎用の OAuth2 プロバイダーとして登録され、`/api/v1/auth/oauth2/callback/<provider>` のパスを使います。典型的な設定には次のものが必要です。
+
+| フィールド | 説明 |
+|---|---|
+| Provider id | `okta` や `entra` などの安定した ID（コールバック URL で使われます） |
+| Display name | ユーザーに表示されるボタンのラベル |
+| Discovery URL | `.well-known/openid-configuration` のエンドポイント |
+| Client id | アイデンティティプロバイダーが発行したアプリケーションのクライアント ID |
+| Client secret | 環境変数または暗号化された設定に保存されるシークレット |
+| Scopes | 通常は `openid email profile` |
+
+顧客のデプロイメントでは、認可 / トークン / userinfo のエンドポイントを手で設定するよりも、OIDC の検出 URL を優先してください。
+
+## プラットフォーム SSO [#platform-sso]
+
+クラウドに接続されたデプロイメントでは、ObjectOS はコントロールプレーンのログインをプラットフォームの SSO プロバイダーとして使えます。すでにコントロールプレーンにサインインしているビルダーは、プロジェクトローカルのアカウントを別に作成しなくても、プロジェクトのランタイムにプロビジョニングされます。
+
+これには、コントロールプレーンと ObjectOS が同じ `OS_AUTH_SECRET` の基本シークレットを共有している必要があります。プラットフォーム SSO を無効にするのは、顧客がすべてのプロジェクトに完全に独立したログインの境界を持たせたい場合だけにしてください。
+
+## 運用上のチェック [#operational-checks]
+
+本番の前に：
+
+- 期限切れのトークンが `401` を返すことを確認します。
+- サインアップの Audience が、アカウントを作成できるべき人と一致していることを確認します。
+- ログアウトがアクティブなセッションを失効させることを確認します。
+- ポリシーで求められている場合、パスワードのリセットがほかのセッションを失効させることを確認します。
+- コールバック URL が公開されているプロジェクトのドメインと一致していることを確認します。
+- 信頼済みのオリジンに承認済みのドメインだけが含まれていることを確認します。
+- `OS_AUTH_SECRET` がソースではなくシークレットマネージャーに保存されていることを確認します。
+
+## 次のステップ [#next-steps]
+
+認証はユーザーが*誰か*を確立します。サインイン後に*何に*アクセスできるかを制御するには、[権限](/docs/configure/permissions)を参照してください。ブラウザ以外のクライアントとマシン間のアクセスについては、[API アクセス](/docs/configure/api-access)を参照してください。

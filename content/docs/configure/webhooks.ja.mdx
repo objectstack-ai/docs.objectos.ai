@@ -1,0 +1,80 @@
+---
+title: Webhook
+seoTitle: "Webhook：少なくとも 1 回の配信、HMAC、再試行"
+description: 永続的なアウトボックスによる ObjectOS からの外向きの Webhook。少なくとも 1 回の配信、HMAC 署名、上限付きの再試行、そして受信側が処理しなければならないこと。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 2ee03cd61fb199bf53a062ec6aaa901ef3542135e0616c669c40ac4d7a1c57fd
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS は、外向きの Webhook に永続的な**アウトボックス**モデルを使います。Webhook プラグインが有効なとき、業務上の変更は配信の行をキューに入れ、バックグラウンドのディスパッチャーが再試行しながらそれを配信します。そのため、遅い、または利用できない受信側が、元のトランザクションをブロックすることはありません。
+
+## Webhook を有効にする [#enabling-webhooks]
+
+Webhook は省略可能な機能です。デプロイされる ObjectOS のイメージに `@objectstack/plugin-webhooks` が含まれていなければならず、アプリケーションの成果物は Webhook のサブスクリプションを登録しなければなりません（通常は `sys_webhook` オブジェクトのレコードとして）。
+
+有効にすると、Setup に 2 つのオブジェクトが表示されます。
+
+| オブジェクト | 目的 |
+|---|---|
+| `sys_webhook` | Webhook のサブスクリプション（送信先 URL、イベントのフィルター、シークレット、ステータス） |
+| `sys_webhook_delivery` | 配信ログ（URL、レスポンスコード、試行回数、再試行のタイムスタンプ） |
+
+## 配信の意味 [#delivery-semantics]
+
+- **少なくとも 1 回。** 一時的な失敗の後、配信が再試行されることがあります。受信側は冪等でなければなりません。
+- **永続的。** 配信は業務データベースに保存されるので、ObjectOS の再起動を越えて残ります。
+- **パーティション分割。** 各ディスパッチャーのワーカーはアウトボックスのパーティションを担当するので、デプロイメントは二重配信なしにディスパッチを水平にスケールできます。
+- **上限付きの再試行。** 失敗した配信は、設定可能な上限までバックオフしながら再試行されます。上限に達した行は、調査のために `sys_webhook_delivery` に残ります。
+
+## 署名 [#signing]
+
+すべての配信は識別用のヘッダーを持つので、受信側はそれをルーティングし、重複を排除し、検証できます。
+
+```text
+X-Objectstack-Event:     <event type, e.g. data.record.created>
+X-Objectstack-Delivery:  <delivery id — use as your idempotency key>
+X-Objectstack-Attempt:   <attempt number, starting at 1>
+```
+
+Webhook のサブスクリプションに `secret` がある場合、ObjectOS はすべてのリクエストに署名もします。
+
+```text
+X-Objectstack-Signature: sha256=<hex hmac>
+```
+
+署名は、生のリクエスト本文に対して計算した `HMAC-SHA256(secret, body)` です。ペイロードを信頼する前に、受信側で検証してください。
+
+```js
+import { createHmac, timingSafeEqual } from 'node:crypto';
+
+function verify(body, signatureHeader, secret) {
+  const expected = 'sha256=' + createHmac('sha256', secret).update(body).digest('hex');
+  return timingSafeEqual(Buffer.from(signatureHeader), Buffer.from(expected));
+}
+```
+
+シークレットをローテーションするには、新しいシークレットで新しいサブスクリプションを発行し、移行期間の間は両方を動かし、その後古いものを無効にします。
+
+## 受信側に期待されること [#receiver-expectations]
+
+- 数秒以内に `2xx` で応答します。`408`、`429`、`5xx` のレスポンス（またはタイムアウト / トランスポートのエラー）は再試行可能で、バックオフしながら再試行されます。それ以外の `4xx` は恒久的な失敗として扱われ、それ以上再試行されずに `dead` へ移されます。
+- ディスパッチャーは `2xx` を確認するまで配信を成功とマーク**しない**ので、受信側が失敗すると、調査や再配信のために行が `sys_webhook_delivery` に残ります。
+- 冪等にします。`X-Objectstack-Delivery` ヘッダー（配信 ID）か、ペイロード内の独自のイベント ID で重複を排除してください。
+
+## 失敗への対処 [#failure-handling]
+
+何かが失敗したとき：
+
+1. `sys_webhook_delivery` でその行を確認します。`status`、`response_code`、`response_body`、`attempts` が記録されています。
+2. ObjectOS から受信側への外向きのネットワークアクセスを確認します。
+3. 受信側が恒久的に変更された場合は、サブスクリプションの URL を更新し、Setup からその行を再配信します。
+4. インシデントのレビューのために、監査ログ（`sys_audit_log`）はサブスクリプションの編集を記録しますが、ペイロードは記録しません。ペイロードはアウトボックスに残ります。
+
+## 運用のヒント [#operational-tips]
+
+- Webhook の URL にシークレットを入れないでください（クエリ文字列はログに記録されます）。
+- 専用の受信側ホスト名を使うと、メインのアプリに影響を与えずに、エッジでそれをブロックして負荷を切り離せます。
+- ディスパッチャーの遅延を監視します。アウトボックスが増え続けているなら、たいていは受信側の性能が落ちています。

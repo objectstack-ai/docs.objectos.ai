@@ -1,0 +1,176 @@
+---
+title: ストレージ
+seoTitle: "ファイルストレージ：ローカルディスク、S3、R2、MinIO、Spaces"
+description: ObjectOS がファイルを置く場所。ローカルディスク、S3、R2、MinIO、Spaces。
+editions: [community, enterprise]
+translation:
+  source_sha: 118eaaca8ed60b6085a54db822fa0487a70e083e96da8920405ffa3e1616d68d
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS のファイル（添付ファイル、アップロード、生成されたドキュメント）は**ストレージサービス**を通ります。2 つのアダプターを持つプラグイン可能な抽象化で、**ローカルファイルシステム**（デフォルト）と **S3 互換**（本番）があります。
+
+このサービスは `@objectstack/service-storage` が提供し、スタンドアロンとプロジェクトの起動ではデフォルトで有効です。
+
+## ユーザーがどう使うか [#how-users-interact-with-it]
+
+| 画面 | 動作 |
+|---|---|
+| UI のファイル / 画像フィールド | ブラウザが署名付き URL を使ってストレージに直接アップロードします |
+| REST `/api/v1/storage/*` | プログラムからのアップロード / ダウンロードのエンドポイント |
+| オブジェクトの `file` / `image` フィールド | アップロード用のウィジェットとしてレンダリングされ、メタデータは `sys_file` に永続化されます |
+
+ファイルは `sys_file` システムオブジェクトで追跡され、レコードに生のパスとして保存されることはありません。これにより、データモデルとストレージのバックエンドが切り離されます。
+
+## ローカルファイルシステム（デフォルト） [#local-filesystem-default]
+
+向いている用途：開発、シングルノードのデプロイメント、デモ。
+
+```ts
+// objectstack.config.ts (or wherever you assemble plugins)
+import { StorageServicePlugin } from '@objectstack/service-storage';
+
+new StorageServicePlugin({
+  adapter: 'local',
+  local: {
+    rootDir: './uploads',
+    baseUrl: 'http://localhost:3000',  // for presigned URLs
+    signingSecret: process.env.OS_STORAGE_SIGNING_SECRET, // optional; auto-generated if omitted
+  },
+  presignedTtl: 3600,   // seconds — TTL for presigned URLs
+  sessionTtl: 86400,    // seconds — TTL for chunked upload sessions
+});
+```
+
+スタンドアロンモード（プロジェクトなしの `os start`）では、ランタイムが `.objectstack/data/uploads/` の下にローカルストレージを自動的に設定します。ルートディレクトリは `OS_STORAGE_ROOT` 環境変数で上書きできます。
+
+**本番に適しているかどうかはデプロイメントの形によります：**
+
+- ✅ デスクトップアプリ、シングルノードの社内ツール、エッジ / オンプレミスのアプライアンス：`uploads/` ディレクトリがファイルシステムのバックアップに含まれていれば（デスクトップアプリならユーザーが管理する同期フォルダーにあれば）、ローカルストレージで問題ありません。
+- ❌ マルチノード、マルチ AZ、またはリージョンをまたぐ耐久性が必要なもの：S3 互換ストレージを使ってください。
+
+## S3 互換（本番） [#s3-compatible-production]
+
+向いている用途：本番、マルチノード、耐久性 + ライフサイクル管理。
+
+```bash
+pnpm add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+```
+
+```ts
+import { StorageServicePlugin } from '@objectstack/service-storage';
+
+new StorageServicePlugin({
+  adapter: 's3',
+  s3: {
+    bucket: 'my-bucket',
+    region: 'us-east-1',
+    // omit credentials to use the AWS SDK's default chain
+    // (env, ~/.aws, IAM role)
+  },
+});
+```
+
+AWS SDK は通常の連鎖から認証情報を読み取ります。
+
+| ソース | 環境変数 |
+|---|---|
+| 標準の環境変数 | `AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`、`AWS_REGION` |
+| セッショントークン | `AWS_SESSION_TOKEN` |
+| 共有設定 | `~/.aws/credentials`、`AWS_PROFILE` |
+| IAM ロール | EC2 / ECS / EKS / Lambda では自動。設定は不要です |
+
+### Cloudflare R2 [#cloudflare-r2]
+
+```ts
+new StorageServicePlugin({
+  adapter: 's3',
+  s3: {
+    bucket: 'my-bucket',
+    region: 'auto',
+    endpoint: 'https://<account-id>.r2.cloudflarestorage.com',
+    forcePathStyle: false,
+  },
+});
+```
+
+認証情報：R2 のアクセスキー ID + シークレット。標準の `AWS_*` 環境変数、またはシークレットマネージャーで渡します。
+
+### MinIO（セルフホスト） [#minio-self-hosted]
+
+```ts
+new StorageServicePlugin({
+  adapter: 's3',
+  s3: {
+    bucket: 'my-bucket',
+    region: 'us-east-1',
+    endpoint: 'http://minio.internal:9000',
+    forcePathStyle: true,
+  },
+});
+```
+
+### DigitalOcean Spaces [#digitalocean-spaces]
+
+```ts
+new StorageServicePlugin({
+  adapter: 's3',
+  s3: {
+    bucket: 'my-bucket',
+    region: 'nyc3',
+    endpoint: 'https://nyc3.digitaloceanspaces.com',
+    forcePathStyle: false,
+  },
+});
+```
+
+### S3 バケットポリシー [#s3-bucket-policy]
+
+ストレージは署名付きの PUT/GET URL を使います。推奨されるバケットポリシー：
+
+- すべての公開アクセスをブロックします。
+- CORS：ObjectOS のホスト名から `PUT`/`GET` を許可します。
+- ライフサイクル：未完了のマルチパートアップロードを 1〜7 日後に期限切れにし、`temp=true` のタグが付いたオブジェクトを 24 時間後に期限切れにします。
+- バージョニング + Object Lock：省略可能。コンプライアンスが求められるデプロイメントでは推奨です。
+
+## REST のエンドポイント [#rest-surface]
+
+これらは `@objectstack/client` が呼び出すので、通常は直接たたくことはありません。
+
+| メソッド | パス | 目的 |
+|---|---|---|
+| POST | `/api/v1/storage/upload/presigned` | 署名付きのアップロード URL を取得します |
+| POST | `/api/v1/storage/upload/complete` | 完了したアップロードを確定します |
+| POST | `/api/v1/storage/upload/chunked` | 分割アップロードを開始します |
+| PUT  | `/api/v1/storage/upload/chunked/:uploadId/chunk/:i` | チャンクをアップロードします |
+| POST | `/api/v1/storage/upload/chunked/:uploadId/complete` | 分割アップロードを完了します |
+| GET  | `/api/v1/storage/upload/chunked/:uploadId/progress` | 進捗をポーリングします |
+| GET  | `/api/v1/storage/files/:fileId/url` | 署名付きのダウンロード URL を取得します |
+
+ファイルごとの認可は、セキュリティプラグインの権限評価器が `sys_file` オブジェクトに対して処理するので、ストレージ層の ACL を別に用意する必要はありません。
+
+## 稼働中の設定 [#live-configuration]
+
+設定サービスが有効な場合（デフォルトで有効です）、管理者は再起動せずに **Setup → Configuration → Storage** でストレージのアダプターを切り替えられます。
+
+- アダプター、バケット、リージョン、エンドポイントを選びます。
+- 認証情報を貼り付けます（`sys_setting` に暗号化して保存されます）。
+- 保存する前に **Test connection** をクリックします。
+
+変更は次のリクエストから適用されます。再起動は必要ありません。
+
+## サイジング [#sizing]
+
+| リソース | デフォルト | 調整方法 |
+|---|---|---|
+| 署名付き URL の TTL | 1 時間 | プラグインオプション `presignedTtl` |
+| 分割アップロードのセッションの TTL | 24 時間 | プラグインオプション `sessionTtl` |
+| 単一パートのアップロードの最大サイズ | バックエンドが課す制限（S3 = 5 GB） | — |
+| 分割アップロードの最大サイズ | バックエンドが課す制限（S3 = 5 TB） | — |
+
+## 次に進む [#where-to-go-next]
+
+- [システム設定](/docs/configure/system-settings)：稼働中の設定と、ストレージの切り替えに使われる設定サービス
+- [本番環境への準備](/docs/operate/production)：オブジェクトストレージの耐久性とバックアップを含むチェックリスト
+- [GitHub 上の `@objectstack/service-storage`](https://github.com/objectstack-ai/objectstack/tree/main/packages/services/service-storage)：ソースとオプションの完全なリファレンス

@@ -1,0 +1,235 @@
+---
+title: AI ツールを接続する（MCP）
+description: Claude Code、Claude Desktop、または任意の MCP クライアントを ObjectOS アプリに向け、エージェントにあなたの権限モデルのもとでデータを扱わせます。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 284d38d7199dbc99e3df09c43ffc520333a1fff28e22d0681d8b885d554bf1e0
+  guide_rev: 1
+  mode: auto
+---
+
+すべての ObjectOS デプロイメントは、すでに MCP サーバーです。ランタイムは **`/api/v1/mcp`** で [Model Context Protocol](https://modelcontextprotocol.io) を提供しています。デフォルトで有効で、インストールするプラグインも設定の手順もありません。オブジェクトと公開したアクションは、定義した瞬間に型付きのツールになります。残っている作業は、クライアントを接続して動作を確かめることだけです。
+
+> この機能をオフにするには `OS_MCP_SERVER_ENABLED=false` を設定します。するとエンドポイントは 404 を返し、**Setup → Connect an Agent** のページもあわせて消えます。
+
+> **ObjectOS Cloud では逆です：** 各環境の MCP エンドポイントは**オーナーまたは管理者が有効にするまでオフ**で、すべてのプランにリクエストの上限があります。[ObjectOS Cloud の場合](#on-objectos-cloud)を参照してください。
+
+このページは、*外部の* AI ツールをアプリに接続することについて扱います。サーバー側の AI スタック（チャットのプロバイダー、埋め込み、RAG、コードでの MCP サーバープラグインの明示的な登録）については、[AI サービス](/docs/configure/ai)を参照してください。
+
+## Claude Code（コマンド 1 つ） [#claude-code-one-command]
+
+対話型のクライアントは OAuth を使います。各デプロイメントが独自の OAuth 2.1 認可サーバーなので、管理者が発行した認証情報を受け渡す必要はありません。最初のツールの呼び出しでブラウザのログインが開き、**あなた自身として**接続します。
+
+```bash
+# local dev server
+claude mcp add --transport http my-app http://localhost:3000/api/v1/mcp
+
+# a deployed instance
+claude mcp add --transport http my-app https://your-deployment.example.com/api/v1/mcp
+```
+
+> ローカルの開発サーバーでは、これを入力する必要すらありません。16.0 以降、`os dev` の起動時のバナーに、MCP エンドポイント、エージェントスキルの URL、そしてそのまま貼り付けられる `claude mcp add` コマンドが表示されます。
+
+ヘッドレスで使う場合（CI、コンテナ）は、OAuth を使わずに代わりに [API キー](#headless-api-keys)を付けます。
+
+```bash
+claude mcp add --transport http my-app https://your-deployment.example.com/api/v1/mcp \
+  --header "x-api-key: osk_..."
+```
+
+## Claude Desktop と claude.ai [#claude-desktop-and-claudeai]
+
+**Settings → Connectors → Add custom connector** を開き、MCP の URL（`https://your-deployment.example.com/api/v1/mcp`）を貼り付けます。初回の利用時に、同じブラウザのログインを経ます。
+
+## 任意の MCP クライアント（`.mcp.json`） [#any-mcp-client-mcpjson]
+
+`mcpServers` マップを読むクライアントも同じように接続します。API キーを使う場合：
+
+```json
+{
+  "mcpServers": {
+    "objectstack": {
+      "type": "http",
+      "url": "https://your-deployment.example.com/api/v1/mcp",
+      "headers": { "x-api-key": "osk_..." }
+    }
+  }
+}
+```
+
+## ヘッドレス：API キー [#headless-api-keys]
+
+**Setup → Connect an Agent**（クライアントごとにコピーしてすぐ使える接続のスニペットも表示されます）から、または REST でキーを発行します。
+
+```bash
+curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
+# → { "key": "osk_..." }  — shown once; store it in your secret manager
+```
+
+すべてのリクエストで、同等な 3 つの形式のいずれかで送ります。
+
+| ヘッダー | 例 |
+|---|---|
+| `x-api-key` | `x-api-key: osk_...` |
+| `Authorization: ApiKey` | `Authorization: ApiKey osk_...` |
+| `Authorization: Bearer` | `Authorization: Bearer osk_...`（`osk_` プレフィックスで認識されます） |
+
+> OAuth には TLS が必要です。プレーンな HTTP のデプロイメント（`localhost` を除く）は **API キーのみ**にフォールバックします。ブラウザログインの経路は、安全でない状態で動かすことを許すのではなく、無効になります。
+
+長期間の連携では、キーを最小限の権限セットを持つ専用のサービスユーザーに結び付けてください。[Service accounts & API keys](/docs/configure/users#service-accounts--api-keys) を参照してください。
+
+## stdio トランスポート（16.0） [#the-stdio-transport-160]
+
+ランタイムは HTTP のほかに、サーバーを子プロセスとして起動するホストのために、**stdio** で MCP を提供できます。16.0（ADR-0101）以降、stdio は独自のスイッチを持ち、常に実在のアイデンティティのもとで実行されます。
+
+- **`OS_MCP_STDIO_ENABLED=true`** で stdio の自動起動が有効になります（デフォルトは**オフ**）。`OS_MCP_SERVER_ENABLED` が制御するのは、今は HTTP の画面だけです。`OS_MCP_SERVER_ENABLED=true` で stdio も起動していた旧来の動作は、1 リリースの間、非推奨の警告付きで引き続き機能します。
+- stdio には **`OS_MCP_STDIO_API_KEY=osk_...` が必要です**。キーは HTTP や REST と同じ検証 + 認可の連鎖で解決されるので、オブジェクトの権限、レコードアクセス、フィールドレベルのセキュリティ、テナントのスコープは、`/api/v1/mcp` とまったく同じように stdio の呼び出しにも適用されます。また、キーは読み取りのたびに再解決されるので、失効させると即座に有効になります。
+- このトランスポートは**安全側に倒れて失敗します**。解決できるキーなしに自動起動を有効にすると起動を拒否し、スコープなしのフォールバックや `system` によるすり抜けは意図的に用意されていません。完全な権限が必要なら、プラットフォーム管理者または専用のサービスアイデンティティでキーを発行してください。
+
+## エージェントが得るもの [#what-the-agent-gets]
+
+メタデータから生成される、データ、アクション、作成の 11 個のツールです。
+
+| ツール | 働き |
+|---|---|
+| `list_objects` / `describe_object` | どんなオブジェクトがあり、どんなフィールドを持つかを調べます |
+| `query_records` / `get_record` | データを読みます（リストのクエリは、デフォルトで 1 ページあたり 50 行が上限です） |
+| `validate_expression` | 数式を保存する*前に*、実際のオブジェクトのスキーマに照らして検査します（16.0）。エラー（素のフィールド参照、候補付きの不明なフィールド）、警告（型の健全性、日付の等価比較の落とし穴）、スコープ内のフィールド / 関数の一覧、推論された結果の型を返します。読み取り専用で、`data:read` のスコープで、`sys_*` では安全側に倒れて失敗します |
+| `aggregate_records` | グループ化した集計（アクティブなドライバーがサポートしている場合に登録されます） |
+| `create_record` / `update_record` / `delete_record` | データを書き込みます |
+| `list_actions` / `run_action` | 業務アクションを名前で見つけて呼び出します |
+
+知っておくべき公開のルールが 2 つあります。
+
+- **オブジェクトは自動的に公開されます。** ただし `sys_*` のシステムオブジェクトは、安全側に倒れてブロックされます。
+- **アクションには作成者のオプトインが必要です。** `ai: { exposed: true }` と 40 文字以上の `ai.description` を指定し、アクションが UI なしで呼び出せる（本体または登録済みのハンドラーを持つ `script`、または `flow`）必要があります。
+
+## 権限の強制 [#permission-enforcement]
+
+- **すべての呼び出しは呼び出し元として実行されます。** MCP のブリッジは REST のリクエストと同じ実行コンテキストを解決するので、オブジェクトの権限、[レコードアクセス](/docs/configure/permissions/record-access)、[フィールドレベルのセキュリティ](/docs/configure/permissions/field-level-security)は、UI で人に適用されるのとまったく同じようにエージェントに適用されます。結果が少なかったり書き込みが拒否されたりするのは、たいていは接続が壊れているのではなく、ガバナンスが*機能している*ということです。
+- **OAuth のスコープはツールの集合を絞り込みます。** トークンは `data:read`、`data:write`、`actions:execute` のスコープを持ち、付与されたスコープの外にあるツールは、そのセッションでは登録すらされません。API キーとセッションの呼び出し元は完全な集合を得ますが、やはり呼び出しごとに権限がチェックされます。4 つ目のスコープ `metadata:write` は、デプロイメントがビルドツールを提供している場合にだけそれを提供します。ObjectOS Cloud では [エージェントで構築する](#build-with-an-agent)を参照してください。
+- **アクションの本体は、呼び出されると信頼されたアプリのコードとして実行されます**（`ai.exposed` のゲートと `requiredPermissions` は*呼び出し*時にチェックされます）。アクションを書くことはコードレビューに値する行為として扱ってください。それが本当のセキュリティの境界です。
+- アクションは `ai.requiresConfirmation` を宣言することもできます。破壊的に見えるアクションは、デフォルトでそれを必要とします。
+
+## 接続を確認する [#verify-the-connection]
+
+稼働中のスキーマでしか答えられないことをエージェントに尋ねます。
+
+```text
+What objects does this app have, and what fields does the main one carry?
+```
+
+`list_objects` と `describe_object` が呼び出されるはずです。エージェントの自然な作業パターンは `list_objects` → `describe_object` → `query_records` → `run_action` です。4 つすべてが動けば、接続は完全に機能しています。
+
+> エージェントは、アプリの**スキルファイル**があると目に見えてうまく動きます。`GET /api/v1/mcp/skill` からダウンロードするか、スキルとガイド付きの `/objectstack:connect` コマンドを同梱した[公式の Claude プラグイン](https://github.com/objectstack-ai/claude-plugin)（`claude plugin marketplace add objectstack-ai/claude-plugin`）をインストールしてください。
+
+## ObjectOS Cloud の場合 [#on-objectos-cloud]
+
+ここまでの内容はすべて、エンドポイントが有効になった ObjectOS Cloud の環境に当てはまります。異なるのは 4 点です。スイッチ、上限、接続の詳細がある場所、そしてエージェントがアプリをドラフトとして構築できることです。
+
+### AI エージェントのアクセスを有効にする [#turn-on-ai-agent-access]
+
+環境のデータを外部の AI クライアントに公開するのは組織の判断なので、ObjectOS Cloud ではエンドポイントは、すべてのプランで、環境ごとに**デフォルトでオフ**です（[cloud#1248](https://github.com/objectstack-ai/cloud/issues/1248) で決定）。
+
+1. クラウドコンソールで、環境のページとその **Settings** タブを開きます。**Access and sign-in** の下にある **AI agent access (MCP)** の行は **Now: off** と表示されています。
+2. **Enable AI Agent Access** を選び、確認します。これが表示されるのは組織のオーナーと管理者だけです。
+3. 数秒待ちます。環境は再デプロイなしに自動で変更を取り込みます。その後、行は **Now: on** と表示され、環境の **Overview** にも同じ状態が表示されます。
+
+有効になると、環境自身のコンソール内に **Connect an Agent** が現れます。同じページを開く場所が 2 つあります。サインインしているすべてのユーザー向けの **Account → Developer** と、Manage Platform Settings を持つユーザー向けの **Setup → Integrations** です。そのページには、環境のエンドポイントの URL（環境のアドレスの後に `/api/v1/mcp`）、クライアントごとの接続カード、スキルファイル、API キーの発行機能が表示されます。
+
+### 接続する [#connect]
+
+対話型のクライアントは、上で説明したブラウザのサインインを使います。するとエージェントは、あなた自身の権限、行レベルセキュリティ、フィールドアクセスの範囲内で、**あなた**として動作します。ヘッドレスのクライアント（CI、スクリプト）は、**Connect an Agent** の **API keys · headless** カードで発行した [API キー](#headless-api-keys)を使います。キーは発行した人として動作し、ほかの誰かのために発行することは決してできません。
+
+### エージェントで構築する [#build-with-an-agent]
+
+エージェントは**アプリを構築する**こともできます。レコードだけでなく、オブジェクト、フィールド、ビュー、ページ、ダッシュボード、フロー、アクションを作成し、変更できます。構築したものはすべて、人が公開するまでは**ドラフト**です。
+
+**`metadata:write` を求めます。** ビルドツールは、付与に `metadata:write` スコープを含むブラウザのサインインにだけ提供されます。環境は `data:read`、`data:write`、`actions:execute` と並べてこれを通知するので、環境が通知するスコープを求めるクライアントなら、サインインしたときにこれを得られます。クライアントがスコープを名前で求める場合は `metadata:write` を加えてください。これなしでサインインした場合は、接続し直してください。[API キー](#headless-api-keys)でビルドツールが開くことはありません。このスコープはツールを開くだけで、それ以上のことはしません。すべての呼び出しはあなたとして実行され、[AI Builder](/docs/build/ai-builder) と同じく、その環境での `manage_metadata` または `studio.access` 権限が必要です。
+
+**ツールの働き。**
+
+| ツール | 働き |
+|---|---|
+| `get_authoring_rules`、`get_metadata_schema` | この環境が従う構築のルールと、メタデータの種類の形 |
+| `list_metadata`、`describe_metadata`、`list_packages`、`get_package` | 環境が現在保持しているもの |
+| `propose_blueprint`、`apply_blueprint` | 説明からアプリや機能を設計し、その設計全体をステージングします |
+| `create_object`、`add_field`、`modify_field`、`delete_field` | オブジェクトとフィールドを変更します |
+| `create_metadata`、`update_metadata`、`apply_edit` | 環境が構築する任意の種類を作成する、1 つを変更する、または既存のアプリに構造化された編集を適用します |
+| `create_seed` | サンプルデータを追加します |
+| `create_package` | 構築先のパッケージを作成します |
+| `verify_build` | ドラフトをプラットフォームのルールに照らしてチェックし、拒否されるものを報告します |
+
+各呼び出しは自分のパッケージ（`packageId` または `targetApp`）を指定します。ある呼び出しから次の呼び出しへ作業中のパッケージが引き継がれることはありません。`toggle_flow` と `test_flow` はここでは提供されません。エージェントがステージングするフローは、実行されないドラフトだからです。
+
+**すべての書き込みは、どの環境でもドラフトです。** 本番も含みます。公開するツールも、破棄するツールもありません。各書き込みの結果は、変更がまだ有効ではないことを伝え、ドラフトとそれらが公開される場所を示す `staged` ブロックを持ちます。
+
+**公開するのは人で、Studio → Changes で行います。** Studio でパッケージとその **Changes** ビュー（環境内の `/_console/studio/<package>/data`）を開き、エージェントがステージングしたものを確認して、公開または破棄します。何かを作成したと言うエージェントは、それをドラフトにしたということです。アプリに表示されるのは公開されてからです。
+
+**削除や絞り込みには `confirm: true` が必要です。** `delete_field`、`modify_field`、`apply_edit`、`update_metadata` は `confirm` 引数を取ります。フィールドを削除する、フィールドの型を変える、フローからステップを外すような呼び出しは、`confirm: true` がなければ何もステージングせず、公開すると何が失われるかを答えます。追加するだけの変更には決して必要ありません。
+
+**エージェントがどれだけ構築できるか。** ビルドの呼び出しは MCP のリクエストなので、[リクエストの上限](#limits)が適用されます。さらに 2 つの上限が構築を数えます（[ストレージと上限](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)）。
+
+| | Free | Team 以上 |
+|---|---|---|
+| MCP 経由のビルドの書き込み（環境ごと、UTC の 1 日あたり） | 200 | 2,000 |
+| 環境ごとの未公開のドラフト（作成方法を問わず） | 500 | 500 |
+
+読み取りと `verify_build` は書き込みとして数えられません。どちらかの上限を超えると、ツールの呼び出しは `RATE_LIMIT_EXCEEDED`、その数、そして何でリセットされるかとともに拒否されます。書き込みは UTC の翌日に、ドラフトは公開または破棄でリセットされます。
+
+> **フローが拒否されるのはなぜ？** エージェントがここでは構築できないものを使っており、拒否の理由がそれを示します。Free でのスケジュールまたは相対時間のフロー、承認ワークフローがプランに含まれていない場合の承認ステップ、またはソースで構築して[パッケージ](/docs/build/packages)として公開する種類です。
+
+エージェントが構築するのは、レコードの変更またはボタンで開始するフローで、レコードの作成、更新、削除、割り当て、判断、ループ、待機のステップから構成されます。スケジュールと相対時間のフローは Team 以上で、承認ステップはプランに[承認ワークフロー](/docs/cloud/plans-and-seats)が含まれている場合に構築できます。スクリプト、Webhook、API で起動するフローと画面フロー、そしてスクリプト、Webhook、API、ジョブ、メールテンプレート、翻訳、テーマ、プラグイン、エージェント、スキル、データソースの種類は、どのプランでもソースで構築します。
+
+### 上限 [#limits]
+
+各環境のエンドポイントが受け付けるリクエストの数は決まっており、それに接続しているすべてのエージェントで共有されます（[cloud#3203](https://github.com/objectstack-ai/cloud/issues/3203) で決定）。
+
+| プラン | 1 分あたり | UTC の 1 日あたり |
+|---|---|---|
+| Free | 20 | 1,000 |
+| Team 以上 | 120 | 1 日の上限なし |
+
+上限を超えると、エンドポイントは `Retry-After` とコード `RATE_LIMIT_EXCEEDED` とともに `429` で応答します。メッセージには、どの上限に達したか、いつリセットされるかが示されます。何がリクエストとして数えられるか、そしてそれと並ぶドラフトと作成の書き込みの上限は、[ストレージと上限](/docs/cloud/storage-and-limits#mcp-limits)にあります。スイッチはプランの変更を越えて保持されるので、ダウングレードやアップグレードによってオンやオフになることはありません。
+
+### オフにする [#turn-it-off]
+
+同じ行の **Disable AI Agent Access** は、数秒以内に環境がエンドポイントを提供するのを止め、ブラウザのサインインと API キーのどちらも含めて、接続しているすべてのエージェントを切断します。それ以外のものは何も失効させません。
+
+- **API キーは REST API では引き続き機能します。** キーそのものを廃止するには、**Account → Developer → API Keys**（自分のもの）または **Setup → Access Control → API Keys**（全員のもの、Manage Platform Settings が必要）から削除してください。
+- **ブラウザのサインインは失効しません**が、そのトークンを受け付けるのは MCP エンドポイントだけなので、オフの間は何にも届きません。
+
+### ObjectOS Cloud の場合：トラブルシューティング [#on-objectos-cloud-troubleshooting]
+
+| 症状 | 原因 |
+|---|---|
+| 環境の **Settings** に **AI agent access (MCP)** の行がない | それが見えるのは組織のオーナーと管理者だけです |
+| **Connect an Agent** が **Account → Developer** にも **Setup → Integrations** にもない | AI エージェントのアクセスがまだオフか、たった今オンにしたところです。再読み込みしてください |
+| **Connect an Agent** が **Account → Developer** の下にしかない | その環境で Manage Platform Settings を持っていません。Account のエントリでも同じページが開きます |
+| クライアントから `429` が返る | 環境のエージェントが上限を超えました。`Retry-After` の秒数だけ待ち、同じ呼び出しを繰り返しているエージェントがないか確認してください |
+| 接続にビルドツールがない | サインインで `metadata:write` が付与されなかったか、クライアントが API キーを使っています。ブラウザのサインインで接続し直し、付与してください |
+| ビルドツールが `PERMISSION_DENIED` を返す | その環境で `manage_metadata` と `studio.access` を持っていません |
+| エージェントが構築したものがアプリに表示されない | それはドラフトです。Studio → **Changes** で公開してください |
+| ビルドツールが、ビルドの書き込みまたはドラフトを示して `RATE_LIMIT_EXCEEDED` を返す | その日のビルドの書き込みまたはドラフトの上限を使い切りました。UTC の翌日まで待つか、ドラフトを公開または破棄してください |
+
+## トラブルシューティング [#troubleshooting]
+
+| 症状 | 原因 → 対処 |
+|---|---|
+| `/api/v1/mcp` で `404` | この機能が無効です。`OS_MCP_SERVER_ENABLED` の設定を外してください（デフォルトは有効） |
+| `501 Not Implemented` | MCP プラグインがこのビルドに含まれていません。スタックのプラグインを確認してください |
+| stdio を有効にすると起動が拒否される | stdio は安全側に倒れて失敗します（16.0）。`OS_MCP_STDIO_API_KEY` に解決できる `osk_` キーを設定するか、`OS_MCP_STDIO_ENABLED` をオフにしてください |
+| すべての呼び出しで `401` | 匿名、または無効な認証情報です。対話型のクライアント：ブラウザのログインを完了してください。ヘッドレス：`osk_` キーとヘッダーの綴りを確認してください |
+| `403 insufficient_scope` | OAuth のトークンに、そのツール群のスコープがありません（例：`data:write` なしの書き込み）。接続し直してスコープを付与してください |
+| アクションが `list_actions` にない | `ai.exposed` が `true` でない、`ai.description` が 40 文字より短い、種類がヘッドレスで呼び出せない（`url` / `modal` / `form` は決して現れません）、`sys_*` オブジェクトを対象にしている、または呼び出し元が `requiredPermissions` を満たしていない |
+| 読み取りの行が少ない / 書き込みが拒否される | 設計どおりの動作です。呼び出し元の権限とレコードアクセスが適用されています。UI で同じユーザーとして確認してください |
+
+## 次に進む [#where-to-go-next]
+
+| タスク | ページ |
+|---|---|
+| AI プロバイダー、埋め込み、MCP サーバーのプラグインを設定する | [AI サービス](/docs/configure/ai) |
+| サービスユーザーと API キーを作成する | [ユーザーと組織](/docs/configure/users) |
+| エージェントが何を見てよいかを理解する | [権限](/docs/configure/permissions) |
+| REST API とキーの管理 | [API アクセス](/docs/configure/api-access) |
+| 特定のユーザーのアクセスを確認する | [アクセスの管理](/docs/configure/permissions/managing-access) |

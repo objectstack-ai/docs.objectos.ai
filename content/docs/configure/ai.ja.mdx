@@ -1,0 +1,145 @@
+---
+title: AI サービス
+seoTitle: "AI サービス：モデルプロバイダー、埋め込み、RAG、MCP"
+description: ObjectOS の AI を設定する場所。製品内 AI ランタイムのプロバイダー設定、オープンな埋め込みとナレッジのパッケージ、そして MCP サーバー。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 4abd19f584761c553296b8acedc8d1af5ea11b1c06ad99a52806921cbf0a033d
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS は、オープンソースの ObjectStack フレームワークに含まれる AI の基本要素（MCP サーバー、Knowledge Protocol とそのアダプター、埋め込み）の上に、**製品内 AI ランタイム**を追加します。データに問い合わせる `ask` アシスタント、作成を支援する `build` アシスタント、そして `/api/v1/ai/*` のチャットエンドポイントです。
+
+セルフマネージドのデプロイメント（ObjectOS Enterprise）では、製品内 AI を有効にするのはライセンスです。ライセンスのない単一組織のデプロイメントは Community の動作（オープンな MCP サーバー、AI は自分で用意）で実行され、ライセンスがあれば、AI Builder と「データに質問する」機能が自社のインフラストラクチャ上で有効になります。[Docker → License](/docs/deploy/docker#license) を参照してください。
+
+## 何をどこで設定するか [#what-is-configured-where]
+
+| レイヤー | 設定する場所 | 提供元 |
+|---|---|---|
+| **チャットのモデルプロバイダー** | `ai` 設定名前空間：**Setup → Configuration → AI & Embedder**、または `OS_AI_*` 環境変数 | ObjectOS |
+| **埋め込み** | `@objectstack/embedder-openai`、OpenAI 互換の埋め込み | オープンなフレームワーク |
+| **ナレッジ / RAG** | `@objectstack/service-knowledge` とアダプターのプラグイン | オープンなフレームワーク |
+| **MCP サーバー** | デフォルトで `/api/v1/mcp` で有効。`OS_MCP_SERVER_ENABLED=false` で無効になります | オープンなフレームワーク |
+
+## チャットのモデルプロバイダー [#chat-model-provider]
+
+インストールしたり登録したりする AI パッケージはありません。`@objectstack/service-ai` は 11.0 でオープンな ObjectStack のディストリビューションから外れました。それが提供する AI ランタイムは、オープンソースのフレームワークではなく ObjectOS とともに提供されます。
+
+プロバイダー、モデル、認証情報は `ai` 名前空間の設定なので、ほかのすべての設定と同じように解決されます。環境変数は Setup に保存された値より優先され、その値をロックします（[System Settings → Resolution order](/docs/configure/system-settings#resolution-order)）。
+
+| 変数 | 設定するもの |
+|---|---|
+| `OS_AI_PROVIDER` | プロバイダー。サポートされる値には `gateway`、`openai`、`anthropic`、`google`、`deepseek`、`dashscope`、`cloudflare`、`siliconflow`、`openrouter` が含まれます。 |
+| `OS_AI_OPENAI_API_KEY` · `OS_AI_OPENAI_MODEL` · `OS_AI_OPENAI_BASE_URL` | OpenAI、または任意の OpenAI 互換 API（Azure、ローカルのゲートウェイ、サードパーティのエンドポイント）。`OS_AI_PROVIDER=openai` とともに使います。モデルのデフォルトは `gpt-4o` です。 |
+| `OS_AI_ANTHROPIC_API_KEY` · `OS_AI_ANTHROPIC_MODEL` | Anthropic。`OS_AI_PROVIDER=anthropic` とともに使います。 |
+| `OS_AI_GOOGLE_API_KEY` · `OS_AI_GOOGLE_MODEL` | Google。`OS_AI_PROVIDER=google` とともに使います。 |
+| `OS_AI_GATEWAY_MODEL` · `OS_AI_GATEWAY_API_KEY` | Vercel AI Gateway。`OS_AI_PROVIDER=gateway` とともに使います。 |
+| `OS_AI_DEEPSEEK_API_KEY`、`OS_AI_DASHSCOPE_API_KEY`…… | プリセットの OpenAI 互換プロバイダーごとに、`_API_KEY` と `_MODEL` の変数が 1 つずつあります。たとえば `OS_AI_DEEPSEEK_MODEL=deepseek-chat` です。 |
+
+たとえば、Setup を使わずに、デプロイメント全体でサードパーティの OpenAI 互換プロバイダーに固定するには：
+
+```bash
+OS_AI_PROVIDER=openai
+OS_AI_OPENAI_API_KEY=sk-...
+OS_AI_OPENAI_MODEL=your-model
+OS_AI_OPENAI_BASE_URL=https://your-provider.example.com/v1
+```
+
+OpenAI 互換のベース URL には `OS_AI_OPENAI_BASE_URL`、または Setup の同じフィールドを使ってください。`OPENAI_BASE_URL` はプラットフォームレベルの変数ではありません。
+
+### プロバイダーが設定されていないとき [#when-no-provider-is-set]
+
+ランタイムは起動時に、最初に見つかった上流の認証情報からアダプターを選びます。
+
+1. `AI_GATEWAY_MODEL`（と `AI_GATEWAY_API_KEY`）：Vercel AI Gateway を通じて
+2. `OPENAI_API_KEY`
+3. `ANTHROPIC_API_KEY`
+4. `GOOGLE_GENERATIVE_AI_API_KEY`
+5. どれもない場合：`MemoryLLMAdapter`。背後に実際のプロバイダーがないエコーモードです。
+
+これらは上流の名前のままで、`OS_*` に改名されてはいません。`OS_AI_MODEL` は、OpenAI、Anthropic、Google を直接検出する場合のモデル ID を上書きします。起動後、ランタイムは `ai` 設定名前空間を読み取り、プロバイダーが環境変数または Setup に保存された値から来ている場合はアダプターを差し替えます。
+
+### 呼び出す [#calling-it]
+
+製品内 AI は `/api/v1/ai/*` で提供されます。チャット（JSON またはストリーミング）、補完、環境が提供するモデル、会話です。`@objectstack/client` SDK は、その `ai` 名前空間を通じてこれにアクセスします：`ai.chat`、`ai.chatStream`、`ai.complete`、`ai.models`、`ai.conversations`。宣言的な AI（エージェント、スキル、ツール）については [エージェント](/docs/build/agents)を参照してください。
+
+## 埋め込み [#embedders]
+
+`@objectstack/embedder-openai` は、OpenAI の `POST /v1/embeddings` の形を話す任意のエンドポイントで動作します。OpenAI、Azure OpenAI、DashScope、Zhipu BigModel、SiliconFlow、Doubao、MiniMax、Ollama、または独自のゲートウェイです。**プリセット**は既知のプロバイダーのベース URL を埋め、`baseUrl` はそれ以外の任意のエンドポイントを指します。
+
+```ts
+import { createOpenAIEmbedder } from '@objectstack/embedder-openai';
+
+const embedder = createOpenAIEmbedder({
+  preset: 'dashscope',
+  apiKey: process.env.DASHSCOPE_API_KEY!,
+  model: 'text-embedding-v3',
+});
+```
+
+`apiKey` は必須です。[パッケージの README](https://github.com/objectstack-ai/objectstack/tree/main/packages/plugins/embedder-openai) に、各プロバイダーのベース URL と代表的なモデルが記載されています。
+
+オープンなフレームワークには、まだ埋め込みを使うナレッジアダプターはありません。`@objectstack/knowledge-memory` と `@objectstack/knowledge-ragflow` は埋め込みのオプションを取りません。
+
+## ナレッジ / RAG [#knowledge--rag]
+
+ナレッジサービスはナレッジのソースを宣言し、返ってくるものを権限でフィルターします。検索そのものはアダプターのプラグインが行います。
+
+| アダプター | バックエンド | 向いている用途 |
+|---|---|---|
+| `@objectstack/knowledge-memory` | プロセス内 | 開発環境とテスト。永続化がないので本番向けではありません |
+| `@objectstack/knowledge-ragflow` | [RAGFlow](https://github.com/infiniflow/ragflow) | チャンク分割、埋め込み、ハイブリッド検索、リランキングを RAGFlow が行います |
+
+オープンなフレームワークでの組み込み方：
+
+```ts
+import { KnowledgeServicePlugin } from '@objectstack/service-knowledge';
+import { KnowledgeRagflowPlugin } from '@objectstack/knowledge-ragflow';
+
+kernel.use(new KnowledgeServicePlugin({
+  sources: [{
+    id: 'product_docs',
+    label: 'Product documentation',
+    adapter: 'ragflow',
+    source: { kind: 'http', urls: ['https://docs.example.com/sitemap.xml'] },
+    adapterConfig: { datasetId: 'rgf_doc_dataset_id' }, // RAGFlow dataset to bind
+  }],
+}));
+kernel.use(new KnowledgeRagflowPlugin({
+  endpoint: process.env.RAGFLOW_ENDPOINT!, // e.g. http://localhost:9380
+  apiKey: process.env.RAGFLOW_API_KEY!,
+}));
+```
+
+RAGFlow アダプターはデータセットを作成しません。RAGFlow の UI で一度作成し、そこでチャンク分割の方法、埋め込みモデル、リランクのポリシーを選びます。
+
+ソースのレコードを持つすべてのヒットは、呼び出し元の権限に照らして再チェックされます。素の ObjectQL クエリをゲートするのと同じ行レベルセキュリティです。検索を `search_knowledge` ツールとして製品内のチャットに公開するのは、ObjectOS ランタイムの一部です。
+
+## MCP：Model Context Protocol [#mcp--model-context-protocol]
+
+すべての ObjectOS デプロイメントは、すでに `/api/v1/mcp` で [Model Context Protocol](https://modelcontextprotocol.io) を提供しています。デフォルトで有効で、インストールするプラグインはありません。stdio で提供することもできます。クライアントの接続、stdio への切り替え、エージェントが得るツールについては [AI ツールを接続する（MCP）](/docs/configure/mcp)で扱っています。
+
+オープンなフレームワークで MCP サーバーのプラグインを明示的に登録するには：
+
+```ts
+import { MCPServerPlugin } from '@objectstack/mcp';
+
+kernel.use(new MCPServerPlugin({
+  transport: 'stdio', // or 'http'
+  autoStart: true,
+}));
+```
+
+ツールはオプションごとにオプトインするものではありません。プラグインは起動時に、AI ツールのレジストリ、メタデータサービス、データエンジンを橋渡しします。すべての呼び出しは、呼び出したユーザーの権限のもとで実行されます。
+
+## 次に進む [#where-to-go-next]
+
+- [エージェント](/docs/build/agents)：宣言的なエージェント、スキル、ツール
+- [AI ツールを接続する（MCP）](/docs/configure/mcp)：外部のクライアントをアプリに向ける
+- [システム設定](/docs/configure/system-settings)：設定がどう解決され、環境変数が何をロックするか
+- [セキュリティとコンプライアンス](/docs/reference/security)：AI のデータの流れがどう分離されるか
+- [`@objectstack/embedder-openai` のソース](https://github.com/objectstack-ai/objectstack/tree/main/packages/plugins/embedder-openai)
+- [`@objectstack/service-knowledge` のソース](https://github.com/objectstack-ai/objectstack/tree/main/packages/services/service-knowledge)
+- [`@objectstack/knowledge-ragflow` のソース](https://github.com/objectstack-ai/objectstack/tree/main/packages/plugins/knowledge-ragflow)
+- [`@objectstack/mcp` のソース](https://github.com/objectstack-ai/objectstack/tree/main/packages/mcp)
