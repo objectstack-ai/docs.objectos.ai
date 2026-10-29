@@ -1,0 +1,48 @@
+---
+title: skills CLI
+seoTitle: "skills CLI：コーディングエージェントにスキルをインストールする"
+description: ObjectStack のスキルをコーディングエージェントにインストールする npx コマンドです。ObjectOS での使いどころ、いくつかの例、そして objectstack.ai にある完全なスキルリファレンスを紹介します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 26df3bfe697fc1dcc37dc143c85b53c43d842b6b8a5801ad85e00738000a6399
+  guide_rev: 1
+  mode: auto
+---
+
+**完全な仕様：** [objectstack.ai の AI スキルリファレンス](https://objectstack.ai/docs/ai/skills-reference)。このページはその要約です。ObjectOS での使いどころと、いくつかの例を示します。
+
+[`skills`](https://www.npmjs.com/package/skills) CLI（[vercel-labs/skills](https://github.com/vercel-labs/skills) 製）は、ドメインごとの指示を AI コーディングエージェントにインストールします。ObjectStack のスキルは、Claude Code、Cursor、Copilot、Codex などに、ObjectOS が実行するメタデータ（オブジェクト、ビュー、フロー、権限、クエリ、CEL）を実際のスキーマに沿って書く方法を教えるため、エージェントが書いたものはコンパイルが通ります。
+
+## ObjectOS での使いどころ [#where-objectos-uses-it]
+
+- **IDE でアプリを手作業で作成する。** ブラウザ内の [AI Builder](/docs/build/ai-builder) は ObjectOS の中でメタデータを書いてくれます。リポジトリで作業する場合は、スキルが自分のコーディングエージェントに同じ語彙を与えます。[構築 → IDE スキル](/docs/build/ai-skills)を参照してください。
+- **エージェントを最新に保つ。** スキルは、それが説明するスキーマと並んで [objectstack リポジトリ](https://github.com/objectstack-ai/objectstack/tree/main/skills)にあるため、アップグレード後に再インストールすればエージェントが最新の状態になります。
+
+## 例 [#examples]
+
+現在のプロジェクトにスキルを**インストール**します。CLI はプロジェクトが使っているエージェントを検出し、それぞれのネイティブ形式（`.claude/skills/`、`.cursor/rules/`、`AGENTS.md` など）で書き込みます。
+
+```bash
+npx skills add objectstack-ai/objectstack/skills
+```
+
+再現可能な CI のために**バージョンを固定**します。
+
+```bash
+npx skills add https://github.com/objectstack-ai/objectstack/tree/<commit-sha>/skills
+```
+
+インストールされているものを**確認・管理**します。
+
+```bash
+npx skills detect                  # show which agents the CLI will write to
+npx skills list                    # list installed skills
+npx skills remove <name>           # remove a skill
+```
+
+**出力をコミットします。** スキルは、チーム全体（CI のエージェントを含む）で共有すべき Markdown であり、CLI が書き込むパスはいずれにせよチェックインするものです。
+
+## 関連項目 [#see-also]
+
+- [構築 → IDE スキル](/docs/build/ai-skills)：AI Builder と並ぶスキル
+- [vercel-labs/skills](https://github.com/vercel-labs/skills)：アップストリームの CLI

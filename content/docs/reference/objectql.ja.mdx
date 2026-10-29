@@ -1,0 +1,77 @@
+---
+title: ObjectQL
+seoTitle: "ObjectQL：JSON のクエリ形式、フィルター、結合"
+description: データ API、ビュー、レポート、AI ツールを支える構造化クエリ形式です。ObjectOS での使いどころ、いくつかの例、そして objectstack.ai にある完全な構文を紹介します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 694b3e7d0f7ea2228656bfed5c5c5b145b9a592f05c3dfea1c8efb55640a8505
+  guide_rev: 1
+  mode: auto
+---
+
+**完全な仕様：** [objectstack.ai の ObjectQL クエリ構文](https://objectstack.ai/docs/data-modeling/queries)。このページはその要約です。ObjectOS での使いどころと、いくつかの例を示します。
+
+ObjectQL は、データエンジンが受け取る JSON のクエリ形式です。クエリはオブジェクトを指定し、どのレコードを返すかを記述します。`where` フィルター、`orderBy`、ページ（`limit`、`offset`）、`expand` するリレーション、そして任意で `aggregations` 付きの `groupBy` です。すべてのクエリは要求したユーザーとして実行されるため、そのユーザーが読めるレコードとフィールドしか返しません。
+
+## ObjectOS での使いどころ [#where-objectos-uses-it]
+
+- **データ API**：`GET /api/v1/data/:object` はクエリ文字列のパラメーターとしてクエリを受け取ります。`POST /api/v1/data/:object/query` は完全な本文を受け取り、`groupBy` と `aggregations` を受け付けるのはこちらです（[REST API](./rest-api)）。
+- **ビュー**：ビューの `filter` と `sort` は ObjectQL にコンパイルされます（[ビュー](/docs/build/interface/views)）。
+- **レポート**：レポートは ObjectQL にシリアライズされます。
+- **AI**：`query_data` ツールは ObjectQL の本文を生成します。
+
+## 例 [#examples]
+
+**緊急または期限切れの未解決チケット。** フィールドの演算子は `$` で始まります。`$and`、`$or`、`$not` がそれらを組み合わせ、`{ "$cel": "…" }` はサーバーがクエリ時に評価する [CEL](./cel) 式を埋め込みます。
+
+```jsonc
+{
+  "$and": [
+    { "status": { "$eq": "open" } },
+    {
+      "$or": [
+        { "priority": { "$in": ["high", "urgent"] } },
+        { "due_at":   { "$lt": { "$cel": "now()" } } }
+      ]
+    }
+  ]
+}
+```
+
+**担当者と顧客アカウント付きのチケット。** 行ごとに 1 回リクエストするのではなく、1 回のバッチで解決されます。
+
+```jsonc
+{
+  "object": "support_ticket",
+  "expand": ["assignee", "customer.account"],
+  "limit": 20
+}
+```
+
+**顧客ごとの月次売上で、10,000 を超えるもの。** `POST /data/order/query` を使います。
+
+```jsonc
+{
+  "object": "order",
+  "where": { "status": { "$ne": "cancelled" } },
+  "groupBy": [
+    "customer_id",
+    { "field": "created_at", "dateGranularity": "month" }
+  ],
+  "aggregations": [
+    { "function": "sum",   "field": "amount", "alias": "total_sales" },
+    { "function": "count", "alias": "order_count" }
+  ],
+  "having": { "total_sales": { "$gt": 10000 } },
+  "orderBy": [{ "field": "total_sales", "order": "desc" }],
+  "limit": 25
+}
+```
+
+**クエリ文字列での並べ替え：** `?orderBy=-priority,created_at`。優先度の降順、次に古い順です。
+
+## 関連項目 [#see-also]
+
+- [REST API](./rest-api)：ObjectQL を受け付けるエンドポイント
+- [フィールドタイプ](./field-types)：各フィールドが何を保存し、したがって何で絞り込めるか
+- [CEL](./cel)：`$cel` の中の式言語

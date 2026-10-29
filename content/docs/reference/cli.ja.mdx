@@ -1,0 +1,259 @@
+---
+title: CLI リファレンス
+seoTitle: "CLI リファレンス：すべての os コマンドとそのフラグ"
+description: すべての `os` コマンド、その動作、最も役立つフラグ。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: 3a77aa68e28e880be0de253974a5977e4412d168b16c73e544224ce1bdd82412
+  guide_rev: 1
+  mode: auto
+---
+
+`@objectstack/cli` パッケージは、`os` という 1 つのバイナリ（`objectstack` としても利用可能）をインストールします。以下の例はすべて短い `os` を使います。
+
+```bash
+npm i -g @objectstack/cli
+os --help
+```
+
+## サーバーのコマンド [#server-commands]
+
+### `os start`：設定不要の起動 [#os-start--zero-config-boot]
+
+段階的な 4 つのモードを自動検出します。
+
+1. **空の起動**：カレントディレクトリにアーティファクトも設定もない → UI とマーケットプレイスを備えた素のカーネルで起動します。
+2. **プロジェクトの起動**：カレントディレクトリに `objectstack.config.ts` がある → `./dist/objectstack.json` に自動コンパイルし、そこから起動します。
+3. **アーティファクトの起動**：`dist/objectstack.json` に到達できる → そこから直接起動します。
+4. **明示的な上書き**：`--artifact`、`--database`、`--port` が優先されます。
+
+```bash
+os start                                # default port 3000
+os start --port 8080
+os start --artifact ./build/myapp.json
+os start --artifact https://cdn.example.com/app.json
+os start --database file:./data/prod.db
+os start --database postgres://user:pass@host:5432/mydb
+os start --database libsql://my-db.turso.io --database-auth-token $TURSO
+os start --auth-secret "$(openssl rand -hex 32)"
+os start --home /var/lib/objectos      # persistent home dir
+os start --no-ui                       # API only (no UI/Account portals)
+```
+
+HOME ディレクトリのデフォルト：
+- カレントディレクトリにプロジェクトの設定がある場合 → `<cwd>/.objectstack`（プロジェクトローカル）
+- ない場合 → `~/.objectstack`（グローバル。実行間で共有）
+
+### `os serve`：本番サーバー [#os-serve--production-server]
+
+`objectstack.config.ts` があればそれを読み、なければ `dist/objectstack.json` にフォールバックします。厳格な動作が必要な本番のコンテナで使います。
+
+代わりに**公開済み**のアーティファクトで起動するには、`OS_ARTIFACT_URL` で指定します。絶対的な `https://`、`http://`、`file://` の URL で、フラグメントに `#sha256=` による完全性の固定を任意で付けられます。設定が読み込まれる前に解決されます。古い綴りの `OS_ARTIFACT_PATH` は廃止されています。ObjectOS のランタイムイメージでは、デフォルト以外の値は代替の変数を示して**起動を拒否**します。[環境変数](/docs/reference/environment-variables#retired-names)を参照してください。
+
+```bash
+os serve                       # port 3000
+os serve --port 4000 --no-ui
+```
+
+### `os dev`：ホットリロード付きの開発 [#os-dev--development-with-hot-reload]
+
+`objectstack.config.ts` と `src/` を監視し、保存時に再コンパイルと再読み込みを行います。雛形から作成したプロジェクトでは、npm の `dev` スクリプトとして使われます。
+
+```bash
+os dev                         # port 3000 by default
+os dev -p 4000
+```
+
+`os dev` は `os start` と同じポート（3000）を要求します。そのポートが使用中の場合は次の空きポートにバインドし、`↪ server bound to port 3001 (requested 3000)` のようにその旨を表示します。
+
+## プロジェクトのコマンド [#project-commands]
+
+### `os init`：新しいプロジェクトの雛形を作る [#os-init--scaffold-a-new-project]
+
+```bash
+os init my-app                       # interactive
+os init my-app -t app --install      # auto-install with default pnpm
+os init my-app -t app --install -p npm
+os init my-app -t plugin             # plugin scaffold
+os init my-app -t empty              # bare minimum
+```
+
+テンプレート：
+| テンプレート | 得られるもの |
+|---|---|
+| `app` | 完全なアプリ。オブジェクト、ビュー、アクションがあり、すぐに拡張できます |
+| `plugin` | 再利用可能な機能を配布するためのプラグインの雛形 |
+| `empty` | マニフェストと tsconfig のみ |
+
+### `os create`：カーネルのコードプラグインの雛形を作る [#os-create--scaffold-a-kernel-code-plugin]
+
+```bash
+os create plugin my-plugin
+```
+
+`os create plugin` は、カーネルの `Plugin` 契約を実装する TypeScript パッケージを書き出します。これは `os init` にはできないことです。`os create example` は ObjectStack 17.4 で廃止されました。`os init` が書き出すものの一部を書き出すだけだったため、現在は `os init` を示すエラーで終了します。
+
+## ビルド / 検証のコマンド [#build--validate-commands]
+
+| コマンド | 目的 |
+|---|---|
+| `os compile`（`os build`） | `objectstack.config.ts` を `dist/objectstack.json` にコンパイルする |
+| `os validate` | プロトコルのスキーマに照らして設定を検証する |
+| `os lint` | スタイルと規約のチェック（CI で推奨） |
+| `os diff <old> <new>` | 2 つの設定を比較し、破壊的変更を検出する |
+| `os info` | 設定またはアーティファクトのメタデータの概要を表示する |
+| `os explain <object>` | オブジェクトのスキーマを人が読める形で説明する |
+| `os doctor` | ヘルスチェック：循環依存、壊れた参照、環境の問題を検出する |
+| `os generate`（`os g`） | TypeScript の型 / メタデータファイルを生成する |
+| `os db clean` | 1 回限りの SQLite の `VACUUM` と、増分の自動バキュームの有効化。回収したバイト数を報告します（14.5 以降） |
+
+`os doctor` は、**何かおかしいと感じたときに最初に実行するもの**です。ランタイムでは実行時の警告としてしか表れない設定の誤りを捉えます。
+
+ObjectStack 13 以降、`os compile` は**セキュリティの姿勢**によってもビルドを制限します。`validateSecurityPosture` のエラー（未設定や別名の共有モデル、高い権限を持つアンカーのバインディング、残っているロールの語彙、修飾されていないフィールド権限のキーなど）はビルドを失敗させ、`os lint` はそれらをループのより早い段階で報告します。`access-matrix.json` のスナップショットをコミットしている場合、権限の機能にずれがあると、`--update-access-matrix` で再スナップショットするまで `os compile` が失敗します。すべての機能の変更がレビュー可能になります。
+
+## データのコマンド [#data-commands]
+
+ターミナルからレコードを操作します。シードデータの投入、マイグレーション、CI のスモークテストに便利です。
+
+```bash
+os data create <object> --data '{"subject": "Hello"}'
+os data get <object> <id>
+os data query <object> --filter 'status:active' --limit 10
+os data update <object> <id> --data '{"done": true}'
+os data delete <object> <id>
+```
+
+## メタデータのコマンド [#metadata-commands]
+
+実行時にメタデータのレコード（オブジェクト、ビュー、権限セットなど）を読み書きします。
+
+```bash
+os meta list <kind>
+os meta get <kind> <id>
+os meta register <file>
+os meta delete <kind> <id>
+```
+
+## データベースのマイグレーション：`os migrate` [#database-migrations--os-migrate]
+
+`os migrate` は、デプロイメントのデータベースをメタデータと一致させ、リリースが求める 1 回限りのデータマイグレーションを実行します。すべてのサブコマンドは `--database-url` で指定したデータベースに対して動作します。デフォルトは `$OS_DATABASE_URL`、次にプロジェクト自身のデータベースなので、デプロイメントのデータベースを明示的に指定してください。いずれもメタデータを読むためにアプリを起動します。先にデータベースをバックアップしてください。各アップグレードで必要なコマンドは[アップグレードとロールバック](/docs/operate/upgrade#version-specific-steps)にあります。
+
+### スキーマ [#schema]
+
+| コマンド | 動作 |
+|---|---|
+| `os migrate plan` | データベースがメタデータからどのようにずれているかを、安全、確認が必要、破壊的の変更として表示します。何も書き込みません |
+| `os migrate apply` | 確認のプロンプトの後（`--yes` で省略）、破壊的でない変更を適用します。`--allow-destructive` を付けると、孤立した列の削除、`NOT NULL` の厳格化、型の縮小も行います |
+| `os migrate multi-value-columns` | フィールドが `multiple: true` を宣言している場所で、古いテキスト列を JSON に移します。`apply` が決して行わない唯一の型変更です。`--apply` を付けるまではドライランです |
+| `os migrate unmapped-columns --object NAME` | 廃止されたフィールドの列に残る値を、レコード id をキーとして読み取ります。読み取り専用です。17.7 以降、ランタイムのどの入り口もそれらの列を返さないため、`apply --allow-destructive` が列を削除する前に、変換処理はこの方法で値を読み取ります |
+| `os migrate duplicates` | すでに 2 回発行された識別子と、一意インデックスを妨げる行を JSON で報告します。読み取り専用です |
+
+```bash
+os migrate plan                                    # what would change; writes nothing
+os migrate apply --allow-destructive --yes         # also drop and tighten (CI / scripts)
+os migrate unmapped-columns --object contact --json > contact-unmapped.json
+```
+
+### データマイグレーション [#data-migrations]
+
+これらはいずれもスキーマではなく行を書き換えるもので、インストールしたバージョンではなく、データベースについての事実に関わります。ランタイムがこれらを代わりに実行することはありません。行に別の記載がない限り、`--apply` を渡すまではドライランです。
+
+| コマンド | 動作 |
+|---|---|
+| `os migrate files-to-references` | （17.0）インラインで保存されたファイルフィールドの値を `sys_file` の参照に変換します。`--apply` は、このデプロイメントでメディアの値の厳格なチェックを有効にするフラグを記録します |
+| `os migrate value-shapes` | （17.0）参照と構造化 JSON の値を、その契約に照らしてスキャンします。スキャンで何も見つからなくなると、`--apply` がフラグを記録します |
+| `os migrate meta --from 17` | アプリの**ソース**に対してメタデータの変換チェーンを再実行し、行う編集を一覧表示します。`--out FILE` は変換後のスタックを書き出します。作成時の手順であり、データベースには触れません |
+| `os migrate meta --stored` | 同じ変換を、このデプロイメントに**保存された**メタデータに対して行います。`--apply` で行を書き換えます |
+| `os migrate account-issuer` | （17.5）`sys_account.issuer` 列を削除できるかを確認します。読み取り専用です。2 つのアカウントが衝突する間はゼロ以外で終了します |
+| `os migrate audit-metadata-bodies` | （17.6）監査証跡とアクティビティストリームが保持するメタデータ本体のコピーを書き換え、認証情報と保存されたコンテンツハッシュを削除します |
+| `os migrate summary-nulls` | 古い親の行で、まだ `NULL` として保存されているロールアップの `count` / `sum` の列を埋めます |
+| `os migrate recorded-by` | メタデータの履歴にあるレガシーな `'system'` マーカーを `NULL` に書き換えます |
+| `os migrate resume` | 中断されたマイグレーションの実行を一覧表示します。`--run ID` を付けるまでは読み取り専用で、付けるとその実行を再開または巻き戻します |
+
+```bash
+os migrate account-issuer                          # read-only pre-flight
+os migrate audit-metadata-bodies                   # dry run: what it would rewrite
+os migrate audit-metadata-bodies --apply           # rewrite
+```
+
+### シークレットと保存されたファイル [#secrets-and-stored-files]
+
+| コマンド | 動作 |
+|---|---|
+| `os secret rewrap` | 古い `sys_secret` の暗号文を 17.7 の形式で再封印します。`--apply` を付けるまではドライランです。ホストがコードでデータソースを宣言しているかどうかを指定する必要があります（`--declared-datasources FILE` または `--no-declared-datasources`）。⚠️ 17.7 より前のリリースは、これが書き込んだものを開けません |
+| `os secret orphans` | もう何からも参照されていない `sys_secret` の行を報告します。削除するのは `--delete` を付けた場合だけです |
+| `os storage orphans` | 何も保持しておらず、どの保持ポリシーも回収することのない保存ファイルを報告します。何も書き込みません |
+
+## i18n のコマンド [#i18n-commands]
+
+```bash
+os i18n extract               # extract translation keys from source
+os i18n check                 # find missing keys across configured locales
+```
+
+## クラウドのコマンド [#cloud-commands]
+
+ObjectOS Cloud（オプションのホスト型コントロールプレーン）のユーザー向けです。
+
+```bash
+os login                      # interactive
+os logout
+os whoami
+os register                   # create an account
+os cloud login | logout | whoami
+```
+
+## 公開 / パッケージのコマンド [#publish--package-commands]
+
+```bash
+os package publish            # publish artifact as a versioned package
+os package install <id|file>  # install into a RUNNING runtime: catalog id
+                              # (com.acme.crm) or a compiled artifact JSON
+                              # (air-gapped, inline). --runtime / --email /
+                              # --password identify the runtime to install into
+```
+
+## 環境のコマンド [#environment-commands]
+
+コントロールプレーンに支えられた、プロジェクトごとに複数の環境（dev、staging、prod）を使うデプロイメント向けです。
+
+```bash
+os environments list
+os environments show <id>
+os environments create <name>
+os environments switch <id>
+os environments bind          # bind local artifact to an environment
+```
+
+## テストのコマンド [#test-command]
+
+```bash
+os test                       # run Quality Protocol scenarios against a running server
+```
+
+## 共通のフラグの規則 [#common-flag-conventions]
+
+| フラグ | 意味 |
+|---|---|
+| `-p, --port` | HTTP ポート |
+| `-a, --artifact` | コンパイル済みアーティファクトのパスまたは URL |
+| `-d, --database` | データベース URL |
+| `--home` | 永続的な状態のディレクトリ |
+| `-v, --verbose` | 詳細な出力 |
+| `--no-ui` | UI と Account ポータルを無効にする |
+
+完全なフラグの一覧は、任意のコマンドに `--help` を付けて実行すると表示されます。
+
+```bash
+os start --help
+os data query --help
+```
+
+## CLI の位置づけ [#where-the-cli-fits]
+
+- **オペレーター / 初回実行** → `os start`
+- **アプリを構築する開発者** → `os init` → `os dev` → `os compile`
+- **CI / リリースパイプライン** → `os lint && os validate && os compile && os test`
+- **本番のランタイム** → `os serve`（通常は Docker イメージの `CMD` の中）
+- **デプロイメントのアップグレード** → [アップグレードのページ](/docs/operate/upgrade#version-specific-steps)が、お使いのバージョンについて挙げている `os migrate` の手順
+- **診断** → `os doctor`、`os info`、`os explain`

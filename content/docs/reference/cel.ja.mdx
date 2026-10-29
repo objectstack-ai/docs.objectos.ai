@@ -1,0 +1,92 @@
+---
+title: CEL 式
+seoTitle: "CEL 式：数式、述語、テンプレート"
+description: 数式フィールド、検証ルール、表示条件、共有、フローの条件を支える式言語です。ObjectOS での使いどころ、いくつかの例、そして objectstack.ai にある言語の完全な説明を紹介します。
+editions: [community, cloud, enterprise]
+translation:
+  source_sha: ba57e518fc6626502da8e3012659d4218d65c7703dcb70c1834432e11a711d17
+  guide_rev: 1
+  mode: auto
+---
+
+**完全な仕様：** [objectstack.ai の Expressions (CEL)](https://objectstack.ai/docs/data-modeling/formulas)。このページはその要約です。ObjectOS での使いどころと、いくつかの例を示します。
+
+ObjectOS は、定義に小さく安全な式が必要な場所で [CEL](https://github.com/google/cel-spec)（Common Expression Language）を使います。CEL には副作用も I/O もなく、サーバー上で評価されます。式からは、評価対象のレコードが `record`（その以前の状態が `previous`）として見え、実行ユーザーがいる場合はそのユーザーが `current_user` として見えます。
+
+## ObjectOS での使いどころ [#where-objectos-uses-it]
+
+| 場所 | 式が決めること |
+|:--|:--|
+| 数式フィールド | レコードから導出されるフィールドの値 |
+| フィールドの `requiredWhen`、`visibleWhen`、`readonlyWhen` | このレコードでフィールドが必須か、表示されるか、編集できるか |
+| 検証ルール | 書き込みが拒否されるかどうか（[検証ルール](/docs/build/data/validation-rules)） |
+| 共有ルール | ユーザーのグループにどのレコードが付与されるか（[レコードアクセス](/docs/configure/permissions/record-access)） |
+| アクションの `visible` / `disabled` | ボタンが表示されるかどうか |
+| フローの開始条件とその分岐 | フローが実行されるかどうか、どちらに進むか（[フローと自動化](/docs/build/automation/flows)） |
+| フィールドの `defaultValue` | 新しいレコードの初期値 |
+
+## 例 [#examples]
+
+**数式フィールド**：明細行の合計：
+
+```ts
+subtotal: Field.formula({
+  label: 'Subtotal',
+  expression: F`record.quantity * record.unit_price`,
+}),
+```
+
+**検証**：完了日は未来でなければならない。`script` ルールの `condition` は*無効な*レコードを記述します。これが true のとき、書き込みは拒否されます。
+
+```ts
+// One validation rule, an entry of the object's `validations`
+{
+  type: 'script',
+  name: 'close_date_in_future',
+  message: 'Close date must be in the future',
+  condition: P`record.close_date <= today()`,
+}
+```
+
+**表示条件**：商談が成立してから初めてフィールドを表示する：
+
+```ts
+close_reason: Field.textarea({
+  label: 'Close reason',
+  visibleWhen: P`record.stage == 'closed_won'`,
+}),
+```
+
+**フローの条件**：金額が大きい場合だけ、レコード変更フローを開始する：
+
+```ts
+// The `config` of a `start` node; the rest of the flow is omitted (see Flows).
+config: {
+  objectName: 'opportunity',
+  triggerType: 'record-after-update',
+  condition: P`record.amount >= 1000`,
+}
+```
+
+## 権限のチェック [#permission-checks]
+
+ObjectStack 17.5 以降、`current_user.can(object, verb)` は、実行ユーザーがオブジェクト権限を持っているかを尋ね、そのユーザーの実効的な権限に基づいて答えます。
+
+```ts
+discount: Field.percent({
+  label: 'Discount',
+  defaultValue: cel`current_user.can('crm_quote', 'edit') ? 10 : 0`,
+}),
+```
+
+サーバーは、選択肢の `visibleWhen`（ユーザーが選べない選択肢は `invalid_option` で拒否されます）、数式フィールド、CEL の `defaultValue` でこれに答えます。評価に権限のデータが伴わない場所（検証ルールがその一例です）では、`can()` は推測されるのではなく拒否され、式は失敗します。
+
+## 式が間違っているとき [#when-an-expression-is-wrong]
+
+黙って失敗することはありません。形式が不正な式や、オブジェクトにないフィールドを指定する式は、場所と「もしかして」のヒントを示して `os compile` で失敗します。実行時には、不正な式は `null` や `false` に評価されるのではなく、原因を特定したエラーを投げます。そのため、数式の値やガードの判断を黙って壊すのではなく、ログと監査証跡に失敗が表れます。
+
+## 関連項目 [#see-also]
+
+- [数式](/docs/build/data/formulas)：アプリにおける数式フィールド
+- [検証ルール](/docs/build/data/validation-rules)：書き込みを拒否する述語
+- [フィールドタイプ](./field-types)：数式フィールドと条件付きのプロパティ
