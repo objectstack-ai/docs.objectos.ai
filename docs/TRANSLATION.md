@@ -99,9 +99,15 @@ drift inside a single locale:
 | package | 包 | パッケージ |
 | template | 模板 | テンプレート |
 | seat | 席位 | シート |
+| action | 动作 | アクション |
+| operation | 操作 | 操作 |
 
 Note `仪表盘`, not `仪表板` — both appear in the corpus and the former is the
 established one.
+
+*action* is the ObjectStack action, a thing a user or agent runs (record and
+bulk actions, the row actions menu, `run_action`), so it is `动作`. *operation*
+(a CRUD or API operation) and a generic "act" stay `操作`.
 
 ## Register
 
