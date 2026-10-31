@@ -1,10 +1,10 @@
 ---
 title: プランと AI シート
 seoTitle: "ObjectOS Cloud のプラン：Free、Team、Enterprise と AI シート"
-description: ObjectOS Cloud のプラン（Free、Team、Enterprise）、唯一の有料シートである AI シート、アップグレードの方法、そしてプランに含まれないものをコンソールのどこで確認できるか。
+description: ObjectOS Cloud のプラン（Free、Team、Enterprise）、唯一の有料シートである AI シート、アップグレード、解約、シート数の変更の方法、請求元、そしてプランに含まれないものをコンソールのどこで確認できるか。
 editions: [cloud]
 translation:
-  source_sha: c5f15cf821325b61b91091b0b7377b4a9750dc285a87202f969b73eae1eb8b97
+  source_sha: 41b6faf0d1fed03c46a9c06784f4e33f6543c6e69088b25627a0d7e6c9eb989d
   guide_rev: 1
   mode: auto
 ---
@@ -32,7 +32,7 @@ ObjectOS Cloud は[パブリックプレビュー](/docs/editions/public-preview
 
 **AI シート**は、AI で構築し、データについて AI に質問できるメンバーです。[AI Builder](/docs/build/ai-builder) とアプリ内のアシスタントのことです。これが唯一の有料シートです。AI シートを持たないメンバー、閲覧者、そして [MCP](/docs/configure/mcp) 経由で自分の AI クライアントを使って構築する開発者には料金がかかりません。
 
-購入する AI シートの数は組織の設定で、チェックアウト時に選び、後から変更できます。それによって 3 つのものの大きさが決まります。
+購入する AI シートの数は組織の設定で、チェックアウト時に選び、[後から変更できます](#change-ai-seats)。それによって 3 つのものの大きさが決まります。
 
 - 組織の **AI 利用枠**。シートごとです（[AI クレジットと上限](/docs/cloud/ai-credits-and-limits)）。
 - **開発環境のプール**。2 つに加えてシートごとに 1 つです（[環境](/docs/cloud/environments)）。
@@ -49,6 +49,28 @@ ObjectOS Cloud は[パブリックプレビュー](/docs/editions/public-preview
 組織でまだオンライン決済が利用できない間は、ボタンは **Upgrade to Team** と表示され、代わりに **Billing** を開きます。そこで Team の **Contact sales** ボタンを押すと、私たちとともにアップグレードを始められます。
 
 Enterprise は営業担当者が支援します。**Billing** の Enterprise の列にある **Contact sales** を使ってください。
+
+## サブスクリプションを管理する [#manage-your-subscription]
+
+オンラインのチェックアウトで購入した Team プランはサブスクリプションで、オーナーまたは管理者が環境の **Settings → Plan and billing** から管理します。**Current plan** の行にある **Manage subscription** を選ぶと、Paddle のカスタマーポータルが新しいタブで開きます。ポータルでは次のことができます。
+
+- サブスクリプションを**解約**する。更新が止まり、支払い済みの期間の終わりまでプランはそのまま使えます。その後、組織は Free に戻り、何も削除されません（[ダウングレード](#downgrading)）。
+- **支払い方法**を更新する。
+- **取引**を確認し、**請求書**をダウンロードする。
+
+サブスクリプションの期間中、**Home** の **Plan and usage** カードには、オーナーと管理者に向けて **Next charge:** とその日付が表示されます。解約後は **Cancels at period end:** と、プランが終了する日が表示されます。
+
+**Manage subscription** が表示されるのは Team プランで、オーナーと管理者に対して、オンライン決済が利用できるようになってからです。請求書払いのプランには管理するオンラインのサブスクリプションがありません。Business と Enterprise にはこのボタンが表示されず、請求書払いの Team プランではサブスクリプションがないという応答が返ります。こうしたプランの変更や解約は [sales@objectos.ai](mailto:sales@objectos.ai) にご連絡ください。
+
+## AI シートを変更する [#change-ai-seats]
+
+コンソールではまだ AI シートの数を変更できず、カスタマーポータルでもシート数とプランは変更できません。AI シートを追加または削減するには、オーナーまたは管理者が、組織と必要なシート数を添えて [sales@objectos.ai](mailto:sales@objectos.ai) に連絡してください。私たちがサブスクリプション上で変更します。変更後は、AI 利用枠、開発環境のプール、シートの割り当て上限のすべてが新しい数に従います。
+
+## 支払い、請求書、返金 [#payment-invoices-and-refunds]
+
+コンソールでの購入（Team プランと [AI クレジットパック](/docs/cloud/ai-credits-and-limits#buy-ai-credits)）は、私たちの再販業者であり Merchant of Record である **Paddle.com** が販売します。Paddle がチェックアウトを運営し、売上税や VAT を計算し、領収書と請求書を発行します。そのため、カードの利用明細と領収書には ObjectOS ではなく **Paddle** と表示されます。請求書はカスタマーポータルにあります（[サブスクリプションを管理する](#manage-your-subscription)）。
+
+支払いが返金される条件と申請の方法は、www.objectos.ai の[返金・解約ポリシー](https://www.objectos.ai/en/refunds/)に記載されています。
 
 ## プランに含まれないものを確認する [#see-what-your-plan-leaves-out]
 
