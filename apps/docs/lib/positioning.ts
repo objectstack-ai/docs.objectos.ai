@@ -3,8 +3,9 @@
  *
  * ## Source of truth
  *
- * `objectstack-ai/objectstack` `README.md` at `main`: lines 7-16 carry the
- * headline and the four promises, lines 26-30 the sentence that defines ObjectOS.
+ * `objectstack-ai/objectstack` `README.md` at `main`: line 7 carries the
+ * headline, lines 9-10 the four promises, and lines 27-31 the sentence that
+ * names ObjectOS's three editions (objectstack#26148, docs.objectos.ai#341).
  * The maintainer's ruling of 2026-10-05 (objectos#171, Q4) makes that README the
  * single source of the positioning. This repository and www.objectos.ai both
  * quote it, and neither paraphrases it: when the positioning changes, the README
@@ -22,12 +23,22 @@
  * reads the literals below, so keep each one on the shape it parses: one
  * `export const NAME =` followed by a single quoted string.
  *
- * ## The one departure from the README's bytes
+ * ## The departures from the README's bytes
  *
- * `OBJECTOS_DEFINITION` reads "built on ObjectStack" where the README reads
- * "built on this stack". Inside the README the phrase has a referent; on this
- * site it has none, so the referent is spelled out. That is the only
- * substitution, and it is declared here so nobody corrects it back.
+ * `OBJECTOS_DEFINITION` starts mid-line, at "To run it," on README line 27; the
+ * sentence before it is about coding agents, not ObjectOS. From there it keeps
+ * every word in the README's order, with three changes, declared here so nobody
+ * corrects them back:
+ *
+ * 1. "the ObjectStack repository" where the README reads "this repository".
+ *    Inside the README the phrase has a referent; on this site it has none, so
+ *    the referent is spelled out.
+ * 2. The README's Markdown is dropped: the code spans around
+ *    `ghcr.io/objectstack-ai/objectstack` and `os start`, and the link on
+ *    "ObjectOS". This text ships as a meta description and a `/llms.txt` line,
+ *    where Markdown would show as raw characters.
+ * 3. "([Ship it](#ship-it))" after "free and self-hosted" is left out. It is a
+ *    link to a section of the README, which has no target here.
  *
  * ## No imports
  *
@@ -44,18 +55,20 @@ export const ONTOLOGY_HEADLINE = 'The ontology is the software.';
 export const ONTOLOGY_PROMISE =
   'One executable business ontology. AI writes it, the runtime runs it, agents operate it, you own it.';
 
-/** README lines 27-30: what ObjectOS is, with "this stack" spelled out (see above). */
+/** README lines 27-31: the three editions, with the three changes declared above. */
 export const OBJECTOS_DEFINITION =
-  "Want the same loop hosted, in the browser, nothing to install? That's ObjectOS, the commercial runtime environment built on ObjectStack.";
+  'To run it, the ObjectStack repository ships ObjectOS Community — the ghcr.io/objectstack-ai/objectstack image, os start and the Console, free and self-hosted — while ObjectOS Cloud is the hosted edition and ObjectOS Enterprise the self-managed, licensed one.';
 
 /**
- * The edition clause. Not in the README: fixed by the maintainer's rulings on
- * objectos#171 — Q1, ObjectOS still ships a self-managed edition, and Q2, a
- * Cloud tenant can export its ontology and run it on the open runtime — and
- * quoted verbatim by www.objectos.ai as well.
+ * The export clause. Not in the README: fixed by the maintainer's ruling on
+ * objectos#171, Q2, that a Cloud tenant can export its ontology and run it on
+ * the open runtime. It keeps the words this constant carried before #341,
+ * with "either edition" spelled out as the two editions it meant, because the
+ * definition above now names three. Q1, that ObjectOS still ships a
+ * self-managed edition, is now said by the README's sentence itself.
  */
 export const OBJECTOS_EDITIONS =
-  'ObjectOS runs hosted in the browser with nothing to install (ObjectOS Cloud) or self-managed on your own infrastructure (ObjectOS Enterprise), and on either edition you can export your ontology and run it on the open-source ObjectStack runtime.';
+  'On either ObjectOS Cloud or ObjectOS Enterprise, you can export your ontology and run it on the open-source ObjectStack runtime.';
 
 /**
  * The positioning paragraph every machine-facing surface carries, in this order
@@ -72,11 +85,11 @@ export const POSITIONING = [
 
 /**
  * The positioning in 160 characters or fewer, for the `/docs` meta description
- * (objectos#299). `POSITIONING` is 511, and a search snippet cut it off inside
+ * (objectos#299). `POSITIONING` is 517, and a search snippet cut it off inside
  * the headline, before the word "ObjectOS". So this one leads with ObjectOS and
- * the two editions. It is built from the words above: the README's definition,
- * the edition names, and "you own it" from the promise. It is not a fifth
- * README quote. The full paragraph stays the page's opening paragraph.
+ * its three editions. It is built from the words above: each edition's words
+ * in the README's sentence, and "you own it" from the promise. It is not a
+ * fifth README quote. The full paragraph stays the page's opening paragraph.
  */
 export const POSITIONING_SHORT =
-  'ObjectOS is the commercial runtime environment built on ObjectStack, hosted (ObjectOS Cloud) or self-managed (ObjectOS Enterprise). You own the ontology.';
+  'ObjectOS Community is free and self-hosted, ObjectOS Cloud the hosted edition, ObjectOS Enterprise the self-managed, licensed one. You own the ontology.';
