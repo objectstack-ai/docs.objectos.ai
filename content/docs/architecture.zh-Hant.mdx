@@ -5,7 +5,7 @@ seoTitle: "架構：執行什麼，資料在哪裡"
 description: 你實際在執行的是什麼 —— 寫給正在評估是否引入它的工程師。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 2ba24bbe881fd5788bce400a2ab8042ab41ee849a2af902d99573d2b2cfdb083
+  source_sha: bbe700e15ebafc61f77d67d087d1cb8632b4ae7bdc28e822dea794e6ae8fa0d1
   guide_rev: 1
   mode: auto
 ---
@@ -89,8 +89,8 @@ Kafka，也不需要單獨的快取層。等你需要時再加上它們；不必
 
 在 **ObjectOS Enterprise** 上 —— 也就是下面這張表所描述的自管理版本 ——
 下列任何內容都不會離開你的網路。在 **ObjectOS Cloud** 上，同樣的程序
-改為執行在我們的基礎設施中；無論哪個版本，本體本身都歸你：匯出它並在
-開源的 ObjectStack 執行時上執行。[資料駐留](/docs/reference/security#data-residency)
+改為執行在我們的基礎設施中；無論哪個版本，本體本身都是普通的 ObjectStack
+後設資料，把它匯出到開源的 ObjectStack 執行時上執行尚在計劃中。[資料駐留](/docs/reference/security#data-residency)
 列出了每一類資料、它存放在哪裡，以及它是否會離開你的網路。
 
 自管理的 ObjectOS 會線上校驗許可證；Enterprise 物理隔離許可證則離線

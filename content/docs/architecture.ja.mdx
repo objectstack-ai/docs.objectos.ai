@@ -4,7 +4,7 @@ seoTitle: "アーキテクチャ：何が動き、データがどこにあるか
 description: 実際に何を動かすことになるのか。導入するかどうかを評価しているエンジニアのために。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 2ba24bbe881fd5788bce400a2ab8042ab41ee849a2af902d99573d2b2cfdb083
+  source_sha: bbe700e15ebafc61f77d67d087d1cb8632b4ae7bdc28e822dea794e6ae8fa0d1
   guide_rev: 1
   mode: auto
 ---
@@ -67,7 +67,7 @@ ObjectOS runtime
 
 ## データの置き場所 [#where-your-data-lives]
 
-**ObjectOS Enterprise**（この表が記述するセルフマネージドのエディション）では、以下のものはどれもネットワークの外に出ません。**ObjectOS Cloud** では、同じプロセスが代わりに私たちのインフラストラクチャで動作します。どちらのエディションでも、オントロジー自体はあなたのものです。エクスポートして、オープンソースの ObjectStack ランタイムで実行できます。[データレジデンシー](/docs/reference/security#data-residency)には、データの各分類について、どこに保存され、ネットワークの外に出るかどうかが記載されています。
+**ObjectOS Enterprise**（この表が記述するセルフマネージドのエディション）では、以下のものはどれもネットワークの外に出ません。**ObjectOS Cloud** では、同じプロセスが代わりに私たちのインフラストラクチャで動作します。どちらのエディションでも、オントロジー自体は通常の ObjectStack メタデータです。エクスポートしてオープンソースの ObjectStack ランタイムで実行する機能は計画中です。[データレジデンシー](/docs/reference/security#data-residency)には、データの各分類について、どこに保存され、ネットワークの外に出るかどうかが記載されています。
 
 セルフマネージドの ObjectOS はライセンスをオンラインで検証します。Enterprise のエアギャップライセンスはオフラインで検証します。したがって、インターネットにまったくアクセスできないデプロイメントも動作し続けます。サポートされるライセンスとクラウドの姿勢の組み合わせについては、[エアギャップ](/docs/deploy/air-gapped)を参照してください。
 

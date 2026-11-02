@@ -5,12 +5,12 @@ seoTitle: "文件：開始、構建、部署、運維"
 description: "ObjectOS Community 免費且自託管，ObjectOS Cloud 是託管版本，ObjectOS Enterprise 是自管理、需許可的版本。本體歸你所有。"
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: a761d9c5d6626f005f40b9463d1126cbc14bdc255df4a692b7d953243fc284f5
+  source_sha: a094a61ace740d1dca8c9558c150f4a779dcbc4827165c989c34ecb9554da791
   guide_rev: 1
   mode: auto
 ---
 
-本體就是軟體。一個可執行的業務本體：AI 編寫它，執行時執行它，Agent 操作它，你擁有它。為了執行它，ObjectStack 倉庫提供 ObjectOS Community —— ghcr.io/objectstack-ai/objectstack 映象、os start 和 Console，免費且自託管 —— 而 ObjectOS Cloud 是託管版本，ObjectOS Enterprise 是自管理、需許可的版本。無論在 ObjectOS Cloud 還是 ObjectOS Enterprise 上，你都可以匯出你的本體，並在開源的 ObjectStack 執行時上執行它。
+本體就是軟體。一個可執行的業務本體：AI 編寫它，執行時執行它，Agent 操作它，你擁有它。為了執行它，ObjectStack 倉庫提供 ObjectOS Community —— ghcr.io/objectstack-ai/objectstack 映象、os start 和 Console，免費且自託管 —— 而 ObjectOS Cloud 是託管版本，ObjectOS Enterprise 是自管理、需許可的版本。你的本體是普通的 ObjectStack 後設資料。從 ObjectOS Cloud 或 ObjectOS Enterprise 匯出本體、在開源的 ObjectStack 執行時上執行，目前尚在計劃中。
 
 向內建的 [AI Builder](/docs/build/ai-builder) 描述業務需要什麼 —— 一個
 服務檯、一條審批流程、一個 CRM —— 或者安裝一個模板，它寫出的本體會立即
@@ -48,9 +48,9 @@ translation:
 
 | 你正在用 | 痛點 | ObjectOS 給你什麼 |
 |---|---|---|
-| **Retool / Appsmith** | UI 構建器很好，但你的資料放在他們的雲裡，價格隨使用者數增長 | 託管（ObjectOS Cloud）或在你的網路內（ObjectOS Enterprise）；構建在開源的 ObjectStack（Apache-2.0）之上，所以本體由你匯出；沒有按席位收的稅 —— 只收 AI 席位 |
-| **Supabase / Firebase** | 後端即服務很快，但被廠商鎖定；天生就是多租戶 SaaS | 同樣的開發體驗（自動 API、認證、儲存），但定義歸你：匯出它並在開源的 ObjectStack 執行時上執行，或在你自己的資料庫上執行 ObjectOS Enterprise |
-| **Salesforce / NetSuite** | 平臺強大，定製痛苦，按席位的費用高得嚇人 | 熟悉的詞彙（物件、欄位、許可權集、共享規則），但定義是一個開放的本體：AI 編寫，Agent 操作，你可以把它匯出到 Apache-2.0 執行時；託管或自管理，沒有席位稅 —— 只讀使用者和非 AI 使用者免費 |
+| **Retool / Appsmith** | UI 構建器很好，但你的資料放在他們的雲裡，價格隨使用者數增長 | 託管（ObjectOS Cloud）或在你的網路內（ObjectOS Enterprise）；本體是開源 ObjectStack（Apache-2.0）的普通後設資料，匯出到該執行時尚在計劃中；沒有按席位收的稅 —— 只收 AI 席位 |
+| **Supabase / Firebase** | 後端即服務很快，但被廠商鎖定；天生就是多租戶 SaaS | 同樣的開發體驗（自動 API、認證、儲存），但定義歸你：在你自己的資料庫上執行 ObjectOS Enterprise，或在你自己的機器上執行 ObjectOS Community；從 ObjectOS Cloud 匯出到開放的 ObjectStack 執行時尚在計劃中 |
+| **Salesforce / NetSuite** | 平臺強大，定製痛苦，按席位的費用高得嚇人 | 熟悉的詞彙（物件、欄位、許可權集、共享規則），但定義是一個開放的本體：AI 編寫，Agent 操作，是 Apache-2.0 ObjectStack 執行時的普通後設資料，匯出到該執行時尚在計劃中；託管或自管理，沒有席位稅 —— 只讀使用者和非 AI 使用者免費 |
 | **自己從頭搭（Next + Prisma + NextAuth）** | 每次都要重做 RBAC、審計、檔案上傳、設定、Webhook、任務 | 只交付真正的業務邏輯；平臺的基礎設施已經在那裡了 |
 
 ## 開箱即得 [#what-you-get-out-of-the-box]
@@ -66,8 +66,8 @@ translation:
 ## 什麼始終歸你 [#what-stays-yours]
 
 無論哪個版本，本體都歸你：你的物件、欄位、關係、動作、許可權、流程和
-Agent 定義都是普通的 ObjectStack 後設資料，你可以匯出它們並在開源的
-ObjectStack 執行時上執行。在 **ObjectOS Enterprise** 上，其他一切也都
+Agent 定義都是普通的 ObjectStack 後設資料；把它們匯出到開源的 ObjectStack
+執行時上執行，目前尚在計劃中。在 **ObjectOS Enterprise** 上，其他一切也都
 留在你這裡：[資料駐留](/docs/reference/security#data-residency) 列出了
 每一類資料、它存放在哪裡，以及它是否會離開你的網路。
 
