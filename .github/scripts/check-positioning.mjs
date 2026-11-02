@@ -41,6 +41,7 @@ const STALE = [
   /[Dd]oes\s+not\s+phone\s+home/,
   /ObjectOS\s+is\s+distributed\s+under\s+the\s+Apache/, // ObjectOS only: the open ObjectStack runtime is, and may say so
   /[Cc]ustomer-hosted\s+runtime/,
+  /[Cc]ommercial\s+runtime\s+environment/, // the two-edition definition objectstack#26148 retired (#341, #417)
 ];
 const OPEN_SOURCE = /Open[\s-]+source,\s+Apache-2\.0/i; // checked inside the glossary's ObjectOS entry only
 
@@ -166,7 +167,7 @@ const A_BAD = {
 };
 const B_BAD = ['ObjectStack Protocol', 'ObjectStack Documentation', 'Object OS', 'objectOS', 'ObjectOs'];
 const C_OK = 'No seats, no license server. Does ObjectOS phone home?\n\n```\nObjectOS is a self-hosted runtime\n```\n\n{/* was: never phones home */}\n';
-const C_BAD = 'ObjectOS is a self-hosted\nruntime. It never phones home, does not call home, never calls home.\n\nNo license server. Fully\nself-contained, inside your firewall.\n';
+const C_BAD = 'ObjectOS is a self-hosted\nruntime. It never phones home, does not call home, never calls home.\n\nNo license server. Fully\nself-contained, inside your firewall. The commercial runtime\nenvironment built on the framework.\n';
 const LEGAL_OK = "const content = {\n  en: {\n    text: 'ObjectOS Cloud is hosted. The open-source ObjectStack runtime has no telemetry, no license check, and no update ping.',\n  },\n  'zh-Hans': {\n    text: 'customer-hosted runtime; does not phone home',\n  },\n};\n";
 const LEGAL_BAD = "  en: {\n    text: 'ObjectOS is distributed under the Apache License 2.0. ObjectOS is a customer-hosted\nruntime that does not phone home.',\n  },\n";
 const glossary = (entry) => [GLOSSARY, `### ObjectOS\n\n${entry}\n\n### ObjectStack\n\nOpen source, Apache-2.0.\n`];
@@ -176,7 +177,7 @@ const CASES = [
   ['(b) ObjectOS, the host and the package scope', () => ruleB([['a.html', 'Intro | ObjectOS, docs.objectos.ai, @objectos/docs']]), 0],
   ['(b) the five wrong spellings, one file each', () => ruleB(B_BAD.map((s, i) => [`${i}.html`, `<p>${s} boots.</p>`])), 5],
   ['(c) list form, a question, a fenced quote, a comment', () => ruleC([glossary('Commercial. Not open source.'), ['a.mdx', C_OK]]), 0],
-  ['(c) the eight stale sentences, three wrapped', () => ruleC([glossary('The runtime. Open\nsource, Apache-2.0.'), ['a.mdx', C_BAD]]), 8],
+  ['(c) the nine stale sentences, four wrapped', () => ruleC([glossary('The runtime. Open\nsource, Apache-2.0.'), ['a.mdx', C_BAD]]), 9],
   ['(c) a legal page: a true en entry; its stale zh-Hans entry is not read', () => ruleC([glossary('Commercial.'), [LEGAL[0], englishEntry(LEGAL_OK)]]), 0],
   ['(c) a legal page: the three licence sentences, one wrapped; a page with no en entry', () => ruleC([glossary('Commercial.'), [LEGAL[0], englishEntry(LEGAL_BAD)], [LEGAL[1], englishEntry('export default 1;\n')]]), 4],
 ];

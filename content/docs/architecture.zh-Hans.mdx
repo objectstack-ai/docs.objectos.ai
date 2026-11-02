@@ -4,7 +4,7 @@ seoTitle: "架构：运行什么，数据在哪里"
 description: 你实际在运行的是什么 —— 写给正在评估是否引入它的工程师。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 9292459ed8a30885f3b5c660fb772187d5d1edb8ead66c12839ab7900dcbef3f
+  source_sha: 2ba24bbe881fd5788bce400a2ab8042ab41ee849a2af902d99573d2b2cfdb083
   guide_rev: 1
   mode: auto
 ---
@@ -126,7 +126,7 @@ API 密钥进行认证，同样的权限检查约束着它的工具调用能读�
 |---|---|---|
 | **框架**（`@objectstack/*`） | 开源的内核、ObjectQL、插件、驱动 | npm —— 在构建时引入 |
 | **控制平面**（可选） | 发布编译好的 `objectstack.json` 产物；你可以使用托管的 ObjectOS Cloud、自己运行一个，或者完全不用 | 你的 CI、我们的云，或者你的笔记本 |
-| **ObjectOS** | 构建在框架之上的商业运行时环境 | **ObjectOS Cloud**（由我们运维）或**你的基础设施**（ObjectOS Enterprise） |
+| **ObjectOS** | ObjectOS Community 免费且自托管，ObjectOS Cloud 是托管版本，ObjectOS Enterprise 是自管理、需许可的版本 | 自托管（**ObjectOS Community**）、托管（**ObjectOS Cloud**）或自管理（**ObjectOS Enterprise**） |
 
 如果你只交付一个应用，就不需要控制平面 —— 在你的 CI 中把
 `objectstack.config.ts → dist/objectstack.json` 编译好，然后把 JSON 放进
