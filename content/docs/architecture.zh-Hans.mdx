@@ -4,7 +4,7 @@ seoTitle: "架构：运行什么，数据在哪里"
 description: 你实际在运行的是什么 —— 写给正在评估是否引入它的工程师。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 2ba24bbe881fd5788bce400a2ab8042ab41ee849a2af902d99573d2b2cfdb083
+  source_sha: bbe700e15ebafc61f77d67d087d1cb8632b4ae7bdc28e822dea794e6ae8fa0d1
   guide_rev: 1
   mode: auto
 ---
@@ -88,8 +88,8 @@ Kafka，也不需要单独的缓存层。等你需要时再加上它们；不必
 
 在 **ObjectOS Enterprise** 上 —— 也就是下面这张表所描述的自管理版本 ——
 下列任何内容都不会离开你的网络。在 **ObjectOS Cloud** 上，同样的进程
-改为运行在我们的基础设施中；无论哪个版本，本体本身都归你：导出它并在
-开源的 ObjectStack 运行时上运行。[数据驻留](/docs/reference/security#data-residency)
+改为运行在我们的基础设施中；无论哪个版本，本体本身都是普通的 ObjectStack
+元数据，把它导出到开源的 ObjectStack 运行时上运行尚在计划中。[数据驻留](/docs/reference/security#data-residency)
 列出了每一类数据、它存放在哪里，以及它是否会离开你的网络。
 
 自管理的 ObjectOS 会在线校验许可证；Enterprise 物理隔离许可证则离线

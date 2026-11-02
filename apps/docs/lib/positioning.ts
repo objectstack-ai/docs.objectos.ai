@@ -61,14 +61,15 @@ export const OBJECTOS_DEFINITION =
 
 /**
  * The export clause. Not in the README: fixed by the maintainer's ruling on
- * objectos#171, Q2, that a Cloud tenant can export its ontology and run it on
- * the open runtime. It keeps the words this constant carried before #341,
- * with "either edition" spelled out as the two editions it meant, because the
- * definition above now names three. Q1, that ObjectOS still ships a
- * self-managed edition, is now said by the README's sentence itself.
+ * docs.objectos.ai#334, Q1, that exporting a Cloud or Enterprise tenant's
+ * ontology to run it on the open runtime is planned, not shipped. Until that
+ * mechanism ships, the ruling supersedes objectos#171, Q2, which had said a
+ * tenant can do it today. The first sentence keeps what is true now; the
+ * second names the export as planned, with no date. Q1 of #171, that ObjectOS
+ * still ships a self-managed edition, is said by the README's sentence itself.
  */
 export const OBJECTOS_EDITIONS =
-  'On either ObjectOS Cloud or ObjectOS Enterprise, you can export your ontology and run it on the open-source ObjectStack runtime.';
+  'Your ontology is ordinary ObjectStack metadata. Exporting it from ObjectOS Cloud or ObjectOS Enterprise to run on the open-source ObjectStack runtime is planned.';
 
 /**
  * The positioning paragraph every machine-facing surface carries, in this order
@@ -85,7 +86,7 @@ export const POSITIONING = [
 
 /**
  * The positioning in 160 characters or fewer, for the `/docs` meta description
- * (objectos#299). `POSITIONING` is 517, and a search snippet cut it off inside
+ * (objectos#299). `POSITIONING` is 550, and a search snippet cut it off inside
  * the headline, before the word "ObjectOS". So this one leads with ObjectOS and
  * its three editions. It is built from the words above: each edition's words
  * in the README's sentence, and "you own it" from the promise. It is not a

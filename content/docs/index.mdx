@@ -10,9 +10,9 @@ it, the runtime runs it, agents operate it, you own it. To run it, the
 ObjectStack repository ships ObjectOS Community — the
 ghcr.io/objectstack-ai/objectstack image, os start and the Console, free and
 self-hosted — while ObjectOS Cloud is the hosted edition and ObjectOS
-Enterprise the self-managed, licensed one. On either ObjectOS Cloud or
-ObjectOS Enterprise, you can export your ontology and run it on the
-open-source ObjectStack runtime.
+Enterprise the self-managed, licensed one. Your ontology is ordinary
+ObjectStack metadata. Exporting it from ObjectOS Cloud or ObjectOS
+Enterprise to run on the open-source ObjectStack runtime is planned.
 
 Describe what the business needs to the built-in
 [AI Builder](/docs/build/ai-builder) — a helpdesk, an approval flow, a CRM
@@ -55,9 +55,9 @@ in, and:
 
 | You're using | Pain point | What ObjectOS gives you |
 |---|---|---|
-| **Retool / Appsmith** | UI builder is great, but your data sits in their cloud and their pricing scales with users | Hosted (ObjectOS Cloud) or inside your network (ObjectOS Enterprise); built on open-source ObjectStack (Apache-2.0), so the ontology is yours to export; no seat tax — AI seats only |
-| **Supabase / Firebase** | Backend-as-a-service is fast but vendor-locked; multi-tenant SaaS by design | Same DX (auto APIs, auth, storage), but the definition is yours: export it and run it on the open ObjectStack runtime, or run ObjectOS Enterprise on your own database |
-| **Salesforce / NetSuite** | Powerful platform, painful customization, eye-watering per-seat cost | A familiar vocabulary (objects, fields, permission sets, sharing rules), but the definition is an open ontology that AI writes, agents operate, and you can export to the Apache-2.0 runtime; hosted or self-managed, no seat tax — viewers and non-AI users are free |
+| **Retool / Appsmith** | UI builder is great, but your data sits in their cloud and their pricing scales with users | Hosted (ObjectOS Cloud) or inside your network (ObjectOS Enterprise); the ontology is ordinary metadata for open-source ObjectStack (Apache-2.0), with export to that runtime planned; no seat tax — AI seats only |
+| **Supabase / Firebase** | Backend-as-a-service is fast but vendor-locked; multi-tenant SaaS by design | Same DX (auto APIs, auth, storage), but the definition is yours: run ObjectOS Enterprise on your own database, or ObjectOS Community on your own machine; export from ObjectOS Cloud to the open ObjectStack runtime is planned |
+| **Salesforce / NetSuite** | Powerful platform, painful customization, eye-watering per-seat cost | A familiar vocabulary (objects, fields, permission sets, sharing rules), but the definition is an open ontology that AI writes and agents operate, as ordinary metadata for the Apache-2.0 ObjectStack runtime, with export to it planned; hosted or self-managed, no seat tax — viewers and non-AI users are free |
 | **Rolling your own (Next + Prisma + NextAuth)** | You rebuild RBAC, audit, file uploads, settings, webhooks, jobs every time | Ship the actual business logic; the platform plumbing is already there |
 
 ## What you get out of the box
@@ -74,8 +74,8 @@ in, and:
 
 On either edition, the ontology: your objects, fields, relations, actions,
 permissions, flows and agent definitions are ordinary ObjectStack metadata,
-and you can export them and run them on the open-source ObjectStack
-runtime. On **ObjectOS Enterprise**, everything else stays with you too:
+and exporting them to run on the open-source ObjectStack runtime is
+planned. On **ObjectOS Enterprise**, everything else stays with you too:
 [Data residency](/docs/reference/security#data-residency) lists each class
 of data, where it lives, and whether it leaves your network.
 

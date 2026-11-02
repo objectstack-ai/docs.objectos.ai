@@ -4,12 +4,12 @@ seoTitle: "ドキュメント：開始、構築、デプロイ、運用"
 description: "ObjectOS Community は無料のセルフホスト版、ObjectOS Cloud はホスト型のエディション、ObjectOS Enterprise はセルフマネージドのライセンス制のエディションです。オントロジーはあなたのものです。"
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: a761d9c5d6626f005f40b9463d1126cbc14bdc255df4a692b7d953243fc284f5
+  source_sha: a094a61ace740d1dca8c9558c150f4a779dcbc4827165c989c34ecb9554da791
   guide_rev: 1
   mode: auto
 ---
 
-オントロジーこそがソフトウェアです。実行可能なひとつのビジネスオントロジー。AI が書き、ランタイムが実行し、エージェントが操作し、あなたが所有します。それを実行するために、ObjectStack リポジトリは ObjectOS Community（ghcr.io/objectstack-ai/objectstack イメージ、os start、Console からなる、無料のセルフホスト版）を提供し、ObjectOS Cloud はホスト型のエディション、ObjectOS Enterprise はセルフマネージドのライセンス制のエディションです。ObjectOS Cloud と ObjectOS Enterprise のどちらでも、オントロジーをエクスポートして、オープンソースの ObjectStack ランタイムで実行できます。
+オントロジーこそがソフトウェアです。実行可能なひとつのビジネスオントロジー。AI が書き、ランタイムが実行し、エージェントが操作し、あなたが所有します。それを実行するために、ObjectStack リポジトリは ObjectOS Community（ghcr.io/objectstack-ai/objectstack イメージ、os start、Console からなる、無料のセルフホスト版）を提供し、ObjectOS Cloud はホスト型のエディション、ObjectOS Enterprise はセルフマネージドのライセンス制のエディションです。オントロジーは通常の ObjectStack メタデータです。ObjectOS Cloud または ObjectOS Enterprise からエクスポートしてオープンソースの ObjectStack ランタイムで実行する機能は、計画中です。
 
 ビジネスに必要なもの（ヘルプデスク、承認フロー、CRM）を組み込みの [AI Builder](/docs/build/ai-builder) に説明するか、テンプレートをインストールすると、それが書いたオントロジーは即座に稼働します。REST API、生成された画面、認証、RBAC、監査ログ、ファイルストレージ、バックグラウンドジョブ、Webhook、そしてエージェントが呼び出せる MCP ツールとして公開されたすべてのオブジェクトです。各変更は小さく読みやすい差分で、実行前に人が承認します。
 
@@ -33,9 +33,9 @@ translation:
 
 | 今使っているもの | 課題 | ObjectOS が提供するもの |
 |---|---|---|
-| **Retool / Appsmith** | UI ビルダーは優れているが、データは彼らのクラウドにあり、料金はユーザー数に比例して増える | ホスト型（ObjectOS Cloud）またはあなたのネットワーク内（ObjectOS Enterprise）。オープンソースの ObjectStack（Apache-2.0）上に構築されているため、オントロジーは自由にエクスポートできます。シート課金なし、AI シートのみ |
-| **Supabase / Firebase** | BaaS は速いがベンダーロックイン。設計上マルチテナント SaaS | 同じ開発体験（自動 API、認証、ストレージ）ですが、定義はあなたのものです。エクスポートしてオープンな ObjectStack ランタイムで実行するか、自社のデータベース上で ObjectOS Enterprise を実行します |
-| **Salesforce / NetSuite** | 強力なプラットフォームだが、カスタマイズは苦痛で、シート単価は目が飛び出るほど高い | 馴染みのある語彙（オブジェクト、フィールド、権限セット、共有ルール）ですが、定義は AI が書き、エージェントが操作し、Apache-2.0 ランタイムへエクスポートできるオープンなオントロジーです。ホスト型でもセルフマネージドでも、シート課金なし。閲覧者と AI を使わないユーザーは無料です |
+| **Retool / Appsmith** | UI ビルダーは優れているが、データは彼らのクラウドにあり、料金はユーザー数に比例して増える | ホスト型（ObjectOS Cloud）またはあなたのネットワーク内（ObjectOS Enterprise）。オントロジーはオープンソースの ObjectStack（Apache-2.0）の通常のメタデータで、そのランタイムへのエクスポートは計画中です。シート課金なし、AI シートのみ |
+| **Supabase / Firebase** | BaaS は速いがベンダーロックイン。設計上マルチテナント SaaS | 同じ開発体験（自動 API、認証、ストレージ）ですが、定義はあなたのものです。自社のデータベース上で ObjectOS Enterprise を、自分のマシン上で ObjectOS Community を実行できます。ObjectOS Cloud からオープンな ObjectStack ランタイムへのエクスポートは計画中です |
+| **Salesforce / NetSuite** | 強力なプラットフォームだが、カスタマイズは苦痛で、シート単価は目が飛び出るほど高い | 馴染みのある語彙（オブジェクト、フィールド、権限セット、共有ルール）ですが、定義は AI が書き、エージェントが操作するオープンなオントロジーで、Apache-2.0 の ObjectStack ランタイムの通常のメタデータです。そのランタイムへのエクスポートは計画中です。ホスト型でもセルフマネージドでも、シート課金なし。閲覧者と AI を使わないユーザーは無料です |
 | **自前で構築（Next + Prisma + NextAuth）** | RBAC、監査、ファイルアップロード、設定、Webhook、ジョブを毎回作り直す | 本来のビジネスロジックを出荷できます。プラットフォームの配管はすでに揃っています |
 
 ## 標準で得られるもの [#what-you-get-out-of-the-box]
@@ -50,7 +50,7 @@ translation:
 
 ## あなたの手元に残るもの [#what-stays-yours]
 
-どちらのエディションでも、オントロジーはあなたのものです。オブジェクト、フィールド、リレーション、アクション、権限、フロー、エージェント定義は通常の ObjectStack メタデータであり、エクスポートしてオープンソースの ObjectStack ランタイムで実行できます。**ObjectOS Enterprise** では、それ以外のものもすべてあなたの手元に残ります。[データレジデンシー](/docs/reference/security#data-residency)には、データの各分類について、どこに保存され、ネットワークの外に出るかどうかが記載されています。
+どちらのエディションでも、オントロジーはあなたのものです。オブジェクト、フィールド、リレーション、アクション、権限、フロー、エージェント定義は通常の ObjectStack メタデータです。それらをエクスポートしてオープンソースの ObjectStack ランタイムで実行する機能は計画中です。**ObjectOS Enterprise** では、それ以外のものもすべてあなたの手元に残ります。[データレジデンシー](/docs/reference/security#data-residency)には、データの各分類について、どこに保存され、ネットワークの外に出るかどうかが記載されています。
 
 セルフマネージドの ObjectOS はライセンスをオンラインで検証します。Enterprise のエアギャップライセンスはオフラインで検証します。したがって、インターネットにアクセスできないネットワークは Enterprise の正式なデプロイ先です。[エアギャップ](/docs/deploy/air-gapped)を参照してください。
 
