@@ -2,10 +2,10 @@
 # @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
 title: 套餐與 AI 席位
 seoTitle: "ObjectOS Cloud 套餐：Free、Team、Enterprise 與 AI 席位"
-description: ObjectOS Cloud 的套餐 —— Free、Team 和 Enterprise —— AI 席位是唯一付費的席位、如何升級，以及控制台在哪裡顯示你的套餐不包含什麼。
+description: ObjectOS Cloud 的套餐 —— Free、Team 和 Enterprise —— AI 席位是唯一付費的席位、如何升級、取消或更改席位、由誰向你收費，以及控制台在哪裡顯示你的套餐不包含什麼。
 editions: [cloud]
 translation:
-  source_sha: c5f15cf821325b61b91091b0b7377b4a9750dc285a87202f969b73eae1eb8b97
+  source_sha: 41b6faf0d1fed03c46a9c06784f4e33f6543c6e69088b25627a0d7e6c9eb989d
   guide_rev: 1
   mode: auto
 ---
@@ -38,7 +38,7 @@ ObjectOS Cloud 處於[公開預覽](/docs/editions/public-preview)階段：
 席位。沒有 AI 席位的成員、只讀使用者，以及通過自己的 AI 客戶端經
 [MCP](/docs/configure/mcp) 構建的開發者，都不收費。
 
-你購買的 AI 席位數量是組織的一項設定，在結賬時選定，之後可以更改。它決定
+你購買的 AI 席位數量是組織的一項設定，在結賬時選定，[之後可以更改](#change-ai-seats)。它決定
 三件事的規模：
 
 - 組織的 **AI 額度**，按席位計算
@@ -64,6 +64,28 @@ ObjectOS Cloud 處於[公開預覽](/docs/editions/public-preview)階段：
 **Contact sales** 按鈕會與我們一起開始升級。
 
 Enterprise 由銷售協助：在 **Billing** 的 Enterprise 一列點選 **Contact sales**。
+
+## 管理你的訂閱 [#manage-your-subscription]
+
+通過線上結賬購買的 Team 套餐是一項訂閱，由所有者或管理員在某個環境的 **Settings → Plan and billing** 中管理：**Current plan** 一行上的 **Manage subscription** 會在新標籤頁中開啟 Paddle 的客戶門戶。在門戶中你可以：
+
+- **取消**訂閱。訂閱不再續費，套餐保留到你已付費週期的結束；之後組織回到 Free，不會刪除任何內容（[降級](#downgrading)）；
+- 更新**付款方式**；
+- 檢視你的**交易記錄**並下載**發票**。
+
+訂閱期間，**Home** 上的 **Plan and usage** 卡片會向所有者和管理員顯示 **Next charge:** 及其日期；取消之後，它顯示 **Cancels at period end:** 以及套餐結束的日期。
+
+**Manage subscription** 只在 Team 套餐上、在線上支付開放後提供給所有者和管理員。按發票計費的套餐沒有可管理的線上訂閱：Business 和 Enterprise 從不顯示該按鈕，按發票計費的 Team 套餐會答覆它沒有線上訂閱。此類套餐的更改或取消請通過 [sales@objectos.ai](mailto:sales@objectos.ai) 聯絡我們。
+
+## 更改 AI 席位 [#change-ai-seats]
+
+控制台目前還不能更改 AI 席位數量，客戶門戶既不能更改席位數量，也不能更改套餐。要增加或減少 AI 席位，由所有者或管理員寫信到 [sales@objectos.ai](mailto:sales@objectos.ai)，說明組織以及它應有的席位數量，我們會在你的訂閱上進行更改。更改之後，AI 額度、開發環境池以及席位分配上限都會隨新的數量變化。
+
+## 付款、發票與退款 [#payment-invoices-and-refunds]
+
+控制台中的購買 —— Team 套餐和 [AI 點數包](/docs/cloud/ai-credits-and-limits#buy-ai-credits) —— 由我們的經銷商和記錄商戶（Merchant of Record）**Paddle.com** 售賣。Paddle 負責結賬、計算任何銷售稅或增值稅，並開具收據和發票，因此你的銀行卡賬單上的扣款和收據顯示的是 **Paddle**，而不是 ObjectOS。發票在客戶門戶中（[管理你的訂閱](#manage-your-subscription)）。
+
+款項何時可以退款以及如何申請，見 www.objectos.ai 上的[退款與取消政策](https://www.objectos.ai/en/refunds/)。
 
 ## 檢視你的套餐不包含什麼 [#see-what-your-plan-leaves-out]
 

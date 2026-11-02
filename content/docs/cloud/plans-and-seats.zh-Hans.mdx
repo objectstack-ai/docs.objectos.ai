@@ -1,10 +1,10 @@
 ---
 title: 套餐与 AI 席位
 seoTitle: "ObjectOS Cloud 套餐：Free、Team、Enterprise 与 AI 席位"
-description: ObjectOS Cloud 的套餐 —— Free、Team 和 Enterprise —— AI 席位是唯一付费的席位、如何升级，以及控制台在哪里显示你的套餐不包含什么。
+description: ObjectOS Cloud 的套餐 —— Free、Team 和 Enterprise —— AI 席位是唯一付费的席位、如何升级、取消或更改席位、由谁向你收费，以及控制台在哪里显示你的套餐不包含什么。
 editions: [cloud]
 translation:
-  source_sha: c5f15cf821325b61b91091b0b7377b4a9750dc285a87202f969b73eae1eb8b97
+  source_sha: 41b6faf0d1fed03c46a9c06784f4e33f6543c6e69088b25627a0d7e6c9eb989d
   guide_rev: 1
   mode: auto
 ---
@@ -37,7 +37,7 @@ ObjectOS Cloud 处于[公开预览](/docs/editions/public-preview)阶段：
 席位。没有 AI 席位的成员、只读用户，以及通过自己的 AI 客户端经
 [MCP](/docs/configure/mcp) 构建的开发者，都不收费。
 
-你购买的 AI 席位数量是组织的一项设置，在结账时选定，之后可以更改。它决定
+你购买的 AI 席位数量是组织的一项设置，在结账时选定，[之后可以更改](#change-ai-seats)。它决定
 三件事的规模：
 
 - 组织的 **AI 额度**，按席位计算
@@ -63,6 +63,28 @@ ObjectOS Cloud 处于[公开预览](/docs/editions/public-preview)阶段：
 **Contact sales** 按钮会与我们一起开始升级。
 
 Enterprise 由销售协助：在 **Billing** 的 Enterprise 一列点击 **Contact sales**。
+
+## 管理你的订阅 [#manage-your-subscription]
+
+通过在线结账购买的 Team 套餐是一项订阅，由所有者或管理员在某个环境的 **Settings → Plan and billing** 中管理：**Current plan** 一行上的 **Manage subscription** 会在新标签页中打开 Paddle 的客户门户。在门户中你可以：
+
+- **取消**订阅。订阅不再续费，套餐保留到你已付费周期的结束；之后组织回到 Free，不会删除任何内容（[降级](#downgrading)）；
+- 更新**付款方式**；
+- 查看你的**交易记录**并下载**发票**。
+
+订阅期间，**Home** 上的 **Plan and usage** 卡片会向所有者和管理员显示 **Next charge:** 及其日期；取消之后，它显示 **Cancels at period end:** 以及套餐结束的日期。
+
+**Manage subscription** 只在 Team 套餐上、在在线支付开放后提供给所有者和管理员。按发票计费的套餐没有可管理的在线订阅：Business 和 Enterprise 从不显示该按钮，按发票计费的 Team 套餐会答复它没有在线订阅。此类套餐的更改或取消请通过 [sales@objectos.ai](mailto:sales@objectos.ai) 联系我们。
+
+## 更改 AI 席位 [#change-ai-seats]
+
+控制台目前还不能更改 AI 席位数量，客户门户既不能更改席位数量，也不能更改套餐。要增加或减少 AI 席位，由所有者或管理员写信到 [sales@objectos.ai](mailto:sales@objectos.ai)，说明组织以及它应有的席位数量，我们会在你的订阅上进行更改。更改之后，AI 额度、开发环境池以及席位分配上限都会随新的数量变化。
+
+## 付款、发票与退款 [#payment-invoices-and-refunds]
+
+控制台中的购买 —— Team 套餐和 [AI 点数包](/docs/cloud/ai-credits-and-limits#buy-ai-credits) —— 由我们的经销商和记录商户（Merchant of Record）**Paddle.com** 售卖。Paddle 负责结账、计算任何销售税或增值税，并开具收据和发票，因此你的银行卡账单上的扣款和收据显示的是 **Paddle**，而不是 ObjectOS。发票在客户门户中（[管理你的订阅](#manage-your-subscription)）。
+
+款项何时可以退款以及如何申请，见 www.objectos.ai 上的[退款与取消政策](https://www.objectos.ai/en/refunds/)。
 
 ## 查看你的套餐不包含什么 [#see-what-your-plan-leaves-out]
 
