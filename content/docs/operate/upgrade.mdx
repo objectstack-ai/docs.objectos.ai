@@ -233,7 +233,9 @@ After the first boot:
   verifies.
 - **Rotate the JWT signing keys, and revoke and re-mint the share links that
   must stay private.** Their earlier values may have copies in the audit
-  trail, which the upgrade does not rewrite.
+  trail, which the upgrade does not rewrite. How you rotate the signing keys
+  depends on how your deployment supplies them, so follow your deployment's
+  own procedure.
 - **Resume, cancel or purge flow runs paused before the upgrade.** Their
   stored variables still hold credentials in clear.
 - **Optional, and only once you will not roll back past 17.7:**
