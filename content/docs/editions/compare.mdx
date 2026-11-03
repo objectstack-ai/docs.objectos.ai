@@ -8,8 +8,9 @@ editions: [community, cloud, enterprise]
 ObjectOS is one product in three editions. **ObjectOS Community** is the
 open-source runtime you run yourself. **ObjectOS Cloud** is the same product
 hosted for you, on the **Free** and **Team** plans. **ObjectOS Enterprise** is
-the licensed product you run on your own infrastructure; **Business** and
-**Business Self-Managed** are contract options under it. Prices and contracts
+the licensed product, sold by contract: on the hosted service, as the
+single-node **Enterprise Single-Node** license, or as a full private
+deployment. There is no Business plan on ObjectOS Cloud. Prices and contracts
 are on [License & Pricing](/docs/editions/license); this page is what each one
 does differently.
 
@@ -27,7 +28,9 @@ are not for every edition with the same icons.
 | Environments | As many as you deploy | One per organization | One per organization | As many as you deploy |
 | MCP requests | Set by your deployment | 20 / minute, 1,000 / day | 120 / minute, no daily cap | Set by your deployment |
 | Custom domain | Your own host | — | ✓ | Your own host |
-| Record- and field-level security | ✓ | — | ✓ | ✓ |
+| Record- and field-level security | ✓ | ✓ | ✓ | ✓ |
+| Approval workflows | ✓ | — | ✓ | ✓ |
+| Scheduled and time-relative flows | ✓ | — | ✓ | ✓ |
 | In-UI AI (AI Builder, "ask your data") | MCP only — bring your own model | Taste | ✓ | ✓ |
 | AI governance (action audit, guardrails, permission scoping) | — | — | — | ✓ |
 | Single sign-on with your identity provider | ✓ ([Authentication](/docs/configure/authentication)) | — | — | ✓ |
@@ -37,8 +40,12 @@ are not for every edition with the same icons.
 | Air-gapped operation | — | — | — | ✓ |
 | Support | Community | Community | Standard | SLA + dedicated |
 
-On ObjectOS Cloud, single sign-on and AI governance come with **Business**, a
-contract option of ObjectOS Enterprise on the hosted service. On a self-managed
+On ObjectOS Cloud, single sign-on with your identity provider and AI
+governance come with an **Enterprise** contract on the hosted service. The
+Enterprise Single-Node license carries the in-product AI, AI governance and
+single sign-on on one node, and leaves out what needs a full private
+deployment: clustering, several organizations, SCIM, air-gapped operation and
+hierarchy security. On a self-managed
 deployment, Community and Enterprise run the same runtime: everything in the
 Community column is in the Enterprise column too.
 
@@ -67,7 +74,7 @@ these docs already describe in detail:
   80%); and the MCP endpoint answers `429` past the plan's request limit. See
   [Environments](/docs/cloud/environments) and
   [Storage and Limits](/docs/cloud/storage-and-limits).
-- **A lapsed license never stops the runtime.** Business Self-Managed switches
+- **A lapsed license never stops the runtime.** Enterprise Single-Node switches
   its paid features off and keeps your data and runtime working; a full
   Enterprise deployment keeps the last paid version. See
   [License & Pricing](/docs/editions/license#faq).

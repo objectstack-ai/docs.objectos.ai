@@ -43,18 +43,18 @@ rate card, two deliveries, and the **AI seat** is the only unit of pricing.
 | | **Community** | **Free** | **Team** | **Enterprise** |
 |---|---|---|---|---|
 | Edition | ObjectOS Community | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise |
-| Delivery | **self-managed** | cloud | cloud | **self-managed (private deployment)** |
+| Delivery | **self-managed** | cloud | cloud | cloud by contract, or **self-managed** (single node or private deployment) |
 | Price | **Free** (Apache-2.0) | **Free** | **$24** / AI seat / mo, or $20 / AI seat / mo billed annually | Custom (volume) — [contact sales](mailto:sales@objectos.ai) |
 | In-UI AI (AI Builder + "ask your data") | MCP only (bring your own model) | taste | ✓ | ✓ |
 | AI governance (action audit, guardrails, permission scoping) | — | — | — | ✓ |
 | Clustering / HA, multi-org self-host, air-gap, SCIM | — | — | — | ✓ |
 | Support | community | community | standard | SLA + dedicated |
 
-Two **contract options under ObjectOS Enterprise** sit between Team and a
-full private deployment, priced as before: **Business** (SSO and AI
-governance on ObjectOS Cloud, **$54** / AI seat / mo, or $45 / AI seat / mo
-billed annually; priority support) and **Business Self-Managed** (the
-single-node entry option, **$540** / AI seat / yr). Both are sold by contract —
+ObjectOS Cloud is **Free** and **Team**; there is no Business plan. Team has
+no cap on members, records or objects. Everything above Team is an
+**Enterprise** contract, and its one priced entry is **Enterprise
+Single-Node** (formerly Business Self-Managed): **$540** / AI seat / yr on a
+single node, for 10–25 AI seats —
 [contact sales](mailto:sales@objectos.ai).
 
 Want to self-host **for free**? That's **ObjectOS Community** (MCP-only AI:
@@ -79,17 +79,25 @@ Enterprise contract.
 - **Cloud (Free / Team)** — fully hosted, self-serve. The price includes
   hosting and a generous monthly AI allowance (we run the model).
 - **Enterprise** — licensed ObjectOS, sold by contract, in three shapes:
-  - **Business** — a contract option on ObjectOS Cloud: SSO / SAML and AI
-    governance (action audit, guardrails, permission scoping) on the hosted
-    service, $54 / AI seat / mo or $45 / AI seat / mo billed annually,
-    priority support.
-  - **Business Self-Managed** — the single-node entry option: the Business
-    plan delivered as a **single-node Docker license** for **10–25 AI seats**
-    ($540/AI seat/yr, annual): in-UI AI and AI governance on your own
-    infrastructure, **bring your own model / key** (you pay your own LLM
-    cost — no platform AI bill or metering), card-paid, standard support. If
-    the license lapses, the runtime keeps running and your data stays intact —
-    the paid features simply switch off (it never bricks).
+  - **On ObjectOS Cloud** — single sign-on with your identity provider (OIDC
+    / SAML) and AI governance (action audit, guardrails, permission scoping)
+    on the hosted service, uncapped storage, priority support. Priced by
+    contract.
+  - **Enterprise Single-Node** — the single-node entry option, formerly
+    Business Self-Managed, on the same terms: a **single-node Docker
+    license** for **10–25 AI seats** ($540/AI seat/yr, annual): in-UI AI, AI
+    governance and single sign-on on your own infrastructure, **bring your
+    own model / key** (you pay your own LLM cost — no platform AI bill or
+    metering), online-validated license, card-paid, standard support. If the
+    license lapses, the runtime keeps running and your data stays intact —
+    the paid features simply switch off (it never bricks). Its name and its
+    contract state what it leaves out, all of which needs a full private
+    deployment: clustering / HA / multi-node, air-gapped or offline licenses,
+    several organizations on one deployment, SCIM and identity lifecycle,
+    hierarchy security, keeping the last paid version on non-renewal,
+    offline / wire payment and multi-year terms, priority / SLA / dedicated
+    support, enterprise connectors, compliance attestations, data residency,
+    and more than 25 AI seats.
   - **Full private deployment** — for everything beyond that: clustering /
     HA / multi-node, multi-organization self-host, data residency and
     **air-gapped** operation, SCIM and identity lifecycle, compliance
@@ -107,8 +115,8 @@ Enterprise.
 | Scenario | Choose |
 |---|---|
 | You want the platform **hosted and operated for you** | ObjectOS Cloud (Free → Team) |
-| You need **SSO and AI governance** on the hosted service | **Business**, a contract option of ObjectOS Enterprise on ObjectOS Cloud |
-| You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Business Self-Managed**, a contract option of ObjectOS Enterprise (single-node entry) |
+| You need **SSO with your identity provider and AI governance** on the hosted service | **ObjectOS Enterprise** on ObjectOS Cloud, by contract |
+| You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Enterprise Single-Node**, the single-node entry option of ObjectOS Enterprise |
 | You need **clustering / HA**, **multi-org**, **air-gap**, **SCIM**, compliance attestations, SLAs, or offline payment | **ObjectOS Enterprise**, full private deployment |
 | You self-host ObjectOS Community but need a **supported distribution with a commercial contract** (SLA, security-patch priority, named escalation) | **ObjectOS Runtime Subscription** — [contact sales](mailto:sales@objectos.ai) |
 | You want **free self-hosting** and bring your own AI over MCP | **ObjectOS Community** (open source) |
@@ -169,13 +177,13 @@ your code, and you owe nothing if your product makes money.
 
 Yes — that is **ObjectOS Community**: the same open mechanism, self-hosted,
 with MCP-only AI (bring your own model). The *licensed* self-managed edition
-is ObjectOS Enterprise, and both of its options (Business Self-Managed on a
-single node, or a full Enterprise deployment) add the in-product AI, AI
+is ObjectOS Enterprise, and both of its self-managed options (Enterprise
+Single-Node, or a full Enterprise deployment) add the in-product AI, AI
 governance and commercial support.
 
 ### Does the software stop working if I don't renew?
 
-It never bricks. Business Self-Managed degrades to the free-mechanism
+It never bricks. Enterprise Single-Node degrades to the free-mechanism
 behavior (paid features switch off; your data and runtime keep working).
 A full Enterprise deployment keeps the **last paid version perpetually** —
 you lose updates, new AI capabilities, and support, not your system.
