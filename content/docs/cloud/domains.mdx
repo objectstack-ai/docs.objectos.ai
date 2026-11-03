@@ -1,27 +1,26 @@
 ---
 title: Domains
-seoTitle: "ObjectOS Cloud Domains: Platform Subdomains and Your Own Domain"
-description: Every ObjectOS Cloud plan includes a branded platform subdomain; Team and above add your own domain to the production environment, proven by a TXT record, with the certificate issued for you.
+seoTitle: "ObjectOS Cloud Domains: Branded Platform Subdomains"
+description: Every ObjectOS Cloud environment answers at a branded platform subdomain, free on every plan. Change the label, or add a second one, from the environment's settings.
 editions: [cloud]
 ---
 
-An environment on ObjectOS Cloud can be reached at two kinds of address.
+An environment on ObjectOS Cloud answers at a **platform subdomain**: a label of
+your choice on the platform domain.
 
-| | **Platform subdomain** | **Your own domain** |
-|---|---|---|
-| Looks like | `acme` on the platform domain | `app.acme.com` |
-| Plans | Every plan, Free included | Team and above |
-| Environments | The organization's one environment | The organization's one environment |
-| How many | Add as many as you like | One per production environment on Team; more by contract |
-| Certificate | Covered by the platform's own | Issued for you once ownership is proven |
+| | **Platform subdomain** |
+|---|---|
+| Looks like | `acme` on the platform domain |
+| Plans | Every plan, Free included |
+| How many | Add as many as you like |
+| Certificate | Covered by the platform's own |
 
-The rules on this page were ruled on
-[cloud#1087](https://github.com/objectstack-ai/cloud/issues/1087) (platform
-subdomains free on every plan) and
-[cloud#2136](https://github.com/objectstack-ai/cloud/issues/2136) (your own
-domain).
+Platform subdomains are free on every plan, as ruled on
+[cloud#1087](https://github.com/objectstack-ai/cloud/issues/1087).
 
-## Platform subdomains
+ObjectOS Cloud does not offer pointing a domain you own at an environment.
+
+## Change the address
 
 Your environment's address is your organization's
 [slug](/docs/cloud/organization#the-organization-slug) on the platform domain.
@@ -33,62 +32,16 @@ A label is 4 to 63 lowercase letters, digits and dashes, with no dash at either
 end and no two in a row, and a few reserved words are refused. It does not have
 to start with your organization's slug.
 
+## Add a second address
+
 To add a second platform subdomain instead of replacing the first, use
 **Add Domain** in the same section. The address shown on the environment's
 **Overview** is the one to give people.
 
-## Your own domain
-
-On **Team** and above, the production environment can also answer at a
-subdomain of a domain you own, such as `app.acme.com`.
-
-1. **Add it.** In **Settings → Name and domain**, choose **Add Domain** (or
-   **Change Hostname**) and type the full hostname. It must be a subdomain —
-   at least three labels. A root domain such as `acme.com` is refused: use
-   `www.acme.com` or another subdomain.
-2. **Prove you own it.** The domain is created as **Pending Verification**,
-   and the console shows a TXT record to publish: name
-   `_objectos-challenge.<your hostname>`, with a value unique to this domain.
-   It also shows the CNAME target your hostname should point to.
-3. **Verify.** Once the TXT record is published, choose **Verify DNS** on the
-   domain. ObjectOS Cloud checks the record, then requests the certificate;
-   the domain moves through **Verified** and **Provisioning Certificate** to
-   **Active**. Choose **Verify DNS** again to move it on if it stops at a step.
-4. **Make it primary** (optional). **Set as Primary** decides which address
-   sign-in redirects, email links and share links use. The platform subdomain
-   keeps working beside it.
-
-Sessions belong to one address: switching between the platform subdomain and
-your own domain means signing in again.
-
-### When something goes wrong
-
-| What you see | Why, and what to do |
-|---|---|
-| `403 CUSTOM_DOMAIN_PLAN_LOCKED` | The organization is on Free. Upgrade to Team. |
-| `400 INVALID_FORMAT`, asking for www or a subdomain | You typed a root domain. Use a subdomain such as `www.acme.com`. |
-| `403 CONTACT_SALES_PLAN` | The environment already has its one domain. More than one is an Enterprise arrangement. |
-| `409 DUPLICATE_VALUE` | Another environment is already serving that hostname. |
-| Verify answers that the TXT record is not visible yet | DNS has not propagated, or the record name or value differs. The answer repeats the record expected. |
-| **Failed** | The certificate could not be issued. Check the CNAME and choose **Verify DNS** again; it re-proves ownership first. |
-
-### Downgrade and upgrade
-
-A downgrade **pauses** your own domain; it never releases it. The domain turns
-**Suspended**, stops serving, and its certificate is withdrawn, but the record
-stays. If it was primary, links fall back to the platform subdomain, which is
-unaffected. On any later upgrade the domain is re-provisioned by itself while
-your CNAME still points at us. There is no "released after N days".
-
-A suspended domain does not block anyone else who can prove ownership of that
-hostname: if another environment proves it, the suspended claim is given up.
-
-### Removing a domain
-
-**Delete** on the domain stops it serving and frees the hostname. Permanently
-deleting the environment removes all its domains with it.
+Sessions belong to one address: switching between two of them means signing in
+again.
 
 ## Next
 
-- [Environments](/docs/cloud/environments) — production and development.
+- [Environments](/docs/cloud/environments) — one per organization.
 - [Plans and AI Seats](/docs/cloud/plans-and-seats) — what Team adds.
