@@ -1,0 +1,96 @@
+---
+title: 环境
+seoTitle: "ObjectOS Cloud 环境：每个组织一个，及其生命周期"
+description: 每个 ObjectOS Cloud 组织在每个套餐上都恰好有一个环境 —— 它的地址、环境页面，以及暂停、归档、恢复和删除各自会对数据做什么。
+editions: [cloud]
+translation:
+  source_sha: 08490778d91cffbfdd247f3c6448a01998716813aa401b4f19d66def56a51b3d
+  guide_rev: 1
+  mode: auto
+---
+
+**环境**是一份正在运行的 ObjectOS 副本，拥有自己的数据库、文件、应用和
+地址。你的组织的应用存在于环境中，你的团队登录到环境来使用它们。
+
+**每个组织在每个套餐上都恰好有一个环境。** 它就是生产环境：你在设置组织时
+创建的第一个环境（[在 ObjectOS Cloud 上开始](/docs/start/cloud)），也是唯一
+一个。一个组织，一个环境，多个应用：你可以在其中安装和构建所需的任意多个
+应用。
+
+| | **环境** |
+|---|---|
+| 数量 | 每个组织恰好一个，所有套餐都是如此 |
+| 地址 | 你的组织 slug 加平台域名；在 Team 及以上可以使用[你自己的域名](/docs/cloud/domains) |
+| 闲置 | 从不因不活跃而被归档 |
+| 用途 | 你的团队使用的应用 |
+
+无法创建第二个环境。各套餐的区别在于环境能容纳和允许什么（它的
+[存储](/docs/cloud/storage-and-limits)、它的
+[AI 额度](/docs/cloud/ai-credits-and-limits)、你自己的域名），而不在于有多少个
+环境。
+
+## 开发复杂应用 [#developing-a-complex-app]
+
+如果一个应用需要的超出了 AI Builder 和控制台所能提供的，就在源码层面开发它，
+而不是在第二个环境中开发：用 `os dev` 在本地构建它并把它保存在 Git 中，然后
+[把它发布为包并安装](/docs/cloud/apps#deploy-from-the-cli)到你的环境中。完整
+流程见[应用](/docs/cloud/apps)。
+
+## 创建环境 [#create-the-environment]
+
+在 **Environments** 中，选择 **Create Environment** 并为它命名；平台会分配
+地址。地址之后可以用 **Change Hostname** 修改（[域名](/docs/cloud/domains)）。
+新环境从 **Provisioning**（正在配置）状态开始，数据库就绪后变为 **Active**。
+
+要进入环境，选择 **Open**。它会在新标签页中打开该环境自己的控制台，并以
+你的身份登录。
+
+## 环境页面 [#the-environment-page]
+
+每个环境都有一个带两个标签页的页面。
+
+- **Overview**（概览）—— 它的地址、状态、套餐和类型、其中安装的应用，
+  以及它的访问设置。一行折叠的 **Features that need a higher
+  plan**，统计当前套餐不包含的功能，展开后列出它们。
+- **Settings**（设置）—— 每一个操作，分为五个部分：**Apps**、**Plan and
+  billing**、**Name and domain**、**Access and sign-in**（包括
+  [AI Agent 访问](/docs/configure/mcp#on-objectos-cloud)）和 **Lifecycle and
+  danger zone**。
+
+会改变环境的操作提供给组织的所有者和管理员。
+
+## 生命周期 [#lifecycle]
+
+| 状态 | 含义 | 你的数据 |
+|---|---|---|
+| **Active**（活跃） | 正在处理请求 | — |
+| **Suspended**（已暂停） | 所有运行时流量都被阻止，直到你恢复它 | 保留 |
+| **Archived**（已归档） | 从活跃视图中移除；访问时不再启动 | 保留到有人删除它为止 |
+| **Failed**（失败） | 配置未完成 | 从未创建 |
+
+**暂停与恢复运行。** 暂停会阻止对环境的每一个请求，无论来自人还是来自
+集成。不会删除任何东西，**Resume** 会让它恢复原样。
+
+**归档与恢复。** 归档让环境停止使用。**Restore** 把它连同数据一起恢复回来；
+它会在下次被访问时再次启动。
+
+**删除。** 删除分两步进行，因此一次点击永远不会销毁数据：
+
+1. 尚未归档的环境会被**归档**，即使你要求的是永久删除。
+2. 删除一个**已归档**的环境时勾选 **Delete permanently if already
+   archived**，会立即销毁它的数据库和所有文件，无法恢复。
+
+删除生产环境时，还会要求你勾选 **Force-delete the
+production environment**。配置失败的环境不含数据，会被立即删除。
+
+### 已归档环境保留多久 [#how-long-an-archived-environment-is-kept]
+
+已归档的环境会连同它的数据库、文件和域名一起保留，直到有人删除它。在任何
+套餐上都没有到期计时：归档始终由你决定，删除也是。只有上面那个明确的、
+永久的 **Delete** 才会销毁数据。
+
+## 下一步 [#next]
+
+- [套餐与 AI 席位](/docs/cloud/plans-and-seats) —— 付费套餐增加了什么。
+- [存储与限制](/docs/cloud/storage-and-limits) —— 每个环境的存储额度。
+- [应用](/docs/cloud/apps) —— 在环境中安装、更新和发布应用。
