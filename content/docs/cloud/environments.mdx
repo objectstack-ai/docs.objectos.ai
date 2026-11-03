@@ -1,52 +1,48 @@
 ---
 title: Environments
-seoTitle: "ObjectOS Cloud Environments: Production, Development and Lifecycle"
-description: Production and development environments on ObjectOS Cloud — who gets which on each plan, creating one, and what suspend, archive, restore and delete each do to its data.
+seoTitle: "ObjectOS Cloud Environment: One Per Organization and Its Lifecycle"
+description: Every ObjectOS Cloud organization has exactly one environment, on every plan — its address, the environment page, and what suspend, archive, restore and delete each do to its data.
 editions: [cloud]
 ---
 
 An **environment** is one running copy of ObjectOS with its own database,
-files, apps and address. Your organization's apps live in environments, and
-your team signs in to an environment to use them. On ObjectOS Cloud there are
-two kinds.
+files, apps and address. Your organization's apps live in it, and your team
+signs in to it to use them.
 
-| | **Production** | **Development** |
-|---|---|---|
-| How many | Exactly one per organization, on every plan | Paid plans only: two, plus one per AI seat, shared across the organization |
-| Address | Your organization's slug on the platform domain; can carry [your own domain](/docs/cloud/domains) | A fixed address of the form `dev-<id>`, assigned by the platform; never a branded subdomain or your own domain |
-| Idle | Never archived for inactivity | Archived automatically after 7 days without use |
-| What it is for | The apps your team uses | Building and trying changes before they reach production |
+**Every organization has exactly one environment, on every plan.** It is the
+production environment: the first one you create when you set up the
+organization ([Start on ObjectOS Cloud](/docs/start/cloud)), and the only one.
+One organization, one environment, many apps: you install and build as many
+apps as you need inside it.
 
-The **first** environment an organization creates is its production
-environment; every one after it is a development environment.
+| | **The environment** |
+|---|---|
+| How many | Exactly one per organization, on every plan |
+| Address | Your organization's slug on the platform domain; can carry [your own domain](/docs/cloud/domains) on Team and above |
+| Idle | Never archived for inactivity |
+| What it is for | The apps your team uses |
 
-## Who gets which
+A second environment cannot be created. Plans differ in what the environment
+holds and allows (its [storage](/docs/cloud/storage-and-limits), its
+[AI allowance](/docs/cloud/ai-credits-and-limits), your own domain), not in how
+many environments there are.
 
-**Free: one production environment, nothing else.** You build directly in
-production. Creating a second environment is refused with
-`403 DEV_ENV_PLAN_LOCKED`, and the console offers the upgrade instead.
+## Developing a complex app
 
-**Team and above: production plus a pool of development environments.** The
-pool is two development environments plus one for each AI seat the
-organization pays for, counted across the whole organization. Development
-environments are covered by the seat price; they never add a line to the bill.
-On a paid plan the usual flow is to build in a development environment, then
-[publish it as a package](/docs/cloud/apps#publish-an-environment-as-a-package)
-and install that package into production.
+If an app needs more than the AI Builder and the console give you, develop it
+at source level instead of in a second environment: build it locally with
+`os dev` and keep it in Git, then [publish it as a package and install
+it](/docs/cloud/apps#deploy-from-the-cli) into your environment. See
+[Apps](/docs/cloud/apps) for the whole flow.
 
-Whether development environments exist at all is the plan's decision
-(ruled on [cloud#1252](https://github.com/objectstack-ai/cloud/issues/1252));
-the one production environment is the same on every plan.
-
-## Create an environment
+## Create the environment
 
 On **Environments**, choose **Create Environment** and give it a name; the
-platform assigns the address. The production environment's address can be
-changed later with **Change Hostname** ([Domains](/docs/cloud/domains)); a
-development environment keeps the fixed address it was given. A new environment starts
-in **Provisioning** and turns **Active** when its database is ready.
+platform assigns the address. The address can be changed later with **Change
+Hostname** ([Domains](/docs/cloud/domains)). A new environment starts in
+**Provisioning** and turns **Active** when its database is ready.
 
-To enter an environment, choose **Open**. It opens the environment's own
+To enter the environment, choose **Open**. It opens the environment's own
 console in a new tab, signed in as you.
 
 ## The environment page
@@ -71,16 +67,15 @@ and admins.
 |---|---|---|
 | **Active** | Serving requests | — |
 | **Suspended** | All runtime traffic is blocked until you resume it | Kept |
-| **Archived** | Removed from active views; it no longer starts on a visit | Kept until the retention window ends, then deleted |
+| **Archived** | Removed from active views; it no longer starts on a visit | Kept until someone deletes it |
 | **Failed** | Provisioning did not complete | None was created |
 
 **Suspend and Resume.** Suspending blocks every request to the environment,
 from people and from integrations alike. Nothing is deleted, and **Resume**
 brings it back as it was.
 
-**Archive and Restore.** Archiving takes an environment out of use and starts
-its retention clock. **Restore** brings it back within that window; it starts
-again on its next visit.
+**Archive and Restore.** Archiving takes an environment out of use. **Restore**
+brings it back, with its data; it starts again on its next visit.
 
 **Delete.** Deleting is a two-step act, so one click can never destroy data:
 
@@ -96,32 +91,10 @@ data and is deleted at once.
 
 ### How long an archived environment is kept
 
-| How it was archived | Kept for |
-|---|---|
-| By you (**Archive**, or the first step of **Delete**) | At least 30 days; 90 days on Business, a year on Enterprise |
-| Automatically, a development environment idle for 7 days | The plan's window: 30 days on Team, 90 on Business, a year on Enterprise |
-
-The environment's owner is warned shortly before an archived environment is
-deleted, so there is time to restore it. After the window it is deleted for
-good, with its database, files and domains.
-
-### Idle development environments
-
-A development environment that nobody has visited or built in for **7 days**
-is archived automatically. Both using the environment and developing in it
-(publishing, installing, editing packages) count as activity. The production
-environment is never archived this way.
-
-### After a downgrade to Free
-
-A downgrade is not retroactive. Development environments the organization
-already runs **keep running**: they are not suspended or archived by the
-downgrade. What Free refuses is *adding* one: creating a development
-environment, or restoring an archived one, answers `403 DEV_ENV_PLAN_LOCKED`
-until the organization upgrades again. An archived development environment is
-then kept for Free's window, 7 days. (Ruled on
-[cloud#2253](https://github.com/objectstack-ai/cloud/issues/2253) and
-[cloud#2204](https://github.com/objectstack-ai/cloud/issues/2204).)
+An archived environment is kept, with its database, files and domains, until
+someone deletes it. Nothing expires on a timer, on any plan: archiving is
+always your choice, and so is deleting. Only the explicit, permanent
+**Delete** above destroys the data.
 
 ## Next
 

@@ -11,7 +11,7 @@ An environment on ObjectOS Cloud can be reached at two kinds of address.
 |---|---|---|
 | Looks like | `acme` on the platform domain | `app.acme.com` |
 | Plans | Every plan, Free included | Team and above |
-| Environments | Production; a development environment keeps its fixed address | Production only |
+| Environments | The organization's one environment | The organization's one environment |
 | How many | Add as many as you like | One per production environment on Team; more by contract |
 | Certificate | Covered by the platform's own | Issued for you once ownership is proven |
 
@@ -23,7 +23,7 @@ domain).
 
 ## Platform subdomains
 
-Your production environment's address is your organization's
+Your environment's address is your organization's
 [slug](/docs/cloud/organization#the-organization-slug) on the platform domain.
 It is free on every plan, and so is any other branded label you choose.
 
@@ -66,7 +66,6 @@ your own domain means signing in again.
 | What you see | Why, and what to do |
 |---|---|
 | `403 CUSTOM_DOMAIN_PLAN_LOCKED` | The organization is on Free. Upgrade to Team. |
-| `403 DEV_ENV_DOMAIN_LOCKED` | This is a development environment. Add the domain to the production environment. |
 | `400 INVALID_FORMAT`, asking for www or a subdomain | You typed a root domain. Use a subdomain such as `www.acme.com`. |
 | `403 CONTACT_SALES_PLAN` | The environment already has its one domain. More than one is an Enterprise arrangement. |
 | `409 DUPLICATE_VALUE` | Another environment is already serving that hostname. |

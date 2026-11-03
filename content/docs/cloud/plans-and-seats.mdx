@@ -6,15 +6,13 @@ editions: [cloud]
 ---
 
 ObjectOS Cloud has three plans. The plan belongs to the **organization** and
-applies to every one of its environments. Only **AI seats** are paid for:
+applies to its environment. Only **AI seats** are paid for:
 everyone else in the organization uses and views apps for free.
 
 | | **Free** | **Team** | **Enterprise** |
 |---|---|---|---|
 | Price | $0 | $24 per AI seat / month, or $20 per AI seat / month billed yearly | By contract |
-| Production environment | 1 | 1 | 1 |
-| [Development environments](/docs/cloud/environments) | — | Two, plus one per AI seat | ✓ |
-| Archived development environments kept | — | 30 days | A year |
+| [Environment](/docs/cloud/environments) | 1 | 1 | 1 |
 | [AI allowance](/docs/cloud/ai-credits-and-limits) | A weekly allowance | A higher allowance that grows with AI seats, plus [AI credit packs](/docs/cloud/ai-credits-and-limits#buy-ai-credits) | Grows with AI seats, plus AI credit packs |
 | [Storage per environment](/docs/cloud/storage-and-limits) | 1 GB | 20 GB | Not capped |
 | [AI agent access (MCP)](/docs/configure/mcp#on-objectos-cloud) | 20 requests / minute, 1,000 / day | 120 requests / minute, no daily cap | 120 requests / minute, no daily cap |
@@ -35,12 +33,10 @@ only paid seat. Members without one, viewers, and developers who build through
 their own AI client over [MCP](/docs/configure/mcp) are not charged.
 
 The number of AI seats you buy is a setting of the organization, chosen at
-checkout and [changeable later](#change-ai-seats). It sizes three things:
+checkout and [changeable later](#change-ai-seats). It sizes two things:
 
 - the organization's **AI allowance**, which is per seat
   ([AI Credits and Limits](/docs/cloud/ai-credits-and-limits));
-- the **development environment pool**, two plus one per seat
-  ([Environments](/docs/cloud/environments));
 - the number of people who can be **assigned** an AI seat in an environment,
   where per-person seat assignment is switched on.
 
@@ -54,8 +50,8 @@ header, or **Settings → Plan and billing**.
    seats.
 2. A secure checkout opens in a new tab. The charge is to your organization,
    not to one environment.
-3. When the payment completes, the organization's plan changes and every one of
-   its environments picks up the new plan, with no redeploy.
+3. When the payment completes, the organization's plan changes and its
+   environment picks up the new plan, with no redeploy.
 
 While online payment is not yet open for your organization, the button reads
 **Upgrade to Team** and opens **Billing** instead, where Team's
@@ -92,8 +88,8 @@ The console cannot change the number of AI seats yet, and the customer portal
 changes neither the seat count nor the plan. To add or remove AI seats, an
 owner or admin writes to [sales@objectos.ai](mailto:sales@objectos.ai) with the
 organization and the number of seats it should have, and we change it on your
-subscription. Once it changes, the AI allowance, the development environment
-pool and the seat assignment cap all follow the new count.
+subscription. Once it changes, the AI allowance and the seat assignment cap both follow the
+new count.
 
 ## Payment, invoices and refunds
 
@@ -127,8 +123,8 @@ Two places in the console tell you, without a sales page in between:
 
 Dropping to a lower plan never deletes data:
 
-- Development environments keep running; Free only refuses creating or
-  restoring one ([Environments](/docs/cloud/environments#after-a-downgrade-to-free)).
+- The environment keeps running and keeps its data; an archived environment
+  stays until someone deletes it ([Environments](/docs/cloud/environments#how-long-an-archived-environment-is-kept)).
 - An environment over the Free storage allowance keeps every byte, stays
   readable and exportable, and stops taking uploads and imports
   ([Storage and Limits](/docs/cloud/storage-and-limits)).
@@ -139,8 +135,7 @@ Dropping to a lower plan never deletes data:
 
 **Business** is a contract option of ObjectOS Enterprise on the hosted
 service, sold by [sales](/docs/editions/license) rather than from
-**Billing**. On ObjectOS Cloud it adds approval workflows and a 90-day
-retention window for archived development environments. Its price and what
+**Billing**. On ObjectOS Cloud it adds approval workflows. Its price and what
 the contract covers are on [License & Pricing](/docs/editions/license).
 
 ## Next

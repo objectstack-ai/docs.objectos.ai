@@ -24,7 +24,7 @@ are not for every edition with the same icons.
 | Delivery | Self-managed | Hosted | Hosted | Self-managed |
 | Price | Free (Apache-2.0) | Free | $24 / AI seat / month, or $20 / AI seat / month billed annually | By contract |
 | File storage | Your own ([Storage](/docs/configure/storage)) | 1 GB per environment | 20 GB per environment | Your own ([Storage](/docs/configure/storage)) |
-| Development environment | As many as you deploy | — (production only) | Two, plus one per AI seat | As many as you deploy |
+| Environments | As many as you deploy | One per organization | One per organization | As many as you deploy |
 | MCP requests | Set by your deployment | 20 / minute, 1,000 / day | 120 / minute, no daily cap | Set by your deployment |
 | Custom domain | Your own host | — | ✓ | Your own host |
 | Record- and field-level security | ✓ | — | ✓ | ✓ |
@@ -60,8 +60,8 @@ these docs already describe in detail:
   the deployment must also declare no control plane. The combinations that
   cannot work are refused at startup. See
   [Air-gapped Deployment](/docs/deploy/air-gapped).
-- **On ObjectOS Cloud, the plan is enforced per environment.** Development
-  environments are refused on Free (`403 DEV_ENV_PLAN_LOCKED`); a full
+- **On ObjectOS Cloud, the plan is enforced per environment.** An
+  organization has one environment on every plan; a full
   environment refuses attachment uploads and bulk imports, never single-record
   writes, reads or exports (`403 STORAGE_LIMIT_REACHED`, with a warning from
   80%); and the MCP endpoint answers `429` past the plan's request limit. See
