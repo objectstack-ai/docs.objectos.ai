@@ -3,7 +3,7 @@ title: 接入 AI 工具（MCP）
 description: 把 Claude Code、Claude Desktop 或任意 MCP 客户端指向你的 ObjectOS 应用，让 Agent 在你的权限模型约束下处理你的数据。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 284d38d7199dbc99e3df09c43ffc520333a1fff28e22d0681d8b885d554bf1e0
+  source_sha: 0bec90d540bb424e11d1cedf6c0532227a9ce328717d2448f1c7fdc8b8291017
   guide_rev: 1
   mode: auto
 ---
@@ -177,9 +177,9 @@ Agent 还可以**构建应用**：创建和修改它的对象、字段、视图�
 
 读取和 `verify_build` 不计为写入。超过任一上限后，工具调用会以 `RATE_LIMIT_EXCEEDED` 被拒绝，并附上计数和重置条件：写入在下一个 UTC 日重置，草稿在发布或丢弃后重置。
 
-> **为什么我的流程被拒绝？**它用到了 Agent 在这里无法构建的东西，拒绝信息会指出是哪一项：Free 上的定时或相对时间流程、套餐不包含审批工作流时的审批步骤，或者一种需在源码中构建并作为[包](/docs/build/packages)发布的类型。
+> **为什么我的流程被拒绝？**它用到了 Agent 在这里无法构建的东西，拒绝信息会指出是哪一项：Free 上的定时或相对时间流程、Free 上的审批步骤，或者一种需在源码中构建并作为[包](/docs/build/packages)发布的类型。
 
-Agent 可以构建由记录变更或按钮启动的流程，使用创建、更新和删除记录、赋值、判断、循环和等待步骤。定时和相对时间流程在 Team 及以上可以构建，审批步骤则在套餐包含[审批工作流](/docs/cloud/plans-and-seats)时可以构建。脚本、Webhook、API 触发的流程和屏幕流程，以及 script、webhook、API、job、邮件模板、翻译、主题、插件、agent、skill 和数据源这些类型，在任何套餐上都在源码中构建。
+Agent 可以构建由记录变更或按钮启动的流程，使用创建、更新和删除记录、赋值、判断、循环和等待步骤。定时和相对时间流程在 Team 及以上可以构建，审批步骤也在 Team 及以上可以构建（[套餐](/docs/cloud/plans-and-seats)）。脚本、Webhook、API 触发的流程和屏幕流程，以及 script、webhook、API、job、邮件模板、翻译、主题、插件、agent、skill 和数据源这些类型，在任何套餐上都在源码中构建。
 
 ### 上限 [#limits]
 

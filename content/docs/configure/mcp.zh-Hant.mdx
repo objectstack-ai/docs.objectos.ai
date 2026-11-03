@@ -4,7 +4,7 @@ title: 接入 AI 工具（MCP）
 description: 把 Claude Code、Claude Desktop 或任意 MCP 客戶端指向你的 ObjectOS 應用，讓 Agent 在你的許可權模型約束下處理你的資料。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 284d38d7199dbc99e3df09c43ffc520333a1fff28e22d0681d8b885d554bf1e0
+  source_sha: 0bec90d540bb424e11d1cedf6c0532227a9ce328717d2448f1c7fdc8b8291017
   guide_rev: 1
   mode: auto
 ---
@@ -178,9 +178,9 @@ Agent 還可以**構建應用**：建立和修改它的物件、欄位、檢視�
 
 讀取和 `verify_build` 不計為寫入。超過任一上限後，工具呼叫會以 `RATE_LIMIT_EXCEEDED` 被拒絕，並附上計數和重置條件：寫入在下一個 UTC 日重置，草稿在釋出或丟棄後重置。
 
-> **為什麼我的流程被拒絕？**它用到了 Agent 在這裡無法構建的東西，拒絕資訊會指出是哪一項：Free 上的定時或相對時間流程、套餐不包含審批工作流時的審批步驟，或者一種需在原始碼中構建並作為[包](/docs/build/packages)釋出的型別。
+> **為什麼我的流程被拒絕？**它用到了 Agent 在這裡無法構建的東西，拒絕資訊會指出是哪一項：Free 上的定時或相對時間流程、Free 上的審批步驟，或者一種需在原始碼中構建並作為[包](/docs/build/packages)釋出的型別。
 
-Agent 可以構建由記錄變更或按鈕啟動的流程，使用建立、更新和刪除記錄、賦值、判斷、迴圈和等待步驟。定時和相對時間流程在 Team 及以上可以構建，審批步驟則在套餐包含[審批工作流](/docs/cloud/plans-and-seats)時可以構建。指令碼、Webhook、API 觸發的流程和螢幕流程，以及 script、webhook、API、job、郵件模板、翻譯、主題、外掛、agent、skill 和資料來源這些型別，在任何套餐上都在原始碼中構建。
+Agent 可以構建由記錄變更或按鈕啟動的流程，使用建立、更新和刪除記錄、賦值、判斷、迴圈和等待步驟。定時和相對時間流程在 Team 及以上可以構建，審批步驟也在 Team 及以上可以構建（[套餐](/docs/cloud/plans-and-seats)）。指令碼、Webhook、API 觸發的流程和螢幕流程，以及 script、webhook、API、job、郵件模板、翻譯、主題、外掛、agent、skill 和資料來源這些型別，在任何套餐上都在原始碼中構建。
 
 ### 上限 [#limits]
 
