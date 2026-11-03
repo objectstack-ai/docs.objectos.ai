@@ -5,15 +5,16 @@ seoTitle: "ObjectOS 版本對比：Community、Free、Team、Enterprise"
 description: 逐行列出每個 ObjectOS 版本和套餐包含什麼 —— Community、Cloud Free、Cloud Team 和 Enterprise —— 以及每項差異在哪裡強制執行。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 8748d2d07adf16e62ea0be463d91d4d21b0766d025e2450512a9170a9217d24a
+  source_sha: c6448701566dbd6b54b9f0a7ffde7c6822406e18cdb07be8ee88a50d77588ee8
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 是一個產品、三個版本。**ObjectOS Community** 是你自己執行的開源
 執行時。**ObjectOS Cloud** 是為你託管的同一個產品，有 **Free** 和 **Team**
-兩個套餐。**ObjectOS Enterprise** 是你在自己的基礎設施上執行的許可產品；
-**Business** 和 **Business Self-Managed** 是它之下的合同選項。價格與合同見
+兩個套餐。**ObjectOS Enterprise** 是按合同售賣的許可產品：可以在託管服務上，可以是單節點的
+**Enterprise Single-Node** 許可證，也可以是完整的私有部署。ObjectOS Cloud 上
+沒有 Business 套餐。價格與合同見
 [許可與定價](/docs/editions/license)；本頁講的是每一個有什麼不同。
 
 這份文件中的每一頁，標題下方都帶有一排版本徽章，標明它適用於哪些版本。
@@ -29,7 +30,9 @@ ObjectOS 是一個產品、三個版本。**ObjectOS Community** 是你自己執
 | 環境 | 你部署多少就有多少 | 每個組織一個 | 每個組織一個 | 你部署多少就有多少 |
 | MCP 請求 | 由你的部署設定 | 每分鐘 20 次，每天 1,000 次 | 每分鐘 120 次，無每日上限 | 由你的部署設定 |
 | 自定義域名 | 你自己的主機 | — | ✓ | 你自己的主機 |
-| 記錄級和欄位級安全 | ✓ | — | ✓ | ✓ |
+| 記錄級和欄位級安全 | ✓ | ✓ | ✓ | ✓ |
+| 審批工作流 | ✓ | — | ✓ | ✓ |
+| 定時和相對時間流程 | ✓ | — | ✓ | ✓ |
 | UI 內 AI（AI Builder、"問你的資料"） | 僅 MCP —— 自帶模型 | 體驗版 | ✓ | ✓ |
 | AI 治理（動作審計、護欄、許可權範圍限定） | — | — | — | ✓ |
 | 與你的身份提供商單點登入 | ✓（[身份認證](/docs/configure/authentication)） | — | — | ✓ |
@@ -39,8 +42,10 @@ ObjectOS 是一個產品、三個版本。**ObjectOS Community** 是你自己執
 | 物理隔離執行 | — | — | — | ✓ |
 | 支援 | 社群 | 社群 | 標準 | SLA + 專屬 |
 
-在 ObjectOS Cloud 上，單點登入和 AI 治理隨 **Business** 提供，它是
-ObjectOS Enterprise 在託管服務上的一個合同選項。在自管理部署上，Community
+在 ObjectOS Cloud 上，與你的身份提供商的單點登入和 AI 治理隨託管服務上的
+**Enterprise** 合同提供。Enterprise Single-Node 許可證在單個節點上提供產品內
+AI、AI 治理和單點登入，不包含需要完整私有部署的功能：叢集、多個組織、SCIM、
+物理隔離執行和層級安全。在自管理部署上，Community
 和 Enterprise 運行同一個執行時：Community 一列中的一切在 Enterprise 一列中
 也都有。
 
@@ -64,7 +69,7 @@ ObjectOS Enterprise 在託管服務上的一個合同選項。在自管理部署
   起發出警告）；超過套餐的請求限額後，MCP 端點會返回 `429`。參見
   [環境](/docs/cloud/environments)和
   [儲存與限制](/docs/cloud/storage-and-limits)。
-- **許可證過期絕不會讓執行時停止。** Business Self-Managed 會關閉它的付費
+- **許可證過期絕不會讓執行時停止。** Enterprise Single-Node 會關閉它的付費
   功能，保持你的資料和執行時正常工作；完整的 Enterprise 部署會保留最後
   一個已付費的版本。參見[許可與定價](/docs/editions/license#faq)。
 

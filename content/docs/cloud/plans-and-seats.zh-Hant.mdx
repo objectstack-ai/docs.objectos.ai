@@ -5,13 +5,15 @@ seoTitle: "ObjectOS Cloud 套餐：Free、Team、Enterprise 與 AI 席位"
 description: ObjectOS Cloud 的套餐 —— Free、Team 和 Enterprise —— AI 席位是唯一付費的席位、如何升級、取消或更改席位、由誰向你收費，以及控制台在哪裡顯示你的套餐不包含什麼。
 editions: [cloud]
 translation:
-  source_sha: 967b649fe678efe9da252655dcecac2adcce15578ade9a9b1cf60d088d29808d
+  source_sha: 5ea86b45cfd4491869e8c51ca411f09908bbba788aaa6630e053d96777651469
   guide_rev: 1
   mode: auto
 ---
 
-ObjectOS Cloud 有三個套餐。套餐屬於**組織**，適用於它的環境。只有
-**AI 席位**需要付費：組織中的其他人都可以免費使用和檢視應用。
+ObjectOS Cloud 有兩個在控制台中選擇的套餐，**Free** 和 **Team**，以及按合同
+提供的 **Enterprise**。套餐屬於**組織**，適用於它的環境。只有 **AI 席位**
+需要付費：組織中的其他人都可以免費使用和檢視應用，而且沒有任何套餐限制成員、
+記錄或物件的數量。
 
 | | **Free** | **Team** | **Enterprise** |
 |---|---|---|---|
@@ -22,7 +24,9 @@ ObjectOS Cloud 有三個套餐。套餐屬於**組織**，適用於它的環境�
 | [AI Agent 訪問（MCP）](/docs/configure/mcp#on-objectos-cloud) | 每分鐘 20 次請求，每天 1,000 次 | 每分鐘 120 次請求，無每日上限 | 每分鐘 120 次請求，無每日上限 |
 | 品牌平臺子域名 | ✓ | ✓ | ✓ |
 | [你自己的域名](/docs/cloud/domains) | — | 每個生產環境一個 | ✓ |
-| 審批工作流 | — | — | ✓ |
+| [審批工作流](/docs/build/automation/approvals) | — | ✓ | ✓ |
+| [定時和相對時間流程](/docs/build/automation/flows) | — | ✓ | ✓ |
+| [記錄級和欄位級安全](/docs/configure/permissions) | ✓ | ✓ | ✓ |
 | 登入 | ObjectOS Cloud 登入 | ObjectOS Cloud 登入 | ObjectOS Cloud 登入；按合同提供與你的身份提供商的單點登入 |
 | 支援 | 社群 | 標準 | 優先 |
 
@@ -71,7 +75,7 @@ Enterprise 由銷售協助：在 **Billing** 的 Enterprise 一列點選 **Conta
 
 訂閱期間，**Home** 上的 **Plan and usage** 卡片會向所有者和管理員顯示 **Next charge:** 及其日期；取消之後，它顯示 **Cancels at period end:** 以及套餐結束的日期。
 
-**Manage subscription** 只在 Team 套餐上、在線上支付開放後提供給所有者和管理員。按發票計費的套餐沒有可管理的線上訂閱：Business 和 Enterprise 從不顯示該按鈕，按發票計費的 Team 套餐會答覆它沒有線上訂閱。此類套餐的更改或取消請通過 [sales@objectos.ai](mailto:sales@objectos.ai) 聯絡我們。
+**Manage subscription** 只在 Team 套餐上、在線上支付開放後提供給所有者和管理員。按發票計費的套餐沒有可管理的線上訂閱：Enterprise 從不顯示該按鈕，按發票計費的 Team 套餐會答覆它沒有線上訂閱。此類套餐的更改或取消請通過 [sales@objectos.ai](mailto:sales@objectos.ai) 聯絡我們。
 
 ## 更改 AI 席位 [#change-ai-seats]
 
@@ -108,12 +112,12 @@ Enterprise 由銷售協助：在 **Billing** 的 Enterprise 一列點選 **Conta
 - 你自己的域名會被暫停而不是釋放，並會在之後升級時自動恢復
   （[域名](/docs/cloud/domains#downgrade-and-upgrade)）。
 
-## Business [#business]
+## Enterprise [#enterprise]
 
-**Business** 是 ObjectOS Enterprise 在託管服務上的一個合同選項，由
-[銷售](/docs/editions/license)而不是 **Billing** 售賣。在 ObjectOS Cloud
-上，它增加了審批工作流。它的價格以及
-合同涵蓋的內容見[許可與定價](/docs/editions/license)。
+**Enterprise** 按合同售賣，而不是通過 **Billing**：在託管服務上提供與你的
+身份提供商的單點登入、AI 治理、不設上限的儲存和優先支援。它涵蓋的內容以及
+自管理的選項見[許可與定價](/docs/editions/license)。ObjectOS Cloud 上沒有
+Business 套餐。
 
 ## 下一步 [#next]
 
