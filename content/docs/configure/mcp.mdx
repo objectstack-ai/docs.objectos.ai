@@ -285,13 +285,13 @@ next UTC day for writes, a publish or a discard for drafts.
 
 > **Why is my flow refused?** It uses something an agent cannot build here, and
 > the refusal names which: a scheduled or time-relative flow on Free, an
-> approval step where approval workflows are not part of the plan, or a kind
+> approval step on Free, or a kind
 > that is built in source and published as a [package](/docs/build/packages).
 
 An agent builds flows started by a record change or a button, from create,
 update and delete record, assignment, decision, loop and wait steps. Scheduled
-and time-relative flows are built on Team and above, and approval steps where
-the plan includes [approval workflows](/docs/cloud/plans-and-seats). Scripts,
+and time-relative flows are built on Team and above, and approval steps on
+Team and above ([plans](/docs/cloud/plans-and-seats)). Scripts,
 webhooks, API-triggered and screen flows, and the types script, webhook, API,
 job, email template, translation, theme, plugin, agent, skill and data source
 are built in source on any plan.

@@ -5,9 +5,11 @@ description: The ObjectOS Cloud plans — Free, Team and Enterprise — the AI s
 editions: [cloud]
 ---
 
-ObjectOS Cloud has three plans. The plan belongs to the **organization** and
-applies to its environment. Only **AI seats** are paid for:
-everyone else in the organization uses and views apps for free.
+ObjectOS Cloud has two plans you choose in the console, **Free** and
+**Team**, and **Enterprise** by contract. The plan belongs to the
+**organization** and applies to its environment. Only **AI seats** are paid
+for: everyone else in the organization uses and views apps for free, and no
+plan caps the number of members, records or objects.
 
 | | **Free** | **Team** | **Enterprise** |
 |---|---|---|---|
@@ -18,7 +20,9 @@ everyone else in the organization uses and views apps for free.
 | [AI agent access (MCP)](/docs/configure/mcp#on-objectos-cloud) | 20 requests / minute, 1,000 / day | 120 requests / minute, no daily cap | 120 requests / minute, no daily cap |
 | Branded platform subdomain | ✓ | ✓ | ✓ |
 | [Your own domain](/docs/cloud/domains) | — | One per production environment | ✓ |
-| Approval workflows | — | — | ✓ |
+| [Approval workflows](/docs/build/automation/approvals) | — | ✓ | ✓ |
+| [Scheduled and time-relative flows](/docs/build/automation/flows) | — | ✓ | ✓ |
+| [Record- and field-level security](/docs/configure/permissions) | ✓ | ✓ | ✓ |
 | Sign-in | ObjectOS Cloud sign-in | ObjectOS Cloud sign-in | ObjectOS Cloud sign-in; single sign-on with your identity provider by contract |
 | Support | Community | Standard | Priority |
 
@@ -78,7 +82,7 @@ owners and admins **Next charge:** and the date; after a cancellation it reads
 
 **Manage subscription** is offered on the Team plan, to owners and admins, once
 online payment is open. A plan billed by invoice has no online subscription to
-manage: Business and Enterprise never show the button, and a Team plan billed
+manage: Enterprise never shows the button, and a Team plan billed
 by invoice answers that it has none. Change or cancel such a plan through
 [sales@objectos.ai](mailto:sales@objectos.ai).
 
@@ -131,12 +135,13 @@ Dropping to a lower plan never deletes data:
 - Your own domains are paused, not released, and come back by themselves on a
   later upgrade ([Domains](/docs/cloud/domains#downgrade-and-upgrade)).
 
-## Business
+## Enterprise
 
-**Business** is a contract option of ObjectOS Enterprise on the hosted
-service, sold by [sales](/docs/editions/license) rather than from
-**Billing**. On ObjectOS Cloud it adds approval workflows. Its price and what
-the contract covers are on [License & Pricing](/docs/editions/license).
+**Enterprise** is sold by contract rather than from **Billing**: single sign-on
+with your identity provider, AI governance, uncapped storage and priority
+support on the hosted service. What it covers, and the self-managed options,
+are on [License & Pricing](/docs/editions/license). There is no Business plan
+on ObjectOS Cloud.
 
 ## Next
 
