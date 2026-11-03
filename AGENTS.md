@@ -103,7 +103,17 @@ node .github/scripts/check-translations.mjs --worklist  # what the next pass wil
 
 ## Upstream pins
 
-`.objectstack-sha` and `.cloud-sha` at the repository root each hold one full commit SHA: the commit of `objectstack-ai/objectstack` and of `objectstack-ai/cloud` this site was last aligned to. The objectstack pin moves when an `@objectstack/cli` release is published, to the commit its release tag names; the cloud pin moves after a successful cloud production deploy, to the commit that deploy serves — never on a merge to cloud's `main`. ⛔ Don't edit a pin by hand: `.github/workflows/bump-upstream-docs.yml` (run by hand, or a `repository_dispatch` of type `bump-upstream-docs` with `{ upstream, sha }`) moves one pin and opens a PR whose body lists the upstream commits and changed paths since the previous pin — objectstack: `content/docs`, `docs/releases`, `CHANGELOG.md`; cloud: `CHANGELOG.md`, `.changeset/`. That list is the alignment review's input: update the English pages it affects before the pin lands. `.cloud-sha` holds the placeholder `unpinned` until its first bump, which records a commit and lists nothing. The rules live in the header of `.github/scripts/bump-upstream-pin.mjs`.
+`.objectstack-sha` and `.cloud-sha` at the repository root each hold one full commit SHA: the commit of `objectstack-ai/objectstack` and of `objectstack-ai/cloud` this site was last aligned to. What changed upstream between the old pin and the new one is the alignment review's input: update the English pages it affects before the pin lands.
+
+**The objectstack pin** moves when an `@objectstack/cli` release is published, to the commit its release tag names. ⛔ Don't edit it by hand: `.github/workflows/bump-upstream-docs.yml` (run by hand, or a `repository_dispatch` of type `bump-upstream-docs` with `{ upstream: "objectstack", sha }`) moves it and opens a PR whose body lists the upstream commits and changed paths since the previous pin in `content/docs`, `docs/releases` and `CHANGELOG.md`. Opening that PR needs the repository secret `UPSTREAM_BUMP_TOKEN`.
+
+**The cloud pin moves by hand** (maintainer ruling, #433): when someone refreshes the docs to match production, not on every cloud release. No workflow, dispatch or token moves it. To move it:
+
+1. Take the full 40-character SHA of the commit production serves: `git rev-parse vX.Y.Z^{commit}` on cloud's `v*` release tag, or the commit of cloud's `deploy-cloud-prod` run. The `x-objectstack-build-sha` header of `https://cloud.objectos.ai/api/v1/health` has only the first 8 characters: it tells you which commit, but it is not a pin.
+2. Write that SHA to `.cloud-sha` as the file's only line.
+3. In the PR body, paste the output of `git log <old>..<new> -- CHANGELOG.md .changeset/`, run in a local cloud checkout. That list is the alignment review's input. The first hand update, from the placeholder `unpinned`, has no previous commit, so it lists nothing.
+
+On a PR that touches a pin, the `pins` job checks the format only (a full lowercase SHA, or `unpinned`) and reads neither upstream. The rules live in the header of `.github/scripts/bump-upstream-pin.mjs`.
 
 ## Commands
 
