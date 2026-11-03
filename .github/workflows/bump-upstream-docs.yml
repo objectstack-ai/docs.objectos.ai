@@ -1,45 +1,45 @@
 name: Bump upstream docs pin
 
-# Moves ONE upstream pin — `.objectstack-sha` or `.cloud-sha` — and opens a
-# pull request whose body lists the upstream commits and changed paths since
-# the previous pin. That body is the alignment review's input: the site is
-# checked against a bounded diff instead of a periodic re-read of both corpora.
-# The rules for when each pin moves, and what the body lists, are in the header
-# of `.github/scripts/bump-upstream-pin.mjs`; AGENTS.md has the short form.
+# Moves the objectstack pin, `.objectstack-sha`, and opens a pull request whose
+# body lists the upstream commits and changed paths since the previous pin.
+# That body is the alignment review's input: the site is checked against a
+# bounded diff instead of a periodic re-read of the corpus. The rules are in the
+# header of `.github/scripts/bump-upstream-pin.mjs`; AGENTS.md has the short form.
 #
 #   objectstack  on a published `@objectstack/cli` release. With no `sha`, the
 #                run pins the commit tagged with npm's `latest` release.
-#   cloud        after a successful cloud production deploy, to the commit that
-#                deploy serves. `sha` is required; the run refuses without it.
+#
+# The cloud pin, `.cloud-sha`, is NOT moved here: it is moved by hand when the
+# docs are refreshed to match production (maintainer ruling,
+# docs.objectos.ai#433), and the helper refuses `upstream: cloud`. AGENTS.md
+# "Upstream pins" has the steps. This workflow still checks its format.
 #
 # Triggers: `workflow_dispatch` by hand, or `repository_dispatch` of type
-# `bump-upstream-docs` with `client_payload: { upstream, sha }` — the shape a
-# deploy or release workflow elsewhere sends. On a pull request that touches the
-# pins, the helper or this file, the `pins` job runs the helper's self-test and
-# checks both pin files.
+# `bump-upstream-docs` with `client_payload: { upstream: objectstack, sha }` —
+# the shape a release workflow elsewhere sends. On a pull request that touches
+# the pins, the helper or this file, the `pins` job runs the helper's self-test
+# and checks both pin files by format alone; it reads neither upstream.
 #
 # ⛔ One secret, `UPSTREAM_BUMP_TOKEN`, and the bump refuses to start without
-# it. It is used for two things `GITHUB_TOKEN` cannot do here:
-#   - read `objectstack-ai/cloud`, a private repository (contents: read there);
-#   - push the bump branch and open the pull request (contents: write and
-#     pull-requests: write here). A pull request opened with `GITHUB_TOKEN`
-#     starts no `pull_request` workflows — GitHub suppresses them to prevent
-#     recursive runs — so CI would never run on the bump, and whether this
-#     repository lets Actions open pull requests at all is a repository setting.
+# it. It pushes the bump branch and opens the pull request (contents: write and
+# pull-requests: write here), which `GITHUB_TOKEN` cannot do usefully: a pull
+# request it opens starts no `pull_request` workflows — GitHub suppresses them
+# to prevent recursive runs — so CI would never run on the bump, and whether
+# this repository lets Actions open pull requests at all is a repository
+# setting.
 
 on:
   workflow_dispatch:
     inputs:
       upstream:
-        description: Which pin to move
+        description: Which pin to move (the cloud pin is moved by hand, see AGENTS.md)
         type: choice
-        options: [objectstack, cloud]
+        options: [objectstack]
         required: true
       sha:
         description: >-
-          Full 40-character commit SHA to pin. Required for cloud (the commit its
-          production deploy serves). Leave empty for objectstack to pin npm's
-          latest @objectstack/cli release.
+          Full 40-character commit SHA to pin. Leave empty to pin npm's latest
+          @objectstack/cli release.
         type: string
         required: false
   repository_dispatch:
@@ -96,7 +96,7 @@ jobs:
           UPSTREAM_BUMP_TOKEN: ${{ secrets.UPSTREAM_BUMP_TOKEN }}
         run: |
           if [ -z "$UPSTREAM_BUMP_TOKEN" ]; then
-            echo "::error title=NOT CONFIGURED::The repository secret UPSTREAM_BUMP_TOKEN is not set. It needs contents: read on objectstack-ai/cloud and contents: write + pull-requests: write on this repository. GITHUB_TOKEN is not a substitute: it cannot read cloud, and a pull request it opens runs no CI."
+            echo "::error title=NOT CONFIGURED::The repository secret UPSTREAM_BUMP_TOKEN is not set. It needs contents: write + pull-requests: write on this repository. GITHUB_TOKEN is not a substitute: a pull request it opens runs no CI. (The cloud pin needs no token: it is moved by hand, see AGENTS.md.)"
             exit 1
           fi
 
