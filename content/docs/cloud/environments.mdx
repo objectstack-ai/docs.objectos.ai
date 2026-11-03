@@ -67,16 +67,15 @@ and admins.
 |---|---|---|
 | **Active** | Serving requests | — |
 | **Suspended** | All runtime traffic is blocked until you resume it | Kept |
-| **Archived** | Removed from active views; it no longer starts on a visit | Kept until the retention window ends, then deleted |
+| **Archived** | Removed from active views; it no longer starts on a visit | Kept until someone deletes it |
 | **Failed** | Provisioning did not complete | None was created |
 
 **Suspend and Resume.** Suspending blocks every request to the environment,
 from people and from integrations alike. Nothing is deleted, and **Resume**
 brings it back as it was.
 
-**Archive and Restore.** Archiving takes an environment out of use and starts
-its retention clock. **Restore** brings it back within that window; it starts
-again on its next visit.
+**Archive and Restore.** Archiving takes an environment out of use. **Restore**
+brings it back, with its data; it starts again on its next visit.
 
 **Delete.** Deleting is a two-step act, so one click can never destroy data:
 
@@ -92,12 +91,10 @@ data and is deleted at once.
 
 ### How long an archived environment is kept
 
-An environment you archive (**Archive**, or the first step of **Delete**) is
-kept for at least 30 days; 90 days on Business, a year on Enterprise.
-
-The environment's owner is warned shortly before an archived environment is
-deleted, so there is time to restore it. After the window it is deleted for
-good, with its database, files and domains.
+An archived environment is kept, with its database, files and domains, until
+someone deletes it. Nothing expires on a timer, on any plan: archiving is
+always your choice, and so is deleting. Only the explicit, permanent
+**Delete** above destroys the data.
 
 ## Next
 
