@@ -1,0 +1,50 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 域名
+seoTitle: "ObjectOS Cloud 域名：品牌化的平臺子域名"
+description: 每個 ObjectOS Cloud 環境都通過一個品牌化的平臺子域名訪問，在所有套餐上都免費。可以在環境的設定中修改這個標籤，或再新增一個。
+editions: [cloud]
+translation:
+  source_sha: eefa40acfa109a4f692f45b99c38d56cd6ea1aa5f8c8a07f53c753bc806d7342
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Cloud 上的環境通過一個**平臺子域名**訪問：即平臺域名上一個
+由你選擇的標籤。
+
+| | **平臺子域名** |
+|---|---|
+| 形式 | 平臺域名上的 `acme` |
+| 套餐 | 所有套餐，包括 Free |
+| 數量 | 想加多少就加多少 |
+| 證書 | 由平臺自己的證書覆蓋 |
+
+平臺子域名在所有套餐上都免費，依據
+[cloud#1087](https://github.com/objectstack-ai/cloud/issues/1087) 的裁定。
+
+ObjectOS Cloud 不提供把你擁有的域名指向環境的功能。
+
+## 修改地址 [#change-the-address]
+
+你的環境的地址是你組織的
+[slug](/docs/cloud/organization#the-organization-slug) 加上平臺域名。
+它在所有套餐上都免費，你選擇的任何其他品牌化標籤也一樣。
+
+要修改它，開啟環境的 **Settings → Name and domain**，選擇
+**Change Hostname**。只需輸入標籤：平臺域名會自動為你加上。
+標籤由 4 到 63 個小寫字母、數字和連字元組成，兩端不能是連字元，
+也不能有兩個連字元相連，少數保留詞會被拒絕。它不必
+以你組織的 slug 開頭。
+
+## 新增第二個地址 [#add-a-second-address]
+
+要新增第二個平臺子域名而不是替換第一個，請使用同一部分中的
+**Add Domain**。環境 **Overview** 上顯示的地址，就是你應該告訴別人的那個。
+
+會話只屬於一個地址：在兩個地址之間切換，需要重新登入。
+
+## 下一步 [#next]
+
+- [環境](/docs/cloud/environments) —— 每個組織一個。
+- [套餐與 AI 席位](/docs/cloud/plans-and-seats) —— Team 增加了什麼。
