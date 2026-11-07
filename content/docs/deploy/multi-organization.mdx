@@ -1,0 +1,146 @@
+---
+title: Multi-organization
+seoTitle: "Multi-organization Self-Managed Deployments: License and Postures"
+description: Several organizations on one self-managed deployment is an ObjectOS Enterprise capability — the postures, the license it needs, the refusals at startup, and when ObjectOS Cloud is the better fit.
+editions: [enterprise]
+---
+
+A self-managed ObjectOS deployment serves **one organization** unless you
+ask for more. Running several organizations on one deployment, against one
+database, is an **ObjectOS Enterprise** capability: it needs an Enterprise
+license that grants multi-organization, and the runtime refuses to start
+without one. Enterprise Single-Node does not include it.
+
+## Which edition fits
+
+| You want | Use |
+|---|---|
+| One organization on your own infrastructure | ObjectOS Community, or any Enterprise license. This is the default. |
+| Several organizations on your own infrastructure, one database | **ObjectOS Enterprise**, with a license that grants multi-organization |
+| A few organizations, without operating a deployment | **ObjectOS Cloud**. Each organization signs up on its own plan, and we run the isolation. See [Plans and Seats](/docs/cloud/plans-and-seats). |
+| Organizations that must not share a database | One deployment each, on any edition |
+
+## Postures
+
+`OS_TENANCY_POSTURE` says whether organizations are walled off from one
+another:
+
+| Posture | Meaning |
+|---|---|
+| `single` | One organization owns the deployment. There is nothing to wall off. |
+| `group` | Several organizations share one dataset, and group members read across them. |
+| `isolated` | The hard wall: a member of one organization cannot tell another exists. |
+
+`group` and `isolated` are the **walled** postures. Two things about the
+setting itself:
+
+- **Unset means `single`, silently.** A deployment that never sets the
+  posture runs one organization and reports nothing unusual, because from
+  the runtime's point of view nothing is wrong. Write the posture you want.
+- **A misspelled value refuses the boot** rather than fall back to a posture
+  with no wall.
+
+## The license
+
+A walled posture needs an Enterprise license that grants `multiOrg`. An
+Enterprise license grants it unless your contract lists features
+explicitly; an Enterprise Single-Node license never does. The boot banner's
+`features` line shows what yours grants
+([Licensing](/docs/deploy/licensing#what-the-boot-banner-shows)).
+
+Without it, the runtime **refuses to start** and says why in its first line:
+
+```text
+✖ FATAL: tenancy posture 'isolated' requires an Enterprise license.
+
+    Multi-organization isolation is a LICENSED Enterprise capability (ADR-0022,
+    cloud#766). This runtime is not licensed for it, so the organization wall
+    cannot be activated — and a deployment that asked for isolation must never
+    serve traffic pretending to have it. Refusing to boot.
+```
+
+It is a licensing failure, not a missing package, and the message says so.
+It offers two fixes: a license that grants multi-organization, or
+`OS_TENANCY_POSTURE=single`. `OS_ALLOW_DEGRADED_TENANCY` does not apply to
+it. The refusal is the same on every run shape, including the
+artifact-pinned one, where it carries the code `MULTI_ORG_NOT_LICENSED`.
+
+The same holds when a license **ends**: a walled deployment does not fall
+back to Community, as a single-organization one does. It refuses to start
+at its next boot until a valid license is installed, and its data stays
+intact. The deploy bundle's `license-check.sh` reports that refusal ahead of
+time when your `.env` asks for a walled posture. A perpetual license keeps a
+walled deployment running on the images it covers.
+[Licensing](/docs/deploy/licensing#when-a-license-ends) has the details.
+
+### On the Community image
+
+The published Community image runs one organization. It does not ship the
+multi-organization runtime, so a walled posture there refuses to start,
+saying that `@objectstack/organizations` could not be loaded. That refusal
+offers `OS_ALLOW_DEGRADED_TENANCY=1` as a way past; it boots with the wall
+**inactive**, and organization boundaries are not enforced. Do not use it to
+run several organizations.
+
+The multi-organization runtime itself is open source in the ObjectStack
+framework. On ObjectOS, the edition that runs several organizations on one
+self-managed deployment, with a license and our support behind it, is
+Enterprise.
+
+## Run shapes
+
+| Shape | Several organizations |
+|---|---|
+| **Config-authored** (the image's own app, the Compose default) | Supported, with a walled posture and a license that grants it |
+| **Composed** (a published app with this image's enterprise plugins) | Supported, and the shape built for it. It is **air-gap-licensed only** and requires `OS_CLOUD_URL=off`, both enforced at startup ([Air-gapped](/docs/deploy/air-gapped#the-hosted-multi-organization-shape-is-air-gap-licensed-too)). |
+| **Artifact-pinned** (`OS_ARTIFACT_URL`) | Still licensed the same way, but the image's configuration does not run: no AI governance, no AI seats, and the AI **build** agent cannot be closed. Use the composed shape instead. |
+
+Why the build agent matters: metadata is scoped to the deployment, not to
+an organization. On a shared database, one organization's AI Builder turn
+rewrites the schema every other organization runs on. On the composed shape,
+`OS_AI_STUDIO_AGENTS=ask` closes it.
+
+## Decisions a walled deployment must declare
+
+On a walled posture the runtime **refuses to start until you decide** three
+more things. Declaring any available value is accepted; not deciding is not.
+
+| Variable | Decides |
+|---|---|
+| `OS_AUTH_MEMBERSHIP_POLICY` | What a new sign-up joins. Where a membership *is* the tenant boundary, `invite-only` is the usual answer. |
+| `OS_AI_STUDIO_AGENTS` | Which AI agents are mounted: `ask`, `build`, or both. `ask` is the usual answer, for the reason above. |
+| `OS_PLATFORM_OWNER_EMAIL` | Who the platform administrators are. Under a walled posture it is the only source of that standing. |
+
+[Environment Variables](/docs/reference/environment-variables#multi-organization-deployments)
+describes each in full. A single-organization deployment sees none of these
+checks.
+
+## What the wall separates
+
+The wall separates the organizations' **data and memberships**. It does not
+separate metadata, which belongs to the deployment. Isolation stronger than
+the wall is deployment separation: an organization that must have its own
+database gets its own deployment.
+
+Two Enterprise protections apply per organization on a walled deployment:
+
+- **SSO domain verification is on by default** in the Enterprise image. An
+  identity provider an organization registers signs no one in until a
+  platform administrator has proved the organization controls its domain,
+  with a DNS TXT record. Without it, one organization's provider could
+  create accounts for any email address it asserts, another organization's
+  domain included. `OS_SSO_DOMAIN_VERIFICATION=false` turns it off. The
+  default applies on the config-authored and composed shapes, not on the
+  artifact-pinned one, and ships in Enterprise releases newer than 4.3.1.
+- **Customer-managed keys** work on the config-authored and composed shapes,
+  so a walled deployment can seal its secrets under your own KMS key
+  ([Licensing](/docs/deploy/licensing#enterprise-single-node-and-enterprise)).
+
+## Next
+
+- [Licensing](/docs/deploy/licensing) — obtaining, validating and renewing
+  the license this page depends on.
+- [Troubleshooting](/docs/operate/troubleshooting) — the startup refusals,
+  told apart.
+- [Production Readiness](/docs/operate/production) — the walled-posture
+  items on the go-live checklist.

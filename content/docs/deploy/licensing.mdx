@@ -1,0 +1,299 @@
+---
+title: Licensing
+seoTitle: "Enterprise Licensing: Obtain, Validate, Renew"
+description: How an ObjectOS Enterprise license is issued, validated online or air-gapped, reported in the boot banner and renewed, what Enterprise Single-Node and Enterprise each unlock, and what happens when a license ends.
+editions: [enterprise]
+---
+
+An ObjectOS Enterprise deployment runs the licensed Enterprise image with
+a license in `OS_LICENSE_KEY`. The license decides what the image unlocks.
+This page covers how you get one, the two ways it is validated, how to read
+what the runtime decided, how to renew, and what a license that ends
+switches off. Contract options are on
+[License & Pricing](/docs/editions/license).
+
+## Obtaining a license
+
+Licenses are issued by ObjectStack under contract:
+[contact sales](mailto:sales@objectos.ai). There is no self-serve
+checkout. Your license mail contains:
+
+1. **The image digest** of your release. Install by digest, because a tag
+   can be moved and a digest cannot ([why](/docs/deploy/docker#pin-the-image-by-digest)).
+2. **A registry pull token** with package read access. You do not need it
+   when you install from an offline bundle.
+3. **The license**: one line of text, signed by ObjectStack. The runtime
+   verifies the signature at boot against a public key built into the
+   image, so a license with any byte changed is refused as invalid.
+4. **The deploy bundle**, with the Compose stack, the environment templates
+   and the scripts for your release.
+
+Store the license as a secret, the same way you store `OS_AUTH_SECRET`
+([Production Readiness](/docs/operate/production)). Three things are fixed
+when the license is issued, and none of them is a setting you can change:
+
+- its **edition**: Enterprise Single-Node or Enterprise;
+- its **mode**: online or air-gap ([below](#online-or-air-gap));
+- its **kind**: a subscription with an end date, or a perpetual license
+  with a maintenance end date ([below](#when-a-license-ends)).
+
+## Enterprise Single-Node and Enterprise
+
+Enterprise Single-Node (formerly Business Self-Managed) is the single-node
+entry option of ObjectOS Enterprise. Its license carries a fixed set of
+features; everything else on the list below needs an Enterprise license.
+
+| | **Enterprise Single-Node** | **Enterprise** |
+|---|---|---|
+| Nodes | One (`maxNodes: 1`) | Several, up to the count your license carries (`maxNodes`) |
+| AI seats | Up to 25 | Set by your contract (`maxAiSeats`) |
+| License mode | Online only | Online or air-gap |
+| In-product AI | ✓ | ✓ |
+| AI governance | ✓ | ✓ |
+| Hierarchy security | — | ✓ |
+| Several organizations on one deployment | — | ✓ |
+| SCIM 2.0 provisioning, on by default | — | ✓ |
+| Customer-managed keys for secrets | — | ✓ |
+| When the license ends | Paid features switch off | Paid features switch off; a perpetual license keeps the versions released during maintenance |
+
+What each row means, and where it stops:
+
+- **In-product AI.** The "ask" agent is the included, supported agent. The
+  AI Builder ships as a **preview** that is not part of the contract, and
+  the boot banner labels it so. An administrator assigns AI seats to users;
+  the license sets how many. You bring your own model and key.
+- **AI governance.** An audit trail of every AI tool call (who asked the AI
+  what, and what it touched), permission checks on each answer so the AI
+  cannot become a way around record permissions, masking of sensitive
+  fields in the data the AI's tools fetch, and visible quota refusals.
+  Conversation history a user pastes in is not re-masked.
+- **Several nodes.** The license unlocks a multi-node topology up to its
+  node count; it is not a high-availability product. The deploy bundle runs
+  one node today, and the runtime refuses more than one replica until a
+  cluster driver is configured. Multi-node is set up with us under your
+  contract. Without a license, the runtime runs one replica, and a
+  deployment that declares more refuses to start.
+- **Hierarchy security.** Record visibility relative to the business-unit
+  tree: the unit, unit-and-below and own-and-reports read scopes
+  ([Hierarchy Visibility](/docs/configure/permissions/hierarchy-visibility)).
+- **Several organizations.** The per-organization isolation wall on one
+  database. See [Multi-organization](/docs/deploy/multi-organization).
+- **Customer-managed keys.** Secret fields, datasource credentials and
+  encrypted settings are sealed under your own AWS KMS, Azure Key Vault or
+  HashiCorp Vault (transit) key, by envelope encryption: each value gets a
+  fresh data key, wrapped by your key, and your key never leaves your KMS.
+  Revoking the key makes those secrets unreadable at once. A KMS that is
+  configured but cannot be reached, or is not licensed, **refuses the
+  boot**; the runtime never falls back to the local key. Business fields,
+  metadata, attachments and audit logs are not encrypted by this feature;
+  at rest they rely on your disk or database encryption. It applies to the
+  single-environment and composed shapes and is refused on the
+  artifact-pinned shape. Choose it at installation: secrets written before
+  you enable it are not migrated, and turning it off makes the secrets it
+  sealed unreadable. Customer-managed keys ship in Enterprise releases
+  newer than 4.3.1.
+
+## Online or air-gap
+
+A license's mode says how it is validated. Both modes verify the signature
+and the end date locally first.
+
+| | **Online** (the default) | **Air-gap** |
+|---|---|---|
+| Validation | At boot, then at the control plane: the license is exchanged for a 72-hour entitlement, refreshed every 24 hours | Locally only, against the key in the image. No network traffic. |
+| `OS_CLOUD_URL` | Your control plane, with the deployment's cloud binding completed | `off` |
+| When the control plane cannot be reached | The deployment stays licensed for **7 days** from the last successful validation, then runs as Community until validation succeeds again | Does not apply |
+| Available for | Enterprise Single-Node and Enterprise | Enterprise only |
+
+Two combinations are decided for you at startup:
+
+- An online license with `OS_CLOUD_URL=off` can never be validated, so the
+  runtime **refuses to start**, naming both settings:
+  `✖ FATAL: this deployment has an ONLINE-mode OS_LICENSE_KEY but no control plane to validate it against`.
+  Ask for an air-gap license for a disconnected site.
+- The composed shape, where several organizations share one database behind
+  a published app, accepts **only** an air-gap license with
+  `OS_CLOUD_URL=off`.
+
+[Air-gapped Deployment](/docs/deploy/air-gapped) has the full matrix and the
+reasons behind it.
+
+On the first boot with an online license, before any entitlement is cached,
+the runtime waits up to 10 seconds for the control plane, so the Enterprise
+features can mount on that boot. If validation succeeds later than that, the
+runtime is validated but was already wired as Community: the log says so,
+and the Enterprise features mount on the next restart. Later restarts inside
+the grace window are licensed from the cached entitlement without waiting.
+
+## What the boot banner shows
+
+At every boot the runtime prints a banner to its log that states what it
+decided. A licensed deployment prints, for example:
+
+```text
+────────────────────────────────────────────────────────────────
+  ObjectOS Enterprise — LICENSED
+    customer  : Example Corp
+    customerId: cus_0123
+    org       : (none)
+    licenseId : lic_0456
+    seats     : up to 25 AI seat(s)
+    nodes     : 1
+    expires   : 2027-06-30T00:00:00.000Z
+    features  : aiStudio, governance
+    in-UI AI  : ENABLED (AI Builder + ask)
+    preview   : AI Builder（预览，不在合同范围内）; ask is the included, supported agent
+    mode      : ONLINE (validated by the control plane)
+    validated : 2026-11-07T09:12:44.000Z
+    ent expiry: 2026-11-10T09:12:44.000Z
+    refresh   : 2026-11-08T09:12:44.000Z
+    runtimeId : rt_0789
+────────────────────────────────────────────────────────────────
+```
+
+| Line | What it tells you |
+|---|---|
+| `seats`, `nodes` | The AI-seat and node counts the license carries; `unlimited` when it carries none |
+| `expires` | A subscription's end date; for a perpetual license, `never (perpetual license — see maintenance below)` |
+| `features` | The features the license grants: `aiStudio` (in-product AI), `governance`, `clustering`, `hierarchySecurity`, `scim`, `multiOrg`, `customerManagedKeys` |
+| `in-UI AI` | Which agents this process actually mounts. When `OS_AI_STUDIO_AGENTS` narrows them, the line names what is withheld and by which variable. |
+| `preview` | The AI Builder is a preview, outside the contract (the label is printed in Chinese and reads "preview, not covered by the contract") |
+| `mode` … `runtimeId` | Online licenses only: the last successful validation, when the current entitlement expires and when it is refreshed next. An air-gap license prints none of these lines. |
+
+Some states lead the banner, so they are the first thing you read:
+
+- `⚠ GRACE — the control plane has not confirmed this license recently`,
+  followed by a `degrades` line with the date the grace window ends.
+- For a perpetual license, a `license` line names its state:
+  `PERPETUAL — in maintenance until …`, or
+  `PERPETUAL — VERSION-LOCKED (maintenance ended …)` with
+  `updates   : none — newer images run as Community; renew maintenance to update`.
+  `⚠ BUILD STAMP UNUSABLE` means the image cannot prove its release date
+  ([below](#perpetual)).
+
+A deployment without a usable license prints the Community banner instead,
+with the reason and the remedy:
+
+```text
+────────────────────────────────────────────────────────────────
+  ObjectOS Community mode — NO valid Enterprise license
+    reason    : no license (OS_LICENSE_KEY unset)
+    in-UI AI  : DISABLED (AI Builder + ask)
+    data      : available via the open MCP server — bring your own AI client
+    to enable : set OS_LICENSE_KEY to a valid Enterprise license token
+────────────────────────────────────────────────────────────────
+```
+
+On the artifact-pinned shape (`OS_ARTIFACT_URL`) the image's own
+configuration does not run, so there is no banner, and none of what it
+reports (AI seats, AI governance, hierarchy security) mounts either.
+
+### Check a license without booting
+
+The deploy bundle's `license-check.sh` runs the image's own verifier in a
+container with no network, and sends nothing anywhere. It prints the
+customer, edition, term, mode and limits, never the license itself, and
+exits 0 only when this image will boot licensed with your `.env`:
+
+```bash
+./license-check.sh                       # the license in .env, against the running image
+./license-check.sh --file new.txt        # a license you have not stored yet
+./license-check.sh --image <new digest>  # against the image you are about to upgrade to
+```
+
+The edition reads `enterprise`, or `business` for Enterprise Single-Node
+(its former name). Thirty days before a subscription ends, the check warns.
+
+## Renewal
+
+A renewal is a new license: a new line of text with a later end date, for
+both modes. Install it before the current one ends:
+
+```bash
+./license-check.sh --set ./renewal.txt   # stores it in .env as OS_LICENSE_KEY and checks it
+docker compose up -d                     # applies it
+```
+
+On Kubernetes, update the Secret that holds the license and restart the
+pods. A license is deployment-wide: every replica runs the same one
+([Kubernetes](/docs/deploy/kubernetes#enterprise-adds)).
+
+For a perpetual license, renewing **maintenance** is what keeps updates
+coming: it is a license with a later maintenance end date, needed before you
+upgrade to an image released after your current one.
+
+## When a license ends
+
+A license ends in one of two ways, by its kind. Neither stops the runtime
+or touches your data, with the three exceptions [below](#three-deployments-refuse-to-start-instead).
+
+### Subscription
+
+Every Enterprise Single-Node license is a subscription, and so is an
+Enterprise license unless your contract says perpetual. At its next start
+after the end date, the runtime treats the license as absent and runs as
+Community:
+
+- the in-product AI and AI governance are off;
+- the hierarchy read scopes grant nothing;
+- SCIM is no longer on by default;
+- your data stays intact, and the open MCP server keeps working, so your
+  own AI client still reaches it.
+
+A subscription does not version-lock: no image keeps the Enterprise features
+after the end date. Installing a renewal license restores them on the next
+start.
+
+### Perpetual
+
+A perpetual license is a contract-only option of Enterprise; it is not
+offered for Enterprise Single-Node. It has no end date. It has a
+**maintenance end date** instead, and keeps the versions released while
+maintenance was paid:
+
+- An image released **before** the maintenance end keeps every Enterprise
+  feature, the in-product AI included, for as long as you run it. After the
+  maintenance end, the banner and `license-check.sh` say `VERSION-LOCKED`.
+- An image released **after** the maintenance end runs as Community. Before
+  an upgrade, run `./license-check.sh --image <new digest>`: it says whether
+  that image is covered, and `./upgrade.sh preflight` stops when it is not.
+- Updates, patches and support end with maintenance.
+
+The image proves when it was released through its release manifest,
+`/etc/objectstack/ee-release.json`. Do not mount anything over that file or
+its directory: the runtime then cannot use it, and the license lapses at the
+maintenance end like a subscription. An online perpetual license still needs
+its control plane after maintenance ends, with the same 7-day grace window;
+ask for an air-gap perpetual license if the deployment must not depend on
+it. The `VERSION-LOCKED` states in the banner and in `license-check.sh` ship
+in Enterprise releases newer than 4.3.1; an older image boots licensed with
+a perpetual license.
+
+### Three deployments refuse to start instead
+
+Three configurations need a valid license to exist at all, so a license that
+has ended, or is missing, makes them **refuse to start** rather than run as
+Community. The data is still intact; a valid license brings them back.
+
+- **Several organizations** (`OS_TENANCY_POSTURE=isolated` or `group`):
+  isolation between organizations is licensed, and a deployment that asked
+  for it never serves traffic without it. See
+  [Multi-organization](/docs/deploy/multi-organization#the-license).
+- **Customer-managed keys** (a KMS set in `OS_CRYPTO_PROVIDER`): the runtime
+  never falls back to the local key, because the secrets were sealed under
+  yours.
+- **Several nodes** (`OS_CLUSTER_REPLICAS` above 1): without a
+  multi-node license the runtime refuses the declared topology rather than
+  run replicas that do not coordinate.
+
+Plan renewals for these the way you plan a certificate renewal: the
+license check warns 30 days ahead, and the date is in every boot banner.
+
+## Next
+
+- [Multi-organization](/docs/deploy/multi-organization) — the license on a
+  deployment several organizations share.
+- [Air-gapped Deployment](/docs/deploy/air-gapped) — the license mode for
+  disconnected sites.
+- [Docker → Enterprise adds](/docs/deploy/docker#enterprise-adds) — the
+  registry, verification and upgrade steps the license comes with.
