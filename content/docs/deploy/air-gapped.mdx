@@ -106,7 +106,7 @@ Air-gapped means no traffic is required *by ObjectOS itself* — no license
 validation, no marketplace, no update ping. It does not mean the deployment
 has no network. Inside your perimeter it still needs:
 
-- the database it is configured against (and Redis, when clustered);
+- the database it is configured against;
 - your ingress or load balancer, inbound;
 - anything **you** configure it to talk to: an identity provider, SMTP, object
   storage, webhook targets, an AI provider endpoint. If your users sign in via
