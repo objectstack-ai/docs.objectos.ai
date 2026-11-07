@@ -1,5 +1,5 @@
 {
   "title": "Deploy",
   "defaultOpen": false,
-  "pages": ["index", "docker", "kubernetes", "air-gapped"]
+  "pages": ["index", "docker", "kubernetes", "air-gapped", "licensing", "multi-organization"]
 }
