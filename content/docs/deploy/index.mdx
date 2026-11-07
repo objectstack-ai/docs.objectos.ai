@@ -25,7 +25,7 @@ more.
 | How the app arrives | Your compiled `objectstack.json` from `os build`: mounted, copied into your own image, or named by `OS_ARTIFACT_URL`. An empty runtime installs apps from the Console marketplace instead. | One of three run shapes: the app bundled in the image, a published artifact, or a published artifact composed with the image's enterprise plugins ([below](#how-the-app-gets-in)) |
 | Variables you must set | `OS_DATABASE_URL`, `OS_AUTH_SECRET`, `OS_SECRET_KEY` (the image already sets `OS_PORT=8080`) | The same, plus `OS_LICENSE_KEY` and a deliberate `OS_CLOUD_URL` |
 | Copyable configuration | The examples on these pages | The **deploy bundle** that ships with each release |
-| What the license unlocks | — | In-product AI (AI Builder, "ask your data"), AI governance, clustering and high availability, several organizations on one deployment, SCIM, air-gapped operation |
+| What the license unlocks | — | In-product AI (AI Builder, "ask your data"), AI governance, multi-node topology (the kit runs a single node today), several organizations on one deployment, SCIM, air-gapped operation |
 
 [Compare Editions](/docs/editions/compare) has the full matrix. An app built
 on Community is ordinary ObjectStack metadata and runs on Enterprise

@@ -257,7 +257,8 @@ ObjectOS Community runs **one replica**. Coordination — locks, queues,
 schedules — is in-process, so a second replica would not share it.
 Declaring several replicas (`OS_CLUSTER_REPLICAS` above 1) without a
 license **refuses the boot** rather than run them on per-process locks.
-Clustering and high availability are Enterprise capabilities — see
+Multi-node operation is an Enterprise license capability, and today the
+Enterprise kit runs on a single node too — see
 [Multi-node](#multi-node-on-enterprise) below.
 
 ## Upgrade and rollback
@@ -400,19 +401,32 @@ and keeps its runtime state on a declared volume.
 
 ### Multi-node on Enterprise
 
-Scaling past one replica changes what is mandatory:
+**Run the Enterprise kit on a single node today.** The deploy bundle wires
+no cluster driver, so keep `OS_CLUSTER_REPLICAS` at `1` and do not scale the
+app service with `docker compose up --scale`.
 
-- Turn on the **cluster driver** (backed by Redis), and
-- **A shared secret key becomes required.** With no cluster driver the
-  runtime mints and persists its own key. Across replicas those keys would
-  silently diverge — so instead of diverging, **the runtime refuses to
-  start**. Generate one key and give every replica the same value.
-- The **auth secret must also be identical on every replica**. Changing it
+Setting `OS_CLUSTER_REPLICAS` above 1 **refuses the boot**, by design. The
+built-in in-process coordinator keeps locks, counters and pub/sub inside each
+process, so a second replica would silently diverge from the first. Do not
+silence the refusal with `OS_ALLOW_MEMORY_CLUSTER_MULTINODE`, and do not
+bypass it with `--scale`: the compose template ties the replica count and the
+`OS_CLUSTER_REPLICAS` the runtime reads to one variable so they cannot
+disagree.
+
+Multi-node topology is unlocked by the Enterprise license (the node cap is the
+license's `maxNodes`). It is activated by contract, and a cluster driver is
+connected to the bundle when a contract calls for it; no date is committed
+here. High availability is not part of what the kit includes today. If you
+need more than one node, [contact sales](mailto:sales@objectos.ai).
+
+Whatever the node count, two rules hold:
+
+- **Set one shared secret key** (`OS_SECRET_KEY`). Without it the runtime mints
+  and persists its own key, which would diverge between replicas.
+- **The auth secret must be identical wherever the runtime runs.** Changing it
   invalidates every existing session and orphans the signing key; the
   environment template documents the one-time cleanup that goes with a
   rotation.
-- `OS_CLUSTER_REPLICAS` sets how many application replicas the bundled stack
-  starts.
 
 ### Upgrade by digest
 

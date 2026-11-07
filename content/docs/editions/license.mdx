@@ -47,7 +47,7 @@ rate card, two deliveries, and the **AI seat** is the only unit of pricing.
 | Price | **Free** (Apache-2.0) | **Free** | **$24** / AI seat / mo, or $20 / AI seat / mo billed annually | Custom (volume) — [contact sales](mailto:sales@objectos.ai) |
 | In-UI AI (AI Builder + "ask your data") | MCP only (bring your own model) | taste | ✓ | ✓ |
 | AI governance (action audit, guardrails, permission scoping) | — | — | — | ✓ |
-| Clustering / HA, multi-org self-host, air-gap, SCIM | — | — | — | ✓ |
+| Multi-node topology (the kit runs a single node today), multi-org self-host, air-gap, SCIM | — | — | — | ✓ |
 | Support | community | community | standard | SLA + dedicated |
 
 ObjectOS Cloud is **Free** and **Team**; there is no Business plan. Team has
@@ -92,14 +92,14 @@ Enterprise contract.
     license lapses, the runtime keeps running and your data stays intact —
     the paid features simply switch off (it never bricks). Its name and its
     contract state what it leaves out, all of which needs a full private
-    deployment: clustering / HA / multi-node, air-gapped or offline licenses,
+    deployment: multi-node, air-gapped or offline licenses,
     several organizations on one deployment, SCIM and identity lifecycle,
     hierarchy security, keeping the last paid version on non-renewal,
     offline / wire payment and multi-year terms, priority / SLA / dedicated
     support, enterprise connectors, compliance attestations, data residency,
     and more than 25 AI seats.
-  - **Full private deployment** — for everything beyond that: clustering /
-    HA / multi-node, multi-organization self-host, data residency and
+  - **Full private deployment** — for everything beyond that: multi-node
+    topology (the kit runs a single node today), multi-organization self-host, data residency and
     **air-gapped** operation, SCIM and identity lifecycle, compliance
     attestations, SLA and dedicated support, and offline / invoice payment.
     Sold as an **annual license** with multi-year price-lock options; on
@@ -107,8 +107,7 @@ Enterprise contract.
     (you lose updates and support, never your system or data). Pricing is
     volume-based — [contact sales](mailto:sales@objectos.ai).
 
-There is **no per-node charge** — clustering / scale is folded into
-Enterprise.
+There is **no per-node charge**.
 
 ## When you might want each
 
@@ -117,7 +116,7 @@ Enterprise.
 | You want the platform **hosted and operated for you** | ObjectOS Cloud (Free → Team) |
 | You need **SSO with your identity provider and AI governance** on the hosted service | **ObjectOS Enterprise** on ObjectOS Cloud, by contract |
 | You must run on **your own single node** and want the in-product AI, ≤25 AI seats | **Enterprise Single-Node**, the single-node entry option of ObjectOS Enterprise |
-| You need **clustering / HA**, **multi-org**, **air-gap**, **SCIM**, compliance attestations, SLAs, or offline payment | **ObjectOS Enterprise**, full private deployment |
+| You need **multi-node**, **multi-org**, **air-gap**, **SCIM**, compliance attestations, SLAs, or offline payment | **ObjectOS Enterprise**, full private deployment |
 | You self-host ObjectOS Community but need a **supported distribution with a commercial contract** (SLA, security-patch priority, named escalation) | **ObjectOS Runtime Subscription** — [contact sales](mailto:sales@objectos.ai) |
 | You want **free self-hosting** and bring your own AI over MCP | **ObjectOS Community** (open source) |
 | You need **OEM / redistribution** rights under the ObjectOS or ObjectStack name | Commercial agreement — [contact sales](mailto:sales@objectos.ai) |
