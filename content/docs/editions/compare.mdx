@@ -8,11 +8,11 @@ editions: [community, cloud, enterprise]
 ObjectOS is one product in three editions. **ObjectOS Community** is the
 open-source runtime you run yourself. **ObjectOS Cloud** is the same product
 hosted for you, on the **Free** and **Team** plans. **ObjectOS Enterprise** is
-the licensed product, sold by contract: on the hosted service, as the
-single-node **Enterprise Single-Node** license, or as a full private
-deployment. There is no Business plan on ObjectOS Cloud. Prices and contracts
-are on [License & Pricing](/docs/editions/license); this page is what each one
-does differently.
+the licensed product on your own infrastructure: one edition, always a
+private deployment, sold by contract and priced per AI user. ObjectOS Cloud
+has no Business plan and no Enterprise plan. Prices and contracts are on
+[License & Pricing](/docs/editions/license); this page is what each one does
+differently.
 
 Every page in these docs carries a row of edition badges under its title,
 naming the editions it applies to. The sidebar marks the pages and groups that
@@ -23,7 +23,7 @@ are not for every edition with the same icons.
 | | **Community** | **Cloud Free** | **Cloud Team** | **Enterprise** |
 |---|---|---|---|---|
 | Delivery | Self-managed | Hosted | Hosted | Self-managed |
-| Price | Free (Apache-2.0) | Free | $24 / AI seat / month, or $20 / AI seat / month billed annually | By contract |
+| Price | Free (Apache-2.0) | Free | $24 / AI seat / month, or $20 / AI seat / month billed annually | By contract, per AI user, 25 minimum: contact sales |
 | File storage | Your own ([Storage](/docs/configure/storage)) | 1 GB per environment | 20 GB per environment | Your own ([Storage](/docs/configure/storage)) |
 | Environments | As many as you deploy | One per organization | One per organization | As many as you deploy |
 | MCP requests | Set by your deployment | 20 / minute, 1,000 / day | 120 / minute, no daily cap | Set by your deployment |
@@ -34,18 +34,20 @@ are not for every edition with the same icons.
 | In-UI AI (AI Builder, "ask your data") | MCP only — bring your own model | Taste | ✓ | ✓ |
 | AI governance (action audit, guardrails, permission scoping) | — | — | — | ✓ |
 | Single sign-on with your identity provider | ✓ ([Authentication](/docs/configure/authentication)) | — | — | ✓ |
-| SCIM | — | — | — | ✓ |
-| Multi-node topology (the Enterprise kit runs a single node today) | — | — | — | ✓ |
-| Several organizations on one deployment | — | — | — | ✓ |
+| SCIM 2.0 provisioning | Open, off by default (`OS_SCIM_ENABLED`) | — | — | On by default |
+| Several organizations on one deployment | Open source in the framework, not in the Community image ([Multi-organization](/docs/deploy/multi-organization#on-the-community-image)) | — | — | ✓ |
+| High availability (several replicas) | — | — | — | In development, not offered yet |
 | Air-gapped operation | — | — | — | ✓ |
-| Support | Community | Community | Standard | SLA + dedicated |
+| Support | Community | Community | Standard | Standard; priority and SLA support by contract |
 
-On ObjectOS Cloud, single sign-on with your identity provider and AI
-governance come with an **Enterprise** contract on the hosted service. The
-Enterprise Single-Node license carries the in-product AI, AI governance and
-single sign-on on one node, and leaves out what needs a full private
-deployment: multi-node topology, several organizations, SCIM, air-gapped operation and
-hierarchy security. On a self-managed
+There is no Enterprise edition on ObjectOS Cloud: Enterprise is always a
+private deployment on infrastructure you operate. An Enterprise license
+includes every Enterprise feature, whatever the size of the deployment.
+Single sign-on with your identity provider and several organizations on one
+deployment are open source, free on a self-managed deployment; an Enterprise
+license adds our support for them. A deployment runs on one node today, with
+backup and restore; high availability across several replicas is in
+development and is not offered until it ships. On a self-managed
 deployment, Community and Enterprise run the same runtime: everything in the
 Community column is in the Enterprise column too.
 
@@ -58,10 +60,13 @@ these docs already describe in detail:
   single-organization deployment runs with Community behaviour — the open MCP
   server, bring your own AI. With one, the AI Builder and "ask your data" are
   unlocked on your own infrastructure. See [AI Service](/docs/configure/ai).
-- **Several organizations on one deployment requires a license.** A
+- **On the Enterprise image, several organizations need the license.** A
   multi-organization posture without one is refused at startup, and the runtime
-  does not serve traffic. See [Runtime Configuration](/docs/configure/runtime)
-  and [Troubleshooting](/docs/operate/troubleshooting).
+  does not serve traffic. The multi-organization runtime itself is open
+  source; the Community image does not ship it. See
+  [Multi-organization](/docs/deploy/multi-organization),
+  [Runtime Configuration](/docs/configure/runtime) and
+  [Troubleshooting](/docs/operate/troubleshooting).
 - **Air-gapped operation is a license mode.** An ordinary license is validated
   online against a control plane; an air-gap license is verified locally, and
   the deployment must also declare no control plane. The combinations that
@@ -74,10 +79,11 @@ these docs already describe in detail:
   80%); and the MCP endpoint answers `429` past the plan's request limit. See
   [Environments](/docs/cloud/environments) and
   [Storage and Limits](/docs/cloud/storage-and-limits).
-- **A lapsed license never stops the runtime.** Enterprise Single-Node switches
-  its paid features off and keeps your data and runtime working; a full
-  Enterprise deployment keeps the last paid version. See
-  [License & Pricing](/docs/editions/license#faq).
+- **An ended subscription falls back to Community.** The Enterprise features
+  switch off, and the system and its data keep working. Keeping a version
+  after the end, a version lock, comes only with a perpetual license bought
+  outright by contract. Three configurations that need a license refuse to
+  start instead. See [Licensing](/docs/deploy/licensing#when-a-license-ends).
 
 ## Which edition is this page for?
 

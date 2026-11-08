@@ -1,22 +1,24 @@
 ---
 title: Multi-organization
 seoTitle: "Multi-organization Self-Managed Deployments: License and Postures"
-description: Several organizations on one self-managed deployment is an ObjectOS Enterprise capability — the postures, the license it needs, the refusals at startup, and when ObjectOS Cloud is the better fit.
+description: Several organizations on one self-managed deployment — open source in the framework, licensed and supported on ObjectOS Enterprise — the postures, the license the Enterprise image needs, the refusals at startup, and when ObjectOS Cloud is the better fit.
 editions: [enterprise]
 ---
 
 A self-managed ObjectOS deployment serves **one organization** unless you
-ask for more. Running several organizations on one deployment, against one
-database, is an **ObjectOS Enterprise** capability: it needs an Enterprise
-license that grants multi-organization, and the runtime refuses to start
-without one. Enterprise Single-Node does not include it.
+ask for more. The runtime that runs several organizations on one deployment,
+against one database, is open source in the ObjectStack framework since
+version 17.4. On ObjectOS, the image that ships it is **ObjectOS
+Enterprise**: every Enterprise license grants multi-organization, with our
+support behind it, and the Enterprise image refuses to start a walled
+posture without one.
 
 ## Which edition fits
 
 | You want | Use |
 |---|---|
 | One organization on your own infrastructure | ObjectOS Community, or any Enterprise license. This is the default. |
-| Several organizations on your own infrastructure, one database | **ObjectOS Enterprise**, with a license that grants multi-organization |
+| Several organizations on your own infrastructure, one database | **ObjectOS Enterprise**, licensed and supported. The runtime is open source, so you can also build it into a runtime of your own without a license ([below](#on-the-community-image)). |
 | A few organizations, without operating a deployment | **ObjectOS Cloud**. Each organization signs up on its own plan, and we run the isolation. See [Plans and Seats](/docs/cloud/plans-and-seats). |
 | Organizations that must not share a database | One deployment each, on any edition |
 
@@ -42,10 +44,10 @@ setting itself:
 
 ## The license
 
-A walled posture needs an Enterprise license that grants `multiOrg`. An
-Enterprise license grants it unless your contract lists features
-explicitly; an Enterprise Single-Node license never does. The boot banner's
-`features` line shows what yours grants
+On the Enterprise image, a walled posture needs a license that grants
+`multiOrg`. Every Enterprise license grants it unless your contract lists
+features explicitly; a license issued as the former `business` edition
+does not. The boot banner's `features` line shows what yours grants
 ([Licensing](/docs/deploy/licensing#what-the-boot-banner-shows)).
 
 Without it, the runtime **refuses to start** and says why in its first line:
@@ -83,9 +85,9 @@ offers `OS_ALLOW_DEGRADED_TENANCY=1` as a way past; it boots with the wall
 run several organizations.
 
 The multi-organization runtime itself is open source in the ObjectStack
-framework. On ObjectOS, the edition that runs several organizations on one
-self-managed deployment, with a license and our support behind it, is
-Enterprise.
+framework (`@objectstack/organizations`, Apache-2.0, since 17.4). On
+ObjectOS, the edition that runs several organizations on one self-managed
+deployment, with a license and our support behind it, is Enterprise.
 
 ## Run shapes
 
@@ -134,7 +136,7 @@ Two Enterprise protections apply per organization on a walled deployment:
   artifact-pinned one, and ships in Enterprise releases newer than 4.3.1.
 - **Customer-managed keys** work on the config-authored and composed shapes,
   so a walled deployment can seal its secrets under your own KMS key
-  ([Licensing](/docs/deploy/licensing#enterprise-single-node-and-enterprise)).
+  ([Licensing](/docs/deploy/licensing#what-an-enterprise-license-unlocks)).
 
 ## Next
 
