@@ -101,13 +101,19 @@ An AI seat lets a user chat with the in-product AI. The license sets how
 many seats the deployment can hold (`maxAiSeats`), and each seat is
 assigned to one user.
 
-**Platform administrators hold a seat without anyone assigning it.** On a
-single-organization deployment that is the first account created. On a
-deployment with several organizations (`OS_TENANCY_POSTURE=isolated` or
-`group`) it is every account whose address is listed in
-`OS_PLATFORM_OWNER_EMAIL`, seated as soon as the account exists and its
-address is verified. These seats count toward the license but are never
-refused, so a deployment cannot lock its administrator out of AI.
+**Platform administrators hold a seat without anyone assigning it.** That
+is every account holding the `admin_full_access` permission set (on a
+single-organization deployment, the first account created holds it, and so
+does anyone it is granted to later), and every account whose address is
+listed in `OS_PLATFORM_OWNER_EMAIL`, seated as soon as the account exists
+and its address is verified. On a deployment with several organizations
+(`OS_TENANCY_POSTURE=isolated` or `group`) the `OS_PLATFORM_OWNER_EMAIL`
+accounts are the platform administrators.
+
+These automatic seats **count toward `maxAiSeats`**: with two platform
+administrators on a license for 5 seats, 3 are left to assign. They are
+never refused, though, so a deployment cannot lock its administrators out of
+AI, even when that leaves it over the cap.
 
 **Everyone else gets a seat from a platform administrator**, one user at a
 time:
@@ -135,6 +141,7 @@ cannot call them. What they refuse:
 | An assignment when every seat the license includes is taken | `402`, `ai_seat_limit_reached`. Revoke a seat or raise the license first. Assigning a seat to a user who already holds one consumes nothing. |
 | Revoking a platform administrator's seat | `409`: they always hold one |
 | A user the deployment does not have | `404` |
+| The seat count or the user could not be read, or the change could not be saved | `503`. Nothing was changed; try again. |
 
 The two actions, and the automatic seat for the `OS_PLATFORM_OWNER_EMAIL`
 accounts, ship in Enterprise releases newer than 4.3.1.
