@@ -1,7 +1,7 @@
 ---
 title: Licensing
 seoTitle: "Enterprise Licensing: Obtain, Validate, Renew"
-description: How an ObjectOS Enterprise license is issued, validated online or air-gapped, reported in the boot banner and renewed, what Enterprise Single-Node and Enterprise each unlock, and what happens when a license ends.
+description: How an ObjectOS Enterprise license is issued, validated online or air-gapped, reported in the boot banner and renewed, what an Enterprise license unlocks, and what happens when a license ends.
 editions: [enterprise]
 ---
 
@@ -32,29 +32,35 @@ Store the license as a secret, the same way you store `OS_AUTH_SECRET`
 ([Production Readiness](/docs/operate/production)). Three things are fixed
 when the license is issued, and none of them is a setting you can change:
 
-- its **edition**: Enterprise Single-Node or Enterprise;
+- its **AI seats**: the number your contract buys, 25 or more (`maxAiSeats`);
 - its **mode**: online or air-gap ([below](#online-or-air-gap));
 - its **kind**: a subscription with an end date, or a perpetual license
   with a maintenance end date ([below](#when-a-license-ends)).
 
-## Enterprise Single-Node and Enterprise
+## What an Enterprise license unlocks
 
-Enterprise Single-Node (formerly Business Self-Managed) is the single-node
-entry option of ObjectOS Enterprise. Its license carries a fixed set of
-features; everything else on the list below needs an Enterprise license.
+ObjectOS Enterprise is one edition. An Enterprise license grants every
+feature below unless your contract lists features explicitly; the boot
+banner's `features` line shows what yours grants
+([below](#what-the-boot-banner-shows)).
 
-| | **Enterprise Single-Node** | **Enterprise** |
-|---|---|---|
-| Nodes | One (`maxNodes: 1`) | Several, up to the count your license carries (`maxNodes`) |
-| AI seats | Up to 25 | Set by your contract (`maxAiSeats`) |
-| License mode | Online only | Online or air-gap |
-| In-product AI | ✓ | ✓ |
-| AI governance | ✓ | ✓ |
-| Hierarchy security | — | ✓ |
-| Several organizations on one deployment | — | ✓ |
-| SCIM 2.0 provisioning, on by default | — | ✓ |
-| Customer-managed keys for secrets | — | ✓ |
-| When the license ends | Paid features switch off | Paid features switch off; a perpetual license keeps the versions released during maintenance |
+| | **Enterprise license** |
+|---|---|
+| Nodes | Not limited, unless your contract sets a count (`maxNodes`) |
+| AI seats | Set by your contract, 25 or more (`maxAiSeats`) |
+| License mode | Online, or air-gap by contract |
+| In-product AI | ✓ |
+| AI governance | ✓ |
+| Hierarchy security | ✓ |
+| Several organizations on one deployment | ✓ |
+| SCIM 2.0 provisioning, on by default | ✓ |
+| Customer-managed keys for secrets | ✓ |
+| When the license ends | A subscription falls back to Community; a perpetual license keeps the versions released during maintenance |
+
+A license issued before Enterprise became one edition can name the edition
+`business`. It keeps the terms it was sold with (one node, up to 25 AI
+seats, the in-product AI and AI governance, online validation) until it
+ends, and renews as an Enterprise license.
 
 What each row means, and where it stops:
 
@@ -69,12 +75,13 @@ What each row means, and where it stops:
   cannot become a way around record permissions, masking of sensitive
   fields in the data the AI's tools fetch, and visible quota refusals.
   Conversation history a user pastes in is not re-masked.
-- **Several nodes.** The license unlocks a multi-node topology up to its
-  node count; it is not a high-availability product. The deploy bundle runs
-  one node today, and the runtime refuses more than one replica until a
-  cluster driver is configured. Multi-node is set up with us under your
-  contract. Without a license, the runtime runs one replica, and a
-  deployment that declares more refuses to start.
+- **Several nodes.** The license does not limit the node count unless your
+  contract sets one, but it is not a high-availability product: high
+  availability across several replicas is in development and is not offered
+  until it ships. The deploy bundle runs one node today, and the runtime
+  refuses more than one replica until a cluster driver is configured.
+  Without a license, the runtime runs one replica, and a deployment that
+  declares more refuses to start.
 - **Hierarchy security.** Record visibility relative to the business-unit
   tree: the unit, unit-and-below and own-and-reports read scopes
   ([Hierarchy Visibility](/docs/configure/permissions/hierarchy-visibility)).
@@ -156,7 +163,7 @@ and the end date locally first.
 | Validation | At boot, then at the control plane: the license is exchanged for a 72-hour entitlement, refreshed every 24 hours | Locally only, against the key in the image. No network traffic. |
 | `OS_CLOUD_URL` | Your control plane, with the deployment's cloud binding completed | `off` |
 | When the control plane cannot be reached | The deployment stays licensed for **7 days** from the last successful validation, then runs as Community until validation succeeds again | Does not apply |
-| Available for | Enterprise Single-Node and Enterprise | Enterprise only |
+| Available for | Every Enterprise license | Enterprise, by contract |
 
 Two combinations are decided for you at startup:
 
@@ -190,10 +197,10 @@ decided. A licensed deployment prints, for example:
     customerId: cus_0123
     org       : (none)
     licenseId : lic_0456
-    seats     : up to 25 AI seat(s)
-    nodes     : 1
+    seats     : up to 50 AI seat(s)
+    nodes     : unlimited
     expires   : 2027-06-30T00:00:00.000Z
-    features  : aiStudio, governance
+    features  : aiStudio, clustering, hierarchySecurity, scim, governance, multiOrg, customerManagedKeys
     in-UI AI  : ENABLED (AI Builder + ask)
     preview   : AI Builder（预览，不在合同范围内）; ask is the included, supported agent
     mode      : ONLINE (validated by the control plane)
@@ -254,8 +261,9 @@ exits 0 only when this image will boot licensed with your `.env`:
 ./license-check.sh --image <new digest>  # against the image you are about to upgrade to
 ```
 
-The edition reads `enterprise`, or `business` for Enterprise Single-Node
-(its former name). Thirty days before a subscription ends, the check warns.
+The edition reads `enterprise`, or `business` on a license issued before
+Enterprise became one edition. Thirty days before a subscription ends, the
+check warns.
 
 ## Renewal
 
@@ -282,10 +290,9 @@ or touches your data, with the three exceptions [below](#three-deployments-refus
 
 ### Subscription
 
-Every Enterprise Single-Node license is a subscription, and so is an
-Enterprise license unless your contract says perpetual. At its next start
-after the end date, the runtime treats the license as absent and runs as
-Community:
+An Enterprise license is a subscription unless your contract says
+perpetual. At its next start after the end date, the runtime treats the
+license as absent and runs as Community:
 
 - the in-product AI and AI governance are off;
 - the hierarchy read scopes grant nothing;
@@ -299,9 +306,9 @@ start.
 
 ### Perpetual
 
-A perpetual license is a contract-only option of Enterprise; it is not
-offered for Enterprise Single-Node. It has no end date. It has a
-**maintenance end date** instead, and keeps the versions released while
+A perpetual license is a buy-out, sold by contract only, and it is the one
+kind that keeps a version after maintenance ends. It has no end date. It has
+a **maintenance end date** instead, and keeps the versions released while
 maintenance was paid:
 
 - An image released **before** the maintenance end keeps every Enterprise
