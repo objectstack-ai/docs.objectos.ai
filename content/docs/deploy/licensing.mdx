@@ -60,8 +60,10 @@ What each row means, and where it stops:
 
 - **In-product AI.** The "ask" agent is the included, supported agent. The
   AI Builder ships as a **preview** that is not part of the contract, and
-  the boot banner labels it so. An administrator assigns AI seats to users;
-  the license sets how many. You bring your own model and key.
+  the boot banner labels it so. A platform administrator assigns AI seats
+  to users, and the license sets how many
+  ([Assigning AI seats](#assigning-ai-seats)). You bring your own model
+  and key.
 - **AI governance.** An audit trail of every AI tool call (who asked the AI
   what, and what it touched), permission checks on each answer so the AI
   cannot become a way around record permissions, masking of sensitive
@@ -92,6 +94,57 @@ What each row means, and where it stops:
   you enable it are not migrated, and turning it off makes the secrets it
   sealed unreadable. Customer-managed keys ship in Enterprise releases
   newer than 4.3.1.
+
+## Assigning AI seats
+
+An AI seat lets a user chat with the in-product AI. The license sets how
+many seats the deployment can hold (`maxAiSeats`), and each seat is
+assigned to one user.
+
+**Platform administrators hold a seat without anyone assigning it.** That
+is every account holding the `admin_full_access` permission set (on a
+single-organization deployment, the first account created holds it, and so
+does anyone it is granted to later), and every account whose address is
+listed in `OS_PLATFORM_OWNER_EMAIL`, seated as soon as the account exists
+and its address is verified. On a deployment with several organizations
+(`OS_TENANCY_POSTURE=isolated` or `group`) the `OS_PLATFORM_OWNER_EMAIL`
+accounts are the platform administrators.
+
+These automatic seats **count toward `maxAiSeats`**: with two platform
+administrators on a license for 5 seats, 3 are left to assign. They are
+never refused, though, so a deployment cannot lock its administrators out of
+AI, even when that leaves it over the cap.
+
+**Everyone else gets a seat from a platform administrator**, one user at a
+time:
+
+- In the app: open the user under Setup → Users and choose **Assign AI
+  Seat**. **Revoke AI Seat** takes the seat back and frees it for someone
+  else. Only a platform administrator sees the two actions.
+- Over the API, with a platform administrator's session token:
+
+  ```bash
+  curl -X POST -H "Authorization: Bearer $TOKEN" \
+    "$BASE/api/v1/actions/sys_user/assign_ai_seat/usr_123"
+  curl -X POST -H "Authorization: Bearer $TOKEN" \
+    "$BASE/api/v1/actions/sys_user/revoke_ai_seat/usr_123"
+  ```
+
+The seat is not a field you can edit on the user record or through the data
+API; these two actions are the only way to change it, and an AI agent
+cannot call them. What they refuse:
+
+| Request | Answer |
+|---|---|
+| Not signed in | `401` |
+| From anyone who is not a platform administrator, including an organization administrator and a user asking for their own seat | `403` |
+| An assignment when every seat the license includes is taken | `402`, `ai_seat_limit_reached`. Revoke a seat or raise the license first. Assigning a seat to a user who already holds one consumes nothing. |
+| Revoking a platform administrator's seat | `409`: they always hold one |
+| A user the deployment does not have | `404` |
+| The seat count or the user could not be read, or the change could not be saved | `503`. Nothing was changed; try again. |
+
+The two actions, and the automatic seat for the `OS_PLATFORM_OWNER_EMAIL`
+accounts, ship in Enterprise releases newer than 4.3.1.
 
 ## Online or air-gap
 
