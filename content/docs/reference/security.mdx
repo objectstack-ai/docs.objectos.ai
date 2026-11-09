@@ -126,7 +126,9 @@ When the audit capability is loaded (`@objectstack/plugin-audit`):
 - Every CRUD operation across every object → audit row.
 - Before/after values for field changes.
 - Authentication, permission grants, session revocation events.
-- Audit rows are **immutable**: cannot be modified, only archived.
+- Audit rows cannot be edited or deleted through the data API or in
+  Setup. A verifiable proof that rows were not changed or removed
+  (tamper-evidence) is planned.
 - Retention is declared on the object's `lifecycle` block
   (`sys_audit_log` ships with 90 days hot, then archive) and tuned per
   environment via `lifecycle.retention_overrides`; pair with your DB's
@@ -145,7 +147,7 @@ software — but the controls map cleanly:
 |---|---|
 | **SOC 2** | Access control (CC6), change management (audit log), encryption (deployment), monitoring (observability), backup (operate/backup) |
 | **ISO 27001** | A.5 policies (RBAC), A.8 asset management (object catalog), A.9 access control, A.12 operations, A.18 compliance |
-| **HIPAA** | Access controls (§164.312(a)), audit controls (§164.312(b)), integrity (immutable audit), transmission security (TLS) |
+| **HIPAA** | Access controls (§164.312(a)), audit controls (§164.312(b): the audit log; tamper-evidence planned), transmission security (TLS) |
 | **GDPR** | Article 30 records of processing (audit), Article 32 security of processing, Article 17 right to erasure (soft + hard delete supported), data residency (you choose the region) |
 | **CCPA / China DSL / Russia 152-FZ** | ObjectOS Enterprise in the right region satisfies residency; access controls + audit cover most reporting obligations |
 
