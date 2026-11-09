@@ -1,19 +1,18 @@
 ---
 title: Plans and AI Seats
-seoTitle: "ObjectOS Cloud Plans: Free, Team, Enterprise and the AI Seat"
-description: The ObjectOS Cloud plans — Free, Team and Enterprise — the AI seat as the only paid seat, how to upgrade, cancel or change seats, who bills you, and where the console shows what your plan leaves out.
+seoTitle: "ObjectOS Cloud Plans: Free, Team and the AI Seat"
+description: The ObjectOS Cloud plans — Free and Team — the AI seat as the only paid seat, how to upgrade, cancel or change seats, who bills you, and where the console shows what your plan leaves out.
 editions: [cloud]
 ---
 
-ObjectOS Cloud has two plans you choose in the console, **Free** and
-**Team**, and **Enterprise** by contract. The plan belongs to the
+ObjectOS Cloud has two plans, **Free** and **Team**. The plan belongs to the
 **organization** and applies to its environment. Only **AI seats** are paid
 for: everyone else in the organization uses and views apps for free, and no
 plan caps the number of members, records or objects.
 
-| | **Free** | **Team** | **Enterprise** |
+| | **Free** | **Team** | **Legacy Enterprise** |
 |---|---|---|---|
-| Price | $0 | $24 per AI seat / month, or $20 per AI seat / month billed yearly | By contract |
+| Price | $0 | $24 per AI seat / month, or $20 per AI seat / month billed yearly | Not sold |
 | [Environment](/docs/cloud/environments) | 1 | 1 | 1 |
 | [AI allowance](/docs/cloud/ai-credits-and-limits) | A weekly allowance | A higher allowance that grows with AI seats, plus [AI credit packs](/docs/cloud/ai-credits-and-limits#buy-ai-credits) | Grows with AI seats, plus AI credit packs |
 | [Storage per environment](/docs/cloud/storage-and-limits) | 1 GB | 20 GB | Not capped |
@@ -24,6 +23,11 @@ plan caps the number of members, records or objects.
 | [Record- and field-level security](/docs/configure/permissions) | ✓ | ✓ | ✓ |
 | Sign-in | ObjectOS Cloud sign-in | ObjectOS Cloud sign-in | ObjectOS Cloud sign-in; single sign-on with your identity provider by contract |
 | Support | Community | Standard | Priority |
+
+The **Legacy Enterprise** column is an older hosted plan that is no longer
+sold: it stays only for the organizations that already have it. ObjectOS Cloud
+has no Enterprise plan; ObjectOS Enterprise is a private deployment on your own
+infrastructure ([Enterprise](#enterprise)).
 
 ObjectOS Cloud is in [Public Preview](/docs/editions/public-preview):
 prices are preview-period prices, and any change is announced in advance.
@@ -60,7 +64,8 @@ While online payment is not yet open for your organization, the button reads
 **Upgrade to Team** and opens **Billing** instead, where Team's
 **Contact sales** button starts the upgrade with us.
 
-Enterprise is sales-assisted: **Contact sales** on its column of **Billing**.
+There is no upgrade to Enterprise on ObjectOS Cloud: Enterprise is a private
+deployment ([Enterprise](#enterprise)).
 
 ## Manage your subscription
 
@@ -81,7 +86,7 @@ owners and admins **Next charge:** and the date; after a cancellation it reads
 
 **Manage subscription** is offered on the Team plan, to owners and admins, once
 online payment is open. A plan billed by invoice has no online subscription to
-manage: Enterprise never shows the button, and a Team plan billed
+manage: the legacy Enterprise plan never shows the button, and a Team plan billed
 by invoice answers that it has none. Change or cancel such a plan through
 [sales@objectos.ai](mailto:sales@objectos.ai).
 
@@ -112,7 +117,7 @@ www.objectos.ai.
 
 Two places in the console tell you, without a sales page in between:
 
-- **Billing** compares the three plans side by side, and marks the one you
+- **Billing** compares the plans side by side, and marks the one you
   are on with **Current plan**. Every member can read it; only owners and
   admins see its buttons.
 - An environment's **Overview** tab has a collapsed line,
