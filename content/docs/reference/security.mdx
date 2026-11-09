@@ -150,8 +150,7 @@ software — but the controls map cleanly:
 | **CCPA / China DSL / Russia 152-FZ** | ObjectOS Enterprise in the right region satisfies residency; access controls + audit cover most reporting obligations |
 
 ObjectOS itself is **not certified** because the certification is of a
-running deployment, not a binary. Your deployment can be certified —
-many already are.
+running deployment, not a binary. Your deployment can be certified.
 
 ## Secrets handling
 
@@ -253,17 +252,23 @@ queue a bad change someone else must accept.
 
 ### Audit events
 
-When the audit capability is loaded:
+With AI governance licensed (ObjectOS Enterprise), each governed AI
+event writes one append-only row to `sys_ai_audit_log`:
 
-- `ai.chat.message` — every user / assistant message, with model + token count
-- `ai.tool.call` — tool name, validated input, full output (or error)
-- `ai.pending_action.queued` — proposed mutation, full diff
-- `ai.pending_action.approved` / `.rejected` — who decided, when, why
-- `ai.metadata.applied` — actual write to the metadata store, with diff
+- `tool_call` — every tool call the product's built-in AI makes: who
+  asked, which agent and tool, the object it touched, a redacted
+  argument summary, the decision (allowed or denied) and the result
+- `quota_refusal` — a chat turn refused by a quota: the per-user
+  message allowance or the environment's token guardrail
+- `guardrail_refusal` — a turn or tool call refused by the agent's own
+  guardrails (time limit, token budget, blocked tool)
 
-These rows are immutable and can be exported for security review or
-chargeback. Token counts per (provider, model, user) feed cost
-attribution.
+The trail covers the product's built-in AI. An external agent calling
+data tools over `/mcp` writes no `sys_ai_audit_log` row; RLS / FLS and
+field masking still apply to it.
+
+Exporting the audit log is not an included feature yet. Token counts
+and cost per model are recorded on `ai_traces`, not on the audit rows.
 
 ### Prompt-injection posture
 
