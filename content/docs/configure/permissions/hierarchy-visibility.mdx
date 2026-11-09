@@ -13,9 +13,10 @@ as a read (or write) **scope**.
 
 > **Where it is available.** On a self-managed ObjectOS Enterprise
 > deployment, under a license that includes the `hierarchySecurity` feature.
-> On ObjectOS Cloud, under an Enterprise contract. Everywhere else the three
-> scopes on this page grant nothing beyond the owner's own records — they never
-> fail *open*. See [Requirements](#requirements).
+> On ObjectOS Cloud, only for an organization still on the legacy Enterprise
+> plan, which is no longer sold: ObjectOS Cloud has no Enterprise plan.
+> Everywhere else the three scopes on this page grant nothing beyond the
+> owner's own records — they never fail *open*. See [Requirements](#requirements).
 
 ## The three scopes
 
@@ -137,7 +138,9 @@ business-unit tree within one organization.
 - **Self-managed ObjectOS Enterprise:** a license whose features include
   `hierarchySecurity` (the default Enterprise feature set does). Without it,
   the scopes behave as `own`.
-- **ObjectOS Cloud:** an Enterprise contract. On Free and Team the scopes
+- **ObjectOS Cloud:** the legacy Enterprise plan, which is no longer sold —
+  ObjectOS Cloud has no Enterprise plan, and ObjectOS Enterprise is a private
+  deployment (above). On Free and Team the scopes
   behave as `own`, and an environment refuses to publish metadata that uses
   them.
 - **ObjectOS Community:** not available; the scopes behave as `own`.

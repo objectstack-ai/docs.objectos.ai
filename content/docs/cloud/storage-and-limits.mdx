@@ -9,7 +9,7 @@ Each ObjectOS Cloud environment has a few limits of its own. This page lists
 them with the plan each number belongs to. The AI allowance has its own page:
 [AI Credits and Limits](/docs/cloud/ai-credits-and-limits).
 
-| Limit | Free | Team and above | Enterprise |
+| Limit | Free | Team and above | Legacy Enterprise |
 |---|---|---|---|
 | [Storage per environment](#storage) | 1 GB | 20 GB | Not capped |
 | [MCP requests per minute](#mcp-limits) | 20 | 120 | 120 |
@@ -20,7 +20,12 @@ them with the plan each number belongs to. The AI allowance has its own page:
 ## Storage
 
 Every environment has a **storage allowance**: **1 GB** on Free and **20 GB**
-on Team, counted **per environment**, and an organization has one. An Enterprise contract carries no storage number.
+on Team, counted **per environment**, and an organization has one.
+The **Legacy Enterprise** column is an older hosted plan that is no longer sold:
+it carries no storage number, and it stays only for the organizations that
+already have it. ObjectOS Cloud has no Enterprise plan;
+ObjectOS Enterprise is a private deployment on your own infrastructure
+([License & Pricing](/docs/editions/license)).
 (Product owner ruling, 2026-09-08: the numbers are final.)
 
 **What counts.** The environment's database plus its attachments. Usage is
