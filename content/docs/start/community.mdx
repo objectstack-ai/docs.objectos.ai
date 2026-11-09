@@ -162,8 +162,11 @@ views, and flows.
 ```bash
 npx @objectstack/cli init my-app -t app --install
 cd my-app
-pnpm dev
+npx objectstack dev
 ```
+
+`npx objectstack dev` is the command the scaffold prints under *Next steps*.
+It runs the CLI the scaffold installed, so it needs nothing beyond Node.js.
 
 You'll see:
 
@@ -213,13 +216,12 @@ You'll see:
   Press Ctrl+C to stop
 ```
 
-That block is transcribed from `pnpm dev` on a scaffold created by
+That block is transcribed from the dev server on a scaffold created by
 `@objectstack/cli` 17.7.0. Project paths show as `my-app/…` — the CLI prints
 yours expanded, and the `Build complete` timing is whatever the transcribing
-machine measured, so yours will differ. Your own run also prints pnpm's script
-header above the block, per-step compile progress, startup advisories
-(configuration load, dev secret-field crypto), the full list of loaded plugin
-names, boot diagnostics, and an MCP connection trailer. A separate process
+machine measured, so yours will differ. Your own run also prints per-step
+compile progress, startup advisories (configuration load, dev secret-field
+crypto), the full list of loaded plugin names, boot diagnostics, and an MCP connection trailer. A separate process
 prints that trailer, so it usually lands inside the banner, often interleaved
 line by line with it.
 
@@ -270,7 +272,8 @@ same barrel line for you.
 Save. The dev server recompiles, prints
 `✚ new object(s): my_app_task — table & seeds sync on restart`, and restarts
 itself on the new build: no migration to write, no restart to run. If it
-prints only `✗ compile failed`, run `pnpm build` to see why. You now have:
+prints only `✗ compile failed`, run `npx objectstack build` to see why. You now
+have:
 
 - **`/api/v1/data/my_app_task`** — create, read, update and delete, with
   filter, sort and pagination ([REST API](/docs/reference/rest-api)). It
@@ -309,7 +312,7 @@ my-app/
 │   └── views/
 ├── dist/
 │   └── objectstack.json     # Compiled artifact (regenerated on save)
-├── .objectstack/            # Local SQLite databases (pnpm dev creates them)
+├── .objectstack/            # Local SQLite databases (the dev server creates them)
 ├── package.json
 ├── pnpm-workspace.yaml
 └── tsconfig.json
@@ -330,8 +333,11 @@ Production-shaped starters live in
 git clone https://github.com/objectstack-ai/templates.git
 cd templates/packages/helpdesk
 pnpm install
-pnpm dev    # http://localhost:4002
+pnpm dev    # http://localhost:4006
 ```
+
+The templates repository is a pnpm workspace. If `pnpm --version` finds
+nothing, install it first with `npm i -g pnpm`.
 
 Each template is < 2500 LOC, readable in one sitting, runs standalone.
 
@@ -352,7 +358,7 @@ Path B also loads the automation service plus the record-change, schedule,
 time-relative and inbound HTTP/webhook flow triggers, because the scaffold's
 `objectstack.config.ts` declares `requires: ['automation', 'triggers']`. It
 also opens a dedicated telemetry datasource, a second SQLite file beside the
-database, because `pnpm dev` runs in development mode.
+database, because `npx objectstack dev` runs in development mode.
 
 You don't import or wire any of them — the list above loads even when nothing
 declares it, the automation service and flow triggers activate when something
