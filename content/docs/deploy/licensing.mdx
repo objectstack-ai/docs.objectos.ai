@@ -70,11 +70,14 @@ What each row means, and where it stops:
   to users, and the license sets how many
   ([Assigning AI seats](#assigning-ai-seats)). You bring your own model
   and key.
-- **AI governance.** An audit trail of every AI tool call (who asked the AI
-  what, and what it touched), permission checks on each answer so the AI
-  cannot become a way around record permissions, masking of sensitive
-  fields in the data the AI's tools fetch, and visible quota refusals.
-  Conversation history a user pastes in is not re-masked.
+- **AI governance.** An audit trail of every tool call the product's
+  built-in AI makes (who asked the AI what, and what it touched),
+  permission checks on each answer so the AI cannot become a way around
+  record permissions, masking of sensitive fields in the data the AI's
+  tools fetch, and visible quota refusals. Conversation history a user
+  pastes in is not re-masked. The trail covers the product's built-in AI.
+  An external agent calling data tools over `/mcp` writes no
+  `sys_ai_audit_log` row; RLS / FLS and field masking still apply to it.
 - **Several nodes.** The license does not limit the node count unless your
   contract sets one, but it is not a high-availability product: high
   availability across several replicas is in development and is not offered
