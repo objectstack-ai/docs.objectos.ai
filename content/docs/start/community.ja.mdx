@@ -4,7 +4,7 @@ seoTitle: "os start または os init で ObjectOS Community をローカルで�
 description: "オープンソースのランタイムである ObjectOS Community で、ゼロから動作するアプリまで。ひとつの CLI、ひとつのコマンドで、アカウントも Docker も不要です。"
 editions: [community]
 translation:
-  source_sha: b730f9f4744c61db7f446009aa54953a4881d7d98e9355f789847cda13cac7d7
+  source_sha: bed9cbcbd6c31277a094254f03451896401e0a13835b0e02db7d6b843c39122b
   guide_rev: 1
   mode: auto
 ---
@@ -125,8 +125,10 @@ os start --home /var/lib/objectos          # persistent home (production)
 ```bash
 npx @objectstack/cli init my-app -t app --install
 cd my-app
-pnpm dev
+npx objectstack dev
 ```
+
+`npx objectstack dev` は、スキャフォールドが *Next steps* に表示するコマンドです。スキャフォールドがインストールした CLI を実行するので、Node.js 以外には何も必要ありません。
 
 次のように表示されます。
 
@@ -176,7 +178,7 @@ pnpm dev
   Press Ctrl+C to stop
 ```
 
-上のブロックは、`@objectstack/cli` 17.7.0 で作成したスキャフォールド上で `pnpm dev` を実行したときの出力を書き写したものです。プロジェクトパスは `my-app/…` と表示していますが、CLI は展開したパスを表示します。また `Build complete` の時間は書き写したマシンが計測した値なので、あなたの環境では異なります。実際の実行では、ブロックの上に pnpm のスクリプトヘッダー、ステップごとのコンパイル進捗、起動時の注意事項（設定の読み込み、開発用のシークレットフィールド暗号化）、読み込まれたプラグイン名の完全な一覧、起動診断、MCP 接続の末尾メッセージも表示されます。その末尾メッセージは別のプロセスが出力するため、通常はバナーの途中に入り込み、しばしば 1 行ずつ交互に混ざります。
+上のブロックは、`@objectstack/cli` 17.7.0 で作成したスキャフォールド上の開発サーバーの出力を書き写したものです。プロジェクトパスは `my-app/…` と表示していますが、CLI は展開したパスを表示します。また `Build complete` の時間は書き写したマシンが計測した値なので、あなたの環境では異なります。実際の実行では、ステップごとのコンパイル進捗、起動時の注意事項（設定の読み込み、開発用のシークレットフィールド暗号化）、読み込まれたプラグイン名の完全な一覧、起動診断、MCP 接続の末尾メッセージも表示されます。その末尾メッセージは別のプロセスが出力するため、通常はバナーの途中に入り込み、しばしば 1 行ずつ交互に混ざります。
 
 開発サーバーはポート **3000** を要求することに注意してください。これは `os start` と同じポートです。そのポートが使用中の場合は、次の空きポートにバインドし、そのことを表示します。`↪ server bound to port 3001 (requested 3000)`。
 
@@ -211,7 +213,7 @@ export default task;
 
 `npx objectstack generate object task` は、ファイルのスタブと同じバレルの行を書き込みます。
 
-保存します。開発サーバーは再コンパイルし、`✚ new object(s): my_app_task — table & seeds sync on restart` を表示して、新しいビルドで自分自身を再起動します。書くべきマイグレーションも、実行すべき再起動もありません。`✗ compile failed` だけが表示された場合は、`pnpm build` を実行して原因を確認してください。これで次のものが手に入ります。
+保存します。開発サーバーは再コンパイルし、`✚ new object(s): my_app_task — table & seeds sync on restart` を表示して、新しいビルドで自分自身を再起動します。書くべきマイグレーションも、実行すべき再起動もありません。`✗ compile failed` だけが表示された場合は、`npx objectstack build` を実行して原因を確認してください。これで次のものが手に入ります。
 
 - **`/api/v1/data/my_app_task`**：作成、読み取り、更新、削除を、フィルター、ソート、ページネーション付きで（[REST API](/docs/reference/rest-api)）。サインインした呼び出し元にのみ応答するので、まず開発用管理者としてサインインしてください（下記）。
 - **生成された一覧、フォーム、レコードページ**：スキャフォールドはまだアプリを宣言していないため、Console 内にそれらへのリンクはありません。`http://localhost:3000/_console/apps/setup/my_app_task` を開いてください。
@@ -244,7 +246,7 @@ my-app/
 │   └── views/
 ├── dist/
 │   └── objectstack.json     # Compiled artifact (regenerated on save)
-├── .objectstack/            # Local SQLite databases (pnpm dev creates them)
+├── .objectstack/            # Local SQLite databases (the dev server creates them)
 ├── package.json
 ├── pnpm-workspace.yaml
 └── tsconfig.json
@@ -262,8 +264,10 @@ my-app/
 git clone https://github.com/objectstack-ai/templates.git
 cd templates/packages/helpdesk
 pnpm install
-pnpm dev    # http://localhost:4002
+pnpm dev    # http://localhost:4006
 ```
+
+テンプレートのリポジトリは pnpm ワークスペースです。`pnpm --version` で pnpm が見つからない場合は、先に `npm i -g pnpm` でインストールしてください。
 
 各テンプレートは 2500 行未満で、一度に読み通せ、単体で動作します。
 
@@ -275,7 +279,7 @@ pnpm dev    # http://localhost:4002
 
 > HTTP サーバー、REST API、Dispatcher、MCP サーバー、Auth、Security（RBAC + RLS + FLS）、Audit、Sharing、プラットフォームオブジェクト、Metadata、ObjectQL、デフォルトのデータソースと外部データソースおよびデータソース管理のサービス、Queue、Jobs、Cache、Settings、Email、SMS、Messaging、Storage、Analytics、外部検証、Marketplace、パッケージ管理、マイグレーションの復旧、Setup と Account のアプリ、そして Console UI。
 
-パス B では、スキャフォールドの `objectstack.config.ts` が`requires: ['automation', 'triggers']` を宣言しているため、自動化サービスに加えて、レコード変更、スケジュール、相対時間、受信 HTTP/Webhook のフロートリガーも読み込まれます。また、`pnpm dev` が開発モードで実行されるため、専用のテレメトリデータソース（データベースの隣にある 2 つ目の SQLite ファイル）も開きます。
+パス B では、スキャフォールドの `objectstack.config.ts` が`requires: ['automation', 'triggers']` を宣言しているため、自動化サービスに加えて、レコード変更、スケジュール、相対時間、受信 HTTP/Webhook のフロートリガーも読み込まれます。また、`npx objectstack dev` が開発モードで実行されるため、専用のテレメトリデータソース（データベースの隣にある 2 つ目の SQLite ファイル）も開きます。
 
 どれもインポートしたり配線したりする必要はありません。上の一覧は何も宣言していなくても読み込まれ、自動化サービスとフロートリガーは何かがそれを必要と宣言すると有効になり、開発モードはテレメトリデータソースを追加します。
 

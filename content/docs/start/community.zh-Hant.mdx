@@ -5,7 +5,7 @@ seoTitle: "用 os start 或 os init 在本地執行 ObjectOS Community"
 description: "在開源執行時 ObjectOS Community 上從零到一個執行中的應用：一個 CLI、一條命令，無需賬戶，也無需 Docker。"
 editions: [community]
 translation:
-  source_sha: b730f9f4744c61db7f446009aa54953a4881d7d98e9355f789847cda13cac7d7
+  source_sha: bed9cbcbd6c31277a094254f03451896401e0a13835b0e02db7d6b843c39122b
   guide_rev: 1
   mode: auto
 ---
@@ -155,8 +155,11 @@ os start --home /var/lib/objectos          # persistent home (production)
 ```bash
 npx @objectstack/cli init my-app -t app --install
 cd my-app
-pnpm dev
+npx objectstack dev
 ```
+
+`npx objectstack dev` 是腳手架在 *Next steps* 下列印的命令。它執行腳手架安裝的
+CLI，所以除了 Node.js 之外不需要任何東西。
 
 你會看到：
 
@@ -206,10 +209,10 @@ pnpm dev
   Press Ctrl+C to stop
 ```
 
-上面這段輸出抄錄自在 `@objectstack/cli` 17.7.0 建立的腳手架上執行
-`pnpm dev`。專案路徑顯示為 `my-app/…` —— CLI 列印的是你展開後的路徑；
+上面這段輸出抄錄自 `@objectstack/cli` 17.7.0 建立的腳手架上的開發伺服器。
+專案路徑顯示為 `my-app/…` —— CLI 列印的是你展開後的路徑；
 `Build complete` 的耗時是抄錄機器測得的值，所以你的會不同。你自己執行時
-還會列印：塊上方 pnpm 的指令碼頭、逐步的編譯進度、啟動提示（配置載入、
+還會列印：逐步的編譯進度、啟動提示（配置載入、
 開發用密文欄位加密）、已載入外掛名稱的完整列表、啟動診斷，以及一段 MCP
 連線尾註。尾註由另一個程序列印，所以它通常落在橫幅裡面，常常與橫幅逐行
 交錯。
@@ -261,7 +264,7 @@ export default task;
 儲存。開發伺服器會重新編譯，列印
 `✚ new object(s): my_app_task — table & seeds sync on restart`，並用新的
 構建自動重啟：不需要編寫遷移，也不需要手動重啟。如果它只打印
-`✗ compile failed`，執行 `pnpm build` 檢視原因。現在你有了：
+`✗ compile failed`，執行 `npx objectstack build` 檢視原因。現在你有了：
 
 - **`/api/v1/data/my_app_task`** —— 建立、讀取、更新和刪除，支援過濾、
   排序和分頁（[REST API](/docs/reference/rest-api)）。它只響應已登入的
@@ -300,7 +303,7 @@ my-app/
 │   └── views/
 ├── dist/
 │   └── objectstack.json     # Compiled artifact (regenerated on save)
-├── .objectstack/            # Local SQLite databases (pnpm dev creates them)
+├── .objectstack/            # Local SQLite databases (the dev server creates them)
 ├── package.json
 ├── pnpm-workspace.yaml
 └── tsconfig.json
@@ -321,8 +324,11 @@ my-app/
 git clone https://github.com/objectstack-ai/templates.git
 cd templates/packages/helpdesk
 pnpm install
-pnpm dev    # http://localhost:4002
+pnpm dev    # http://localhost:4006
 ```
+
+模板倉庫是一個 pnpm 工作區。如果 `pnpm --version` 找不到 pnpm，請先用
+`npm i -g pnpm` 安裝。
 
 每個模板都少於 2500 行程式碼，一次就能讀完，可以獨立執行。
 
@@ -340,7 +346,7 @@ pnpm dev    # http://localhost:4002
 
 路徑 B 還會載入自動化服務，以及記錄變更、計劃、相對時間和入站
 HTTP/Webhook 流程觸發器，因為腳手架的 `objectstack.config.ts` 聲明瞭
-`requires: ['automation', 'triggers']`。由於 `pnpm dev` 以開發模式執行，
+`requires: ['automation', 'triggers']`。由於 `npx objectstack dev` 以開發模式執行，
 它還會開啟一個專用的遙測資料來源 —— 資料庫旁邊的第二個 SQLite 檔案。
 
 你不需要匯入或連線其中任何一個 —— 上面的列表即使沒有任何東西宣告也會
