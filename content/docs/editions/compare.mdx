@@ -62,9 +62,9 @@ the matrix above. The editions you run a business on are still Community,
 Cloud Free, Cloud Team and Enterprise.
 
 - **Who can open one.** Anyone with an ObjectOS Cloud account. The type is
-  fixed when the organization is created: a Free or Team organization never
-  becomes a developer organization, and a developer organization never
-  becomes another type.
+  chosen when the organization is created: nothing turns a Free or Team
+  organization into a developer organization, or a developer organization
+  into another type.
 - **Non-production.** A developer organization is for learning, building
   and demonstrating, never for running a business. It has no upgrade,
   promotion or conversion to production. What you build there reaches
@@ -72,19 +72,26 @@ Cloud Free, Cloud Team and Enterprise.
   a Free or Team organization or an Enterprise deployment, or as source.
 - **At most five members, of every class.** Every membership counts: the
   owner, every role, and every member class alike, whether AI seat,
-  standard user or viewer. An agent counts as the member whose API key it
-  uses: that membership is one of the five. A pending, unexpired invitation holds a place too, so an
-  invitation is refused once members and pending invitations make five.
-  The sixth membership is refused with
-  `403 DEVELOPER_ORGANIZATION_MEMBER_LIMIT_REACHED`; remove a member to make
-  room. No payment raises the limit.
+  standard user or viewer. An AI service account registered for an agent
+  in the organization's environment is a member too, and takes one of the
+  five; an agent that signs in with a person's own API key is that person
+  and takes no extra place. A pending, unexpired invitation holds a place
+  as well, so an invitation is refused once members and pending
+  invitations make five. The sixth membership, invitation or AI service
+  account is refused with `403 DEVELOPER_ORGANIZATION_MEMBER_LIMIT_REACHED`;
+  remove a member or retire an AI service account to make room. No payment
+  raises the limit.
 - **Free, with no payment path.** A developer organization costs nothing,
   and nothing in it can be bought: no paid plan, no AI seats, no credit
   packs. A checkout for one is refused with
-  `409 DEVELOPER_ORGANIZATION_NOT_PURCHASABLE`. Its in-product AI runs on
-  the Free plan's weekly allowance ([AI Credits and Limits](/docs/cloud/ai-credits-and-limits)).
-  Like every organization, it has one environment, with 1 GB of file
-  storage.
+  `409 DEVELOPER_ORGANIZATION_NOT_PURCHASABLE`.
+- **Cloud Free's limits.** Like every organization, it has one
+  environment, with 1 GB of file storage. Its in-product AI runs on the
+  Free plan's model and weekly allowance
+  ([AI Credits and Limits](/docs/cloud/ai-credits-and-limits)), its MCP
+  endpoint accepts Free's 20 requests a minute and 1,000 a day, and it has
+  no custom domain. Approval workflows and scheduled and time-relative
+  flows, which need Team on a customer organization, are available.
 
 A developer organization runs with these Enterprise capabilities:
 
