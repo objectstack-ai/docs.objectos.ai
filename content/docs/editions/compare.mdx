@@ -12,7 +12,9 @@ the licensed product on your own infrastructure: one edition, always a
 private deployment, sold by contract and priced per AI user. ObjectOS Cloud
 has no Business plan and no Enterprise plan. Prices and contracts are on
 [License & Pricing](/docs/editions/license); this page is what each one does
-differently.
+differently. Beside them, anyone can open a free, non-production
+[Developer Edition](#developer-edition) organization on ObjectOS Cloud to
+learn, build and demonstrate.
 
 Every page in these docs carries a row of edition badges under its title,
 naming the editions it applies to. The sidebar marks the pages and groups that
@@ -50,6 +52,58 @@ backup and restore; high availability across several replicas is in
 development and is not offered until it ships. On a self-managed
 deployment, Community and Enterprise run the same runtime: everything in the
 Community column is in the Enterprise column too.
+
+## Developer Edition
+
+The **Developer Edition** is a free, non-production organization type on
+ObjectOS Cloud, for learning ObjectOS, building on it and demonstrating it.
+It is not a customer edition and not a plan you buy, so it has no column in
+the matrix above. The editions you run a business on are still Community,
+Cloud Free, Cloud Team and Enterprise.
+
+- **Who can open one.** Anyone with an ObjectOS Cloud account. The type is
+  chosen when the organization is created: nothing turns a Free or Team
+  organization into a developer organization, or a developer organization
+  into another type.
+- **Non-production.** A developer organization is for learning, building
+  and demonstrating, never for running a business. It has no upgrade,
+  promotion or conversion to production. What you build there reaches
+  production the way any app does: as a package you publish and install in
+  a Free or Team organization or an Enterprise deployment, or as source.
+- **At most five members, of every class.** Every membership counts: the
+  owner, every role, and every member class alike, whether AI seat,
+  standard user or viewer. An AI service account registered for an agent
+  in the organization's environment is a member too, and takes one of the
+  five; an agent that signs in with a person's own API key is that person
+  and takes no extra place. A pending, unexpired invitation holds a place
+  as well, so an invitation is refused once members and pending
+  invitations make five. The sixth membership, invitation or AI service
+  account is refused with `403 DEVELOPER_ORGANIZATION_MEMBER_LIMIT_REACHED`;
+  remove a member or retire an AI service account to make room. No payment
+  raises the limit.
+- **Free, with no payment path.** A developer organization costs nothing,
+  and nothing in it can be bought: no paid plan, no AI seats, no credit
+  packs. A checkout for one is refused with
+  `409 DEVELOPER_ORGANIZATION_NOT_PURCHASABLE`.
+- **Cloud Free's limits.** Like every organization, it has one
+  environment, with 1 GB of file storage. Its in-product AI runs on the
+  Free plan's model and weekly allowance
+  ([AI Credits and Limits](/docs/cloud/ai-credits-and-limits)), its MCP
+  endpoint accepts Free's 20 requests a minute and 1,000 a day, and it has
+  no custom domain. Approval workflows and scheduled and time-relative
+  flows, which need Team on a customer organization, are available.
+
+A developer organization runs with these Enterprise capabilities:
+
+| Capability | What it does |
+|---|---|
+| Hierarchy security | Record visibility relative to the business-unit tree: the `unit`, `unit_and_below` and `own_and_reports` read scopes. See [Hierarchy Visibility](/docs/configure/permissions/hierarchy-visibility). |
+| AI governance | An audit trail of every tool call the product's built-in AI makes (who asked the AI what, and what it touched), permission checks on each answer so the AI cannot become a way around record permissions, masking of sensitive fields in the data the AI's tools fetch, and visible quota refusals. |
+
+That is the whole list today. A developer organization gets an Enterprise
+capability only once it has shipped for developer organizations; until
+then it is not listed here and not offered there. No other Enterprise
+capability is part of a developer organization.
 
 ## Where each difference is enforced
 
