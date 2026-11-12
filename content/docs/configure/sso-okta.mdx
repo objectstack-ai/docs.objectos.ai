@@ -1,0 +1,290 @@
+---
+title: SSO with Okta
+seoTitle: "Single Sign-On with Okta (OIDC and SAML 2.0)"
+description: Connect Okta to ObjectOS with OIDC or SAML 2.0 — the exact URLs and values to paste in Okta and in Setup → SSO Providers, the Okta policies sign-in needs, domain verification, and group-to-permission-set mapping.
+editions: [community, cloud, enterprise]
+---
+
+This guide connects an Okta organization to ObjectOS, so that people sign in
+with their Okta account. It covers both protocols: pick one, then follow its
+section. Everything on the ObjectOS side happens in the console, under
+**Setup → Access Control → SSO Providers** (see
+[Authentication](/docs/configure/authentication#setup--sso-providers) for what
+that page is and how it differs from configuring OAuth providers in code).
+
+The steps and values below were verified end to end against a real Okta
+organization and ObjectOS Enterprise. Microsoft Entra ID has its own guide:
+[SSO with Microsoft Entra ID](/docs/configure/sso-entra-id).
+
+## OIDC or SAML
+
+| | OIDC | SAML 2.0 |
+|---|---|---|
+| Use it when | You are starting fresh. Recommended. | Your organization's IdP standard allows SAML only. |
+| Okta signing-key rotation | Picked up automatically; nothing to change in ObjectOS. | Paste the new certificate with **Edit SAML Settings** (see [Certificate rotation](#certificate-rotation-saml)). |
+| Groups → permission sets | Yes | Yes |
+
+Register **one** provider per email domain. People are routed to a provider
+by the domain of the email address they type on the sign-in page.
+
+## Before you start
+
+- **ObjectOS with SSO turned on.** On a self-hosted deployment, set
+  `OS_SSO_ENABLED=true` in `.env` and restart (`docker compose up -d`). On
+  ObjectOS Cloud, see [On ObjectOS Cloud](#on-objectos-cloud).
+- **A platform administrator account** in ObjectOS. Registering a provider,
+  verifying its domain and mapping groups are platform-administrator actions.
+- **Access to the DNS of your email domain**, to publish one TXT record
+  (see [Verify your email domain](#verify-your-email-domain)).
+- **An Okta administrator account.**
+- **The public `https://` address of ObjectOS.** This guide writes it as
+  `https://objectos.example.com`; replace it with yours everywhere.
+
+### The URLs you paste in Okta
+
+Each URL ends with the **Provider ID** you give the provider in ObjectOS. This
+guide uses `okta-oidc` and `okta-saml`; if you choose other IDs, use them in
+these URLs too. The two sides must match exactly.
+
+| Okta field | Value |
+|---|---|
+| OIDC: **Sign-in redirect URIs** | `https://objectos.example.com/api/v1/auth/sso/callback/okta-oidc` |
+| SAML: **Single sign-on URL** (the ACS URL) | `https://objectos.example.com/api/v1/auth/sso/saml2/sp/acs/okta-saml` |
+| SAML: **Audience URI (SP Entity ID)** | `https://objectos.example.com/api/v1/auth/sso/saml2/sp/metadata?providerId=okta-saml` |
+
+The SAML entity ID is also the address of ObjectOS's SP metadata: once the
+provider is registered, open it in a browser to check the entity ID and ACS
+URL Okta should have.
+
+## Option A: OIDC
+
+### In Okta
+
+1. **Applications → Applications → Create App Integration.** Choose
+   **OIDC - OpenID Connect** and **Web Application**.
+2. On the new app:
+   - **Sign-in redirect URIs**: the OIDC URL from the table above.
+   - **Client authentication**: **Client secret**.
+   - **Assignments**: assign the groups (or people) who should sign in.
+
+   Save, then copy the **Client ID** and the **Client secret**.
+3. **Security → API → Authorization Servers → `default`.**
+   - **Claims → Add Claim** (only if you will map groups to permission sets):
+     Name `groups`, Include in token type **ID Token**, **Always**, Value type
+     **Groups**, Filter **Matches regex** `.*` (or a narrower filter that
+     matches only the groups you will map).
+   - **Access Policies → Add Policy**, assigned to the app from step 1, with a
+     rule that allows the **Authorization Code** grant.
+
+   > **This policy is required.** An authorization server with no access policy
+   > for the app lets Okta sign the person in and then answers *You are not
+   > allowed to access this app*, so the sign-in never reaches ObjectOS.
+
+4. **Sign-on policy.** Multi-factor authentication and every other sign-in
+   rule stay in Okta: ObjectOS adds no second factor of its own to an SSO
+   sign-in. The app uses whichever **authentication policy** it is assigned
+   (**Security → Authentication Policies**); a new app usually gets the
+   organization's default, which may require two factors. That is fine for
+   people. When you test with an account that has no second factor enrolled,
+   create a separate policy whose only rule allows **Password** alone and
+   assign it to the test app — not to the app your organization uses.
+
+### In ObjectOS
+
+**Setup → Access Control → SSO Providers → Register SSO Provider**:
+
+| Field | Value |
+|---|---|
+| Provider ID | `okta-oidc` — the same ID as at the end of the redirect URI |
+| Issuer URL | `https://YOUR-OKTA-DOMAIN/oauth2/default` |
+| Email Domain | The domain of your people's email addresses, for example `acme.com` |
+| Client ID / Client Secret | The values from step 2 |
+| Map: Groups claim | `groups` — or leave it blank if you will not map groups |
+
+Leave every other field blank: ObjectOS reads Okta's endpoints from the
+issuer's discovery document. The client secret is stored encrypted and is
+never shown again; **Edit OIDC Settings** replaces it.
+
+Next: [verify your email domain](#verify-your-email-domain), then
+[sign in](#signing-in).
+
+## Option B: SAML 2.0
+
+### In Okta
+
+1. **Applications → Applications → Create App Integration.** Choose
+   **SAML 2.0**.
+2. **Configure SAML**:
+   - **Single sign-on URL**: the ACS URL from the table above. Tick **Use this
+     for Recipient URL and Destination URL**.
+   - **Audience URI (SP Entity ID)**: the SP entity ID from the table above.
+   - **Name ID format**: `EmailAddress`. **Application username**: `Email`.
+   - **Attribute Statements** (format **Basic**, names exactly as written):
+
+     | Name | Value |
+     |---|---|
+     | `email` | `user.email` |
+     | `givenName` | `user.firstName` |
+     | `surname` | `user.lastName` |
+
+   - **Group Attribute Statements** (only if you will map groups): Name
+     `groups`, Filter **Matches regex** `.*` (or a narrower filter).
+
+   These are the attribute names ObjectOS reads by default, so nothing needs
+   mapping on the ObjectOS side. Without `givenName` and `surname`, a new
+   account is named after the email address. If your Okta app already sends
+   other names (for example a single `name` attribute), map them in ObjectOS
+   instead: **Map: Display name attribute** on the registration form, or
+   **Edit Attribute Mapping** on the provider.
+3. **Assignments**: assign the groups (or people) who should sign in.
+4. **Sign On** tab → **View SAML setup instructions**. Copy the **Identity
+   Provider Single Sign-On URL**, the **Identity Provider Issuer** and the
+   **X.509 Certificate**.
+
+### In ObjectOS
+
+**Setup → Access Control → SSO Providers → Register SAML Provider**:
+
+| Field | Value |
+|---|---|
+| Provider ID | `okta-saml` — the same ID as at the end of the ACS URL and the entity ID |
+| IdP Entity ID | Okta's **Identity Provider Issuer** (it looks like `http://www.okta.com/exk…`) |
+| Email Domain | The domain of your people's email addresses |
+| IdP SSO URL | Okta's **Identity Provider Single Sign-On URL** |
+| IdP Signing Certificate | The X.509 certificate |
+| NameID Format | Leave blank |
+| Map: Groups attribute | `groups` — or leave it blank if you will not map groups |
+
+Leave the other **Map:** fields blank when Okta sends the attribute names
+above. Then open the SP entity ID URL in a browser and check that the entity
+ID and ACS URL it shows are the ones in the Okta app.
+
+Next: [verify your email domain](#verify-your-email-domain), then
+[sign in](#signing-in).
+
+### Leave IdP-initiated sign-in off
+
+Starting a sign-in from the Okta dashboard tile (IdP-initiated sign-in) is off
+for every new provider, and this guide leaves it off: people start at the
+ObjectOS sign-in page. With it off, a click on the Okta tile does not sign
+anyone in. Keep **Allow IdP-Initiated Sign-In** (under **Edit Sign-In
+Options**) off for SAML providers until
+[objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146)
+is fixed: an unsolicited SAML response is not bound to a request ObjectOS
+made, and a response whose NameID is not the email address can create a
+second account.
+
+### Certificate rotation (SAML)
+
+When Okta switches to a new signing certificate, ObjectOS refuses sign-ins
+signed with it until it has the certificate. Rotate without downtime:
+
+1. In Okta, create the new certificate but keep the old one active.
+2. In ObjectOS, run **Edit SAML Settings** on the provider: paste the new
+   certificate in **New IdP Signing Certificate** and turn on **Keep trusting
+   the current certificate**. ObjectOS now accepts either.
+3. In Okta, make the new certificate the active one.
+4. Run **Edit SAML Settings** again with the new certificate and without
+   **Keep trusting the current certificate**, to drop the old one.
+
+Do not delete and re-register the provider to change its certificate:
+deleting a provider unlinks every person who signs in through it.
+
+## Verify your email domain
+
+A provider routes everyone whose email address is on its domain, so ObjectOS
+can require proof that you control that domain before the provider signs
+anyone in:
+
+- **ObjectOS Enterprise** requires it by default. Until the domain is
+  verified, every sign-in through the provider is refused with *Provider
+  domain has not been verified*. `OS_SSO_DOMAIN_VERIFICATION=false` in `.env`
+  turns the requirement off; every boot logs one `[sso]` line saying which
+  state applies.
+- **ObjectOS Cloud** always requires it, and it cannot be turned off.
+- **ObjectOS Community** does not require it unless you set
+  `OS_SSO_DOMAIN_VERIFICATION=true`.
+
+To verify:
+
+1. In **Setup → Access Control → SSO Providers**, run **Request Domain
+   Verification** on the provider. It shows a DNS TXT record once: the name is
+   `_better-auth-token-okta-oidc.acme.com` (your Provider ID and domain), the
+   value a one-time token. Copy both; the request stays valid for 7 days.
+2. Publish that TXT record at your domain's DNS provider.
+3. Run **Verify Domain** on the provider. When the record resolves, **Domain
+   Verified** turns on. If ObjectOS cannot see the record yet, wait for DNS to
+   propagate and run it again.
+
+ObjectOS looks the record up from its own server, so that server's DNS
+resolver must be able to see it. Changing a provider's email domain clears
+its verification.
+
+## Map Okta groups to permission sets
+
+With a groups claim (OIDC) or groups attribute (SAML) on the provider, each
+sign-in grants the [permission sets](/docs/configure/permissions/permission-sets)
+mapped to the person's Okta groups:
+
+1. Open **Setup → IdP Group Mappings** and choose **Map SSO Group**.
+2. **SSO Provider ID**: `okta-oidc` (or `okta-saml`).
+3. **Group Display Name**: the Okta group's name, exactly as Okta sends it.
+   Okta sends group names, not IDs, so leave **Group External ID** blank.
+4. **Permission Set**: the set members of the group receive.
+
+A mapping applies at each member's **next** sign-in: someone added to the
+group gets the set when they next sign in, and someone removed from it loses
+the set at their next sign-in. A group can grant an ordinary permission set
+only — administrator sets are refused, so an IdP group never makes anyone an
+administrator. If you rename the group in Okta, save the mapping again with
+the new name.
+
+## Signing in
+
+People sign in from the ObjectOS sign-in page: they type their work email
+address and choose **Sign in with SSO**, which sends them to Okta.
+
+- **People who were not invited.** Under the default sign-up setting
+  ([who may sign up](/docs/configure/authentication#who-may-sign-up-objectstack-173)),
+  a first SSO sign-in by someone with no account and no invitation is refused,
+  and no account is created. Either invite people first
+  (**Setup → Users → Invite User**), or run **Edit Sign-In Options** on the
+  provider and turn on **Allow Just-in-Time Provisioning**: their first SSO
+  sign-in then creates the account, shown as **IdP-Provisioned** in the Users
+  list.
+- **An existing account with the same email** that was never linked to this
+  provider is refused (`account_not_linked`). This keeps an identity provider
+  from taking over an account it did not create.
+- **Signing out** ends the ObjectOS session only. The Okta session stays, so
+  the next **Sign in with SSO** on the same browser goes straight in without
+  a password. On a shared computer, sign out of Okta too
+  ([objectstack#32087](https://github.com/objectstack-ai/objectstack/issues/32087)).
+- **When a sign-in is refused**, the sign-in page may say *the sign-in link
+  expired or was already used* even when that is not the reason
+  ([objectstack#32087](https://github.com/objectstack-ai/objectstack/issues/32087)).
+  The real reason is in the page's **Technical details** and in the server
+  log.
+
+## On ObjectOS Cloud
+
+On ObjectOS Cloud, signing in through your own identity provider is part of a
+plan that includes it — today the Legacy Enterprise plan, by contract (see
+[Plans](/docs/cloud/plans-and-seats)). On such a plan:
+
+- Configure it in your **environment's** console
+  (`https://YOUR-ENVIRONMENT-DOMAIN/_console`), under **Setup → Access Control
+  → SSO Providers**, as an environment administrator. In every URL above,
+  replace `objectos.example.com` with the environment's domain.
+- **Domain verification is required** and cannot be turned off: verify the
+  domain before anyone signs in.
+- **Sign in with SSO** appears on the sign-in page, next to **Continue with
+  ObjectOS Cloud**, once at least one provider is registered.
+- **Group mappings cannot be saved on ObjectOS Cloud yet.** Assign permission
+  sets to people directly until they can.
+
+## Known limitations
+
+| Limitation | What to do | Tracked in |
+|---|---|---|
+| An IdP-initiated SAML sign-in can create a second account, and a just-in-time account's email is not checked against the provider's verified domain | Keep **Allow IdP-Initiated Sign-In** off; map the email from an attribute people cannot edit themselves | [objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146) |
+| Signing out keeps the Okta session; some refusals say the sign-in link expired | Sign out of Okta on shared computers; read **Technical details** | [objectstack#32087](https://github.com/objectstack-ai/objectstack/issues/32087) |
