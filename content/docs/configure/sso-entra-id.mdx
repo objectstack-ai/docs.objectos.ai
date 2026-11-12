@@ -1,0 +1,334 @@
+---
+title: SSO with Microsoft Entra ID
+seoTitle: "Single Sign-On with Microsoft Entra ID (OIDC and SAML 2.0)"
+description: Connect Microsoft Entra ID (Azure AD) to ObjectOS with OIDC or SAML 2.0 — the exact URLs, claims and values to paste in Entra and in Setup → SSO Providers, users without a mailbox, MFA, assignment on Entra ID Free, domain verification and group mapping.
+editions: [community, cloud, enterprise]
+---
+
+This guide connects a Microsoft Entra ID tenant to ObjectOS, so that people
+sign in with their Microsoft work account. It covers both protocols: pick one,
+then follow its section. Everything on the ObjectOS side happens in the
+console, under **Setup → Access Control → SSO Providers** (see
+[Authentication](/docs/configure/authentication#setup--sso-providers) for what
+that page is and how it differs from configuring OAuth providers in code).
+
+The steps and values below were verified end to end against a real Entra ID
+tenant, with Entra multi-factor authentication on, and ObjectOS Enterprise;
+the OIDC steps on the released ObjectOS Enterprise 4.4.0. Okta has its own
+guide: [SSO with Okta](/docs/configure/sso-okta).
+
+## OIDC or SAML
+
+Both work with Entra ID, including group mapping.
+
+| | OIDC (app registration) | SAML 2.0 (enterprise application) |
+|---|---|---|
+| Set up in Entra | **App registrations** | **Enterprise applications**, non-gallery |
+| Users without a mailbox | Map the email to `preferred_username` (see below) | Send the UPN as the email (see below) |
+| Groups → permission sets | Yes | Yes |
+| Signing certificate rotation | Picked up automatically | Paste the new certificate with **Edit SAML Settings** |
+
+Register **one** provider per email domain. People are routed to a provider
+by the domain of the email address they type on the sign-in page.
+
+## Before you start
+
+- **ObjectOS with SSO turned on.** On a self-hosted deployment, set
+  `OS_SSO_ENABLED=true` in `.env` and restart (`docker compose up -d`). No
+  other setting is needed for Entra ID — in particular, do **not** add
+  `graph.microsoft.com` to `OS_TRUSTED_ORIGINS`. On ObjectOS Cloud, see
+  [On ObjectOS Cloud](#on-objectos-cloud).
+- **A platform administrator account** in ObjectOS. Registering a provider,
+  verifying its domain and mapping groups are platform-administrator actions.
+- **Access to the DNS of your email domain**, to publish one TXT record
+  (see [Verify your email domain](#verify-your-email-domain)).
+- **An Entra role that can create applications**, such as Application
+  Administrator, and your **Tenant ID** (Entra admin center → **Overview**).
+- **The public `https://` address of ObjectOS.** This guide writes it as
+  `https://objectos.example.com`; replace it with yours everywhere.
+
+### The URLs you paste in Entra
+
+Each URL ends with the **Provider ID** you give the provider in ObjectOS. This
+guide uses `entra-oidc` and `entra-saml`; if you choose other IDs, use them in
+these URLs too. The two sides must match exactly.
+
+| Entra field | Value |
+|---|---|
+| OIDC: **Redirect URI** (platform **Web**) | `https://objectos.example.com/api/v1/auth/sso/callback/entra-oidc` |
+| SAML: **Reply URL (Assertion Consumer Service URL)** | `https://objectos.example.com/api/v1/auth/sso/saml2/sp/acs/entra-saml` |
+| SAML: **Identifier (Entity ID)** | `https://objectos.example.com/api/v1/auth/sso/saml2/sp/metadata?providerId=entra-saml` |
+
+The SAML identifier is also the address of ObjectOS's SP metadata: once the
+provider is registered, open it in a browser to check the entity ID and reply
+URL Entra should have.
+
+## Multi-factor authentication and assignment
+
+Multi-factor authentication, Conditional Access and every other sign-in rule
+stay in Entra ID: ObjectOS adds no second factor of its own to an SSO sign-in.
+
+- **MFA registration.** A tenant with **security defaults** on (the default
+  for new tenants) makes each person register an authenticator method the
+  first time they sign in, before they reach ObjectOS. Tell people to expect
+  that prompt on their first SSO sign-in.
+- **Who may sign in.** On the enterprise application, **Properties →
+  Assignment required?** set to **Yes** limits sign-in to the users and groups
+  assigned under **Users and groups**. On **Entra ID Free**, you can assign
+  users only one by one; assigning a **group** needs Entra ID P1 or P2.
+
+## Option A: OIDC
+
+### In Entra
+
+1. **App registrations → New registration.** Name it (for example
+   "ObjectOS"), choose who may use it (usually **Accounts in this
+   organizational directory only**), and under **Redirect URI** choose **Web**
+   and paste the OIDC URL from the table above.
+2. **Certificates & secrets → New client secret.** Copy the secret's
+   **Value** now — Entra shows it once. From **Overview**, copy the
+   **Application (client) ID**.
+3. **API permissions.** Make sure Microsoft Graph's delegated `openid`,
+   `profile` and `email` permissions are present, and grant admin consent if
+   your tenant requires it.
+4. **Token configuration** (only if you will map groups to permission sets):
+   **Add groups claim** → **Security groups**, and for the **ID** token keep
+   **Group ID**. Entra then sends each group's object ID in a `groups` claim.
+
+### In ObjectOS
+
+**Setup → Access Control → SSO Providers → Register SSO Provider**:
+
+| Field | Value |
+|---|---|
+| Provider ID | `entra-oidc` — the same ID as at the end of the redirect URI |
+| Issuer URL | `https://login.microsoftonline.com/YOUR-TENANT-ID/v2.0` |
+| Email Domain | The domain of your people's email addresses, for example `acme.com` |
+| Client ID / Client Secret | The values from step 2 |
+| Map: Groups claim | `groups` — or leave it blank if you will not map groups |
+
+Leave the other fields blank unless some of your users have no mailbox
+(next section). ObjectOS reads Entra's endpoints from the issuer's discovery
+document, including Entra's userinfo endpoint on `graph.microsoft.com`; it
+trusts that endpoint for an Entra issuer without any configuration. Groups are
+read from the ID token, so group mapping works without further settings.
+
+### Users without a mailbox
+
+Entra sends no `email` claim for a user who has no mailbox (an empty **mail**
+attribute) — common for cloud-only accounts without an Exchange license.
+Such a sign-in is refused with the cause `email_claim_missing`. If any of your
+users has no mailbox, set two things on the provider, before people start
+signing in:
+
+1. **Map: Email claim** = `preferred_username` (on the registration form, or
+   **Edit Attribute Mapping** → **Email attribute** on an existing provider).
+   Entra's `preferred_username` is the user principal name, for example
+   `jane@acme.com`.
+2. **Read Claims From the ID Token Only** turned on (on the registration form,
+   or **Edit Sign-In Options** on an existing provider). Entra's userinfo
+   endpoint does not return `preferred_username`, so the claim has to come
+   from the ID token.
+
+With both set, people with and without a mailbox sign in with their user
+principal name as their email. The email decides which ObjectOS account a
+sign-in belongs to, so choose the mapping before people sign in rather than
+change it later.
+
+Next: [verify your email domain](#verify-your-email-domain), then
+[sign in](#signing-in).
+
+## Option B: SAML 2.0
+
+### In Entra
+
+1. **Enterprise applications → New application → Create your own
+   application.** Name it (for example "ObjectOS") and choose **Integrate any
+   other application you don't find in the gallery (Non-gallery)**.
+2. **Single sign-on → SAML → Basic SAML Configuration**:
+   - **Identifier (Entity ID)**: the SAML identifier from the table above.
+   - **Reply URL (Assertion Consumer Service URL)**: the SAML reply URL from
+     the table above.
+3. **Attributes & Claims**: keep the default claims. Two optional changes:
+   - **Groups** (only if you will map groups to permission sets): **Add a
+     group claim** → **Security groups**, source attribute **Group ID**. Keep
+     the claim's default name.
+   - **Users without a mailbox**: edit the
+     `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`
+     claim and set its source attribute to `user.userprincipalname` instead of
+     `user.mail`, so that every user sends an email address.
+4. **SAML Certificates**: download **Certificate (Base64)**. Under **Set up
+   ObjectOS**, copy the **Login URL** and the **Microsoft Entra Identifier**.
+5. **Users and groups**: assign the people who should sign in (see
+   [assignment](#multi-factor-authentication-and-assignment)).
+
+### In ObjectOS
+
+**Setup → Access Control → SSO Providers → Register SAML Provider**:
+
+| Field | Value |
+|---|---|
+| Provider ID | `entra-saml` — the same ID as at the end of the reply URL and the identifier |
+| IdP Entity ID | The **Microsoft Entra Identifier**: `https://sts.windows.net/YOUR-TENANT-ID/` |
+| Email Domain | The domain of your people's email addresses |
+| IdP SSO URL | The **Login URL**: `https://login.microsoftonline.com/YOUR-TENANT-ID/saml2` |
+| IdP Signing Certificate | The content of the certificate file |
+| NameID Format | Leave blank |
+| Map: Email attribute | `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress` |
+| Map: First name attribute | `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/givenname` |
+| Map: Last name attribute | `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/surname` |
+| Map: Display name attribute | `http://schemas.microsoft.com/identity/claims/displayname` |
+| Map: Groups attribute | `http://schemas.microsoft.com/ws/2008/06/identity/claims/groups` — or leave it blank if you will not map groups |
+
+Entra names its claims with these URIs, while ObjectOS reads `email`,
+`givenName` and `surname` by default, so the **Map:** fields are what makes
+the account's email and name right. Without them, a new account is named
+after its email address. You can change them later with **Edit Attribute
+Mapping** on the provider.
+
+Then open the SAML identifier URL in a browser and check that the entity ID
+and reply URL it shows are the ones in the Entra application.
+
+Next: [verify your email domain](#verify-your-email-domain), then
+[sign in](#signing-in).
+
+### Keep IdP-initiated sign-in off
+
+Starting a sign-in from **My Apps** (IdP-initiated sign-in) is off for every
+new provider. Keep **Allow IdP-Initiated Sign-In** (under **Edit Sign-In
+Options**) off for an Entra SAML provider until
+[objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146)
+is fixed. An IdP-initiated response from Entra carries an opaque persistent
+NameID, and with the option on ObjectOS creates a **second** account whose
+email is that identifier — and grants it the mapped permission sets. This
+happens even with the domain verified. Have people start at the ObjectOS
+sign-in page instead; with the option off, a click on the My Apps tile signs
+no one in.
+
+### Certificate rotation (SAML)
+
+When Entra switches to a new signing certificate, ObjectOS refuses sign-ins
+signed with it until it has the certificate. Rotate without downtime:
+
+1. In Entra, under **SAML Certificates**, add the new certificate but keep the
+   current one active.
+2. In ObjectOS, run **Edit SAML Settings** on the provider: paste the new
+   certificate in **New IdP Signing Certificate** and turn on **Keep trusting
+   the current certificate**. ObjectOS now accepts either.
+3. In Entra, make the new certificate active.
+4. Run **Edit SAML Settings** again with the new certificate and without
+   **Keep trusting the current certificate**, to drop the old one.
+
+Do not delete and re-register the provider to change its certificate:
+deleting a provider unlinks every person who signs in through it.
+
+## Verify your email domain
+
+A provider routes everyone whose email address is on its domain, so ObjectOS
+can require proof that you control that domain before the provider signs
+anyone in:
+
+- **ObjectOS Enterprise** requires it by default. Until the domain is
+  verified, every sign-in through the provider is refused with *Provider
+  domain has not been verified*. `OS_SSO_DOMAIN_VERIFICATION=false` in `.env`
+  turns the requirement off; every boot logs one `[sso]` line saying which
+  state applies.
+- **ObjectOS Cloud** always requires it, and it cannot be turned off.
+- **ObjectOS Community** does not require it unless you set
+  `OS_SSO_DOMAIN_VERIFICATION=true`.
+
+To verify:
+
+1. In **Setup → Access Control → SSO Providers**, run **Request Domain
+   Verification** on the provider. It shows a DNS TXT record once: the name is
+   `_better-auth-token-entra-oidc.acme.com` (your Provider ID and domain), the
+   value a one-time token. Copy both; the request stays valid for 7 days.
+2. Publish that TXT record at your domain's DNS provider.
+3. Run **Verify Domain** on the provider. When the record resolves, **Domain
+   Verified** turns on. If ObjectOS cannot see the record yet, wait for DNS to
+   propagate and run it again.
+
+Verify the domain your people's addresses are on (for example `acme.com`),
+not the tenant's `onmicrosoft.com` domain, which you cannot publish records
+on. ObjectOS looks the record up from its own server, so that server's DNS
+resolver must be able to see it. Changing a provider's email domain clears its
+verification.
+
+## Map Entra groups to permission sets
+
+With a groups claim (OIDC) or groups attribute (SAML) on the provider, each
+sign-in grants the [permission sets](/docs/configure/permissions/permission-sets)
+mapped to the person's Entra groups:
+
+1. Open **Setup → IdP Group Mappings** and choose **Map SSO Group**.
+2. **SSO Provider ID**: `entra-oidc` (or `entra-saml`).
+3. **Group External ID**: the group's **Object ID** (Entra admin center →
+   **Groups** → the group → **Overview**). Entra sends group object IDs, not
+   names, so leave **Group Display Name** blank. Renaming the group in Entra
+   does not affect the mapping.
+4. **Permission Set**: the set members of the group receive.
+
+A mapping applies at each member's **next** sign-in: someone added to the
+group gets the set when they next sign in, and someone removed from it loses
+the set at their next sign-in. Members who are not in the group get nothing
+from it. A group can grant an ordinary permission set only — administrator
+sets are refused, so an IdP group never makes anyone an administrator.
+
+When someone belongs to more groups than fit in a token, Entra sends a
+reference to Microsoft Graph instead of the groups, and that sign-in grants
+nothing from groups. If that applies to your tenant, have the application
+emit only **Groups assigned to the application** in its groups claim.
+
+## Signing in
+
+People sign in from the ObjectOS sign-in page: they type their work email
+address and choose **Sign in with SSO**, which sends them to Microsoft.
+
+- **People who were not invited.** Under the default sign-up setting
+  ([who may sign up](/docs/configure/authentication#who-may-sign-up-objectstack-173)),
+  a first SSO sign-in by someone with no account and no invitation is refused
+  with *Your account isn't set up for this system yet. Ask your administrator
+  to invite you.*, and no account is created. Either invite people first
+  (**Setup → Users → Invite User**), or run **Edit Sign-In Options** on the
+  provider and turn on **Allow Just-in-Time Provisioning**: their first SSO
+  sign-in then creates the account, shown as **IdP-Provisioned** in the Users
+  list.
+- **An existing account with the same email** that was never linked to this
+  provider is refused (`account_not_linked`). This keeps an identity provider
+  from taking over an account it did not create.
+- **Signing out** ends the ObjectOS session only. The Microsoft session
+  stays, so the next **Sign in with SSO** on the same browser goes straight in
+  without a password. On a shared computer, sign out of the Microsoft account
+  too ([objectstack#32087](https://github.com/objectstack-ai/objectstack/issues/32087)).
+- **When a sign-in is refused**, the sign-in page may say *the sign-in link
+  expired or was already used* even when that is not the reason — for
+  example for a user without a mailbox before the email mapping above is set
+  ([objectstack#32087](https://github.com/objectstack-ai/objectstack/issues/32087)).
+  The real reason, such as `email_claim_missing`, is in the page's
+  **Technical details** and in the server log.
+
+## On ObjectOS Cloud
+
+On ObjectOS Cloud, signing in through your own identity provider is part of a
+plan that includes it — today the Legacy Enterprise plan, by contract (see
+[Plans](/docs/cloud/plans-and-seats)). On such a plan:
+
+- Configure it in your **environment's** console
+  (`https://YOUR-ENVIRONMENT-DOMAIN/_console`), under **Setup → Access Control
+  → SSO Providers**, as an environment administrator. In every URL above,
+  replace `objectos.example.com` with the environment's domain. One Entra
+  application can list several identifiers and reply URLs, so the same
+  application can serve a self-hosted deployment and a Cloud environment.
+- **Domain verification is required** and cannot be turned off: verify the
+  domain before anyone signs in.
+- **Sign in with SSO** appears on the sign-in page, next to **Continue with
+  ObjectOS Cloud**, once at least one provider is registered.
+- **Group mappings cannot be saved on ObjectOS Cloud yet.** Assign permission
+  sets to people directly until they can.
+
+## Known limitations
+
+| Limitation | What to do | Tracked in |
+|---|---|---|
+| An IdP-initiated SAML sign-in creates a second account; a just-in-time account's email is not checked against the provider's verified domain | Keep **Allow IdP-Initiated Sign-In** off; map the email from an attribute people cannot edit themselves | [objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146) |
+| Signing out keeps the Microsoft session; some refusals say the sign-in link expired | Sign out of Microsoft on shared computers; read **Technical details** | [objectstack#32087](https://github.com/objectstack-ai/objectstack/issues/32087) |
