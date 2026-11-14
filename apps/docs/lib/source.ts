@@ -1,5 +1,5 @@
 import { docs } from '@/.route-data/collection';
-import { type InferPageType, loader } from 'fumadocs-core/source';
+import { type InferPageType, type LoaderPlugin, loader } from 'fumadocs-core/source';
 import { lucideIconsPlugin } from 'fumadocs-core/source/lucide-icons';
 import { i18n } from '@/lib/i18n';
 
@@ -17,11 +17,57 @@ import { i18n } from '@/lib/i18n';
  * one module that imports the full collection. `getText('processed')` works
  * for English pages, which is what the `llms` routes read.
  */
+const docsSource = docs.toFumadocsSource();
+
+/** `deploy/meta.json` → `deploy`; `meta.json` → `''`. */
+const metaDir = (path: string) => path.split('/').slice(0, -1).join('/');
+const isEnglishMeta = (path: string) => /(^|\/)meta\.json$/.test(path);
+
+/**
+ * English decides which pages each sidebar folder lists, in which order (#469).
+ *
+ * A `meta.<locale>.json` exists to translate a folder's labels (AGENTS.md:
+ * "To localize sidebar labels, add meta.<locale>.json"), but fumadocs reads the
+ * whole file in place of `meta.json`, `pages` included. So a page added to
+ * English after a locale's meta was translated is missing from that locale's
+ * sidebar until the next translation pass, even when the page itself is
+ * translated: `deploy/licensing` and `deploy/multi-organization` had zh-Hans,
+ * zh-Hant and ja pages that no link in any of those locales reached. A page
+ * only the sitemap knows about is what Search Console reports as "Discovered -
+ * currently not indexed".
+ *
+ * This replaces a locale meta's `pages` with the English list, and leaves its
+ * `title` and `description`: structure from the source of truth, labels from
+ * the translation. Locale meta files are translation-owned, so this is fixed
+ * here rather than by editing them. `check-indexing.mjs` fails the build on a
+ * sitemap page no link reaches.
+ */
+function englishPageListsPlugin(): LoaderPlugin {
+  const english = new Map<string, unknown>();
+  for (const file of docsSource.files) {
+    if (file.type === 'meta' && isEnglishMeta(file.path)) {
+      const pages = (file.data as { pages?: unknown }).pages;
+      if (pages !== undefined) english.set(metaDir(file.path), pages);
+    }
+  }
+  return {
+    transformStorage({ storage }) {
+      for (const key of storage.getFiles()) {
+        const file = storage.read(key);
+        if (!file || file.format !== 'meta' || isEnglishMeta(file.path)) continue;
+        const pages = english.get(metaDir(file.path));
+        if (pages === undefined) continue;
+        storage.write(key, { ...file, data: { ...file.data, pages } as typeof file.data });
+      }
+    },
+  };
+}
+
 export const source = loader({
   baseUrl: '/docs',
   i18n,
-  source: docs.toFumadocsSource(),
-  plugins: [lucideIconsPlugin()],
+  source: docsSource,
+  plugins: [lucideIconsPlugin(), englishPageListsPlugin()],
 });
 
 /**
