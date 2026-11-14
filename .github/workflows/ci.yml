@@ -66,7 +66,16 @@ jobs:
     env:
       NEXT_PRIVATE_STANDALONE: 'true'
     steps:
+      # Full history, not the default depth of 1 (#469). The sitemap's
+      # `<lastmod>` is the date of the last commit that touched each page
+      # (`apps/docs/scripts/gen-route-data.mjs`), and a shallow clone has one
+      # grafted commit that "adds" every file, so every page would carry the
+      # date of HEAD. The script omits the field on a shallow clone instead,
+      # and the `Indexing` step below fails on the gap. This job's build is the
+      # one `deploy-docs.yml` publishes, so this is the history that matters.
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -210,6 +219,19 @@ jobs:
       - name: Search fits the Worker's memory
         shell: bash
         run: node --expose-gc .github/scripts/check-search-heap.mjs | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # #469: what a search engine is told by the BUILT site. Every internal
+      # `<a href>` resolves and none ends in `.mdx`; no `/<locale>/docs/….mdx`
+      # URL (#211's shape) anywhere in a page; a locale route rendering English
+      # is `noindex` and canonical to English while a real page is indexable,
+      # self-canonical and in a complete hreflang set; the `.mdx` routes carry
+      # `X-Robots-Tag: noindex` and a canonical `Link`; every sitemap entry has
+      # a `<lastmod>` and is reached by links from the docs roots. Same footing
+      # as the steps above: after `build`, not a turbo task, its `--self-test`
+      # under `pnpm turbo run test` below, `shell: bash` for pipefail.
+      - name: Indexing
+        shell: bash
+        run: node .github/scripts/check-indexing.mjs | tee -a "$GITHUB_STEP_SUMMARY"
 
       - run: pnpm turbo run test
 

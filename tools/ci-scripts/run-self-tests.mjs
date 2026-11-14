@@ -128,6 +128,10 @@
  * they prove the per-page cost and the pages left are computed from the
  * costliest locale, and that a missing metafile or renamed page chunks fail
  * rather than print nothing.
+ *
+ * `check-indexing.mjs` is listed for its `--self-test` only (#469), on the
+ * same footing as `check-locale-surface.mjs`: its gate mode reads the built
+ * `apps/docs/.next/`, so `ci.yml` runs the gate as a step after the build.
  */
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -155,6 +159,7 @@ const SELF_TESTED = [
   'check-worker-page-cost.mjs',
   'check-doc-samples.mjs',
   'bump-upstream-pin.mjs',
+  'check-indexing.mjs',
 ];
 
 /**
