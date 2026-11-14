@@ -107,7 +107,8 @@ export default async function PrivacyPage({
           ))}
         </div>
         <div lang={contentLang} className="mt-16 pt-8 border-t border-border/60">
-          <Link href={`/${lang}`} className="text-sm text-primary hover:underline">
+          {/* The default locale is served unprefixed: `/en` is a redirect, not the home page (#469). */}
+          <Link href={lang === i18n.defaultLanguage ? '/' : `/${lang}`} className="text-sm text-primary hover:underline">
             {t.back}
           </Link>
         </div>
