@@ -74,8 +74,9 @@
 import { applyMdxPreset, remarkInclude } from 'fumadocs-mdx/config';
 import { frontmatter } from 'fumadocs-core/content/md/frontmatter';
 import { remarkLLMs } from 'fumadocs-core/mdx-plugins/remark-llms';
+import { execFileSync } from 'node:child_process';
 import { createRequire } from 'node:module';
-import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { gzipSync } from 'node:zlib';
@@ -86,6 +87,60 @@ const CONFIG = join(APP, '.source/source.config.mjs');
 const COLLECTION = join(APP, '.source/server.ts');
 const OUT = join(APP, '.route-data');
 const DEV = process.argv.includes('--dev');
+const ROOT = resolve(APP, '../..');
+
+/**
+ * Pages outside `content/docs/` that the sitemap lists: the legal pages, whose
+ * copy lives in their route directory (#299). Repo-relative directories; every
+ * file in one counts toward its `lastmod`.
+ */
+const STATIC_PAGE_DIRS = ['apps/docs/app/[lang]/privacy', 'apps/docs/app/[lang]/terms'];
+
+/**
+ * When each sitemap source last changed, for `<lastmod>` (#469): repo-relative
+ * path to the ISO date of the last commit that touched it.
+ *
+ * One `git log` pass, newest first, so a file's first appearance is its last
+ * change. A file git has no commit for (a page not committed yet) gets its
+ * mtime, so a local build still lists it.
+ *
+ * A shallow clone yields nothing. Its history is one grafted commit that
+ * "adds" every file, so every page would get the date of HEAD: a `lastmod`
+ * that moves on every deploy and says nothing, which is the value Google
+ * learns to ignore. The map is left empty instead, the sitemap omits
+ * `<lastmod>`, and `check-indexing.mjs` fails the build on the missing field;
+ * CI checks out with `fetch-depth: 0` for this reason.
+ */
+function lastModified() {
+  const git = (...args) => execFileSync('git', ['-c', 'core.quotePath=false', ...args], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  let shallow;
+  try {
+    shallow = git('rev-parse', '--is-shallow-repository').trim() === 'true';
+  } catch {
+    console.warn('! route data: not a git checkout; the sitemap will carry no <lastmod>.');
+    return {};
+  }
+  if (shallow) {
+    console.warn('! route data: shallow clone; the sitemap will carry no <lastmod> (fetch the full history).');
+    return {};
+  }
+  const dates = {};
+  let date;
+  for (const line of git('log', '--format=%x00%cI', '--name-only', '--', 'content/docs', ...STATIC_PAGE_DIRS.map((d) => `:(literal)${d}`)).split('\n')) {
+    if (line.startsWith('\0')) date = line.slice(1);
+    else if (line && !(line in dates)) dates[line] = date;
+  }
+  const lastmod = {};
+  const add = (path) => {
+    const repoPath = relative(ROOT, path).split('\\').join('/');
+    lastmod[repoPath] = dates[repoPath] ?? statSync(path).mtime.toISOString();
+  };
+  for (const path of walk(CONTENT)) add(path);
+  for (const dir of STATIC_PAGE_DIRS) {
+    for (const e of readdirSync(join(ROOT, dir), { withFileTypes: true })) if (e.isFile()) add(join(ROOT, dir, e.name));
+  }
+  return lastmod;
+}
 
 /** `languages` and `defaultLanguage` out of `lib/i18n.ts`, read as text. Throws rather than guessing. */
 function readI18n() {
@@ -199,5 +254,10 @@ write(
     ? "/** `next dev`: the full collection, which fumadocs-mdx keeps current as pages are added. */\nexport { docs } from '../.source/server';\n"
     : lightCollection(readFileSync(COLLECTION, 'utf8'), files.length),
 );
+const lastmod = lastModified();
+write(
+  'lastmod.ts',
+  `/** When each sitemap source last changed: repo-relative path to an ISO date, from git (scripts/gen-route-data.mjs). Empty on a shallow clone. */\nexport const lastmod: Record<string, string> = ${JSON.stringify(lastmod, null, 1)};\n`,
+);
 const sizes = [...search].map(([l, pages]) => `${l} ${Object.keys(pages).length}`).join(', ');
-console.log(`✓ route data: wrote .route-data/${DEV ? ' for next dev' : ''} (pages per locale: ${sizes}; English Markdown: ${Object.keys(markdown).length})`);
+console.log(`✓ route data: wrote .route-data/${DEV ? ' for next dev' : ''} (pages per locale: ${sizes}; English Markdown: ${Object.keys(markdown).length}; lastmod: ${Object.keys(lastmod).length} files)`);

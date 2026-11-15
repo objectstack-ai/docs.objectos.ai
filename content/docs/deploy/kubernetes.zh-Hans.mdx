@@ -1,15 +1,15 @@
 ---
 title: Kubernetes
 seoTitle: "Kubernetes：探针、密钥、固定版本和迁移"
-description: 在 Kubernetes 上运行 ObjectOS 镜像 —— 一个参考 Deployment、在正确端点上的正确探针、来自 Secret 的密钥，以及多副本企业版部署必须保持的属性。
+description: 在 Kubernetes 上运行 ObjectOS 镜像 —— 一个参考 Deployment、在正确端点上的正确探针、来自 Secret 的密钥，以及在各副本之间必须保持一致的内容。
 editions: [community, enterprise]
 translation:
-  source_sha: 2270aa161805c5ab5a80c2c48562ac8ab6c54573019e3c7d17acc51587a2d6c0
+  source_sha: bd792a5f617e4e629946ec5517ad0e053b9c7604313d58d0eea12c05ae8c9269
   guide_rev: 1
   mode: auto
 ---
 
-**没有 Helm chart，也没有官方清单集。**镜像在 Kubernetes 上无需修改即可运行，
+**没有 Helm chart，也没有官方清单集**。镜像在 Kubernetes 上无需修改即可运行，
 所以本页给出一个最小参考，以及你的清单必须保持的属性 —— 每一项都是运行时所依赖
 或强制执行的东西。[Docker](/docs/deploy/docker) 上的一切都同样适用：同一个镜像、
 同样的变量、同样的升级规则。
@@ -90,8 +90,8 @@ Pod 挂载 —— 绝不按 Pod 生成，绝不烘焙进镜像。一个自己生
 ### Community 上只用一个副本 [#one-replica-on-community]
 
 Community 上的协调是进程内的，所以保持 `replicas: 1`。声明更多副本
-（`OS_CLUSTER_REPLICAS` 大于 1）在没有许可证时会拒绝启动。多副本是一项企业版能力
-—— 见下文。
+（`OS_CLUSTER_REPLICAS` 大于 1）在没有许可证时会拒绝启动。多节点是一项企业版
+许可证能力，而 Enterprise 套件目前只运行一个副本 —— 见下文。
 
 ### 入口 [#ingress]
 
@@ -102,7 +102,7 @@ Community 上的协调是进程内的，所以保持 `replicas: 1`。声明更�
 
 ## 企业版额外提供 [#enterprise-adds]
 
-**我们提供的是 Compose 技术栈，而不是 Helm chart 或 Kubernetes 清单。**你的版本中
+**我们提供的是 Compose 技术栈，而不是 Helm chart 或 Kubernetes 清单**。你的版本中
 附带的部署包才是受支持、经过测试的配置。在 Kubernetes 上，清单要你自己组装，所以
 也要重现该技术栈的这些属性。编排器不会改变部署有权获得的任何东西。
 
@@ -120,13 +120,14 @@ Kubernetes 上，这是一个 Job（或等效的服务前钩子），而不是�
 
 ### 每个副本都使用完全相同的密钥 [#every-replica-gets-identical-secrets]
 
-多副本不只是调高副本数：
+**目前请让 Enterprise 套件保持一个副本。** 它没有接入集群驱动，声明多于一个副本
+（`OS_CLUSTER_REPLICAS` 大于 1）会按设计拒绝启动：进程内协调器不会在副本之间共享
+锁、计数器或发布 / 订阅。多节点通过许可证合同（`maxNodes`）激活，并不是高可用
+承诺；如果你需要，请联系销售。无论副本数是多少：
 
-- 必须开启**集群驱动**，并以 Redis 作为后端。
-- **共享的加密密钥**成为必需。没有集群驱动时，每个副本会自己生成一个；跨副本时
-  它们会互不相同，而**运行时会拒绝启动**，而不是让它们分叉。一个值，挂载到每个
-  副本中。
-- **认证密钥**同样必须在各副本之间完全相同。
+- 使用**一个共享的加密密钥**（`OS_SECRET_KEY`）。没有它，每个副本会自己生成一个，
+  而这些密钥会互不相同。
+- **认证密钥**同样必须在运行时所在的每个地方都完全相同。
 
 ### 许可证和云端姿态作用于整个部署 [#license-and-cloud-posture-are-deployment-wide]
 

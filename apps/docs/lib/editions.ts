@@ -4,10 +4,10 @@
  *
  * ObjectOS is one product in three editions: Community (open source,
  * self-managed), Cloud (hosted; its Free and Team plans are plans of this one
- * edition, not editions of their own) and Enterprise (licensed, self-managed;
- * Business and Business Self-Managed are contract options under it). A page
- * declares the subset it is true for, so a reader on ObjectOS Cloud can tell a
- * Deploy page is not theirs before reading it.
+ * edition, not editions of their own) and Enterprise (licensed, self-managed,
+ * one edition sold by contract; there is no Enterprise plan on Cloud). A page
+ * declares the subset it is true for, so a reader on
+ * ObjectOS Cloud can tell a Deploy page is not theirs before reading it.
  *
  * Declared once here because three consumers have to agree on it: the
  * frontmatter schema in `source.config.ts` (which rejects any other value and

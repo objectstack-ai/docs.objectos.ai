@@ -1,10 +1,10 @@
 ---
 title: Kubernetes
 seoTitle: "Kubernetes：プローブ、シークレット、固定、マイグレーション"
-description: Kubernetes で ObjectOS イメージを実行します。参照用の Deployment、正しいエンドポイントへの正しいプローブ、Secret からのシークレット、そしてマルチレプリカの Enterprise デプロイメントが維持すべきものを説明します。
+description: Kubernetes で ObjectOS イメージを実行します。参照用の Deployment、正しいエンドポイントへの正しいプローブ、Secret からのシークレット、そしてレプリカ間で同一でなければならないものを説明します。
 editions: [community, enterprise]
 translation:
-  source_sha: 2270aa161805c5ab5a80c2c48562ac8ab6c54573019e3c7d17acc51587a2d6c0
+  source_sha: bd792a5f617e4e629946ec5517ad0e053b9c7604313d58d0eea12c05ae8c9269
   guide_rev: 1
   mode: auto
 ---
@@ -77,7 +77,7 @@ readiness を liveness プローブに使わないでください。そうしな
 
 ### Community ではレプリカ 1 つ [#one-replica-on-community]
 
-Community の調整はプロセス内で行われるため、`replicas: 1` のままにします。それ以上を宣言すると（`OS_CLUSTER_REPLICAS` が 1 より大きい）、ライセンスなしでは起動が拒否されます。マルチレプリカは Enterprise の機能です（後述）。
+Community の調整はプロセス内で行われるため、`replicas: 1` のままにします。それ以上を宣言すると（`OS_CLUSTER_REPLICAS` が 1 より大きい）、ライセンスなしでは起動が拒否されます。マルチノードは Enterprise ライセンスの機能で、Enterprise キットは現在 1 つのレプリカで動作します（後述）。
 
 ### Ingress [#ingress]
 
@@ -97,11 +97,10 @@ Compose スタックは、アプリケーションのレプリカが起動する
 
 ### すべてのレプリカに同一のシークレットを渡す [#every-replica-gets-identical-secrets]
 
-マルチレプリカは、レプリカ数を増やすだけの問題ではありません。
+**現在、Enterprise キットは 1 つのレプリカのままにしてください。** クラスタードライバーは組み込まれておらず、2 つ以上を宣言すると（`OS_CLUSTER_REPLICAS` が 1 より大きい）設計どおり起動が拒否されます。プロセス内のコーディネーターは、レプリカ間でロック、カウンター、pub/sub を共有しないためです。マルチノードはライセンス契約（`maxNodes`）で有効になるもので、高可用性の約束ではありません。必要な場合は営業にお問い合わせください。レプリカ数にかかわらず、次のことが必要です。
 
-- Redis をバックエンドとする**クラスタードライバー**を有効にする必要があります。
-- **共有シークレットキー**が必須になります。クラスタードライバーがない場合、各レプリカは独自のキーを生成します。レプリカ間ではそれらが食い違うことになるため、食い違う代わりに**ランタイムは起動を拒否します**。1 つの値を、すべてのレプリカにマウントしてください。
-- **認証シークレット**も同様に、すべてのレプリカで同一でなければなりません。
+- **1 つの共有シークレットキー**（`OS_SECRET_KEY`）を使います。それがないと、各レプリカが独自のキーを生成し、それらが食い違います。
+- **認証シークレット**も同様に、ランタイムが動作するすべての場所で同一でなければなりません。
 
 ### ライセンスとクラウドの姿勢はデプロイメント全体で共通 [#license-and-cloud-posture-are-deployment-wide]
 

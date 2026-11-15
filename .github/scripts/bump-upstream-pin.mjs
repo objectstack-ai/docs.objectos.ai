@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
- * Upstream pins — move one of `.objectstack-sha` / `.cloud-sha` and write the
- * pull-request body that lists what changed upstream since the previous pin.
+ * Upstream pins — check both `.objectstack-sha` and `.cloud-sha`, and move the
+ * objectstack pin, writing the pull-request body that lists what changed
+ * upstream since the previous pin. The cloud pin is moved by hand (below).
  *
  * ## Why this exists
  *
@@ -12,18 +13,29 @@
  * pass misses. A pin turns it into a bounded one: each file at the repository
  * root holds the one upstream commit the site was last aligned to, and every
  * alignment is a review of the upstream commits and changed paths since that
- * commit. This script computes that range; `bump-upstream-docs.yml` runs it
- * and opens the pull request whose body it writes.
+ * commit. For objectstack this script computes that range;
+ * `bump-upstream-docs.yml` runs it and opens the pull request whose body it
+ * writes.
  *
  * ## When a pin moves
  *
  *   objectstack  on a published `@objectstack/cli` release — the commit its
  *                release tag `@objectstack/cli@VERSION` names. With no `--sha`,
- *                the release is npm's `latest` dist-tag.
- *   cloud        after a successful cloud production deploy — the commit that
- *                deploy serves, never a merge to cloud's `main`. There is no
- *                default: the deploy supplies `--sha`, and the run refuses
- *                without one.
+ *                the release is npm's `latest` dist-tag. This script moves it.
+ *   cloud        BY HAND, when someone refreshes the docs to match production —
+ *                not on every cloud release (maintainer ruling,
+ *                docs.objectos.ai#433). The person writes the full SHA of the
+ *                commit production serves (cloud's `v*` tag, or its
+ *                deploy-cloud-prod run; the health header's 8-character
+ *                `x-objectstack-build-sha` only identifies it) and pastes
+ *                `git log OLD..NEW -- CHANGELOG.md .changeset/` from a local
+ *                cloud checkout into the pull-request body. No workflow, dispatch
+ *                or token moves it, and this script refuses `--upstream cloud`:
+ *                cloud is private and this repository holds no token to read it.
+ *                AGENTS.md "Upstream pins" has the steps.
+ *
+ * `--check` validates both pin files the same way, by format alone; it reads
+ * neither upstream, so a hand-edited `.cloud-sha` passes it like any other.
  *
  * ## The pin file
  *
@@ -31,8 +43,8 @@
  * accepted value is the placeholder `unpinned`, for an upstream that has never
  * been pinned (`.cloud-sha` ships with it, because cloud is a private
  * repository this site's maintainers could not read when the pins were added).
- * A range cannot start at the placeholder, so the first bump of an unpinned
- * upstream only records the commit and says so; the next bump is the first
+ * A range cannot start at the placeholder, so the first move of an unpinned
+ * pin only records the commit and lists nothing; the next one is the first
  * bounded diff. A missing file, an empty one, an abbreviated SHA or a branch
  * name is refused — a pin that cannot be resolved to one commit bounds nothing.
  *
@@ -41,8 +53,8 @@
  *   - the new commit is not a descendant of the current pin — the range
  *     `OLD..NEW` would silently drop whatever `OLD` has that `NEW` lacks, and
  *     the review would read a diff that is not the change;
- *   - the upstream cannot be read — cloud is private and needs `UPSTREAM_TOKEN`;
- *   - a cloud bump with no `--sha`.
+ *   - the upstream cannot be read;
+ *   - a bump of an upstream whose pin is moved by hand (cloud).
  *
  * A bump to the commit already pinned is not an error: it writes nothing,
  * reports `changed=false`, and the workflow opens no pull request.
@@ -62,7 +74,7 @@
  *
  *   node .github/scripts/bump-upstream-pin.mjs --check
  *       Validate both pin files. Exit 1 naming each bad one.
- *   node .github/scripts/bump-upstream-pin.mjs --upstream objectstack|cloud \
+ *   node .github/scripts/bump-upstream-pin.mjs --upstream objectstack \
  *       [--sha SHA] --body FILE [--git-dir DIR]
  *       Resolve, fetch (blobless) into DIR, write the new pin and the body.
  *       Writes `changed`, `old`, `new`, `short`, `label` and `title` to $GITHUB_OUTPUT
@@ -79,19 +91,25 @@ import { spawnSync } from 'node:child_process';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
-/** The two upstreams. `paths` is what the alignment review reads. */
+/**
+ * The two upstreams. `paths` is what the alignment review reads. `byHand` marks
+ * a pin this script checks but never moves (docs.objectos.ai#433): its paths are
+ * the ones the person moving it lists with `git log` in the pull-request body.
+ */
 const UPSTREAMS = {
   objectstack: {
     repo: 'objectstack-ai/objectstack',
     pinFile: '.objectstack-sha',
     paths: ['content/docs', 'docs/releases', 'CHANGELOG.md'],
     release: '@objectstack/cli',
+    byHand: false,
   },
   cloud: {
     repo: 'objectstack-ai/cloud',
     pinFile: '.cloud-sha',
     paths: ['CHANGELOG.md', '.changeset'],
     release: null,
+    byHand: true,
   },
 };
 
@@ -122,6 +140,17 @@ function parseUpstream(name) {
     throw new Refusal(`unknown upstream ${JSON.stringify(name ?? '')} — expected one of ${Object.keys(UPSTREAMS).join(', ')}`);
   }
   return UPSTREAMS[name];
+}
+
+/** An upstream this script may move: declared, and not moved by hand. */
+function bumpable(name) {
+  const up = parseUpstream(name);
+  if (up.byHand) {
+    throw new Refusal(
+      `${up.pinFile} is moved by hand, not by this script (docs.objectos.ai#433): write the full SHA production serves and paste \`git log OLD..NEW -- ${up.paths.join(' ')}\` from a local checkout into the pull-request body — see AGENTS.md "Upstream pins"`,
+    );
+  }
+  return up;
 }
 
 /** A `--sha` / dispatch-payload value: absent, or a full SHA. Never a ref name. */
@@ -265,7 +294,7 @@ function readPinFile(root, up) {
 
 async function bump(opts) {
   const name = opts.upstream;
-  const up = parseUpstream(name);
+  const up = bumpable(name);
   const oldPin = readPinFile(opts.root, up);
   const url = `https://github.com/${up.repo}.git`;
   const env = gitEnv(process.env.UPSTREAM_TOKEN);
@@ -274,9 +303,6 @@ async function bump(opts) {
   let source = 'supplied by the run that requested this bump';
   let target = null;
   if (!newSha) {
-    if (!up.release) {
-      throw new Refusal(`a ${name} bump needs --sha: the commit its production deploy serves (there is no default)`);
-    }
     const version = await latestRelease(up.release);
     const tag = `${up.release}@${version}`;
     const ls = git(['ls-remote', url, `refs/tags/${tag}`, `refs/tags/${tag}^{}`], { env });
@@ -294,8 +320,7 @@ async function bump(opts) {
   const wants = kind === 'range' ? [newSha, oldPin.sha] : [newSha];
   const fetched = git(['fetch', '--quiet', '--filter=blob:none', url, ...wants], { gitDir, env, allowFail: true });
   if (fetched.status !== 0) {
-    const hint = name === 'cloud' && !process.env.UPSTREAM_TOKEN ? ' — cloud is private: set UPSTREAM_TOKEN' : '';
-    throw new Refusal(`could not fetch ${up.repo} at ${wants.join(', ')}${hint}: ${(fetched.stderr || '').trim().split('\n').pop()}`);
+    throw new Refusal(`could not fetch ${up.repo} at ${wants.join(', ')}: ${(fetched.stderr || '').trim().split('\n').pop()}`);
   }
   git(['cat-file', '-e', `${newSha}^{commit}`], { gitDir });
 
@@ -433,6 +458,10 @@ function selfTest() {
   for (const bad of ['', 'objectui', 'toString', '__proto__', undefined]) {
     expectRefusal(`upstream: ${JSON.stringify(bad)}`, () => parseUpstream(bad), 'unknown upstream');
   }
+  // Only objectstack is bumped here; the cloud pin is moved by hand (#433), and the refusal says how.
+  if (bumpable('objectstack') !== UPSTREAMS.objectstack) fail('bump: objectstack is not bumpable');
+  expectRefusal('bump: cloud', () => bumpable('cloud'), 'moved by hand');
+  expectRefusal('bump: cloud names the git log to paste', () => bumpable('cloud'), 'git log OLD..NEW -- CHANGELOG.md .changeset');
 
   // The pin a missing file refuses is the real reader, against a real (temporary) tree.
   const empty = mkdtempSync(join(tmpdir(), 'pin-selftest-'));
@@ -489,7 +518,7 @@ function selfTest() {
     process.exitCode = 1;
     return;
   }
-  console.log(`✓ self-test: ${total} pin/input case(s), upstream names, tag resolution, plan, body bounds and token carriage`);
+  console.log(`✓ self-test: ${total} pin/input case(s), upstream names, the hand-moved cloud pin, tag resolution, plan, body bounds and token carriage`);
 }
 
 /* ------------------------------------------------------------------ main -- */

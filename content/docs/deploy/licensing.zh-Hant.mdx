@@ -1,0 +1,311 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 許可
+seoTitle: "Enterprise 許可：獲取、校驗、續訂"
+description: ObjectOS Enterprise 許可證如何簽發、如何線上或物理隔離地校驗、如何在啟動橫幅中報告以及如何續訂，Enterprise 許可證解鎖什麼，以及許可證結束時會發生什麼。
+editions: [enterprise]
+translation:
+  source_sha: ac61dab070a06a8da8235c99c63944e3328833a5063691128fb11afd178edac6
+  guide_rev: 1
+  mode: auto
+---
+
+ObjectOS Enterprise 部署執行需許可證的 Enterprise 映象，許可證放在
+`OS_LICENSE_KEY` 中。許可證決定映象解鎖什麼。本頁介紹如何獲得許可證、它的兩種
+校驗方式、如何讀懂執行時做出的判斷、如何續訂，以及許可證結束時會關閉什麼。合同
+選項見[許可與定價](/docs/editions/license)。
+
+## 獲取許可證 [#obtaining-a-license]
+
+許可證由 ObjectStack 按合同簽發：[聯絡銷售](mailto:sales@objectos.ai)。沒有自助
+結賬。你的許可證郵件包含：
+
+1. 你所用版本的**映象摘要**。按摘要安裝，因為標籤可以被移動，而摘要不能
+   （[原因](/docs/deploy/docker#pin-the-image-by-digest)）。
+2. 一個具有軟體包讀取許可權的**映象倉庫拉取令牌**。從離線包安裝時不需要它。
+3. **許可證**：一行由 ObjectStack 簽名的文本。執行時在啟動時用內置於映象中的公鑰
+   校驗簽名，所以任何一個位元組被改動的許可證都會作為無效許可證被拒絕。
+4. **部署包**，包含你所用版本的 Compose 技術棧、環境模板和指令碼。
+
+像儲存 `OS_AUTH_SECRET` 一樣，把許可證作為機密儲存
+（[生產就緒](/docs/operate/production)）。有三件事在簽發許可證時就已確定，它們都
+不是你可以修改的設定：
+
+- 它的 **AI 席位**：你的合同購買的數量，25 個或更多（`maxAiSeats`）；
+- 它的**模式**：線上或物理隔離（[見下文](#online-or-air-gap)）；
+- 它的**型別**：帶結束日期的訂閱，或帶維護結束日期的永久許可證
+  （[見下文](#when-a-license-ends)）。
+
+## Enterprise 許可證解鎖什麼 [#what-an-enterprise-license-unlocks]
+
+ObjectOS Enterprise 只有一個版本。除非你的合同明確列出了功能，否則 Enterprise
+許可證授予下面的每一項功能；啟動橫幅的 `features` 一行顯示你的許可證授予了什麼
+（[見下文](#what-the-boot-banner-shows)）。
+
+| | **Enterprise 許可證** |
+|---|---|
+| 節點 | 不限，除非你的合同設定了數量（`maxNodes`） |
+| AI 席位 | 由你的合同設定，25 個或更多（`maxAiSeats`） |
+| 許可證模式 | 線上，或按合同使用物理隔離 |
+| 產品內 AI | ✓ |
+| AI 治理 | ✓ |
+| 層級安全 | ✓ |
+| 單個部署承載多個組織 | ✓ |
+| SCIM 2.0 預配，預設開啟 | ✓ |
+| 機密的客戶自管金鑰 | ✓ |
+| 許可證結束時 | 訂閱回落到 Community；永久許可證保留維護期內釋出的版本 |
+
+在 Enterprise 成為單一版本之前簽發的許可證，可能把版本寫作 `business`。它會保留
+售出時的條款（一個節點、最多 25 個 AI 席位、產品內 AI 和 AI 治理、線上校驗），
+直到結束，續訂時則作為 Enterprise 許可證續訂。
+
+每一行的含義，以及它的邊界：
+
+- **產品內 AI。** "ask" Agent 是包含在內、受支援的 Agent。AI Builder 以**預覽**
+  形式提供，不屬於合同範圍，啟動橫幅也這樣標註它。平臺管理員把 AI 席位分配給
+  使用者，許可證決定有多少個（[分配 AI 席位](#assigning-ai-seats)）。你自帶模型和
+  金鑰。
+- **AI 治理。** 產品內建 AI 每次工具呼叫的審計記錄（誰讓 AI 做了什麼，它觸及了
+  什麼）、對每個回答的許可權檢查（使 AI 無法成為繞過記錄許可權的途徑）、對 AI 工具所獲取
+  資料中敏感欄位的脫敏，以及可見的配額拒絕。使用者貼上進來的對話歷史不會被再次脫敏。
+  審計記錄覆蓋的是產品內建的 AI。通過 `/mcp` 呼叫資料工具的外部 Agent 不會寫入
+  `sys_ai_audit_log` 行；RLS / FLS 和欄位脫敏對它仍然適用。
+- **多個節點。** 除非你的合同設定了數量，許可證不限制節點數，但它不是一個高可用
+  產品：跨多個副本的高可用正在開發中，釋出之前不提供。部署包目前執行一個節點，
+  在配置叢集驅動之前，執行時會拒絕多於一個副本。沒有許可證時，執行時執行一個
+  副本，宣告更多副本的部署會拒絕啟動。
+- **層級安全。** 相對於業務單元樹的記錄可見性：本單元、本單元及下級、本人及下屬
+  這幾種讀取範圍
+  （[層級可見性](/docs/configure/permissions/hierarchy-visibility)）。
+- **多個組織。** 在一個數據庫上按組織設定的隔離牆。參見
+  [多組織](/docs/deploy/multi-organization)。
+- **客戶自管金鑰。** 機密欄位、資料來源憑據和加密的設定，通過信封加密封存在你自己的
+  AWS KMS、Azure Key Vault 或 HashiCorp Vault（transit）金鑰之下：每個值獲得一個
+  新的資料金鑰，由你的金鑰包裝，而你的金鑰從不離開你的 KMS。吊銷金鑰會立即使這些
+  機密無法讀取。已配置但無法訪問、或未獲許可的 KMS 會**拒絕啟動**；執行時絕不會
+  回退到本地金鑰。業務欄位、後設資料、附件和審計日誌不由這項功能加密；它們的靜態
+  加密依賴你的磁碟或資料庫加密。它適用於單環境形態和組合形態，在固定產物的形態上
+  會被拒絕。請在安裝時選擇它：啟用之前寫入的機密不會被遷移，而關閉它會使它封存的
+  機密無法讀取。客戶自管金鑰隨 4.3.1 之後的 Enterprise 版本釋出。
+
+## 分配 AI 席位 [#assigning-ai-seats]
+
+AI 席位讓一個使用者可以與產品內 AI 對話。許可證設定部署可以容納多少個席位
+（`maxAiSeats`），每個席位分配給一個使用者。
+
+**平臺管理員不需要任何人分配就持有席位。** 這包括每個持有 `admin_full_access`
+許可權集的賬號（在單組織部署上，第一個建立的賬號持有它，之後被授予它的任何人也一樣），
+以及每個地址列在 `OS_PLATFORM_OWNER_EMAIL` 中的賬號：只要賬號存在且地址已驗證，
+就會獲得席位。在有多個組織的部署上（`OS_TENANCY_POSTURE=isolated` 或 `group`），
+`OS_PLATFORM_OWNER_EMAIL` 中的賬號就是平臺管理員。
+
+這些自動席位**計入 `maxAiSeats`**：在一個 5 個席位的許可證上有兩個平臺管理員時，
+還剩 3 個可以分配。不過它們從不會被拒絕，因此部署不會把它的管理員擋在 AI 之外，
+即使這讓它超出了上限。
+
+**其他所有人都由平臺管理員分配席位**，一次一個使用者：
+
+- 在應用中：在 Setup → Users 下開啟該使用者，選擇 **Assign AI Seat**。
+  **Revoke AI Seat** 收回席位，空出來給別人。只有平臺管理員能看到這兩個動作。
+- 通過 API，使用平臺管理員的會話令牌：
+
+  ```bash
+  curl -X POST -H "Authorization: Bearer $TOKEN" \
+    "$BASE/api/v1/actions/sys_user/assign_ai_seat/usr_123"
+  curl -X POST -H "Authorization: Bearer $TOKEN" \
+    "$BASE/api/v1/actions/sys_user/revoke_ai_seat/usr_123"
+  ```
+
+席位不是可以在使用者記錄上或通過資料 API 編輯的欄位；這兩個動作是改變它的唯一方式，
+AI Agent 也不能呼叫它們。它們會拒絕的情況：
+
+| 請求 | 回應 |
+|---|---|
+| 未登入 | `401` |
+| 來自任何不是平臺管理員的人，包括組織管理員和為自己申請席位的使用者 | `403` |
+| 許可證包含的每個席位都已被佔用時的分配 | `402`，`ai_seat_limit_reached`。先收回一個席位或提高許可證額度。給已經持有席位的使用者分配席位不會消耗任何席位。 |
+| 收回平臺管理員的席位 | `409`：他們始終持有一個 |
+| 部署中不存在的使用者 | `404` |
+| 無法讀取席位數或使用者，或無法儲存變更 | `503`。沒有做任何改動；請重試。 |
+
+這兩個動作，以及 `OS_PLATFORM_OWNER_EMAIL` 賬號的自動席位，隨 4.3.1 之後的
+Enterprise 版本釋出。
+
+## 線上還是物理隔離 [#online-or-air-gap]
+
+許可證的模式說明它如何被校驗。兩種模式都會先在本地校驗簽名和結束日期。
+
+| | **線上**（預設） | **物理隔離** |
+|---|---|---|
+| 校驗 | 啟動時，然後在控制平面：許可證被兌換為一份 72 小時的授權，每 24 小時重新整理一次 | 只在本地，對照映象中的金鑰。沒有網路流量。 |
+| `OS_CLOUD_URL` | 你的控制平面，並已完成部署的雲端繫結 | `off` |
+| 無法訪問控制平面時 | 部署從最後一次成功校驗起保持許可狀態 **7 天**，之後以 Community 執行，直到校驗再次成功 | 不適用 |
+| 適用於 | 每個 Enterprise 許可證 | Enterprise，按合同 |
+
+有兩種組合會在啟動時替你決定：
+
+- 線上許可證配合 `OS_CLOUD_URL=off` 永遠無法被校驗，所以執行時會**拒絕啟動**，
+  並點名這兩個設定：
+  `✖ FATAL: this deployment has an ONLINE-mode OS_LICENSE_KEY but no control plane to validate it against`。
+  斷網的站點請申請物理隔離許可證。
+- 組合形態（多個組織在一個已釋出的應用背後共享一個數據庫）**只**接受物理隔離
+  許可證，並要求 `OS_CLOUD_URL=off`。
+
+[物理隔離部署](/docs/deploy/air-gapped)給出了完整的組合矩陣及其背後的原因。
+
+使用線上許可證首次啟動時，在快取任何授權之前，執行時會等待控制平面最多 10 秒，
+以便 Enterprise 功能能在這次啟動時掛載。如果校驗在那之後才成功，執行時雖已通過
+校驗，卻已經按 Community 接好了線：日誌會說明這一點，Enterprise 功能會在下次重啟時
+掛載。之後在寬限期內的重啟，會直接根據快取的授權獲得許可，無需等待。
+
+## 啟動橫幅顯示什麼 [#what-the-boot-banner-shows]
+
+每次啟動時，執行時都會在日誌中列印一條橫幅，說明它做出的判斷。例如，一個已獲許可的
+部署會列印：
+
+```text
+────────────────────────────────────────────────────────────────
+  ObjectOS Enterprise — LICENSED
+    customer  : Example Corp
+    customerId: cus_0123
+    org       : (none)
+    licenseId : lic_0456
+    seats     : up to 50 AI seat(s)
+    nodes     : unlimited
+    expires   : 2027-06-30T00:00:00.000Z
+    features  : aiStudio, clustering, hierarchySecurity, scim, governance, multiOrg, customerManagedKeys
+    in-UI AI  : ENABLED (AI Builder + ask)
+    preview   : AI Builder（预览，不在合同范围内）; ask is the included, supported agent
+    mode      : ONLINE (validated by the control plane)
+    validated : 2026-11-07T09:12:44.000Z
+    ent expiry: 2026-11-10T09:12:44.000Z
+    refresh   : 2026-11-08T09:12:44.000Z
+    runtimeId : rt_0789
+────────────────────────────────────────────────────────────────
+```
+
+| 行 | 它告訴你什麼 |
+|---|---|
+| `seats`、`nodes` | 許可證攜帶的 AI 席位數和節點數；未攜帶時為 `unlimited` |
+| `expires` | 訂閱的結束日期；永久許可證則為 `never (perpetual license — see maintenance below)` |
+| `features` | 許可證授予的功能：`aiStudio`（產品內 AI）、`governance`、`clustering`、`hierarchySecurity`、`scim`、`multiOrg`、`customerManagedKeys` |
+| `in-UI AI` | 這個程序實際掛載了哪些 Agent。當 `OS_AI_STUDIO_AGENTS` 收窄它們時，這一行會寫明哪些被保留、由哪個變數保留。 |
+| `preview` | AI Builder 是預覽，不在合同範圍內（該標註以中文列印，內容是"預覽，不在合同範圍內"） |
+| `mode` … `runtimeId` | 僅限線上許可證：最後一次成功校驗的時間、當前授權何時到期，以及下次何時重新整理。物理隔離許可證不會列印這些行。 |
+
+有些狀態會出現在橫幅的最前面，讓你最先讀到：
+
+- `⚠ GRACE — the control plane has not confirmed this license recently`，
+  後面跟著一行 `degrades`，寫明寬限期結束的日期。
+- 對於永久許可證，一行 `license` 寫明它的狀態：
+  `PERPETUAL — in maintenance until …`，或
+  `PERPETUAL — VERSION-LOCKED (maintenance ended …)`，並附帶
+  `updates   : none — newer images run as Community; renew maintenance to update`。
+  `⚠ BUILD STAMP UNUSABLE` 表示映象無法證明它的釋出日期
+  （[見下文](#perpetual)）。
+
+沒有可用許可證的部署會改為列印 Community 橫幅，並附上原因和補救辦法：
+
+```text
+────────────────────────────────────────────────────────────────
+  ObjectOS Community mode — NO valid Enterprise license
+    reason    : no license (OS_LICENSE_KEY unset)
+    in-UI AI  : DISABLED (AI Builder + ask)
+    data      : available via the open MCP server — bring your own AI client
+    to enable : set OS_LICENSE_KEY to a valid Enterprise license token
+────────────────────────────────────────────────────────────────
+```
+
+在固定產物的形態（`OS_ARTIFACT_URL`）上，映象自己的配置不會執行，所以沒有橫幅，
+橫幅所報告的內容（AI 席位、AI 治理、層級安全）也都不會掛載。
+
+### 不啟動就檢查許可證 [#check-a-license-without-booting]
+
+部署包的 `license-check.sh` 在一個沒有網路的容器中執行映象自己的校驗器，不向任何
+地方傳送任何東西。它列印客戶、版本、期限、模式和限制，絕不列印許可證本身；只有當
+這個映象會以你的 `.env` 獲得許可地啟動時，它才以 0 退出：
+
+```bash
+./license-check.sh                       # the license in .env, against the running image
+./license-check.sh --file new.txt        # a license you have not stored yet
+./license-check.sh --image <new digest>  # against the image you are about to upgrade to
+```
+
+版本顯示為 `enterprise`，在 Enterprise 成為單一版本之前簽發的許可證上則顯示為
+`business`。在訂閱結束前三十天，檢查會發出警告。
+
+## 續訂 [#renewal]
+
+續訂就是一份新的許可證：一行新的文本，帶有更晚的結束日期，兩種模式都是如此。請在
+當前許可證結束之前安裝它：
+
+```bash
+./license-check.sh --set ./renewal.txt   # stores it in .env as OS_LICENSE_KEY and checks it
+docker compose up -d                     # applies it
+```
+
+在 Kubernetes 上，更新存放許可證的 Secret 並重啟 Pod。許可證作用於整個部署：每個
+副本運行同一份許可證（[Kubernetes](/docs/deploy/kubernetes#enterprise-adds)）。
+
+對於永久許可證，續訂**維護**才能讓更新繼續：它是一份維護結束日期更晚的許可證，
+在你升級到一個比當前版本更晚釋出的映象之前需要它。
+
+## 許可證結束時 [#when-a-license-ends]
+
+許可證按其型別，以兩種方式之一結束。兩種方式都不會讓執行時停止，也不會觸及你的
+資料，[下文](#three-deployments-refuse-to-start-instead)的三種例外除外。
+
+### 訂閱 [#subscription]
+
+除非你的合同寫明是永久許可證，Enterprise 許可證就是訂閱。在結束日期之後的下一次
+啟動時，執行時會把許可證視為不存在，並以 Community 執行：
+
+- 產品內 AI 和 AI 治理關閉；
+- 層級讀取範圍不再授予任何東西；
+- SCIM 不再預設開啟；
+- 你的資料保持完整，開放的 MCP 伺服器繼續工作，所以你自己的 AI 客戶端仍然能訪問它。
+
+訂閱不做版本鎖定：結束日期之後，沒有任何映象會保留 Enterprise 功能。安裝續訂的
+許可證後，下一次啟動時它們就會恢復。
+
+### 永久 [#perpetual]
+
+永久許可證是一次性買斷，只按合同銷售，它也是唯一在維護結束後還保留某個版本的型別。
+它沒有結束日期，而是有一個**維護結束日期**，並保留維護費已付期間釋出的版本：
+
+- 在維護結束**之前**釋出的映象，只要你執行它，就保留每一項 Enterprise 功能，包括
+  產品內 AI。維護結束後，橫幅和 `license-check.sh` 會顯示 `VERSION-LOCKED`。
+- 在維護結束**之後**釋出的映象以 Community 執行。升級之前，執行
+  `./license-check.sh --image <new digest>`：它會說明該映象是否在覆蓋範圍內，
+  不在範圍內時 `./upgrade.sh preflight` 會停止。
+- 更新、補丁和支援隨維護一同結束。
+
+映象通過它的釋出清單 `/etc/objectstack/ee-release.json` 證明自己的釋出時間。不要在
+這個檔案或它所在的目錄上掛載任何東西：否則執行時無法使用它，許可證會像訂閱一樣在
+維護結束時失效。線上的永久許可證在維護結束後仍然需要它的控制平面，寬限期同樣是
+7 天；如果部署不能依賴控制平面，請申請物理隔離的永久許可證。橫幅和
+`license-check.sh` 中的 `VERSION-LOCKED` 狀態隨 4.3.1 之後的 Enterprise 版本釋出；
+更早的映象使用永久許可證時會以已獲許可的狀態啟動。
+
+### 有三種部署會改為拒絕啟動 [#three-deployments-refuse-to-start-instead]
+
+有三種配置必須有有效的許可證才能存在，所以已結束或缺失的許可證會讓它們**拒絕啟動**，
+而不是以 Community 執行。資料仍然完整；有效的許可證會讓它們恢復。
+
+- **多個組織**（`OS_TENANCY_POSTURE=isolated` 或 `group`）：組織之間的隔離需要
+  許可，要求了隔離的部署在沒有許可時絕不提供服務。參見
+  [多組織](/docs/deploy/multi-organization#the-license)。
+- **客戶自管金鑰**（在 `OS_CRYPTO_PROVIDER` 中設定了 KMS）：執行時絕不會回退到本地
+  金鑰，因為機密是在你的金鑰之下封存的。
+- **多個節點**（`OS_CLUSTER_REPLICAS` 大於 1）：沒有多節點許可證時，執行時會拒絕
+  所宣告的拓撲，而不是執行彼此不協調的副本。
+
+像安排證書續期一樣安排這些部署的續訂：許可證檢查會提前 30 天發出警告，日期也寫在
+每一條啟動橫幅中。
+
+## 下一步 [#next]
+
+- [多組織](/docs/deploy/multi-organization) —— 多個組織共享的部署上的許可證。
+- [物理隔離部署](/docs/deploy/air-gapped) —— 斷網站點的許可證模式。
+- [Docker → 企業版額外提供](/docs/deploy/docker#enterprise-adds) —— 許可證附帶的
+  映象倉庫、校驗和升級步驟。

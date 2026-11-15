@@ -1,15 +1,15 @@
 ---
 title: 审计日志
 seoTitle: "审计日志：每一次变更、登录和事件"
-description: 阅读不可变的审计轨迹和诊断日志，它们记录了你的部署上的每一次变更、每一次登录和每一个发出的事件。
+description: 阅读审计轨迹和诊断日志，它们记录了你的部署上的每一次变更、每一次登录和每一个发出的事件。
 editions: [community, enterprise]
 translation:
-  source_sha: 8c6b53d05235befa452e3b9a3953df31e5b1ba4c01aaf168a9392a49da21197f
+  source_sha: 221436892c84aa007aa858c73c7a723b53ec84c94421ebbaf9a3ffc6dacdc217
   guide_rev: 1
   mode: auto
 ---
 
-审计日志是你的部署上所发生之事的不可变记录：谁、在什么时候、从哪里改了什么。本页
+审计日志是你的部署上所发生之事的记录：谁、在什么时候、从哪里改了什么。本页
 是 **Setup → Diagnostics** 下各诊断界面的深入参考。关于日志、指标和请求身份的
 运维概览，参见[可观测性](/docs/operate/observability)。
 
@@ -25,9 +25,8 @@ translation:
 
 ## 审计日志 [#audit-logs]
 
-位于 **Setup → Diagnostics → Audit Logs**（`sys_audit_log`）。该对象是**只读且
-不可变的** —— 一条只追加的平台事件轨迹。你可以过滤、分组和查看行，但在 Setup 中
-没有任何东西能编辑或删除它们。
+位于 **Setup → Diagnostics → Audit Logs**（`sys_audit_log`）。该对象是**只读**的。你可以过滤、分组和查看行，但无论在 Setup 中还是通过数据 API，
+都无法编辑或删除它们。
 
 ### 每个读者能看到什么 [#what-each-reader-is-served]
 
@@ -94,7 +93,7 @@ translation:
 `old_value`/`new_value` 告诉你*如何*改动；`actor`、`ip_address` 和 `user_agent`
 告诉你*谁*改的，以及*从哪里*改的。
 
-> 对于受监管的环境，请在存储层为不可变性提供保障 —— 在数据库层把表设为只追加，
+> 对于受监管的环境，请在存储层增加保护 —— 在数据库层把表设为只追加，
 > 并定义保留策略。
 
 ## 通知事件 [#notification-events]

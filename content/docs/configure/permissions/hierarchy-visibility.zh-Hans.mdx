@@ -4,14 +4,14 @@ seoTitle: "层级可见性：让经理看到下属的记录"
 description: 按读者所处的位置 —— 其业务单元、其下级单元或其汇报线 —— 放宽谁能读取一条记录，使用 unit、unit_and_below 和 own_and_reports 范围。
 editions: [cloud, enterprise]
 translation:
-  source_sha: 11e8c60b7087869d03eca49ac3513df7dd066eef47d302fd1b95ffe53d110258
+  source_sha: 80ea6c1736c846fef846dd5ff81435d21c2835ffaa147c7e0d80c8e5e80fa425
   guide_rev: 1
   mode: auto
 ---
 
 **层级可见性**按一个人在组织中*所处的位置*，放宽他能读取哪些记录。区域经理能看到其区域内任何人拥有的每条记录；团队负责人能看到其直接和间接下属的记录。它在[权限集](/docs/configure/permissions/permission-sets)上按对象设置，作为读取（或写入）**范围**。
 
-> **在哪里可用。**在自管理的 ObjectOS Enterprise 部署上，需要包含 `hierarchySecurity` 特性的许可证。在 ObjectOS Cloud 上，需要 Enterprise 合同。在其他任何地方，本页的三个范围授予的都不会超出负责人自己的记录 —— 它们从不以*放开*的方式失效。参见[要求](#requirements)。
+> **在哪里可用**。在自管理的 ObjectOS Enterprise 部署上，需要包含 `hierarchySecurity` 特性的许可证。在 ObjectOS Cloud 上，只对仍在使用旧 Enterprise 套餐的组织可用，该套餐已不再销售：ObjectOS Cloud 没有 Enterprise 套餐。在其他任何地方，本页的三个范围授予的都不会超出负责人自己的记录 —— 它们从不以*放开*的方式失效。参见[要求](#requirements)。
 
 ## 三个范围 [#the-three-scopes]
 
@@ -84,18 +84,18 @@ objects: {
 
 在有多个组织的部署上，经理和其下属必须至少共享一个组织。
 
-- **跨组织设置经理会被拒绝。**当下属和拟定的经理都属于某些组织、但没有共同的组织时，写入会以 `400 INVALID_REFERENCE`（`reason: 'cross-organization-manager'`）被拒绝 —— 无论来自管理界面、API、导入还是系统代码。解决办法是让两人共享一个组织，或在下属自己的组织内选择经理。
-- **是"共享一个组织"，而不是"同一个组织"。**同时是集团和某个工厂成员的集团级经理，可以管理其中任一方的人。
+- **跨组织设置经理会被拒绝**。当下属和拟定的经理都属于某些组织、但没有共同的组织时，写入会以 `400 INVALID_REFERENCE`（`reason: 'cross-organization-manager'`）被拒绝 —— 无论来自管理界面、API、导入还是系统代码。解决办法是让两人共享一个组织，或在下属自己的组织内选择经理。
+- **是"共享一个组织"，而不是"同一个组织"**。同时是集团和某个工厂成员的集团级经理，可以管理其中任一方的人。
 - **尚未属于任何组织的用户从不被拒绝**，也从不会从遍历中被剔除。
-- **读取遵循同样的规则。**`own_and_reports` 在边界处停止：只属于另一个组织的下属会被排除，其下的所有人也一样。
+- **读取遵循同样的规则**。`own_and_reports` 在边界处停止：只属于另一个组织的下属会被排除，其下的所有人也一样。
 
 要实现集团级监管，给那个人一个其所监管组织的成员资格，在那里授予一个范围更宽的权限集，或在单个组织内使用业务单元树。
 
 ## 要求 [#requirements]
 
-- **自管理 ObjectOS Enterprise：**特性中包含 `hierarchySecurity` 的许可证（默认的 Enterprise 特性集包含它）。没有它，这些范围的行为等同于 `own`。
-- **ObjectOS Cloud：**Enterprise 合同。在 Free 和 Team 上，这些范围的行为等同于 `own`，环境也会拒绝发布使用它们的元数据。
-- **ObjectOS Community：**不可用；这些范围的行为等同于 `own`。
+- **自管理 ObjectOS Enterprise**：特性中包含 `hierarchySecurity` 的许可证（默认的 Enterprise 特性集包含它）。没有它，这些范围的行为等同于 `own`。
+- **ObjectOS Cloud**：旧的 Enterprise 套餐，已不再销售 —— ObjectOS Cloud 没有 Enterprise 套餐，ObjectOS Enterprise 是私有部署（见上文）。在 Free 和 Team 上，这些范围的行为等同于 `own`，环境也会拒绝发布使用它们的元数据。
+- **ObjectOS Community**：不可用；这些范围的行为等同于 `own`。
 
 与每项 Enterprise 能力一样，失去授权只会收窄访问；它从不会让运行时停止。
 

@@ -4,7 +4,7 @@ title: 接入 AI 工具（MCP）
 description: 把 Claude Code、Claude Desktop 或任意 MCP 客戶端指向你的 ObjectOS 應用，讓 Agent 在你的許可權模型約束下處理你的資料。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 284d38d7199dbc99e3df09c43ffc520333a1fff28e22d0681d8b885d554bf1e0
+  source_sha: 8b28b587176164775852da1a7f41a71878644313b51d02047cfafe38e7f89786
   guide_rev: 1
   mode: auto
 ---
@@ -13,7 +13,7 @@ translation:
 
 > 要關閉這個入口，設定 `OS_MCP_SERVER_ENABLED=false`——端點將返回 404，**Setup → Connect an Agent**（接入 Agent）頁面也隨之消失。
 
-> **在 ObjectOS Cloud 上正好相反：**每個環境的 MCP 端點**在所有者或管理員開啟之前都是關閉的**，並且每個套餐都有請求上限。參見[在 ObjectOS Cloud 上](#on-objectos-cloud)。
+> **在 ObjectOS Cloud 上，每個環境都有自己的開關**：新環境的 MCP 端點一開始就是**開啟的**，所有者或管理員可以隨時把它關閉，並且每個套餐都有請求上限。參見[在 ObjectOS Cloud 上](#on-objectos-cloud)。
 
 本頁講的是把*外部* AI 工具接入你的應用。服務端 AI 棧——聊天 Provider、Embedder、RAG，以及在程式碼中顯式註冊 MCP 伺服器外掛——參見 [AI 服務](/docs/configure/ai)。
 
@@ -107,8 +107,8 @@ curl -b cookies.txt -X POST https://your-deployment.example.com/api/v1/keys
 
 ## 許可權強制執行 [#permission-enforcement]
 
-- **每次呼叫都以呼叫者身份執行。**MCP 橋接解析的執行上下文與 REST 請求相同，因此物件許可權、[記錄訪問](/docs/configure/permissions/record-access)和[欄位級安全](/docs/configure/permissions/field-level-security)對 Agent 的作用與對 UI 中的真人完全一致。結果稀疏或寫入被拒，通常意味著治理在*正常工作*，而不是連線壞了。
-- **OAuth scope 會收窄工具集。**Token 攜帶 `data:read`、`data:write` 和 `actions:execute` 這些 scope——不在已授予 scope 內的工具，在該會話中根本不會被註冊。API Key 和會話呼叫者獲得完整工具集，但每次呼叫仍會做許可權檢查。第四個 scope `metadata:write` 只在部署提供構建工具的地方才開放這些工具：在 ObjectOS Cloud 上，參見[用 Agent 構建](#build-with-an-agent)。
+- **每次呼叫都以呼叫者身份執行**。MCP 橋接解析的執行上下文與 REST 請求相同，因此物件許可權、[記錄訪問](/docs/configure/permissions/record-access)和[欄位級安全](/docs/configure/permissions/field-level-security)對 Agent 的作用與對 UI 中的真人完全一致。結果稀疏或寫入被拒，通常意味著治理在*正常工作*，而不是連線壞了。
+- **OAuth scope 會收窄工具集**。Token 攜帶 `data:read`、`data:write` 和 `actions:execute` 這些 scope——不在已授予 scope 內的工具，在該會話中根本不會被註冊。API Key 和會話呼叫者獲得完整工具集，但每次呼叫仍會做許可權檢查。第四個 scope `metadata:write` 只在部署提供構建工具的地方才開放這些工具：在 ObjectOS Cloud 上，參見[用 Agent 構建](#build-with-an-agent)。
 - **動作體一經呼叫即作為可信應用程式碼執行**（`ai.exposed` 門檻和 `requiredPermissions` 在*呼叫*時檢查）。把編寫動作當作值得程式碼評審的行為——那才是真正的安全邊界。
 - 動作還可以宣告 `ai.requiresConfirmation`；看起來具有破壞性的動作預設要求確認。
 
@@ -130,7 +130,9 @@ What objects does this app have, and what fields does the main one carry?
 
 ### 開啟 AI Agent 訪問 [#turn-on-ai-agent-access]
 
-把環境的資料暴露給外部 AI 客戶端是組織的決定，因此在 ObjectOS Cloud 上，端點在每個套餐上都按環境**預設關閉**（裁定見 [cloud#1248](https://github.com/objectstack-ai/cloud/issues/1248)）。
+把環境的資料暴露給外部 AI 客戶端是組織的決定，因此在每個套餐上，每個環境都有自己的開關（裁定見 [cloud#1248](https://github.com/objectstack-ai/cloud/issues/1248)）。**新環境一開始就是開啟的**，所有者或管理員可以隨時[關閉它](#turn-it-off)（裁定見 [cloud#3628](https://github.com/objectstack-ai/cloud/issues/3628)）。在此之前建立的環境保留它原來的開關，所以較早的環境可能仍是關閉的。
+
+只有端點處於關閉狀態的環境才需要下面的步驟：較早的環境，或被關閉過的環境。
 
 1. 在雲控制台中，開啟該環境的頁面及其 **Settings**（設定）標籤頁。在 **Access and sign-in** 下，**AI agent access (MCP)** 一行顯示 **Now: off**。
 2. 選擇 **Enable AI Agent Access** 並確認。只有組織的所有者和管理員會看到這個選項。
@@ -146,7 +148,7 @@ What objects does this app have, and what fields does the main one carry?
 
 Agent 還可以**構建應用**：建立和修改它的物件、欄位、檢視、頁面、儀表盤、流程和動作，而不只是它的記錄。它構建的一切在有人釋出之前都是**草稿**。
 
-**請求 `metadata:write`。**構建工具只提供給授權中包含 `metadata:write` scope 的瀏覽器登入。環境會把它與 `data:read`、`data:write` 和 `actions:execute` 一起公佈，因此請求環境所公佈 scope 的客戶端，在你登入時就會獲得它。如果你的客戶端按名稱請求 scope，加上 `metadata:write`；如果你登入時沒有它，重新連線。[API Key](#headless-api-keys) 永遠不會開放構建工具。該 scope 只開放工具，僅此而已：每次呼叫都以你的身份執行，並需要你在該環境中擁有 `manage_metadata` 或 `studio.access` 許可權，與 [AI Builder](/docs/build/ai-builder) 相同。
+**請求 `metadata:write`**。構建工具只提供給授權中包含 `metadata:write` scope 的瀏覽器登入。環境會把它與 `data:read`、`data:write` 和 `actions:execute` 一起公佈，因此請求環境所公佈 scope 的客戶端，在你登入時就會獲得它。如果你的客戶端按名稱請求 scope，加上 `metadata:write`；如果你登入時沒有它，重新連線。[API Key](#headless-api-keys) 永遠不會開放構建工具。該 scope 只開放工具，僅此而已：每次呼叫都以你的身份執行，並需要你在該環境中擁有 `manage_metadata` 或 `studio.access` 許可權，與 [AI Builder](/docs/build/ai-builder) 相同。
 
 **這些工具做什麼。**
 
@@ -163,13 +165,13 @@ Agent 還可以**構建應用**：建立和修改它的物件、欄位、檢視�
 
 每次呼叫都要指明它的包（`packageId` 或 `targetApp`）；沒有任何東西會把工作包從一次呼叫帶到下一次。這裡不提供 `toggle_flow` 和 `test_flow`，因為 Agent 暫存的流程是不會執行的草稿。
 
-**每次寫入都是草稿，在每個環境中都是。**包括生產環境。沒有工具會發布，也沒有工具會丟棄。每次寫入的結果都會說明變更尚未生效，並帶有一個 `staged` 塊，列出這些草稿以及釋出它們的地址。
+**每次寫入都是草稿，在每個環境中都是**。包括生產環境。沒有工具會發布，也沒有工具會丟棄。每次寫入的結果都會說明變更尚未生效，並帶有一個 `staged` 塊，列出這些草稿以及釋出它們的地址。
 
-**由人在 Studio → Changes 中釋出。**在 Studio 中開啟該包及其 **Changes** 檢視（環境中的 `/_console/studio/<package>/data`），評審 Agent 暫存的內容，然後釋出或丟棄。告訴你它已經建立了某樣東西的 Agent，其實是起草了它；釋出之後應用才會顯示它。
+**由人在 Studio → Changes 中釋出**。在 Studio 中開啟該包及其 **Changes** 檢視（環境中的 `/_console/studio/<package>/data`），評審 Agent 暫存的內容，然後釋出或丟棄。告訴你它已經建立了某樣東西的 Agent，其實是起草了它；釋出之後應用才會顯示它。
 
-**刪除或收窄需要 `confirm: true`。**`delete_field`、`modify_field`、`apply_edit` 和 `update_metadata` 接受一個 `confirm` 引數。會刪除欄位、改變欄位型別或從流程中刪去步驟的呼叫，在沒有 `confirm: true` 時什麼都不會暫存，並且回答會指出釋出它將失去什麼。只做新增的變更永遠不需要它。
+**刪除或收窄需要 `confirm: true`**。`delete_field`、`modify_field`、`apply_edit` 和 `update_metadata` 接受一個 `confirm` 引數。會刪除欄位、改變欄位型別或從流程中刪去步驟的呼叫，在沒有 `confirm: true` 時什麼都不會暫存，並且回答會指出釋出它將失去什麼。只做新增的變更永遠不需要它。
 
-**Agent 能構建多少。**構建呼叫也是 MCP 請求，因此[請求上限](#limits)對它們適用。另有兩項上限計入構建（[儲存與限制](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)）：
+**Agent 能構建多少**。構建呼叫也是 MCP 請求，因此[請求上限](#limits)對它們適用。另有兩項上限計入構建（[儲存與限制](/docs/cloud/storage-and-limits#drafts-and-authoring-writes)）：
 
 | | Free | Team 及以上 |
 |---|---|---|
@@ -178,9 +180,9 @@ Agent 還可以**構建應用**：建立和修改它的物件、欄位、檢視�
 
 讀取和 `verify_build` 不計為寫入。超過任一上限後，工具呼叫會以 `RATE_LIMIT_EXCEEDED` 被拒絕，並附上計數和重置條件：寫入在下一個 UTC 日重置，草稿在釋出或丟棄後重置。
 
-> **為什麼我的流程被拒絕？**它用到了 Agent 在這裡無法構建的東西，拒絕資訊會指出是哪一項：Free 上的定時或相對時間流程、套餐不包含審批工作流時的審批步驟，或者一種需在原始碼中構建並作為[包](/docs/build/packages)釋出的型別。
+> **為什麼我的流程被拒絕**？它用到了 Agent 在這裡無法構建的東西，拒絕資訊會指出是哪一項：Free 上的定時或相對時間流程、Free 上的審批步驟，或者一種需在原始碼中構建並作為[包](/docs/build/packages)釋出的型別。
 
-Agent 可以構建由記錄變更或按鈕啟動的流程，使用建立、更新和刪除記錄、賦值、判斷、迴圈和等待步驟。定時和相對時間流程在 Team 及以上可以構建，審批步驟則在套餐包含[審批工作流](/docs/cloud/plans-and-seats)時可以構建。指令碼、Webhook、API 觸發的流程和螢幕流程，以及 script、webhook、API、job、郵件模板、翻譯、主題、外掛、agent、skill 和資料來源這些型別，在任何套餐上都在原始碼中構建。
+Agent 可以構建由記錄變更或按鈕啟動的流程，使用建立、更新和刪除記錄、賦值、判斷、迴圈和等待步驟。定時和相對時間流程在 Team 及以上可以構建，審批步驟也在 Team 及以上可以構建（[套餐](/docs/cloud/plans-and-seats)）。指令碼、Webhook、API 觸發的流程和螢幕流程，以及 script、webhook、API、job、郵件模板、翻譯、主題、外掛、agent、skill 和資料來源這些型別，在任何套餐上都在原始碼中構建。
 
 ### 上限 [#limits]
 
@@ -197,7 +199,7 @@ Agent 可以構建由記錄變更或按鈕啟動的流程，使用建立、更�
 
 在同一行中，**Disable AI Agent Access** 會在幾秒內讓環境停止提供端點，切斷所有已連線的 Agent——瀏覽器登入和 API Key 都一樣。它不會弔銷其他任何東西：
 
-- **API Key 對 REST API 仍然有效。**要停用 Key 本身，從 **Account → Developer → API Keys**（你自己的）或 **Setup → Access Control → API Keys**（所有人的，需要 Manage Platform Settings）中刪除它。
+- **API Key 對 REST API 仍然有效**。要停用 Key 本身，從 **Account → Developer → API Keys**（你自己的）或 **Setup → Access Control → API Keys**（所有人的，需要 Manage Platform Settings）中刪除它。
 - **瀏覽器登入不會被吊銷**，但它們的 token 只被 MCP 端點接受，所以端點關閉期間它們什麼也訪問不到。
 
 ### 在 ObjectOS Cloud 上：故障排查 [#on-objectos-cloud-troubleshooting]
@@ -205,7 +207,7 @@ Agent 可以構建由記錄變更或按鈕啟動的流程，使用建立、更�
 | 症狀 | 原因 |
 |---|---|
 | 環境的 **Settings** 上沒有 **AI agent access (MCP)** 一行 | 只有組織的所有者和管理員能看到它 |
-| **Connect an Agent** 既不在 **Account → Developer** 中，也不在 **Setup → Integrations** 中 | AI Agent 訪問仍處於關閉狀態，或剛剛才開啟——重新載入 |
+| **Connect an Agent** 既不在 **Account → Developer** 中，也不在 **Setup → Integrations** 中 | AI Agent 訪問處於關閉狀態（較早的環境，或被關閉過的環境）——[開啟它](#turn-on-ai-agent-access)；如果剛剛才開啟，重新載入 |
 | **Connect an Agent** 只出現在 **Account → Developer** 下 | 你在該環境中沒有 Manage Platform Settings；Account 入口開啟的是同一個頁面 |
 | 客戶端收到 `429` | 環境的 Agent 超過了上限；等待 `Retry-After` 秒數，並排查是否有 Agent 在重複同一個呼叫 |
 | 連線上沒有構建工具 | 登入時沒有授予 `metadata:write`，或客戶端使用的是 API Key；用瀏覽器登入重新連線並授予它 |

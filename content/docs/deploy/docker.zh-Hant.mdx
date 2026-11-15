@@ -5,7 +5,7 @@ seoTitle: "Docker：執行 ObjectOS Community 和 Enterprise"
 description: 用 Docker 執行 ObjectOS —— 固定映象、設定三個必需的變數、用 Compose 加上 PostgreSQL、接好探針和代理、升級與回滾。企業版映象還增加了私有映象倉庫、校驗和許可證。
 editions: [community, enterprise]
 translation:
-  source_sha: 7fb88e85e29666d6c9ec80215a289bfa2bbe75dc1a35ab842ddd53f33bf4ea72
+  source_sha: e52a6ad6a286f8bdb30541e251677901f65ae854c0aa427e123e36b56be75e00
   guide_rev: 1
   mode: auto
 ---
@@ -66,7 +66,7 @@ OS_AUTH_SECRET=$(openssl rand -hex 32)
 OS_SECRET_KEY=$(openssl rand -hex 32)
 ```
 
-**絕不要把任何一個金鑰烘焙進映象。**在執行時從編排器的金鑰儲存中傳入。把
+**絕不要把任何一個金鑰烘焙進映象**。在執行時從編排器的金鑰儲存中傳入。把
 `OS_SECRET_KEY` 與資料庫一起備份：恢復時沒有帶上金鑰的資料庫無法解密它自己的
 金鑰 —— 參見[備份](/docs/operate/backup)。完整列表見
 [環境變數](/docs/reference/environment-variables)。
@@ -75,7 +75,7 @@ OS_SECRET_KEY=$(openssl rand -hex 32)
 
 映象不帶任何應用。把 `os build` 編譯出的 `objectstack.json` 交給它，有三種方式。
 
-**掛載產物。**完全不用構建映象 —— 映象會在 `/srv/app/objectstack.json` 查詢應用：
+**掛載產物**。完全不用構建映象 —— 映象會在 `/srv/app/objectstack.json` 查詢應用：
 
 ```bash
 docker run -p 8080:8080 \
@@ -86,7 +86,7 @@ docker run -p 8080:8080 \
   ghcr.io/objectstack-ai/objectstack:X.Y.Z
 ```
 
-**按 URL 指定產物。**`OS_ARTIFACT_URL` 指向一個已釋出的產物，所以一個固定的映象
+**按 URL 指定產物**。`OS_ARTIFACT_URL` 指向一個已釋出的產物，所以一個固定的映象
 加上一個變數就是一個執行中的應用，而升級應用就是修改這個變數再重啟：
 
 ```bash
@@ -108,7 +108,7 @@ docker run -p 8080:8080 \
 `file:///…` 也可以用於掛載的檔案。把產物釋出為不可變的、以版本命名的物件，並只給
 你的釋出流水線寫入許可權 —— 正是這一點讓回滾應用與升級應用成為同一種操作。
 
-**把產物複製進你自己的映象。**每個版本一個自包含的映象。專案腳手架
+**把產物複製進你自己的映象**。每個版本一個自包含的映象。專案腳手架
 （`npm create objectstack`）會為你寫一個這種形態的 Dockerfile：
 
 ```dockerfile title="Dockerfile"
@@ -218,7 +218,7 @@ API 呼叫。只要 Console 和 API 共享同一個公網源，CORS 就不需要
 
 ## 首次啟動：第一個管理員 [#first-boot-the-first-administrator]
 
-在一個全新的資料庫上，開啟部署的地址並**註冊 —— 第一個賬戶會成為管理員。**在首次
+在一個全新的資料庫上，開啟部署的地址並**註冊 —— 第一個賬戶會成為管理員**。在首次
 部署後立即完成這一步，再分享地址。生產伺服器不會預置任何預設憑據：你可能在
 `os dev` 中見過的 `admin@objectos.ai` 賬戶只存在於開發資料庫中。
 
@@ -234,14 +234,15 @@ API 呼叫。只要 Console 和 API 共享同一個公網源，CORS 就不需要
 
 ObjectOS Community 執行**一個副本**。協調 —— 鎖、佇列、排程 —— 是程序內的，所以
 第二個副本無法共享它。在沒有許可證的情況下宣告多個副本（`OS_CLUSTER_REPLICAS`
-大於 1）會**拒絕啟動**，而不是用按程序的鎖執行它們。叢集與高可用是企業版能力 ——
-參見下文的[多節點](#multi-node-on-enterprise)。
+大於 1）會**拒絕啟動**，而不是用按程序的鎖執行它們。多節點執行是一項企業版許可證
+能力，而目前 Enterprise 套件也執行在單個節點上 —— 參見下文的
+[多節點](#multi-node-on-enterprise)。
 
 ## 升級與回滾 [#upgrade-and-rollback]
 
 1. 閱讀你所跨越的每個 ObjectStack 版本的釋出說明，以及它們要求運維人員執行的
    [特定版本步驟](/docs/operate/upgrade#version-specific-steps)。
-2. **備份資料庫。**模式遷移只能向前：回滾映象並不會回滾模式。
+2. **備份資料庫**。模式遷移只能向前：回滾映象並不會回滾模式。
 3. 把映象改為新的確切版本，如果你固定了摘要，就改為它的摘要，然後重啟。模式會在
    啟動時、執行時報告就緒之前更新到最新。
 4. 確認 `/api/v1/ready` 返回 200。
@@ -264,7 +265,7 @@ ObjectOS Community 執行**一個副本**。協調 —— 鎖、佇列、排程 
 令牌；沒有公開的企業版映象，也不能從原始碼構建：映象由我們的釋出流水線從不分發的
 原始碼產出，所以 `docker build` 對它來說不是一條存在的路徑。
 
-**受支援的架構：僅 `linux/amd64`。**這是一項宣告，而不是遺漏：構建會拒絕為我們未
+**受支援的架構：僅 `linux/amd64`**。這是一項宣告，而不是遺漏：構建會拒絕為我們未
 宣告的架構產出映象。Apple Silicon 和 Graviton 主機會在模擬下執行它，這用來看一看
 沒問題，用於生產則是錯的。
 
@@ -304,7 +305,7 @@ OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters
 
 ### 許可證 [#license]
 
-**許可證是正常路徑的一部分。**企業版映象在沒有許可證時的行為，取決於你要求它成為
+**許可證是正常路徑的一部分**。企業版映象在沒有許可證時的行為，取決於你要求它成為
 什麼：
 
 - **單組織，無許可證** —— 部署以 ObjectOS Community 執行：開放的 MCP 伺服器，
@@ -316,7 +317,7 @@ OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters
   隔離來提供服務。
 
 同一條線上還有第二個約束，而它正是讓人意外的那個：**許可證有模式，而模式與你的
-雲端姿態耦合。**普通許可證針對控制平面線上校驗；物理隔離許可證在本地校驗，完全
+雲端姿態耦合**。普通許可證針對控制平面線上校驗；物理隔離許可證在本地校驗，完全
 不需要網路。把普通許可證與"沒有控制平面"搭配不是一種降級狀態，而是一種不可能的
 狀態 —— 它會**在啟動時被拒絕**，並點名兩項設定，而不是之後才以一條關於許可證的
 誤導性抱怨失敗。[物理隔離](/docs/deploy/air-gapped)給出了受支援組合的完整矩陣。
@@ -350,15 +351,26 @@ OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters
 
 ### 企業版上的多節點 [#multi-node-on-enterprise]
 
-擴充套件到一個副本以上，會改變哪些是必需的：
+**目前請在單個節點上執行 Enterprise 套件。** 部署包沒有接入叢集驅動，所以請把
+`OS_CLUSTER_REPLICAS` 保持為 `1`，也不要用 `docker compose up --scale` 擴充套件應用
+服務。
 
-- 開啟**叢集驅動**（以 Redis 為後端），並且
-- **共享的加密金鑰成為必需。**沒有叢集驅動時，執行時會自行生成並持久儲存它自己的
-  金鑰。跨副本時這些金鑰會悄悄地互不相同 —— 所以**執行時會拒絕啟動**，而不是讓
-  它們分叉。生成一個金鑰，並給每個副本相同的值。
-- **認證金鑰也必須在每個副本上完全相同。**修改它會使所有現有會話失效，並讓簽名
-  金鑰成為孤兒；環境模板說明了輪換時附帶的那一次性清理步驟。
-- `OS_CLUSTER_REPLICAS` 設定捆綁的技術棧啟動多少個應用副本。
+把 `OS_CLUSTER_REPLICAS` 設為大於 1 會按設計**拒絕啟動**。內建的程序內協調器把鎖、
+計數器和釋出 / 訂閱保留在每個程序內部，所以第二個副本會悄悄地與第一個分叉。不要用
+`OS_ALLOW_MEMORY_CLUSTER_MULTINODE` 讓這次拒絕靜默，也不要用 `--scale` 繞過它：
+compose 模板把副本數和執行時讀取的 `OS_CLUSTER_REPLICAS` 繫結到同一個變數，使它們
+不會不一致。
+
+多節點拓撲由 Enterprise 許可證解鎖（節點上限是許可證的 `maxNodes`）。它按合同啟用，
+當合同需要時會為部署包接入叢集驅動；這裡不承諾任何日期。高可用不在套件目前包含的
+內容之中。如果你需要多於一個節點，請[聯絡銷售](mailto:sales@objectos.ai)。
+
+無論節點數是多少，有兩條規則始終成立：
+
+- **設定一個共享的加密金鑰**（`OS_SECRET_KEY`）。沒有它，執行時會自行生成並持久
+  儲存它自己的金鑰，而這些金鑰在副本之間會互不相同。
+- **認證金鑰必須在執行時所在的每個地方都完全相同**。修改它會使所有現有會話失效，
+  並讓簽名金鑰成為孤兒；環境模板說明了輪換時附帶的那一次性清理步驟。
 
 ### 按摘要升級 [#upgrade-by-digest]
 

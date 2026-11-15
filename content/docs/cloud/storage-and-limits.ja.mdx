@@ -4,14 +4,14 @@ seoTitle: "ObjectOS Cloud の上限：環境ごとのストレージと MCP リ�
 description: ObjectOS Cloud の環境の使用上限。1 GB と 20 GB のストレージの割り当て、いっぱいになった環境が止めるものと決して止めないもの、80% の警告、そしてプランごとの MCP リクエストとドラフトの上限。
 editions: [cloud]
 translation:
-  source_sha: d814bf7b8ecb5b58b6975c5ccb4927b9788c2e96517b9d44980d7da7b2c72a30
+  source_sha: 35d55785248429e66e80d6fa9f2c3218386341e5eb8c73ec0d3d19e9b8d244a5
   guide_rev: 1
   mode: auto
 ---
 
 各 ObjectOS Cloud の環境には、独自の上限がいくつかあります。このページでは、それぞれの数値が属するプランとともに一覧します。AI 利用枠には専用のページがあります：[AI クレジットと上限](/docs/cloud/ai-credits-and-limits)。
 
-| 上限 | Free | Team 以上 | Enterprise |
+| 上限 | Free | Team 以上 | Legacy Enterprise |
 |---|---|---|---|
 | [環境ごとのストレージ](#storage) | 1 GB | 20 GB | 上限なし |
 | [1 分あたりの MCP リクエスト](#mcp-limits) | 20 | 120 | 120 |
@@ -21,7 +21,7 @@ translation:
 
 ## ストレージ [#storage]
 
-すべての環境には**ストレージの割り当て**があります。Free では **1 GB**、Team では **20 GB** で、**環境ごと**に数えられます。開発環境も本番と同じ割り当てを得ます。Enterprise 契約にはストレージの数値はありません（プロダクトオーナーの決定、2026-09-08：数値は確定です）。
+すべての環境には**ストレージの割り当て**があります。Free では **1 GB**、Team では **20 GB** で、**環境ごと**に数えられ、組織が持つ環境は 1 つです。**Legacy Enterprise** の列は、もう販売していない以前のホスト型プランです。ストレージの数値はなく、すでにそれを持っている組織のためにだけ残っています。ObjectOS Cloud に Enterprise プランはありません。ObjectOS Enterprise は自社のインフラストラクチャ上のプライベートデプロイです（[ライセンスと料金](/docs/editions/license)）。（プロダクトオーナーの決定、2026-09-08：数値は確定です）。
 
 **数えられるもの。** 環境のデータベースと添付ファイルです。使用量はおよそ 1 時間ごとに測り直されるので、大きなアップロードやインポートは 1 時間以内に測定値に現れます。この遅れは意図的なものです。
 

@@ -1,0 +1,129 @@
+---
+title: 多组织
+seoTitle: "多组织自管理部署：许可证与姿态"
+description: 在一个自管理部署上承载多个组织 —— 在框架中开源，在 ObjectOS Enterprise 上获得许可与支持 —— 各种姿态、Enterprise 镜像需要的许可证、启动时的拒绝，以及什么时候 ObjectOS Cloud 更合适。
+editions: [enterprise]
+translation:
+  source_sha: a99d724785ae2bfd5ef457947f7c64b3df4579798a412057965b0388be789f84
+  guide_rev: 1
+  mode: auto
+---
+
+除非你要求更多，一个自管理的 ObjectOS 部署只服务**一个组织**。在一个部署、
+一个数据库上运行多个组织的运行时，自 17.4 版起在 ObjectStack 框架中开源。在
+ObjectOS 上，提供它的镜像是 **ObjectOS Enterprise**：每个 Enterprise 许可证都
+授予多组织能力，并由我们提供支持；没有许可证时，Enterprise 镜像会拒绝以设墙的
+姿态启动。
+
+## 哪个版本合适 [#which-edition-fits]
+
+| 你想要 | 使用 |
+|---|---|
+| 在你自己的基础设施上运行一个组织 | ObjectOS Community，或任何 Enterprise 许可证。这是默认情况。 |
+| 在你自己的基础设施上、一个数据库中运行多个组织 | **ObjectOS Enterprise**，获得许可与支持。运行时是开源的，所以你也可以不用许可证，把它构建进你自己的运行时（[见下文](#on-the-community-image)）。 |
+| 少数几个组织，而不想自己运维部署 | **ObjectOS Cloud**。每个组织各自注册自己的套餐，隔离由我们运行。参见[套餐与 AI 席位](/docs/cloud/plans-and-seats)。 |
+| 组织之间不能共享数据库 | 每个组织一个部署，任何版本均可 |
+
+## 姿态 [#postures]
+
+`OS_TENANCY_POSTURE` 说明组织之间是否彼此隔开：
+
+| 姿态 | 含义 |
+|---|---|
+| `single` | 一个组织拥有整个部署。没有需要隔开的东西。 |
+| `group` | 多个组织共享一份数据集，组成员可以跨组织读取。 |
+| `isolated` | 硬隔离墙：一个组织的成员无法得知另一个组织的存在。 |
+
+`group` 和 `isolated` 是**设墙**的姿态。关于这个设置本身有两点：
+
+- **不设置就等于 `single`，而且不会提示。** 从不设置姿态的部署只运行一个组织，
+  也不会报告任何异常，因为从运行时的角度看并没有出错。请写明你想要的姿态。
+- **拼错的值会拒绝启动**，而不是回退到一个没有隔离墙的姿态。
+
+## 许可证 [#the-license]
+
+在 Enterprise 镜像上，设墙的姿态需要一个授予 `multiOrg` 的许可证。除非你的合同
+明确列出了功能，否则每个 Enterprise 许可证都授予它；以原 `business` 版本签发的
+许可证则不授予。启动横幅的 `features` 一行显示你的许可证授予了什么
+（[许可](/docs/deploy/licensing#what-the-boot-banner-shows)）。
+
+没有它，运行时会**拒绝启动**，并在第一行说明原因：
+
+```text
+✖ FATAL: tenancy posture 'isolated' requires an Enterprise license.
+
+    Multi-organization isolation is a LICENSED Enterprise capability (ADR-0022,
+    cloud#766). This runtime is not licensed for it, so the organization wall
+    cannot be activated — and a deployment that asked for isolation must never
+    serve traffic pretending to have it. Refusing to boot.
+```
+
+这是许可失败，而不是缺少软件包，消息中也是这么说的。它给出两种修复方式：一个授予
+多组织能力的许可证，或者 `OS_TENANCY_POSTURE=single`。`OS_ALLOW_DEGRADED_TENANCY`
+对它不适用。这次拒绝在每种运行形态上都相同，包括固定产物的形态，在那里它带有代码
+`MULTI_ORG_NOT_LICENSED`。
+
+许可证**结束**时也是如此：设墙的部署不会像单组织部署那样回落到 Community。它在
+下一次启动时会拒绝启动，直到安装了有效的许可证，其数据保持完整。当你的 `.env`
+要求设墙的姿态时，部署包的 `license-check.sh` 会提前报告这次拒绝。永久许可证让
+设墙的部署在它所覆盖的镜像上继续运行。详情见
+[许可](/docs/deploy/licensing#when-a-license-ends)。
+
+### 在 Community 镜像上 [#on-the-community-image]
+
+发布的 Community 镜像只运行一个组织。它不包含多组织运行时，所以在那里设墙的姿态
+会拒绝启动，并说明无法加载 `@objectstack/organizations`。这次拒绝提供了
+`OS_ALLOW_DEGRADED_TENANCY=1` 作为绕过方式；它会在隔离墙**未生效**的状态下启动，
+组织边界不会被强制执行。不要用它来运行多个组织。
+
+多组织运行时本身在 ObjectStack 框架中开源（`@objectstack/organizations`，
+Apache-2.0，自 17.4 起）。在 ObjectOS 上，能在一个自管理部署上运行多个组织、并有
+许可证和我们的支持作为后盾的版本，是 Enterprise。
+
+## 运行形态 [#run-shapes]
+
+| 形态 | 多个组织 |
+|---|---|
+| **配置编写**（镜像自己的应用，Compose 的默认形态） | 支持，需要设墙的姿态和授予它的许可证 |
+| **组合**（一个已发布的应用加上本镜像的企业插件） | 支持，而且是为此构建的形态。它**只接受物理隔离许可证**，并要求 `OS_CLOUD_URL=off`，两者都在启动时强制执行（[物理隔离](/docs/deploy/air-gapped#the-hosted-multi-organization-shape-is-air-gap-licensed-too)）。 |
+| **固定产物**（`OS_ARTIFACT_URL`） | 许可方式仍然相同，但镜像自己的配置不会运行：没有 AI 治理，没有 AI 席位，AI **构建** Agent 也无法关闭。请改用组合形态。 |
+
+为什么构建 Agent 很重要：元数据的作用范围是部署，而不是某个组织。在共享的数据库上，
+一个组织的一次 AI Builder 操作，会改写其他每个组织所运行的模式。在组合形态上，
+`OS_AI_STUDIO_AGENTS=ask` 会关闭它。
+
+## 设墙的部署必须声明的决定 [#decisions-a-walled-deployment-must-declare]
+
+在设墙的姿态上，运行时会**拒绝启动，直到你做出决定**，还有三件事要定。声明任何
+可用的值都会被接受；不做决定则不行。
+
+| 变量 | 决定 |
+|---|---|
+| `OS_AUTH_MEMBERSHIP_POLICY` | 新注册的用户加入什么。当成员关系*就是*租户边界时，通常的答案是 `invite-only`。 |
+| `OS_AI_STUDIO_AGENTS` | 挂载哪些 AI Agent：`ask`、`build`，或两者都挂载。出于上面的原因，通常的答案是 `ask`。 |
+| `OS_PLATFORM_OWNER_EMAIL` | 谁是平台管理员。在设墙的姿态下，这是该身份的唯一来源。 |
+
+[环境变量](/docs/reference/environment-variables#multi-organization-deployments)
+完整描述了每一项。单组织部署不会遇到这些检查。
+
+## 隔离墙隔开什么 [#what-the-wall-separates]
+
+隔离墙隔开的是各组织的**数据和成员关系**。它不隔开元数据，元数据属于部署。比隔离墙
+更强的隔离是部署分离：必须拥有自己数据库的组织，就使用自己的部署。
+
+在设墙的部署上，有两项 Enterprise 保护按组织生效：
+
+- 在 Enterprise 镜像中，**SSO 域名验证默认开启**。一个组织注册的身份提供商不会让
+  任何人登录，直到平台管理员通过 DNS TXT 记录证明该组织控制着它的域名。没有这项
+  验证，一个组织的提供商就可以为它所声称的任何邮箱地址创建账号，包括另一个组织的
+  域名。`OS_SSO_DOMAIN_VERIFICATION=false` 会关闭它。这个默认值适用于配置编写和
+  组合形态，不适用于固定产物的形态，并随 4.3.1 之后的 Enterprise 版本发布。
+- **客户自管密钥**在配置编写和组合形态上可用，因此设墙的部署可以用你自己的 KMS
+  密钥封存它的机密
+  （[许可](/docs/deploy/licensing#what-an-enterprise-license-unlocks)）。
+
+## 下一步 [#next]
+
+- [许可](/docs/deploy/licensing) —— 获取、校验和续订本页所依赖的许可证。
+- [故障排查](/docs/operate/troubleshooting) —— 逐一区分启动时的各种拒绝。
+- [生产就绪](/docs/operate/production) —— 上线检查清单中与设墙姿态相关的条目。

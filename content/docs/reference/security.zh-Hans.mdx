@@ -3,7 +3,7 @@ title: 安全与合规
 description: 保护了什么、如何保护、谁负责 —— 面向安全评审。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: f4b8cc8aeeb89ea330e8e0c536e84ad3f27d8bb2ae336f839e9321ab0da0c9a7
+  source_sha: 10c51f5146e6b89d341ff69216dacad1f2aabd9606bdc2d61a5171c81195506b
   guide_rev: 1
   mode: auto
 ---
@@ -20,8 +20,8 @@ Enterprise** 上位于**你的**网络中，在 **ObjectOS Cloud** 上位于我�
 ## 数据驻留 [#data-residency]
 
 下表描述的是自管理版本 **ObjectOS Enterprise**。在 **ObjectOS Cloud** 上，同样
-类别的数据存放在我们为你运维的基础设施中；无论哪个版本，你的本体都可以导出到开源
-的 ObjectStack 运行时。
+类别的数据存放在我们为你运维的基础设施中；无论哪个版本，你的本体都是普通的
+ObjectStack 元数据，把它导出到开源的 ObjectStack 运行时尚在计划中。
 
 | 数据类别 | 存放于 | 是否离开你的网络？ |
 |---|---|---|
@@ -116,7 +116,7 @@ Enterprise** 上位于**你的**网络中，在 **ObjectOS Cloud** 上位于我�
 - 每个对象上的每一次 CRUD 操作 → 一条审计记录。
 - 字段变更的前后值。
 - 认证、权限授予、会话撤销事件。
-- 审计记录是**不可变的**：不能修改，只能归档。
+- 无论通过数据 API 还是在 Setup 中，都无法编辑或删除审计记录。可验证记录未被修改或删除的证明（防篡改）已在计划中。
 - 保留期在对象的 `lifecycle` 块上声明（`sys_audit_log` 出厂为热存储 90 天，然后
   归档），并可通过 `lifecycle.retention_overrides` 按环境调整；与你的数据库的归档
   策略搭配使用。
@@ -133,12 +133,12 @@ ObjectOS 提供每个常见框架都要求的**技术原语**。认证是部署�
 |---|---|
 | **SOC 2** | 访问控制（CC6）、变更管理（审计日志）、加密（部署）、监控（可观测性）、备份（运维/备份） |
 | **ISO 27001** | A.5 策略（RBAC）、A.8 资产管理（对象目录）、A.9 访问控制、A.12 运维、A.18 合规 |
-| **HIPAA** | 访问控制（§164.312(a)）、审计控制（§164.312(b)）、完整性（不可变审计）、传输安全（TLS） |
+| **HIPAA** | 访问控制（§164.312(a)）、审计控制（§164.312(b)：审计日志；防篡改已在计划中）、传输安全（TLS） |
 | **GDPR** | 第 30 条处理活动记录（审计）、第 32 条处理安全、第 17 条删除权（支持软删除 + 硬删除）、数据驻留（由你选择区域） |
 | **CCPA / 中国《数据安全法》/ 俄罗斯 152-FZ** | 在合适区域部署的 ObjectOS Enterprise 满足驻留要求；访问控制 + 审计覆盖大多数报告义务 |
 
 ObjectOS 本身**没有经过认证**，因为认证针对的是运行中的部署，而不是一个二进制
-文件。你的部署可以通过认证 —— 许多部署已经通过。
+文件。你的部署可以通过认证。
 
 ## 密钥处理 [#secrets-handling]
 
@@ -231,16 +231,20 @@ user prompt
 
 ### 审计事件 [#audit-events]
 
-加载审计能力后：
+在获得 AI 治理许可时（ObjectOS Enterprise），每个受治理的 AI 事件都会向
+`sys_ai_audit_log` 写入一行只追加的记录：
 
-- `ai.chat.message` —— 每条用户 / 助手消息，带模型和令牌数
-- `ai.tool.call` —— 工具名称、校验后的输入、完整输出（或错误）
-- `ai.pending_action.queued` —— 提议的变更，完整的 diff
-- `ai.pending_action.approved` / `.rejected` —— 谁决定的、何时、为什么
-- `ai.metadata.applied` —— 对元数据存储的实际写入，带 diff
+- `tool_call` —— 产品内置 AI 的每次工具调用：谁发起的、哪个 Agent 和工具、它触及的
+  对象、经过脱敏的参数摘要、决定（允许或拒绝）以及结果
+- `quota_refusal` —— 被配额拒绝的一轮对话：按用户的消息额度，或环境的令牌护栏
+- `guardrail_refusal` —— 被 Agent 自身护栏（时间限制、令牌预算、被屏蔽的工具）拒绝的
+  一轮对话或一次工具调用
 
-这些记录是不可变的，可以导出用于安全审查或费用分摊。按（提供商、模型、用户）统计
-的令牌数用于成本归因。
+审计记录覆盖的是产品内置的 AI。通过 `/mcp` 调用数据工具的外部 Agent 不会写入
+`sys_ai_audit_log` 行；RLS / FLS 和字段脱敏对它仍然适用。
+
+导出审计日志目前还不是包含在内的功能。按模型统计的令牌数和成本记录在 `ai_traces` 上，
+而不在审计记录上。
 
 ### 提示注入态势 [#prompt-injection-posture]
 

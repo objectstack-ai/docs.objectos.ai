@@ -20,8 +20,8 @@ nothing more.
 
 This table describes **ObjectOS Enterprise**, the self-managed edition. On
 **ObjectOS Cloud** the same classes of data live in the infrastructure we
-operate for you, and on either edition your ontology is exportable to the
-open-source ObjectStack runtime.
+operate for you, and on either edition your ontology is ordinary ObjectStack
+metadata; exporting it to the open-source ObjectStack runtime is planned.
 
 | Data class | Lives in | Leaves your network? |
 |---|---|---|
@@ -126,7 +126,9 @@ When the audit capability is loaded (`@objectstack/plugin-audit`):
 - Every CRUD operation across every object → audit row.
 - Before/after values for field changes.
 - Authentication, permission grants, session revocation events.
-- Audit rows are **immutable**: cannot be modified, only archived.
+- Audit rows cannot be edited or deleted through the data API or in
+  Setup. A verifiable proof that rows were not changed or removed
+  (tamper-evidence) is planned.
 - Retention is declared on the object's `lifecycle` block
   (`sys_audit_log` ships with 90 days hot, then archive) and tuned per
   environment via `lifecycle.retention_overrides`; pair with your DB's
@@ -145,13 +147,12 @@ software — but the controls map cleanly:
 |---|---|
 | **SOC 2** | Access control (CC6), change management (audit log), encryption (deployment), monitoring (observability), backup (operate/backup) |
 | **ISO 27001** | A.5 policies (RBAC), A.8 asset management (object catalog), A.9 access control, A.12 operations, A.18 compliance |
-| **HIPAA** | Access controls (§164.312(a)), audit controls (§164.312(b)), integrity (immutable audit), transmission security (TLS) |
+| **HIPAA** | Access controls (§164.312(a)), audit controls (§164.312(b): the audit log; tamper-evidence planned), transmission security (TLS) |
 | **GDPR** | Article 30 records of processing (audit), Article 32 security of processing, Article 17 right to erasure (soft + hard delete supported), data residency (you choose the region) |
 | **CCPA / China DSL / Russia 152-FZ** | ObjectOS Enterprise in the right region satisfies residency; access controls + audit cover most reporting obligations |
 
 ObjectOS itself is **not certified** because the certification is of a
-running deployment, not a binary. Your deployment can be certified —
-many already are.
+running deployment, not a binary. Your deployment can be certified.
 
 ## Secrets handling
 
@@ -253,17 +254,23 @@ queue a bad change someone else must accept.
 
 ### Audit events
 
-When the audit capability is loaded:
+With AI governance licensed (ObjectOS Enterprise), each governed AI
+event writes one append-only row to `sys_ai_audit_log`:
 
-- `ai.chat.message` — every user / assistant message, with model + token count
-- `ai.tool.call` — tool name, validated input, full output (or error)
-- `ai.pending_action.queued` — proposed mutation, full diff
-- `ai.pending_action.approved` / `.rejected` — who decided, when, why
-- `ai.metadata.applied` — actual write to the metadata store, with diff
+- `tool_call` — every tool call the product's built-in AI makes: who
+  asked, which agent and tool, the object it touched, a redacted
+  argument summary, the decision (allowed or denied) and the result
+- `quota_refusal` — a chat turn refused by a quota: the per-user
+  message allowance or the environment's token guardrail
+- `guardrail_refusal` — a turn or tool call refused by the agent's own
+  guardrails (time limit, token budget, blocked tool)
 
-These rows are immutable and can be exported for security review or
-chargeback. Token counts per (provider, model, user) feed cost
-attribution.
+The trail covers the product's built-in AI. An external agent calling
+data tools over `/mcp` writes no `sys_ai_audit_log` row; RLS / FLS and
+field masking still apply to it.
+
+Exporting the audit log is not an included feature yet. Token counts
+and cost per model are recorded on `ai_traces`, not on the audit rows.
 
 ### Prompt-injection posture
 

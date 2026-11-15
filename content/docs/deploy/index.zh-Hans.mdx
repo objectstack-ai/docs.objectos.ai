@@ -4,14 +4,14 @@ seoTitle: "部署：自管理 ObjectOS，社区版和企业版"
 description: 在你自己的基础设施上运行 ObjectOS —— 开放的社区版镜像或需许可证的企业版镜像，同一个运行时、同一份配置契约，以及许可证额外带来什么。
 editions: [community, enterprise]
 translation:
-  source_sha: 8e3a6c8cf20d9cbca8dbf4e4162996b6398eecf09e17b90912fd9914ec86e3f6
+  source_sha: f23b63662961511b990de814db445897b0a8c382bad6b97e10aac67e115a2d6a
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 有两个自管理版本，它们的部署方式相同。**ObjectOS Community** 是开源
-的运行时镜像；**ObjectOS Enterprise** 是需许可证的镜像，可以作为 Business
-Self-Managed 运行在单节点上，也可以作为完整的企业版部署。两者运行同一个运行时，
+的运行时镜像；**ObjectOS Enterprise** 是需许可证的镜像，只有一个版本，包含全部
+Enterprise 功能。两者运行同一个运行时，
 读取同一份配置：一个数据库、一个认证密钥和一个加密密钥。不同之处在于镜像从哪里
 来、应用如何进入，以及许可证解锁什么。本节的每一页都同时为两者编写一次，并以
 **企业版额外提供**一节结尾，说明需许可证的镜像能多做什么。
@@ -26,7 +26,7 @@ Self-Managed 运行在单节点上，也可以作为完整的企业版部署。�
 | 应用如何到达 | 你用 `os build` 编译出的 `objectstack.json`：挂载进去、复制进你自己的镜像，或由 `OS_ARTIFACT_URL` 指定。空的运行时则改为从 Console 市场安装应用。 | 三种运行形态之一：应用打包在镜像中、一个已发布的产物，或者一个与镜像的企业插件组合在一起的已发布产物（[见下文](#how-the-app-gets-in)） |
 | 必须设置的变量 | `OS_DATABASE_URL`、`OS_AUTH_SECRET`、`OS_SECRET_KEY`（镜像已经设置了 `OS_PORT=8080`） | 同上，另加 `OS_LICENSE_KEY` 和一个经过考虑的 `OS_CLOUD_URL` |
 | 可复制的配置 | 这些页面上的示例 | 随每个版本发布的**部署包** |
-| 许可证解锁什么 | —— | 产品内 AI（AI Builder、"问你的数据"）、AI 治理、集群与高可用、一个部署上的多个组织、SCIM、物理隔离运行 |
+| 许可证解锁什么 | —— | 产品内 AI（AI Builder、"问你的数据"）、AI 治理、层级安全、一个部署上的多个组织、默认开启的 SCIM、客户自管密钥、物理隔离运行。该套件目前运行一个节点；跨多个副本的高可用正在开发中，尚未提供。 |
 
 [版本对比](/docs/editions/compare)给出了完整的矩阵。在 Community 上构建的应用
 就是普通的 ObjectStack 元数据，不做任何修改即可在 Enterprise 上运行。

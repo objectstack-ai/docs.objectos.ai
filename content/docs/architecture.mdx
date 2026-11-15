@@ -91,8 +91,8 @@ one; see [Docker](/docs/deploy/docker).
 On **ObjectOS Enterprise** — the self-managed edition this table describes —
 nothing below leaves your network. On **ObjectOS Cloud** the same process
 runs in our infrastructure instead, and on either edition the ontology
-itself is yours: export it and run it on the open-source ObjectStack
-runtime. [Data residency](/docs/reference/security#data-residency) lists
+itself is ordinary ObjectStack metadata; exporting it to run on the
+open-source ObjectStack runtime is planned. [Data residency](/docs/reference/security#data-residency) lists
 each class of data, where it lives, and whether it leaves your network.
 
 Self-managed ObjectOS validates its license online; Enterprise air-gapped
@@ -134,7 +134,7 @@ want to know where the artifact comes from:
 |---|---|---|
 | **Framework** (`@objectstack/*`) | Open-source kernel, ObjectQL, plugins, drivers | npm — pulled in at build time |
 | **Control plane** (optional) | Publishes compiled `objectstack.json` artifacts; you can use the hosted ObjectOS Cloud, run your own, or skip it entirely | Your CI, our cloud, or your laptop |
-| **ObjectOS** | The commercial runtime environment built on the framework | **ObjectOS Cloud** (we operate it) or **your infrastructure** (ObjectOS Enterprise) |
+| **ObjectOS** | ObjectOS Community is free and self-hosted, ObjectOS Cloud the hosted edition, ObjectOS Enterprise the self-managed, licensed one | Self-hosted (**ObjectOS Community**), hosted (**ObjectOS Cloud**) or self-managed (**ObjectOS Enterprise**) |
 
 If you're shipping a single app, you don't need a control plane —
 compile `objectstack.config.ts → dist/objectstack.json` in your CI and

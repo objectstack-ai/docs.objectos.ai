@@ -4,14 +4,14 @@ seoTitle: "階層による表示範囲：マネージャーに部下のレコー
 description: 読み手がどこに位置するか（その事業単位、その下の単位、またはその報告ライン）によって、誰がレコードを読めるかを広げます。unit、unit_and_below、own_and_reports のスコープを使います。
 editions: [cloud, enterprise]
 translation:
-  source_sha: 11e8c60b7087869d03eca49ac3513df7dd066eef47d302fd1b95ffe53d110258
+  source_sha: 80ea6c1736c846fef846dd5ff81435d21c2835ffaa147c7e0d80c8e5e80fa425
   guide_rev: 1
   mode: auto
 ---
 
 **階層による表示範囲**は、組織の中で*どこに位置するか*によって、人が読めるレコードを広げます。地域マネージャーは自分の地域の誰かが所有するすべてのレコードを見られ、チームリーダーは直属と間接の部下のレコードを見られます。これは[権限セット](/docs/configure/permissions/permission-sets)でオブジェクトごとに、読み取り（または書き込み）の**スコープ**として設定します。
 
-> **利用できる場所。** セルフマネージドの ObjectOS Enterprise のデプロイメントで、`hierarchySecurity` 機能を含むライセンスのもと。ObjectOS Cloud では、Enterprise 契約のもと。それ以外のどこでも、このページの 3 つのスコープは所有者自身のレコード以上のものを何も付与しません。*開いた*側に倒れて失敗することは決してありません。[要件](#requirements)を参照してください。
+> **利用できる場所。** セルフマネージドの ObjectOS Enterprise のデプロイメントで、`hierarchySecurity` 機能を含むライセンスのもと。ObjectOS Cloud では、もう販売していない以前の Enterprise プランをまだ使っている組織に限ります。ObjectOS Cloud に Enterprise プランはありません。それ以外のどこでも、このページの 3 つのスコープは所有者自身のレコード以上のものを何も付与しません。*開いた*側に倒れて失敗することは決してありません。[要件](#requirements)を参照してください。
 
 ## 3 つのスコープ [#the-three-scopes]
 
@@ -94,7 +94,7 @@ objects: {
 ## 要件 [#requirements]
 
 - **セルフマネージドの ObjectOS Enterprise：** 機能に `hierarchySecurity` を含むライセンス（デフォルトの Enterprise の機能セットは含みます）。なければ、スコープは `own` として動作します。
-- **ObjectOS Cloud：** Enterprise 契約。Free と Team ではスコープは `own` として動作し、環境はそれを使うメタデータの公開を拒否します。
+- **ObjectOS Cloud：** もう販売していない以前の Enterprise プラン。ObjectOS Cloud に Enterprise プランはなく、ObjectOS Enterprise はプライベートデプロイです（上記）。Free と Team ではスコープは `own` として動作し、環境はそれを使うメタデータの公開を拒否します。
 - **ObjectOS Community：** 利用できません。スコープは `own` として動作します。
 
 ほかのすべての Enterprise の機能と同じく、権利を失うとアクセスが狭まります。ランタイムが止まることは決してありません。

@@ -4,7 +4,7 @@ title: 許可與定價
 description: ObjectOS 是一個產品、三個版本 —— Community（開源，免費）、Cloud 和 Enterprise —— 每個版本如何授權，以及它們與 ObjectStack 框架的關係。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 8214fa1bad828f1ed43938ca72f4a791acb69e4bdb82a1e015eec4e78d2d1128
+  source_sha: ae9ea9eeb075037a4d129a245a6e4e0626672a55f14b7080c9c68f3a2a280ff3
   guide_rev: 1
   mode: auto
 ---
@@ -38,24 +38,28 @@ ObjectOS 是 **ObjectStack 應用的官方執行時環境**，有三個版本：
 
 ## 版本 [#editions]
 
-ObjectOS Community 免費。兩個商業版本使用一張價目表、兩種交付方式，
-**AI 席位**是唯一的計價單位。
+ObjectOS Community 免費。兩個商業版本使用同一個計價單位，即 **AI 席位**：
+ObjectOS Cloud 自助銷售，ObjectOS Enterprise 按年度合同銷售。
 
 | | **Community** | **Free** | **Team** | **Enterprise** |
 |---|---|---|---|---|
 | 版本 | ObjectOS Community | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise |
-| 交付方式 | **自管理** | 雲 | 雲 | **自管理（私有部署）** |
-| 價格 | **免費**（Apache-2.0） | **免費** | **24 美元** / AI 席位 / 月 | 定製（按量）—— [聯絡銷售](mailto:sales@objectstack.ai) |
+| 交付方式 | **自管理** | 雲 | 雲 | **自管理**（私有部署） |
+| 價格 | **免費**（Apache-2.0） | **免費** | **24 美元** / AI 席位 / 月，或按年付費 20 美元 / AI 席位 / 月 | 按 AI 使用者計價，按年計費，最少 25 個：[聯絡銷售](mailto:sales@objectos.ai) |
 | UI 內 AI（AI Builder + "問你的資料"） | 僅 MCP（自帶模型） | 體驗版 | ✓ | ✓ |
 | AI 治理（動作審計、護欄、許可權範圍限定） | — | — | — | ✓ |
-| 叢集 / 高可用、多組織自託管、物理隔離、SCIM | — | — | — | ✓ |
-| 支援 | 社群 | 社群 | 標準 | SLA + 專屬 |
+| 與你的身份提供商單點登入 | ✓ | — | — | ✓ |
+| 單個部署承載多個組織 | 開源，Community 映象不包含 | — | — | ✓ |
+| 物理隔離、預設開啟的 SCIM、層級安全 | — | — | — | ✓ |
+| 高可用（多個副本） | — | — | — | 開發中，尚未提供 |
+| 支援 | 社群 | 社群 | 標準 | 標準；優先支援和 SLA 按合同提供 |
 
-在 Team 和完整私有部署之間，有兩個 **ObjectOS Enterprise 之下的合同
-選項**，價格不變：**Business**（ObjectOS Cloud 上的 SSO 和 AI 治理，
-**54 美元** / AI 席位 / 月，按年付費為 45 美元 / AI 席位 / 月；優先支援）
-和 **Business Self-Managed**（單節點入門選項，**540 美元** / AI 席位 / 年）。
-兩者都按合同銷售 —— [聯絡銷售](mailto:sales@objectstack.ai)。
+ObjectOS Cloud 就是 **Free** 和 **Team**；沒有 Business 套餐，也沒有
+Enterprise 套餐。Team 不限制成員、記錄或物件的數量。
+**ObjectOS Enterprise** 只有一個版本，始終是在你自己的基礎設施上的私有部署。
+它按 AI 使用者授權，按年計費，最少 25 個 AI 使用者，按合同銷售並以發票付款。
+沒有刷卡結賬，也沒有公開價格：
+[聯絡銷售](mailto:sales@objectos.ai)。
 
 想**免費**自託管？那就是 **ObjectOS Community**（僅 MCP 的 AI：自帶模型）。
 參見下文的 [ObjectOS Community](#objectos-community)。
@@ -65,48 +69,45 @@ ObjectOS Community 免費。兩個商業版本使用一張價目表、兩種交�
 疊加了*嵌入式智慧* —— 產品內的 AI Builder 和"問你的資料"助手，經過治理
 和審計 —— 再加上運營規模和官方支援。
 
-**你只為 AI 席位付費。** 唯一計費的席位是 **AI 席位**；只讀使用者、非 AI 的
-應用使用者以及通過 MCP 構建的開發者都免費，沒有按使用者收取的席位稅（與那些
-每使用者 150–300 美元的老牌廠商形成鮮明對比）。
+**你只為 AI 席位付費。** 唯一計費的席位是 **AI 席位**，產品內 AI 的每個使用者
+一個；只讀使用者和不使用 AI 的應用使用者都免費，沒有按使用者收取的席位稅（與那些
+每使用者 150–300 美元的老牌廠商形成鮮明對比）。在 Cloud 上，通過 MCP 構建的
+開發者也免費。在 Enterprise 上，用自己的 API Key 通過 MCP 連線的 Agent 是
+一個服務身份，每個都計為一個 AI 使用者。
 
 ## 雲還是自管理 [#cloud-or-self-managed]
 
 自管理的 ObjectOS 是 **ObjectOS Community**（免費）或 **ObjectOS
-Enterprise**（需許可）。雲是 Free 和 Team；Team 之上的一切都是 Enterprise
-合同。
+Enterprise**（需許可）。雲是 Free 和 Team；Enterprise 始終是自管理的。
 
-- **雲（Free / Team）** —— 完全託管，自助開通。價格包含託管和一份充裕的
-  每月 AI 額度（模型由我們執行）。
-- **Enterprise** —— 需許可的 ObjectOS，按合同銷售，有三種形態：
-  - **Business** —— ObjectOS Cloud 上的一個合同選項：託管服務上的 SSO /
-    SAML 和 AI 治理（動作審計、護欄、許可權範圍限定），54 美元 / AI 席位 /
-    月，或按年付費 45 美元 / AI 席位 / 月，優先支援。
-  - **Business Self-Managed** —— 單節點入門選項：以**單節點 Docker 許可證**
-    形式交付的 Business 套餐，適用於 **10–25 個 AI 席位**（540 美元/AI 席位/
-    年，按年）：在你自己的基礎設施上提供 UI 內 AI 和 AI 治理，**自帶模型 /
-    金鑰**（你自己承擔 LLM 成本 —— 沒有平臺 AI 賬單或計量），刷卡支付，
-    標準支援。如果許可證過期，執行時會繼續執行，你的資料保持完整 —— 只是
-    付費功能會關閉（它永遠不會變磚）。
-  - **完整私有部署** —— 適用於超出上述範圍的一切：叢集 / 高可用 / 多節點、
-    多組織自託管、資料駐留和**物理隔離**執行、SCIM 和身份生命週期、合規
-    證明、SLA 和專屬支援，以及線下 / 發票付款。以**年度許可證**銷售，可選
-    多年鎖價；不續約時，你的部署會**永久保留最後一個已付費的版本**（你失去
-    的是更新和支援，絕不是你的系統或資料）。價格按量計算 ——
-    [聯絡銷售](mailto:sales@objectstack.ai)。
+- **雲（Free / Team）** —— 完全託管，自助開通。價格包含託管和 AI 用量
+  （模型由我們執行），每個環境有各自的限制：
+  參見 [AI 點數與限制](/docs/cloud/ai-credits-and-limits)。
+- **Enterprise** —— 在你自己的基礎設施上執行的需許可的 ObjectOS：只有一個
+  版本，私有部署，按合同銷售。
+  - **包含全部功能**，無論部署規模大小：UI 內 AI、AI 治理、層級安全、預設
+    開啟的 SCIM、客戶自管金鑰、物理隔離許可和資料駐留。你**自帶模型 /
+    金鑰**：你自己承擔 LLM 成本，沒有平臺 AI 賬單或計量。
+  - **按 AI 使用者計價**，按年計費，最少 25 個 AI 使用者。許可證不限制節點數量。
+    目前一個部署執行在單個節點上，並支援備份與恢復；跨多個副本的高可用正在
+    開發中，釋出之前不提供。
+  - **只能按合同購買**，以發票付款；沒有刷卡結賬。影響價格的因素在合同中
+    約定：優先支援和 SLA 支援、物理隔離部署、多年鎖價，以及永久許可證。
+  - **訂閱結束時**，部署會回落到 Community：Enterprise 功能關閉，系統和你的
+    資料繼續正常工作。只有按合同一次性買斷的永久許可證，才會保留其維護費
+    已付期間釋出的版本。
 
-**不按節點收費** —— 叢集 / 擴充套件已包含在 Enterprise 中。
+**不按節點收費**。
 
 ## 什麼時候選哪個 [#when-you-might-want-each]
 
 | 場景 | 選擇 |
 |---|---|
 | 你希望平臺**由別人託管和運維** | ObjectOS Cloud（Free → Team） |
-| 你需要託管服務上的 **SSO 和 AI 治理** | **Business**，ObjectOS Enterprise 在 ObjectOS Cloud 上的合同選項 |
-| 你必須在**你自己的單個節點**上執行，並且想要產品內 AI，AI 席位 ≤25 個 | **Business Self-Managed**，ObjectOS Enterprise 的合同選項（單節點入門） |
-| 你需要**叢集 / 高可用**、**多組織**、**物理隔離**、**SCIM**、合規證明、SLA 或線下付款 | **ObjectOS Enterprise**，完整私有部署 |
-| 你自託管 ObjectOS Community，但需要一個**帶商業合同的受支援發行版**（SLA、安全補丁優先、指定升級渠道） | **ObjectOS Runtime Subscription** —— [聯絡銷售](mailto:sales@objectstack.ai) |
+| 你想要**在你自己的基礎設施上使用產品內 AI**、AI 治理、**物理隔離**、**SCIM**、SLA 或發票付款 | **ObjectOS Enterprise** —— [聯絡銷售](mailto:sales@objectos.ai) |
+| 你需要**與你自己的身份提供商的 SSO**，或在一個部署上承載**多個組織**，並附帶商業支援 | **ObjectOS Enterprise**。兩者都是開源的，所以你也可以不用許可證執行它們 |
 | 你想要**免費自託管**，並通過 MCP 自帶 AI | **ObjectOS Community**（開源） |
-| 你需要以 ObjectOS 或 ObjectStack 名義進行 **OEM / 再分發**的權利 | 商業協議 —— [聯絡銷售](mailto:sales@objectstack.ai) |
+| 你需要以 ObjectOS 或 ObjectStack 名義進行 **OEM / 再分發**的權利 | 商業協議 —— [聯絡銷售](mailto:sales@objectos.ai) |
 
 ## ObjectOS Community [#objectos-community]
 
@@ -149,7 +150,8 @@ Apache-2.0、MIT 或 BSD 風格的寬鬆許可證，相容商業使用。完整�
 [objectstack 倉庫](https://github.com/objectstack-ai/objectstack)中公開
 開發，與構建它們的 ObjectStack 框架放在一起。**ObjectOS Cloud** 和
 **ObjectOS Enterprise** 是商業版本 —— 在同一套機制之上提供嵌入式 AI、
-託管與運維、SSO 和支援。
+託管與運維，以及支援。與你的身份提供商的單點登入屬於開放機制的一部分，
+免費。
 
 ### 我能在賣給客戶的閉源 SaaS 中使用 ObjectStack 嗎？ [#can-i-use-objectstack-in-a-closed-source-saas-i-sell-to-my-customers]
 
@@ -159,27 +161,27 @@ Apache-2.0、MIT 或 BSD 風格的寬鬆許可證，相容商業使用。完整�
 ### 我能不付費自託管 ObjectOS 嗎？ [#can-i-self-host-objectos-without-paying]
 
 可以 —— 那就是 **ObjectOS Community**：同樣開放的機制，自託管，AI 僅通過
-MCP（自帶模型）。*需許可*的自管理版本是 ObjectOS Enterprise，它的兩個
-選項（單節點上的 Business Self-Managed，或完整的 Enterprise 部署）都會
-增加產品內 AI、AI 治理和商業支援。
+MCP（自帶模型）。*需許可*的自管理版本是 ObjectOS Enterprise，它增加了
+產品內 AI、AI 治理和商業支援。
 
 ### 如果我不續約，軟體會停止工作嗎？ [#does-the-software-stop-working-if-i-dont-renew]
 
-它永遠不會變磚。Business Self-Managed 會降級為免費機制的行為（付費功能
-關閉；你的資料和執行時繼續工作）。完整的 Enterprise 部署會**永久保留最後
-一個已付費的版本** —— 你失去的是更新、新的 AI 能力和支援，而不是你的
-系統。
+它永遠不會變磚。訂閱結束時，部署會回落到 Community：Enterprise 功能關閉，
+系統和你的資料繼續正常工作。在結束後保留某個版本（版本鎖定），只有按合同
+一次性買斷的**永久許可證**才有：它保留其維護費已付期間釋出的版本。有三種
+必須有許可證才能存在的配置會改為拒絕啟動；參見
+[許可](/docs/deploy/licensing#when-a-license-ends)。
 
 ### ObjectOS 會"回傳資料"嗎？ [#does-objectos-phone-home]
 
 ObjectOS Enterprise 會線上校驗許可證；物理隔離的 Enterprise 許可證離線
 校驗。ObjectOS Community 沒有遙測，沒有許可證檢查，也沒有更新探測。
 
-### 如果我想為 ObjectOS Community 獲得合同擔保怎麼辦？ [#what-if-i-want-a-contractual-warranty-on-objectos-community]
+### 我能為自管理部署購買商業支援嗎？ [#can-i-buy-commercial-support-for-a-self-managed-deployment]
 
-那就是 **ObjectOS Runtime Subscription** —— 針對 ObjectOS Community 的
-支援合同（官方發行版、SLA、安全補丁優先），功能上沒有任何差別。請聯絡
-[sales@objectstack.ai](mailto:sales@objectstack.ai)。
+商業支援（包括優先和 SLA 選項）隨 ObjectOS Enterprise 許可證提供：
+[聯絡銷售](mailto:sales@objectos.ai)。ObjectOS Community 由社群提供支援；
+參見[支援](/docs/resources/support)。
 
 ### ObjectOS Community 和框架會一直免費嗎？ [#will-objectos-community-and-the-framework-always-be-free]
 

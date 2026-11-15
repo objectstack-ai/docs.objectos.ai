@@ -1,7 +1,7 @@
 ---
 title: Kubernetes
 seoTitle: "Kubernetes: Probes, Secrets, Pinning, Migrations"
-description: Run the ObjectOS image on Kubernetes — a reference Deployment, the right probe on the right endpoint, secrets from a Secret, and what multi-replica Enterprise deployments must preserve.
+description: Run the ObjectOS image on Kubernetes — a reference Deployment, the right probe on the right endpoint, secrets from a Secret, and what must stay identical across replicas.
 editions: [community, enterprise]
 ---
 
@@ -96,7 +96,8 @@ cluster are not the intended home for business data.
 
 Coordination on Community is in-process, so keep `replicas: 1`. Declaring
 more (`OS_CLUSTER_REPLICAS` above 1) refuses the boot without a license.
-Multi-replica is an Enterprise capability — below.
+Multi-node is an Enterprise license capability, and the Enterprise kit
+runs a single replica today — below.
 
 ### Ingress
 
@@ -131,14 +132,16 @@ variable.
 
 ### Every replica gets identical secrets
 
-Multi-replica is not a matter of raising the replica count:
+**Keep the Enterprise kit at one replica today.** It wires no cluster driver,
+and declaring more than one (`OS_CLUSTER_REPLICAS` above 1) refuses the boot
+by design: the in-process coordinator would not share locks, counters or
+pub/sub between replicas. Multi-node is activated by license contract
+(`maxNodes`) and is not a high-availability promise; contact sales if you need
+it. Whatever the replica count:
 
-- The **cluster driver** must be on, backed by Redis.
-- A **shared secret key** becomes mandatory. Without a cluster driver each
-  replica mints its own; across replicas those would diverge, and rather than
-  diverge, **the runtime refuses to start**. One value, mounted into every
-  replica.
-- The **auth secret** must likewise be identical across replicas.
+- Use **one shared secret key** (`OS_SECRET_KEY`). Without it each replica would
+  mint its own, and those would diverge.
+- The **auth secret** must likewise be identical wherever the runtime runs.
 
 ### License and cloud posture are deployment-wide
 

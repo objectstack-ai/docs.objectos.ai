@@ -1,0 +1,130 @@
+---
+# @generated zh-Hant from zh-Hans -- do not edit. Edit the English source, then regenerate: pnpm --filter @objectos/docs gen:zh-hant
+title: 多組織
+seoTitle: "多組織自管理部署：許可證與姿態"
+description: 在一個自管理部署上承載多個組織 —— 在框架中開源，在 ObjectOS Enterprise 上獲得許可與支援 —— 各種姿態、Enterprise 映象需要的許可證、啟動時的拒絕，以及什麼時候 ObjectOS Cloud 更合適。
+editions: [enterprise]
+translation:
+  source_sha: a99d724785ae2bfd5ef457947f7c64b3df4579798a412057965b0388be789f84
+  guide_rev: 1
+  mode: auto
+---
+
+除非你要求更多，一個自管理的 ObjectOS 部署只服務**一個組織**。在一個部署、
+一個數據庫上執行多個組織的執行時，自 17.4 版起在 ObjectStack 框架中開源。在
+ObjectOS 上，提供它的映象是 **ObjectOS Enterprise**：每個 Enterprise 許可證都
+授予多組織能力，並由我們提供支援；沒有許可證時，Enterprise 映象會拒絕以設牆的
+姿態啟動。
+
+## 哪個版本合適 [#which-edition-fits]
+
+| 你想要 | 使用 |
+|---|---|
+| 在你自己的基礎設施上執行一個組織 | ObjectOS Community，或任何 Enterprise 許可證。這是預設情況。 |
+| 在你自己的基礎設施上、一個數據庫中執行多個組織 | **ObjectOS Enterprise**，獲得許可與支援。執行時是開源的，所以你也可以不用許可證，把它構建進你自己的執行時（[見下文](#on-the-community-image)）。 |
+| 少數幾個組織，而不想自己運維部署 | **ObjectOS Cloud**。每個組織各自注冊自己的套餐，隔離由我們執行。參見[套餐與 AI 席位](/docs/cloud/plans-and-seats)。 |
+| 組織之間不能共享資料庫 | 每個組織一個部署，任何版本均可 |
+
+## 姿態 [#postures]
+
+`OS_TENANCY_POSTURE` 說明組織之間是否彼此隔開：
+
+| 姿態 | 含義 |
+|---|---|
+| `single` | 一個組織擁有整個部署。沒有需要隔開的東西。 |
+| `group` | 多個組織共享一份資料集，組成員可以跨組織讀取。 |
+| `isolated` | 硬隔離牆：一個組織的成員無法得知另一個組織的存在。 |
+
+`group` 和 `isolated` 是**設牆**的姿態。關於這個設定本身有兩點：
+
+- **不設定就等於 `single`，而且不會提示。** 從不設定姿態的部署只執行一個組織，
+  也不會報告任何異常，因為從執行時的角度看並沒有出錯。請寫明你想要的姿態。
+- **拼錯的值會拒絕啟動**，而不是回退到一個沒有隔離牆的姿態。
+
+## 許可證 [#the-license]
+
+在 Enterprise 映象上，設牆的姿態需要一個授予 `multiOrg` 的許可證。除非你的合同
+明確列出了功能，否則每個 Enterprise 許可證都授予它；以原 `business` 版本簽發的
+許可證則不授予。啟動橫幅的 `features` 一行顯示你的許可證授予了什麼
+（[許可](/docs/deploy/licensing#what-the-boot-banner-shows)）。
+
+沒有它，執行時會**拒絕啟動**，並在第一行說明原因：
+
+```text
+✖ FATAL: tenancy posture 'isolated' requires an Enterprise license.
+
+    Multi-organization isolation is a LICENSED Enterprise capability (ADR-0022,
+    cloud#766). This runtime is not licensed for it, so the organization wall
+    cannot be activated — and a deployment that asked for isolation must never
+    serve traffic pretending to have it. Refusing to boot.
+```
+
+這是許可失敗，而不是缺少軟體包，訊息中也是這麼說的。它給出兩種修復方式：一個授予
+多組織能力的許可證，或者 `OS_TENANCY_POSTURE=single`。`OS_ALLOW_DEGRADED_TENANCY`
+對它不適用。這次拒絕在每種執行形態上都相同，包括固定產物的形態，在那裡它帶有程式碼
+`MULTI_ORG_NOT_LICENSED`。
+
+許可證**結束**時也是如此：設牆的部署不會像單組織部署那樣回落到 Community。它在
+下一次啟動時會拒絕啟動，直到安裝了有效的許可證，其資料保持完整。當你的 `.env`
+要求設牆的姿態時，部署包的 `license-check.sh` 會提前報告這次拒絕。永久許可證讓
+設牆的部署在它所覆蓋的映象上繼續執行。詳情見
+[許可](/docs/deploy/licensing#when-a-license-ends)。
+
+### 在 Community 映象上 [#on-the-community-image]
+
+釋出的 Community 映象只執行一個組織。它不包含多組織執行時，所以在那裡設牆的姿態
+會拒絕啟動，並說明無法載入 `@objectstack/organizations`。這次拒絕提供了
+`OS_ALLOW_DEGRADED_TENANCY=1` 作為繞過方式；它會在隔離牆**未生效**的狀態下啟動，
+組織邊界不會被強制執行。不要用它來執行多個組織。
+
+多組織執行時本身在 ObjectStack 框架中開源（`@objectstack/organizations`，
+Apache-2.0，自 17.4 起）。在 ObjectOS 上，能在一個自管理部署上執行多個組織、並有
+許可證和我們的支援作為後盾的版本，是 Enterprise。
+
+## 執行形態 [#run-shapes]
+
+| 形態 | 多個組織 |
+|---|---|
+| **配置編寫**（映象自己的應用，Compose 的預設形態） | 支援，需要設牆的姿態和授予它的許可證 |
+| **組合**（一個已釋出的應用加上本映象的企業外掛） | 支援，而且是為此構建的形態。它**只接受物理隔離許可證**，並要求 `OS_CLOUD_URL=off`，兩者都在啟動時強制執行（[物理隔離](/docs/deploy/air-gapped#the-hosted-multi-organization-shape-is-air-gap-licensed-too)）。 |
+| **固定產物**（`OS_ARTIFACT_URL`） | 許可方式仍然相同，但映象自己的配置不會執行：沒有 AI 治理，沒有 AI 席位，AI **構建** Agent 也無法關閉。請改用組合形態。 |
+
+為什麼構建 Agent 很重要：後設資料的作用範圍是部署，而不是某個組織。在共享的資料庫上，
+一個組織的一次 AI Builder 操作，會改寫其他每個組織所執行的模式。在組合形態上，
+`OS_AI_STUDIO_AGENTS=ask` 會關閉它。
+
+## 設牆的部署必須宣告的決定 [#decisions-a-walled-deployment-must-declare]
+
+在設牆的姿態上，執行時會**拒絕啟動，直到你做出決定**，還有三件事要定。宣告任何
+可用的值都會被接受；不做決定則不行。
+
+| 變數 | 決定 |
+|---|---|
+| `OS_AUTH_MEMBERSHIP_POLICY` | 新註冊的使用者加入什麼。當成員關係*就是*租戶邊界時，通常的答案是 `invite-only`。 |
+| `OS_AI_STUDIO_AGENTS` | 掛載哪些 AI Agent：`ask`、`build`，或兩者都掛載。出於上面的原因，通常的答案是 `ask`。 |
+| `OS_PLATFORM_OWNER_EMAIL` | 誰是平臺管理員。在設牆的姿態下，這是該身份的唯一來源。 |
+
+[環境變數](/docs/reference/environment-variables#multi-organization-deployments)
+完整描述了每一項。單組織部署不會遇到這些檢查。
+
+## 隔離牆隔開什麼 [#what-the-wall-separates]
+
+隔離牆隔開的是各組織的**資料和成員關係**。它不隔開後設資料，後設資料屬於部署。比隔離牆
+更強的隔離是部署分離：必須擁有自己資料庫的組織，就使用自己的部署。
+
+在設牆的部署上，有兩項 Enterprise 保護按組織生效：
+
+- 在 Enterprise 映象中，**SSO 域名驗證預設開啟**。一個組織註冊的身份提供商不會讓
+  任何人登入，直到平臺管理員通過 DNS TXT 記錄證明該組織控制著它的域名。沒有這項
+  驗證，一個組織的提供商就可以為它所聲稱的任何郵箱地址建立賬號，包括另一個組織的
+  域名。`OS_SSO_DOMAIN_VERIFICATION=false` 會關閉它。這個預設值適用於配置編寫和
+  組合形態，不適用於固定產物的形態，並隨 4.3.1 之後的 Enterprise 版本釋出。
+- **客戶自管金鑰**在配置編寫和組合形態上可用，因此設牆的部署可以用你自己的 KMS
+  金鑰封存它的機密
+  （[許可](/docs/deploy/licensing#what-an-enterprise-license-unlocks)）。
+
+## 下一步 [#next]
+
+- [許可](/docs/deploy/licensing) —— 獲取、校驗和續訂本頁所依賴的許可證。
+- [故障排查](/docs/operate/troubleshooting) —— 逐一區分啟動時的各種拒絕。
+- [生產就緒](/docs/operate/production) —— 上線檢查清單中與設牆姿態相關的條目。

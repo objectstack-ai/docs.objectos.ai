@@ -1,17 +1,18 @@
 ---
 title: Introduction
 seoTitle: "Documentation: Start, Build, Deploy, Operate"
-description: "ObjectOS is the commercial runtime environment built on ObjectStack, hosted (ObjectOS Cloud) or self-managed (ObjectOS Enterprise). You own the ontology."
+description: "ObjectOS Community is free and self-hosted, ObjectOS Cloud the hosted edition, ObjectOS Enterprise the self-managed, licensed one. You own the ontology."
 editions: [community, cloud, enterprise]
 ---
 
 The ontology is the software. One executable business ontology. AI writes
-it, the runtime runs it, agents operate it, you own it. Want the same loop
-hosted, in the browser, nothing to install? That's ObjectOS, the commercial
-runtime environment built on ObjectStack. ObjectOS runs hosted in the browser
-with nothing to install (ObjectOS Cloud) or self-managed on your own
-infrastructure (ObjectOS Enterprise), and on either edition you can export
-your ontology and run it on the open-source ObjectStack runtime.
+it, the runtime runs it, agents operate it, you own it. To run it, the
+ObjectStack repository ships ObjectOS Community — the
+ghcr.io/objectstack-ai/objectstack image, os start and the Console, free and
+self-hosted — while ObjectOS Cloud is the hosted edition and ObjectOS
+Enterprise the self-managed, licensed one. Your ontology is ordinary
+ObjectStack metadata. Exporting it from ObjectOS Cloud or ObjectOS
+Enterprise to run on the open-source ObjectStack runtime is planned.
 
 Describe what the business needs to the built-in
 [AI Builder](/docs/build/ai-builder) — a helpdesk, an approval flow, a CRM
@@ -33,7 +34,7 @@ construction.
 | You want … | Do this |
 |---|---|
 | ObjectOS, nothing to install | **ObjectOS Cloud**, hosted for you — the Free plan is enough to build your first app. See [Start on ObjectOS Cloud](/docs/start/cloud) |
-| ObjectOS on your own infrastructure, licensed | **ObjectOS Enterprise**, from the single-node Business Self-Managed option up, runs the licensed Enterprise image on your servers — see [Start on ObjectOS Enterprise](/docs/start/enterprise) |
+| ObjectOS on your own infrastructure, licensed | **ObjectOS Enterprise** runs the licensed Enterprise image on your servers — see [Start on ObjectOS Enterprise](/docs/start/enterprise) |
 | ObjectOS on your own machine, free | **ObjectOS Community**, the open-source runtime: `npm i -g @objectstack/cli && os start` boots it with a SQLite database and no configuration — see [Run ObjectOS Community locally](/docs/start/community) |
 
 ObjectOS Cloud and ObjectOS Enterprise then take you to the same place — sign
@@ -44,8 +45,8 @@ in, and:
   [ontology](/docs/ontology), the object and its fields, as a small
   diff you approve. See
   [Build → AI Builder](/docs/build/ai-builder).
-- **Install a template** from the built-in marketplace (Todo,
-  Contracts, Helpdesk, …) and have a real app in one click.
+- **Install a template** from the built-in marketplace (Helpdesk,
+  …) and have a real app in one click.
 - **Fork a [template](/docs/build/templates)** if you want TypeScript
   source under your control — the same metadata, authored in your repo
   with your coding agent.
@@ -54,9 +55,9 @@ in, and:
 
 | You're using | Pain point | What ObjectOS gives you |
 |---|---|---|
-| **Retool / Appsmith** | UI builder is great, but your data sits in their cloud and their pricing scales with users | Hosted (ObjectOS Cloud) or inside your network (ObjectOS Enterprise); built on open-source ObjectStack (Apache-2.0), so the ontology is yours to export; no seat tax — AI seats only |
-| **Supabase / Firebase** | Backend-as-a-service is fast but vendor-locked; multi-tenant SaaS by design | Same DX (auto APIs, auth, storage), but the definition is yours: export it and run it on the open ObjectStack runtime, or run ObjectOS Enterprise on your own database |
-| **Salesforce / NetSuite** | Powerful platform, painful customization, eye-watering per-seat cost | A familiar vocabulary (objects, fields, permission sets, sharing rules), but the definition is an open ontology that AI writes, agents operate, and you can export to the Apache-2.0 runtime; hosted or self-managed, no seat tax — viewers and non-AI users are free |
+| **Retool / Appsmith** | UI builder is great, but your data sits in their cloud and their pricing scales with users | Hosted (ObjectOS Cloud) or inside your network (ObjectOS Enterprise); the ontology is ordinary metadata for open-source ObjectStack (Apache-2.0), with export to that runtime planned; no seat tax — AI seats only |
+| **Supabase / Firebase** | Backend-as-a-service is fast but vendor-locked; multi-tenant SaaS by design | Same DX (auto APIs, auth, storage), but the definition is yours: run ObjectOS Enterprise on your own database, or ObjectOS Community on your own machine; export from ObjectOS Cloud to the open ObjectStack runtime is planned |
+| **Salesforce / NetSuite** | Powerful platform, painful customization, eye-watering per-seat cost | A familiar vocabulary (objects, fields, permission sets, sharing rules), but the definition is an open ontology that AI writes and agents operate, as ordinary metadata for the Apache-2.0 ObjectStack runtime, with export to it planned; hosted or self-managed, no seat tax — viewers and non-AI users are free |
 | **Rolling your own (Next + Prisma + NextAuth)** | You rebuild RBAC, audit, file uploads, settings, webhooks, jobs every time | Ship the actual business logic; the platform plumbing is already there |
 
 ## What you get out of the box
@@ -73,8 +74,8 @@ in, and:
 
 On either edition, the ontology: your objects, fields, relations, actions,
 permissions, flows and agent definitions are ordinary ObjectStack metadata,
-and you can export them and run them on the open-source ObjectStack
-runtime. On **ObjectOS Enterprise**, everything else stays with you too:
+and exporting them to run on the open-source ObjectStack runtime is
+planned. On **ObjectOS Enterprise**, everything else stays with you too:
 [Data residency](/docs/reference/security#data-residency) lists each class
 of data, where it lives, and whether it leaves your network.
 

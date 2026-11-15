@@ -4,12 +4,12 @@ seoTitle: "动作：REST 端点、按钮和 AI 工具"
 description: 平台把具名操作暴露为 REST 端点、按钮和 AI 工具 —— 全部来自一次声明。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 85e291bd4a1a724fe1ba2fbbf181d61ab30004d9389a19eaee2e9ae3175b1096
+  source_sha: 73eec6615157785e3ccf58c23a1ce2aa1a34a601ec3398faa639318fe20e584d
   guide_rev: 1
   mode: auto
 ---
 
-**动作（Action）**是对象上的一个具名操作。声明一次，它就会出现为：
+**动作**（Action）是对象上的一个具名操作。声明一次，它就会出现为：
 
 - 一个 **REST 端点**，位于 `/api/v1/actions/<object>/<action>`
 - 记录详情页上的一个**按钮**
@@ -208,7 +208,7 @@ Agent 不可见，被调用时也会被拒绝。
 
 ## 审计 [#auditing]
 
-平台事件会写入 `sys_audit_log`，这是一条不可变的审计记录，字段包括：
+平台事件会写入 `sys_audit_log`，这是一条只读的审计记录，字段包括：
 
 - `user_id` —— 发起操作的用户
 - `action` —— 动作名称
@@ -217,7 +217,7 @@ Agent 不可见，被调用时也会被拒绝。
 - `ip_address` / `user_agent` —— 请求来源
 - `created_at` —— 发生时间
 
-回答*"是谁按下了按钮？"*这类问题时，先来这里查。
+回答“*是谁按下了按钮？*”这类问题时，先来这里查。
 
 ## 用 AI Builder 生成动作 [#generating-actions-with-the-ai-builder]
 

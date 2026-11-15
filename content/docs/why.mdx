@@ -33,8 +33,8 @@ Community**, the open-source runtime):
   UI.
 - **You own it.** The ontology is ordinary
   [ObjectStack](https://github.com/objectstack-ai/objectstack) metadata,
-  Apache-2.0, and on either edition you can export it and run it on that
-  open-source runtime. ObjectOS Enterprise also keeps the runtime and the
+  Apache-2.0, and exporting it from either edition to run on that
+  open-source runtime is planned. ObjectOS Enterprise also keeps the runtime and the
   database on your infrastructure.
 
 That's the whole pitch. The rest of this page is who that fits and
@@ -120,14 +120,14 @@ built on, is on
 | Admin UI | Console (basic) | Setup + Account |
 | RBAC | Row-level via Postgres RLS | RBAC + row-level + field-level, declarative |
 | Audit log | DIY | First-class |
-| Vendor lock-in | Their auth + their storage + their realtime | The ontology exports to the open-source ObjectStack runtime; every layer is a plugin |
+| Vendor lock-in | Their auth + their storage + their realtime | The ontology is ordinary ObjectStack metadata, with export to the open-source runtime planned; every layer is a plugin |
 | Best for | New apps that want a BaaS | Apps that need to own their definition — and, on Enterprise, their runtime |
 
 ### vs. Salesforce / NetSuite / ServiceNow
 
 | | Salesforce | ObjectOS |
 |---|---|---|
-| Data model | Objects + fields + relationships, configured in the platform | Objects, fields and relations in one open ontology — exportable, and runnable on the Apache-2.0 ObjectStack runtime |
+| Data model | Objects + fields + relationships, configured in the platform | Objects, fields and relations in one open ontology — ordinary metadata for the Apache-2.0 ObjectStack runtime, with export planned |
 | Permissions | Profile + permission sets + sharing rules + FLS | A familiar vocabulary — permission sets, positions, sharing rules, FLS — declared in the ontology and enforced on every REST call, UI click and agent tool call |
 | Per-user cost | $150-300/user/month | Viewers and non-AI users free; you pay for AI seats only |
 | Customization | Apex + Lightning + flows | TypeScript + flows |

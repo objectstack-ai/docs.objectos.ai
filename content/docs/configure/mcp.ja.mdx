@@ -3,7 +3,7 @@ title: AI ツールを接続する（MCP）
 description: Claude Code、Claude Desktop、または任意の MCP クライアントを ObjectOS アプリに向け、エージェントにあなたの権限モデルのもとでデータを扱わせます。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 284d38d7199dbc99e3df09c43ffc520333a1fff28e22d0681d8b885d554bf1e0
+  source_sha: 8b28b587176164775852da1a7f41a71878644313b51d02047cfafe38e7f89786
   guide_rev: 1
   mode: auto
 ---
@@ -12,7 +12,7 @@ translation:
 
 > この機能をオフにするには `OS_MCP_SERVER_ENABLED=false` を設定します。するとエンドポイントは 404 を返し、**Setup → Connect an Agent** のページもあわせて消えます。
 
-> **ObjectOS Cloud では逆です：** 各環境の MCP エンドポイントは**オーナーまたは管理者が有効にするまでオフ**で、すべてのプランにリクエストの上限があります。[ObjectOS Cloud の場合](#on-objectos-cloud)を参照してください。
+> **ObjectOS Cloud では、環境ごとにスイッチがあります：** 新しい環境の MCP エンドポイントは**オン**で始まり、オーナーまたは管理者はいつでもオフにでき、すべてのプランにリクエストの上限があります。[ObjectOS Cloud の場合](#on-objectos-cloud)を参照してください。
 
 このページは、*外部の* AI ツールをアプリに接続することについて扱います。サーバー側の AI スタック（チャットのプロバイダー、埋め込み、RAG、コードでの MCP サーバープラグインの明示的な登録）については、[AI サービス](/docs/configure/ai)を参照してください。
 
@@ -129,7 +129,9 @@ What objects does this app have, and what fields does the main one carry?
 
 ### AI エージェントのアクセスを有効にする [#turn-on-ai-agent-access]
 
-環境のデータを外部の AI クライアントに公開するのは組織の判断なので、ObjectOS Cloud ではエンドポイントは、すべてのプランで、環境ごとに**デフォルトでオフ**です（[cloud#1248](https://github.com/objectstack-ai/cloud/issues/1248) で決定）。
+環境のデータを外部の AI クライアントに公開するのは組織の判断なので、すべてのプランで、環境ごとにスイッチがあります（[cloud#1248](https://github.com/objectstack-ai/cloud/issues/1248) で決定）。**新しい環境はオンで始まり**、オーナーまたは管理者はいつでも[オフにできます](#turn-it-off)（[cloud#3628](https://github.com/objectstack-ai/cloud/issues/3628) で決定）。それより前に作成された環境は元のスイッチを保つので、古い環境はまだオフの場合があります。
+
+以下の手順が必要なのは、エンドポイントがオフの環境だけです。古い環境か、オフにされた環境です。
 
 1. クラウドコンソールで、環境のページとその **Settings** タブを開きます。**Access and sign-in** の下にある **AI agent access (MCP)** の行は **Now: off** と表示されています。
 2. **Enable AI Agent Access** を選び、確認します。これが表示されるのは組織のオーナーと管理者だけです。
@@ -177,9 +179,9 @@ What objects does this app have, and what fields does the main one carry?
 
 読み取りと `verify_build` は書き込みとして数えられません。どちらかの上限を超えると、ツールの呼び出しは `RATE_LIMIT_EXCEEDED`、その数、そして何でリセットされるかとともに拒否されます。書き込みは UTC の翌日に、ドラフトは公開または破棄でリセットされます。
 
-> **フローが拒否されるのはなぜ？** エージェントがここでは構築できないものを使っており、拒否の理由がそれを示します。Free でのスケジュールまたは相対時間のフロー、承認ワークフローがプランに含まれていない場合の承認ステップ、またはソースで構築して[パッケージ](/docs/build/packages)として公開する種類です。
+> **フローが拒否されるのはなぜ？** エージェントがここでは構築できないものを使っており、拒否の理由がそれを示します。Free でのスケジュールまたは相対時間のフロー、Free での承認ステップ、またはソースで構築して[パッケージ](/docs/build/packages)として公開する種類です。
 
-エージェントが構築するのは、レコードの変更またはボタンで開始するフローで、レコードの作成、更新、削除、割り当て、判断、ループ、待機のステップから構成されます。スケジュールと相対時間のフローは Team 以上で、承認ステップはプランに[承認ワークフロー](/docs/cloud/plans-and-seats)が含まれている場合に構築できます。スクリプト、Webhook、API で起動するフローと画面フロー、そしてスクリプト、Webhook、API、ジョブ、メールテンプレート、翻訳、テーマ、プラグイン、エージェント、スキル、データソースの種類は、どのプランでもソースで構築します。
+エージェントが構築するのは、レコードの変更またはボタンで開始するフローで、レコードの作成、更新、削除、割り当て、判断、ループ、待機のステップから構成されます。スケジュールと相対時間のフローは Team 以上で、承認ステップも Team 以上で構築できます（[プラン](/docs/cloud/plans-and-seats)）。スクリプト、Webhook、API で起動するフローと画面フロー、そしてスクリプト、Webhook、API、ジョブ、メールテンプレート、翻訳、テーマ、プラグイン、エージェント、スキル、データソースの種類は、どのプランでもソースで構築します。
 
 ### 上限 [#limits]
 
@@ -204,7 +206,7 @@ What objects does this app have, and what fields does the main one carry?
 | 症状 | 原因 |
 |---|---|
 | 環境の **Settings** に **AI agent access (MCP)** の行がない | それが見えるのは組織のオーナーと管理者だけです |
-| **Connect an Agent** が **Account → Developer** にも **Setup → Integrations** にもない | AI エージェントのアクセスがまだオフか、たった今オンにしたところです。再読み込みしてください |
+| **Connect an Agent** が **Account → Developer** にも **Setup → Integrations** にもない | AI エージェントのアクセスがオフです（古い環境か、オフにされた環境）。[オンにしてください](#turn-on-ai-agent-access)。たった今オンにした場合は、再読み込みしてください |
 | **Connect an Agent** が **Account → Developer** の下にしかない | その環境で Manage Platform Settings を持っていません。Account のエントリでも同じページが開きます |
 | クライアントから `429` が返る | 環境のエージェントが上限を超えました。`Retry-After` の秒数だけ待ち、同じ呼び出しを繰り返しているエージェントがないか確認してください |
 | 接続にビルドツールがない | サインインで `metadata:write` が付与されなかったか、クライアントが API キーを使っています。ブラウザのサインインで接続し直し、付与してください |

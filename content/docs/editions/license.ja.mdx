@@ -3,7 +3,7 @@ title: ライセンスと料金
 description: ObjectOS は 3 つのエディションを持つひとつの製品です。Community（オープンソース、無料）、Cloud、Enterprise。それぞれのライセンス形態と、ObjectStack フレームワークとの関係を説明します。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 8214fa1bad828f1ed43938ca72f4a791acb69e4bdb82a1e015eec4e78d2d1128
+  source_sha: ae9ea9eeb075037a4d129a245a6e4e0626672a55f14b7080c9c68f3a2a280ff3
   guide_rev: 1
   mode: auto
 ---
@@ -27,49 +27,51 @@ ObjectOS は **ObjectStack アプリケーションの公式ランタイム環�
 
 ## エディション [#editions]
 
-ObjectOS Community は無料です。2 つの商用エディションには、ひとつの料金表と 2 つの提供形態があり、**AI シート**が唯一の課金単位です。
+ObjectOS Community は無料です。2 つの商用エディションは、ひとつの課金単位である **AI シート**を共有します。ObjectOS Cloud はセルフサービスで、ObjectOS Enterprise は年間契約で販売します。
 
 | | **Community** | **Free** | **Team** | **Enterprise** |
 |---|---|---|---|---|
 | エディション | ObjectOS Community | ObjectOS Cloud | ObjectOS Cloud | ObjectOS Enterprise |
-| 提供形態 | **セルフマネージド** | クラウド | クラウド | **セルフマネージド（プライベートデプロイ）** |
-| 料金 | **無料**（Apache-2.0） | **無料** | **$24** / AI シート / 月 | 個別見積もり（ボリューム）：[営業にお問い合わせください](mailto:sales@objectstack.ai) |
+| 提供形態 | **セルフマネージド** | クラウド | クラウド | **セルフマネージド**（プライベートデプロイ） |
+| 料金 | **無料**（Apache-2.0） | **無料** | **$24** / AI シート / 月、または年払いで $20 / AI シート / 月 | AI ユーザー単位、年額請求、最低 25 ユーザー：[営業にお問い合わせください](mailto:sales@objectos.ai) |
 | UI 内の AI（AI Builder +「データに質問する」） | MCP のみ（モデルは持ち込み） | お試し | ✓ | ✓ |
 | AI ガバナンス（アクションの監査、ガードレール、権限のスコープ設定） | — | — | — | ✓ |
-| クラスタリング / HA、マルチ組織のセルフホスト、エアギャップ、SCIM | — | — | — | ✓ |
-| サポート | コミュニティ | コミュニティ | スタンダード | SLA + 専任 |
+| 自社のアイデンティティプロバイダーによるシングルサインオン | ✓ | — | — | ✓ |
+| ひとつのデプロイ上の複数の組織 | オープンソース、Community イメージには含まれません | — | — | ✓ |
+| エアギャップ、デフォルトで有効な SCIM、階層セキュリティ | — | — | — | ✓ |
+| 高可用性（複数のレプリカ） | — | — | — | 開発中、まだ提供していません |
+| サポート | コミュニティ | コミュニティ | スタンダード | スタンダード。優先と SLA は契約で |
 
-Team とフルのプライベートデプロイの間には、**ObjectOS Enterprise の下の 2 つの契約オプション**があり、料金はこれまでどおりです。**Business**（ObjectOS Cloud 上の SSO と AI ガバナンス、**$54** / AI シート / 月、年額払いでは $45 / AI シート / 月。優先サポート）と **Business Self-Managed**（シングルノードのエントリーオプション、**$540** / AI シート / 年）です。どちらも契約により販売されます。[営業にお問い合わせください](mailto:sales@objectstack.ai)。
+ObjectOS Cloud は **Free** と **Team** で、Business プランも Enterprise プランもありません。Team にはメンバー、レコード、オブジェクトの数の上限がありません。**ObjectOS Enterprise** はひとつのエディションで、常に自社のインフラストラクチャ上のプライベートデプロイです。AI ユーザー単位でライセンスされ、年額で請求され、最低 25 AI ユーザーからで、請求書払いの契約で販売されます。カードでの購入も公開価格もありません。[営業にお問い合わせください](mailto:sales@objectos.ai)。
 
 **無料で**セルフホストしたいですか？それが **ObjectOS Community** です（MCP のみの AI：モデルは持ち込み）。下の [ObjectOS Community](#objectos-community) を参照してください。
 
 **オープンな仕組み、クローズドなインテリジェンス。** データをモデル化しアプリを実行するために必要なものはすべてオープンソースです（ObjectStack フレームワーク上の ObjectOS Community）。Cloud と Enterprise は、その上に*組み込みのインテリジェンス*（製品内の AI Builder と「データに質問する」アシスタント。ガバナンスと監査付き）を重ね、さらに運用のスケールと公式サポートを加えます。
 
-**支払うのは AI シートだけです。** 課金されるシートは **AI シート**だけです。閲覧者、AI を使わないアプリユーザー、MCP 上で構築する開発者は無料で、ユーザーごとのシート課金はありません（ユーザーあたり $150〜300 の既存製品とは明確に対照的です）。
+**支払うのは AI シートだけです。** 課金されるシートは **AI シート**だけで、製品内の AI のユーザーごとに 1 つです。閲覧者と AI を使わないアプリユーザーは無料で、ユーザーごとのシート課金はありません（ユーザーあたり $150〜300 の既存製品とは明確に対照的です）。Cloud では、MCP 上で構築する開発者も無料です。Enterprise では、自分の API キーで MCP 経由で接続するエージェントはサービス ID であり、それぞれが 1 AI ユーザーとして数えられます。
 
 ## クラウドかセルフマネージドか [#cloud-or-self-managed]
 
-セルフマネージドの ObjectOS は、**ObjectOS Community**（無料）または **ObjectOS Enterprise**（ライセンス制）です。Cloud は Free と Team で、Team より上はすべて Enterprise の契約です。
+セルフマネージドの ObjectOS は、**ObjectOS Community**（無料）または **ObjectOS Enterprise**（ライセンス制）です。Cloud は Free と Team で、Enterprise は常にセルフマネージドです。
 
-- **Cloud（Free / Team）**：フルホスト型、セルフサービス。料金にはホスティングと十分な月間 AI 利用枠が含まれます（モデルは私たちが実行します）。
-- **Enterprise**：契約により販売されるライセンス制の ObjectOS で、3 つの形があります。
-  - **Business**：ObjectOS Cloud 上の契約オプション。ホスト型サービス上の SSO / SAML と AI ガバナンス（アクションの監査、ガードレール、権限のスコープ設定）、$54 / AI シート / 月、または年額払いで $45 / AI シート / 月、優先サポート。
-  - **Business Self-Managed**：シングルノードのエントリーオプション。Business プランを **10〜25 AI シート**向けの**シングルノード Docker ライセンス**として提供します（$540/AI シート/年、年額）。自社のインフラストラクチャ上で UI 内の AI と AI ガバナンスを利用でき、**モデル / キーは持ち込み**です（LLM のコストは自分で支払います。プラットフォームの AI 請求や従量課金はありません）。カード払い、スタンダードサポート。ライセンスが失効しても、ランタイムは動作し続け、データはそのまま残ります。有料機能がオフになるだけです（使えなくなることは決してありません）。
-  - **フルのプライベートデプロイ**：それを超えるすべてのもの。クラスタリング / HA / マルチノード、マルチ組織のセルフホスト、データレジデンシーと**エアギャップ**運用、SCIM と ID ライフサイクル、コンプライアンスの証明、SLA と専任サポート、オフライン / 請求書払い。複数年の価格固定オプション付きの**年間ライセンス**として販売されます。更新しない場合、デプロイは**最後に支払ったバージョンを永続的に維持**します（失うのはアップデートとサポートであり、システムやデータではありません）。料金はボリュームベースです。[営業にお問い合わせください](mailto:sales@objectstack.ai)。
+- **Cloud（Free / Team）**：フルホスト型、セルフサービス。料金にはホスティングと AI の利用が含まれます（モデルは私たちが実行します）。環境ごとに上限があります。[AI クレジットと上限](/docs/cloud/ai-credits-and-limits)を参照してください。
+- **Enterprise**：自社のインフラストラクチャ上のライセンス制の ObjectOS です。ひとつのエディションで、プライベートデプロイとして、契約で販売されます。
+  - **すべての機能が含まれます**。デプロイの規模にかかわらず、UI 内の AI、AI ガバナンス、階層セキュリティ、デフォルトで有効な SCIM、顧客管理の鍵、エアギャップのライセンス、データレジデンシーです。**モデル / キーは持ち込み**です。LLM のコストは自分で支払い、プラットフォームの AI 請求や従量課金はありません。
+  - **AI ユーザー単位の料金**で、年額で請求され、最低 25 AI ユーザーからです。ライセンスはノードの数を制限しません。現在、デプロイは 1 つのノードで動作し、バックアップと復元に対応しています。複数のレプリカにまたがる高可用性は開発中で、リリースされるまで提供されません。
+  - **契約でのみ購入**でき、請求書払いです。カードでの購入はありません。料金を変えるものは契約で合意します。優先サポートと SLA サポート、エアギャップのデプロイ、複数年の価格固定、永続ライセンスです。
+  - **サブスクリプションが終了すると**、デプロイは Community に戻ります。Enterprise の機能はオフになり、システムとデータは動作し続けます。契約で買い切る永続ライセンスだけが、保守料を支払っていた期間にリリースされたバージョンを保持します。
 
-**ノードごとの課金はありません**。クラスタリング / スケールは Enterprise に含まれます。
+**ノードごとの課金はありません**。
 
 ## それぞれが適するとき [#when-you-might-want-each]
 
 | シナリオ | 選ぶもの |
 |---|---|
 | プラットフォームを**ホストして運用してほしい** | ObjectOS Cloud（Free → Team） |
-| ホスト型サービスで **SSO と AI ガバナンス**が必要 | **Business**、ObjectOS Cloud 上の ObjectOS Enterprise の契約オプション |
-| **自社のシングルノード**で実行しなければならず、製品内の AI が欲しい、25 AI シート以下 | **Business Self-Managed**、ObjectOS Enterprise の契約オプション（シングルノードのエントリー） |
-| **クラスタリング / HA**、**マルチ組織**、**エアギャップ**、**SCIM**、コンプライアンスの証明、SLA、オフライン払いが必要 | **ObjectOS Enterprise**、フルのプライベートデプロイ |
-| ObjectOS Community をセルフホストしているが、**商用契約付きのサポートされたディストリビューション**（SLA、セキュリティパッチの優先対応、指名エスカレーション）が必要 | **ObjectOS Runtime Subscription**：[営業にお問い合わせください](mailto:sales@objectstack.ai) |
+| **自社のインフラストラクチャ上で製品内の AI**、AI ガバナンス、**エアギャップ**、**SCIM**、SLA、請求書払いが欲しい | **ObjectOS Enterprise**：[営業にお問い合わせください](mailto:sales@objectos.ai) |
+| **自社のアイデンティティプロバイダーによる SSO**、またはひとつのデプロイ上の**複数の組織**が、商用サポート付きで必要 | **ObjectOS Enterprise**。どちらもオープンソースなので、ライセンスなしで実行することもできます |
 | **無料のセルフホスト**で、MCP 経由で AI を持ち込みたい | **ObjectOS Community**（オープンソース） |
-| ObjectOS または ObjectStack の名前で **OEM / 再配布**の権利が必要 | 商用契約：[営業にお問い合わせください](mailto:sales@objectstack.ai) |
+| ObjectOS または ObjectStack の名前で **OEM / 再配布**の権利が必要 | 商用契約：[営業にお問い合わせください](mailto:sales@objectos.ai) |
 
 ## ObjectOS Community [#objectos-community]
 
@@ -91,7 +93,7 @@ ObjectOS は ObjectStack フレームワークと、いくつかの上流のオ�
 
 ### ObjectOS はオープンソースですか？ [#is-objectos-open-source]
 
-**ObjectOS Community** はオープンソースです。ランタイムと Console は Apache-2.0 で無料、そのもととなる ObjectStack フレームワークと並んで [objectstack リポジトリ](https://github.com/objectstack-ai/objectstack)でオープンに開発されています。**ObjectOS Cloud**と **ObjectOS Enterprise** は商用エディションで、同じ仕組みの上に組み込みの AI、ホスティングと運用、SSO、サポートを加えたものです。
+**ObjectOS Community** はオープンソースです。ランタイムと Console は Apache-2.0 で無料、そのもととなる ObjectStack フレームワークと並んで [objectstack リポジトリ](https://github.com/objectstack-ai/objectstack)でオープンに開発されています。**ObjectOS Cloud**と **ObjectOS Enterprise** は商用エディションで、同じ仕組みの上に組み込みの AI、ホスティングと運用、サポートを加えたものです。自社のアイデンティティプロバイダーによるシングルサインオンは、オープンな仕組みの一部で無料です。
 
 ### 顧客に販売するクローズドソースの SaaS で ObjectStack を使えますか？ [#can-i-use-objectstack-in-a-closed-source-saas-i-sell-to-my-customers]
 
@@ -99,19 +101,19 @@ ObjectOS は ObjectStack フレームワークと、いくつかの上流のオ�
 
 ### 支払いなしで ObjectOS をセルフホストできますか？ [#can-i-self-host-objectos-without-paying]
 
-はい。それが **ObjectOS Community** です。同じオープンな仕組みをセルフホストし、AI は MCP のみ（モデルは持ち込み）です。*ライセンス制*のセルフマネージドエディションは ObjectOS Enterprise で、その 2 つのオプション（シングルノードの Business Self-Managed、またはフルの Enterprise デプロイ）はどちらも、製品内の AI、AI ガバナンス、商用サポートを追加します。
+はい。それが **ObjectOS Community** です。同じオープンな仕組みをセルフホストし、AI は MCP のみ（モデルは持ち込み）です。*ライセンス制*のセルフマネージドエディションは ObjectOS Enterprise で、製品内の AI、AI ガバナンス、商用サポートを追加します。
 
 ### 更新しないとソフトウェアは動かなくなりますか？ [#does-the-software-stop-working-if-i-dont-renew]
 
-使えなくなることは決してありません。Business Self-Managed は無料の仕組みの動作に戻ります（有料機能はオフになり、データとランタイムは動作し続けます）。フルの Enterprise デプロイは**最後に支払ったバージョンを永続的に**維持します。失うのはアップデート、新しい AI 機能、サポートであり、システムではありません。
+使えなくなることは決してありません。サブスクリプションが終了すると、デプロイは Community に戻ります。Enterprise の機能はオフになり、システムとデータは動作し続けます。終了後もあるバージョンを使い続けること（バージョンロック）は、契約で買い切る**永続ライセンス**にだけ付きます。保守料を支払っていた期間にリリースされたバージョンを保持します。存在するためにライセンスを必要とする 3 つの構成は、代わりに起動を拒否します。[ライセンス](/docs/deploy/licensing#when-a-license-ends)を参照してください。
 
 ### ObjectOS は外部に通信しますか？ [#does-objectos-phone-home]
 
 ObjectOS Enterprise はライセンスをオンラインで検証します。エアギャップの Enterprise ライセンスはオフラインで検証します。ObjectOS Community にはテレメトリも、ライセンスチェックも、アップデートの確認通信もありません。
 
-### ObjectOS Community に契約上の保証が欲しい場合は？ [#what-if-i-want-a-contractual-warranty-on-objectos-community]
+### セルフマネージドのデプロイに商用サポートを購入できますか？ [#can-i-buy-commercial-support-for-a-self-managed-deployment]
 
-それが **ObjectOS Runtime Subscription** です。ObjectOS Community に対するサポート契約（公式ディストリビューション、SLA、セキュリティパッチの優先対応）で、機能の違いはまったくありません。[sales@objectstack.ai](mailto:sales@objectstack.ai) にお問い合わせください。
+優先と SLA のオプションを含む商用サポートは、ObjectOS Enterprise のライセンスに付きます。[営業にお問い合わせください](mailto:sales@objectos.ai)。ObjectOS Community はコミュニティがサポートします。[サポート](/docs/resources/support)を参照してください。
 
 ### ObjectOS Community とフレームワークはずっと無料ですか？ [#will-objectos-community-and-the-framework-always-be-free]
 

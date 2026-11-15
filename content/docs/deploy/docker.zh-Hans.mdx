@@ -4,7 +4,7 @@ seoTitle: "Docker：运行 ObjectOS Community 和 Enterprise"
 description: 用 Docker 运行 ObjectOS —— 固定镜像、设置三个必需的变量、用 Compose 加上 PostgreSQL、接好探针和代理、升级与回滚。企业版镜像还增加了私有镜像仓库、校验和许可证。
 editions: [community, enterprise]
 translation:
-  source_sha: 7fb88e85e29666d6c9ec80215a289bfa2bbe75dc1a35ab842ddd53f33bf4ea72
+  source_sha: e52a6ad6a286f8bdb30541e251677901f65ae854c0aa427e123e36b56be75e00
   guide_rev: 1
   mode: auto
 ---
@@ -65,7 +65,7 @@ OS_AUTH_SECRET=$(openssl rand -hex 32)
 OS_SECRET_KEY=$(openssl rand -hex 32)
 ```
 
-**绝不要把任何一个密钥烘焙进镜像。**在运行时从编排器的密钥存储中传入。把
+**绝不要把任何一个密钥烘焙进镜像**。在运行时从编排器的密钥存储中传入。把
 `OS_SECRET_KEY` 与数据库一起备份：恢复时没有带上密钥的数据库无法解密它自己的
 密钥 —— 参见[备份](/docs/operate/backup)。完整列表见
 [环境变量](/docs/reference/environment-variables)。
@@ -74,7 +74,7 @@ OS_SECRET_KEY=$(openssl rand -hex 32)
 
 镜像不带任何应用。把 `os build` 编译出的 `objectstack.json` 交给它，有三种方式。
 
-**挂载产物。**完全不用构建镜像 —— 镜像会在 `/srv/app/objectstack.json` 查找应用：
+**挂载产物**。完全不用构建镜像 —— 镜像会在 `/srv/app/objectstack.json` 查找应用：
 
 ```bash
 docker run -p 8080:8080 \
@@ -85,7 +85,7 @@ docker run -p 8080:8080 \
   ghcr.io/objectstack-ai/objectstack:X.Y.Z
 ```
 
-**按 URL 指定产物。**`OS_ARTIFACT_URL` 指向一个已发布的产物，所以一个固定的镜像
+**按 URL 指定产物**。`OS_ARTIFACT_URL` 指向一个已发布的产物，所以一个固定的镜像
 加上一个变量就是一个运行中的应用，而升级应用就是修改这个变量再重启：
 
 ```bash
@@ -107,7 +107,7 @@ docker run -p 8080:8080 \
 `file:///…` 也可以用于挂载的文件。把产物发布为不可变的、以版本命名的对象，并只给
 你的发布流水线写入权限 —— 正是这一点让回滚应用与升级应用成为同一种操作。
 
-**把产物复制进你自己的镜像。**每个版本一个自包含的镜像。项目脚手架
+**把产物复制进你自己的镜像**。每个版本一个自包含的镜像。项目脚手架
 （`npm create objectstack`）会为你写一个这种形态的 Dockerfile：
 
 ```dockerfile title="Dockerfile"
@@ -217,7 +217,7 @@ API 调用。只要 Console 和 API 共享同一个公网源，CORS 就不需要
 
 ## 首次启动：第一个管理员 [#first-boot-the-first-administrator]
 
-在一个全新的数据库上，打开部署的地址并**注册 —— 第一个账户会成为管理员。**在首次
+在一个全新的数据库上，打开部署的地址并**注册 —— 第一个账户会成为管理员**。在首次
 部署后立即完成这一步，再分享地址。生产服务器不会预置任何默认凭据：你可能在
 `os dev` 中见过的 `admin@objectos.ai` 账户只存在于开发数据库中。
 
@@ -233,14 +233,15 @@ API 调用。只要 Console 和 API 共享同一个公网源，CORS 就不需要
 
 ObjectOS Community 运行**一个副本**。协调 —— 锁、队列、调度 —— 是进程内的，所以
 第二个副本无法共享它。在没有许可证的情况下声明多个副本（`OS_CLUSTER_REPLICAS`
-大于 1）会**拒绝启动**，而不是用按进程的锁运行它们。集群与高可用是企业版能力 ——
-参见下文的[多节点](#multi-node-on-enterprise)。
+大于 1）会**拒绝启动**，而不是用按进程的锁运行它们。多节点运行是一项企业版许可证
+能力，而目前 Enterprise 套件也运行在单个节点上 —— 参见下文的
+[多节点](#multi-node-on-enterprise)。
 
 ## 升级与回滚 [#upgrade-and-rollback]
 
 1. 阅读你所跨越的每个 ObjectStack 版本的发布说明，以及它们要求运维人员执行的
    [特定版本步骤](/docs/operate/upgrade#version-specific-steps)。
-2. **备份数据库。**模式迁移只能向前：回滚镜像并不会回滚模式。
+2. **备份数据库**。模式迁移只能向前：回滚镜像并不会回滚模式。
 3. 把镜像改为新的确切版本，如果你固定了摘要，就改为它的摘要，然后重启。模式会在
    启动时、运行时报告就绪之前更新到最新。
 4. 确认 `/api/v1/ready` 返回 200。
@@ -263,7 +264,7 @@ ObjectOS Community 运行**一个副本**。协调 —— 锁、队列、调度 
 令牌；没有公开的企业版镜像，也不能从源码构建：镜像由我们的发布流水线从不分发的
 源码产出，所以 `docker build` 对它来说不是一条存在的路径。
 
-**受支持的架构：仅 `linux/amd64`。**这是一项声明，而不是遗漏：构建会拒绝为我们未
+**受支持的架构：仅 `linux/amd64`**。这是一项声明，而不是遗漏：构建会拒绝为我们未
 声明的架构产出镜像。Apple Silicon 和 Graviton 主机会在模拟下运行它，这用来看一看
 没问题，用于生产则是错的。
 
@@ -303,7 +304,7 @@ OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters
 
 ### 许可证 [#license]
 
-**许可证是正常路径的一部分。**企业版镜像在没有许可证时的行为，取决于你要求它成为
+**许可证是正常路径的一部分**。企业版镜像在没有许可证时的行为，取决于你要求它成为
 什么：
 
 - **单组织，无许可证** —— 部署以 ObjectOS Community 运行：开放的 MCP 服务器，
@@ -315,7 +316,7 @@ OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters
   隔离来提供服务。
 
 同一条线上还有第二个约束，而它正是让人意外的那个：**许可证有模式，而模式与你的
-云端姿态耦合。**普通许可证针对控制平面在线校验；物理隔离许可证在本地校验，完全
+云端姿态耦合**。普通许可证针对控制平面在线校验；物理隔离许可证在本地校验，完全
 不需要网络。把普通许可证与"没有控制平面"搭配不是一种降级状态，而是一种不可能的
 状态 —— 它会**在启动时被拒绝**，并点名两项设置，而不是之后才以一条关于许可证的
 误导性抱怨失败。[物理隔离](/docs/deploy/air-gapped)给出了受支持组合的完整矩阵。
@@ -349,15 +350,26 @@ OS_EE_IMAGE=<the registry reference from your release>@sha256:<64 hex characters
 
 ### 企业版上的多节点 [#multi-node-on-enterprise]
 
-扩展到一个副本以上，会改变哪些是必需的：
+**目前请在单个节点上运行 Enterprise 套件。** 部署包没有接入集群驱动，所以请把
+`OS_CLUSTER_REPLICAS` 保持为 `1`，也不要用 `docker compose up --scale` 扩展应用
+服务。
 
-- 开启**集群驱动**（以 Redis 为后端），并且
-- **共享的加密密钥成为必需。**没有集群驱动时，运行时会自行生成并持久保存它自己的
-  密钥。跨副本时这些密钥会悄悄地互不相同 —— 所以**运行时会拒绝启动**，而不是让
-  它们分叉。生成一个密钥，并给每个副本相同的值。
-- **认证密钥也必须在每个副本上完全相同。**修改它会使所有现有会话失效，并让签名
-  密钥成为孤儿；环境模板说明了轮换时附带的那一次性清理步骤。
-- `OS_CLUSTER_REPLICAS` 设置捆绑的技术栈启动多少个应用副本。
+把 `OS_CLUSTER_REPLICAS` 设为大于 1 会按设计**拒绝启动**。内置的进程内协调器把锁、
+计数器和发布 / 订阅保留在每个进程内部，所以第二个副本会悄悄地与第一个分叉。不要用
+`OS_ALLOW_MEMORY_CLUSTER_MULTINODE` 让这次拒绝静默，也不要用 `--scale` 绕过它：
+compose 模板把副本数和运行时读取的 `OS_CLUSTER_REPLICAS` 绑定到同一个变量，使它们
+不会不一致。
+
+多节点拓扑由 Enterprise 许可证解锁（节点上限是许可证的 `maxNodes`）。它按合同激活，
+当合同需要时会为部署包接入集群驱动；这里不承诺任何日期。高可用不在套件目前包含的
+内容之中。如果你需要多于一个节点，请[联系销售](mailto:sales@objectos.ai)。
+
+无论节点数是多少，有两条规则始终成立：
+
+- **设置一个共享的加密密钥**（`OS_SECRET_KEY`）。没有它，运行时会自行生成并持久
+  保存它自己的密钥，而这些密钥在副本之间会互不相同。
+- **认证密钥必须在运行时所在的每个地方都完全相同**。修改它会使所有现有会话失效，
+  并让签名密钥成为孤儿；环境模板说明了轮换时附带的那一次性清理步骤。
 
 ### 按摘要升级 [#upgrade-by-digest]
 

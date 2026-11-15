@@ -5,14 +5,14 @@ seoTitle: "部署：自管理 ObjectOS，社群版和企業版"
 description: 在你自己的基礎設施上執行 ObjectOS —— 開放的社群版映象或需許可證的企業版映象，同一個執行時、同一份配置契約，以及許可證額外帶來什麼。
 editions: [community, enterprise]
 translation:
-  source_sha: 8e3a6c8cf20d9cbca8dbf4e4162996b6398eecf09e17b90912fd9914ec86e3f6
+  source_sha: f23b63662961511b990de814db445897b0a8c382bad6b97e10aac67e115a2d6a
   guide_rev: 1
   mode: auto
 ---
 
 ObjectOS 有兩個自管理版本，它們的部署方式相同。**ObjectOS Community** 是開源
-的執行時映象；**ObjectOS Enterprise** 是需許可證的映象，可以作為 Business
-Self-Managed 執行在單節點上，也可以作為完整的企業版部署。兩者運行同一個執行時，
+的執行時映象；**ObjectOS Enterprise** 是需許可證的映象，只有一個版本，包含全部
+Enterprise 功能。兩者運行同一個執行時，
 讀取同一份配置：一個數據庫、一個認證金鑰和一個加密金鑰。不同之處在於映象從哪裡
 來、應用如何進入，以及許可證解鎖什麼。本節的每一頁都同時為兩者編寫一次，並以
 **企業版額外提供**一節結尾，說明需許可證的映象能多做什麼。
@@ -27,7 +27,7 @@ Self-Managed 執行在單節點上，也可以作為完整的企業版部署。�
 | 應用如何到達 | 你用 `os build` 編譯出的 `objectstack.json`：掛載進去、複製進你自己的映象，或由 `OS_ARTIFACT_URL` 指定。空的執行時則改為從 Console 市場安裝應用。 | 三種執行形態之一：應用打包在映象中、一個已釋出的產物，或者一個與映象的企業外掛組合在一起的已釋出產物（[見下文](#how-the-app-gets-in)） |
 | 必須設定的變數 | `OS_DATABASE_URL`、`OS_AUTH_SECRET`、`OS_SECRET_KEY`（映象已經設定了 `OS_PORT=8080`） | 同上，另加 `OS_LICENSE_KEY` 和一個經過考慮的 `OS_CLOUD_URL` |
 | 可複製的配置 | 這些頁面上的示例 | 隨每個版本釋出的**部署包** |
-| 許可證解鎖什麼 | —— | 產品內 AI（AI Builder、"問你的資料"）、AI 治理、叢集與高可用、一個部署上的多個組織、SCIM、物理隔離執行 |
+| 許可證解鎖什麼 | —— | 產品內 AI（AI Builder、"問你的資料"）、AI 治理、層級安全、一個部署上的多個組織、預設開啟的 SCIM、客戶自管金鑰、物理隔離執行。該套件目前執行一個節點；跨多個副本的高可用正在開發中，尚未提供。 |
 
 [版本對比](/docs/editions/compare)給出了完整的矩陣。在 Community 上構建的應用
 就是普通的 ObjectStack 後設資料，不做任何修改即可在 Enterprise 上執行。

@@ -5,7 +5,7 @@ seoTitle: "ObjectOS Cloud 限制：每個環境的儲存和 MCP 請求限制"
 description: ObjectOS Cloud 環境的用量限制 —— 1 GB 和 20 GB 的儲存額度、儲存滿的環境會停止什麼以及從不停止什麼、80% 警告，以及每個套餐的 MCP 請求限制和草稿限制。
 editions: [cloud]
 translation:
-  source_sha: d814bf7b8ecb5b58b6975c5ccb4927b9788c2e96517b9d44980d7da7b2c72a30
+  source_sha: 35d55785248429e66e80d6fa9f2c3218386341e5eb8c73ec0d3d19e9b8d244a5
   guide_rev: 1
   mode: auto
 ---
@@ -14,7 +14,7 @@ translation:
 數字所屬的套餐。AI 額度有它自己的頁面：
 [AI 點數與限制](/docs/cloud/ai-credits-and-limits)。
 
-| 限制 | Free | Team 及以上 | Enterprise |
+| 限制 | Free | Team 及以上 | Legacy Enterprise |
 |---|---|---|---|
 | [每個環境的儲存](#storage) | 1 GB | 20 GB | 不設上限 |
 | [每分鐘 MCP 請求數](#mcp-limits) | 20 | 120 | 120 |
@@ -25,8 +25,12 @@ translation:
 ## 儲存 [#storage]
 
 每個環境都有一份**儲存額度**：Free 上 **1 GB**，Team 上 **20 GB**，
-**按環境**計算。開發環境得到與生產環境相同的額度。Enterprise 合同不設
-儲存數字。（產品負責人裁定，2026-09-08：這些數字是最終的。）
+**按環境**計算，而一個組織只有一個環境。
+**Legacy Enterprise** 一列是一個已不再銷售的舊託管套餐：它不設儲存數字，只為已經
+擁有它的組織保留。ObjectOS Cloud 沒有 Enterprise 套餐；
+ObjectOS Enterprise 是在你自己的基礎設施上的私有部署
+（[許可與定價](/docs/editions/license)）。
+（產品負責人裁定，2026-09-08：這些數字是最終的。）
 
 **計入什麼。** 環境的資料庫加上它的附件。用量大約每小時重新測量一次，
 因此一次大的上傳或匯入會在一小時內反映到讀數中；這種延遲是有意為之。
@@ -54,8 +58,8 @@ translation:
 接受固定數量的請求，由連線到該環境的所有 Agent 共享。裁定見
 [cloud#3203](https://github.com/objectstack-ai/cloud/issues/3203)。
 
-- **Free：**每分鐘 20 次請求，每個 UTC 日 1,000 次。
-- **Team 及以上：**每分鐘 120 次請求，無每日上限。
+- **Free**：每分鐘 20 次請求，每個 UTC 日 1,000 次。
+- **Team 及以上**：每分鐘 120 次請求，無每日上限。
 
 一次請求就是一條 MCP 訊息：一次工具呼叫、一次列出、連線握手的每一步。
 批處理會計入其中的每一條訊息，當天剩餘次數容納不下的批處理會被整體拒絕。

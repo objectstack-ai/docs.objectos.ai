@@ -1,20 +1,15 @@
 ---
 title: 简介
 seoTitle: "文档：开始、构建、部署、运维"
-description: "ObjectOS 是构建在 ObjectStack 之上的商业运行时环境，可托管（ObjectOS Cloud）或自管理（ObjectOS Enterprise）。本体归你所有。"
+description: "ObjectOS Community 免费且自托管，ObjectOS Cloud 是托管版本，ObjectOS Enterprise 是自管理、需许可的版本。本体归你所有。"
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: 0347fa621f4342212be72ecb78497ccea72ca3490d850f45dc5b91549d81cf22
+  source_sha: 472fe025cc2f322cde4097fade7e6d7233994c719692c13ed22810022b7e60fe
   guide_rev: 1
   mode: auto
 ---
 
-本体就是软件。一个可执行的业务本体：AI 编写它，运行时运行它，Agent
-操作它，你拥有它。想要同样的闭环，托管在浏览器里、什么都不用安装？
-那就是 ObjectOS —— 构建在 ObjectStack 之上的商业运行时环境。ObjectOS
-既可以托管运行在浏览器中、无需任何安装（ObjectOS Cloud），也可以自管理
-运行在你自己的基础设施上（ObjectOS Enterprise）；无论哪个版本，你都可以
-导出你的本体，并在开源的 ObjectStack 运行时上运行它。
+本体就是软件。一个可执行的业务本体：AI 编写它，运行时运行它，Agent 操作它，你拥有它。为了运行它，ObjectStack 仓库提供 ObjectOS Community —— ghcr.io/objectstack-ai/objectstack 镜像、os start 和 Console，免费且自托管 —— 而 ObjectOS Cloud 是托管版本，ObjectOS Enterprise 是自管理、需许可的版本。你的本体是普通的 ObjectStack 元数据。从 ObjectOS Cloud 或 ObjectOS Enterprise 导出本体、在开源的 ObjectStack 运行时上运行，目前尚在计划中。
 
 向内置的 [AI Builder](/docs/build/ai-builder) 描述业务需要什么 —— 一个
 服务台、一条审批流程、一个 CRM —— 或者安装一个模板，它写出的本体会立即
@@ -33,7 +28,7 @@ translation:
 | 你想要 …… | 这样做 |
 |---|---|
 | 用 ObjectOS，什么都不装 | **ObjectOS Cloud**，为你托管 —— Free 套餐就足够构建你的第一个应用。参见[在 ObjectOS Cloud 上开始](/docs/start/cloud) |
-| 在你自己的基础设施上运行 ObjectOS，获得授权许可 | **ObjectOS Enterprise**，从单节点的 Business Self-Managed 选项起步，在你的服务器上运行获得许可的 Enterprise 镜像 —— 参见[在 ObjectOS Enterprise 上开始](/docs/start/enterprise) |
+| 在你自己的基础设施上运行 ObjectOS，获得授权许可 | **ObjectOS Enterprise** 在你的服务器上运行获得许可的 Enterprise 镜像 —— 参见[在 ObjectOS Enterprise 上开始](/docs/start/enterprise) |
 | 在你自己的机器上免费运行 ObjectOS | **ObjectOS Community**，开源运行时：`npm i -g @objectstack/cli && os start` 会用 SQLite 数据库、零配置启动它 —— 参见[在本地运行 ObjectOS Community](/docs/start/community) |
 
 之后，ObjectOS Cloud 和 ObjectOS Enterprise 会把你带到同一个地方 —— 登录，然后：
@@ -42,7 +37,7 @@ translation:
   看着它编写你的[本体](/docs/ontology)，也就是对象及其字段，作为一个
   由你批准的小 diff。参见
   [构建 → AI Builder](/docs/build/ai-builder)。
-- **从内置市场安装一个模板**（Todo、Contracts、Helpdesk ……），一键
+- **从内置市场安装一个模板**（Helpdesk ……），一键
   得到一个真正的应用。
 - **Fork 一个[模板](/docs/build/templates)**，如果你想把 TypeScript
   源码掌握在自己手中 —— 同样的元数据，在你的仓库里由你的编码 Agent
@@ -52,9 +47,9 @@ translation:
 
 | 你正在用 | 痛点 | ObjectOS 给你什么 |
 |---|---|---|
-| **Retool / Appsmith** | UI 构建器很好，但你的数据放在他们的云里，价格随用户数增长 | 托管（ObjectOS Cloud）或在你的网络内（ObjectOS Enterprise）；构建在开源的 ObjectStack（Apache-2.0）之上，所以本体由你导出；没有按席位收的税 —— 只收 AI 席位 |
-| **Supabase / Firebase** | 后端即服务很快，但被厂商锁定；天生就是多租户 SaaS | 同样的开发体验（自动 API、认证、存储），但定义归你：导出它并在开源的 ObjectStack 运行时上运行，或在你自己的数据库上运行 ObjectOS Enterprise |
-| **Salesforce / NetSuite** | 平台强大，定制痛苦，按席位的费用高得吓人 | 熟悉的词汇（对象、字段、权限集、共享规则），但定义是一个开放的本体：AI 编写，Agent 操作，你可以把它导出到 Apache-2.0 运行时；托管或自管理，没有席位税 —— 只读用户和非 AI 用户免费 |
+| **Retool / Appsmith** | UI 构建器很好，但你的数据放在他们的云里，价格随用户数增长 | 托管（ObjectOS Cloud）或在你的网络内（ObjectOS Enterprise）；本体是开源 ObjectStack（Apache-2.0）的普通元数据，导出到该运行时尚在计划中；没有按席位收的税 —— 只收 AI 席位 |
+| **Supabase / Firebase** | 后端即服务很快，但被厂商锁定；天生就是多租户 SaaS | 同样的开发体验（自动 API、认证、存储），但定义归你：在你自己的数据库上运行 ObjectOS Enterprise，或在你自己的机器上运行 ObjectOS Community；从 ObjectOS Cloud 导出到开放的 ObjectStack 运行时尚在计划中 |
+| **Salesforce / NetSuite** | 平台强大，定制痛苦，按席位的费用高得吓人 | 熟悉的词汇（对象、字段、权限集、共享规则），但定义是一个开放的本体：AI 编写，Agent 操作，是 Apache-2.0 ObjectStack 运行时的普通元数据，导出到该运行时尚在计划中；托管或自管理，没有席位税 —— 只读用户和非 AI 用户免费 |
 | **自己从头搭（Next + Prisma + NextAuth）** | 每次都要重做 RBAC、审计、文件上传、设置、Webhook、任务 | 只交付真正的业务逻辑；平台的基础设施已经在那里了 |
 
 ## 开箱即得 [#what-you-get-out-of-the-box]
@@ -70,8 +65,8 @@ translation:
 ## 什么始终归你 [#what-stays-yours]
 
 无论哪个版本，本体都归你：你的对象、字段、关系、动作、权限、流程和
-Agent 定义都是普通的 ObjectStack 元数据，你可以导出它们并在开源的
-ObjectStack 运行时上运行。在 **ObjectOS Enterprise** 上，其他一切也都
+Agent 定义都是普通的 ObjectStack 元数据；把它们导出到开源的 ObjectStack
+运行时上运行，目前尚在计划中。在 **ObjectOS Enterprise** 上，其他一切也都
 留在你这里：[数据驻留](/docs/reference/security#data-residency) 列出了
 每一类数据、它存放在哪里，以及它是否会离开你的网络。
 
