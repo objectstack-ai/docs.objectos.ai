@@ -486,6 +486,15 @@ export async function generateMetadata(props: {
   return {
     title,
     description,
+    // A fallback route serves the English body under a locale URL, so it is a
+    // copy of the English page, not a page of its own: kept out of the index
+    // (#469), with `follow` so its links are still crawled. Canonical to the
+    // English URL and absent from hreflang and the sitemap as well, which is
+    // the rule www.objectos.ai applies (`src/lib/fallback.ts` there). Before
+    // this, the canonical alone was a hint Google overrode: 28 de/fr/es pages
+    // sat in "Duplicate, Google chose different canonical than user".
+    // A translated page or an English one sets nothing and stays indexable.
+    ...(contentLang !== params.lang ? { robots: { index: false, follow: true } } : {}),
     alternates: {
       canonical,
       // Only the locales that really have this page. The cluster is keyed by

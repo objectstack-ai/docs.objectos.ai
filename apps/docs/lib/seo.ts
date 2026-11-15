@@ -106,7 +106,7 @@ export function languageAlternates(
  *
  * `content` is that record. Its keys are the locales the page is really written
  * in. Any other locale route renders the English entry, so it names the English
- * URL as canonical, which is the rule docs pages follow through
+ * URL as canonical and is `noindex`, which is the rule docs pages follow through
  * `canonicalLocale`. The hreflang cluster lists only the written locales, the
  * same set `sitemap.ts` advertises for these paths.
  *
@@ -126,6 +126,11 @@ export function staticPageMetadata(
   return {
     title,
     description,
+    // A locale this page is not written in renders the English copy: noindex,
+    // follow, on top of the English canonical (#469). Search Console listed
+    // `/xx/terms` and `/xx/privacy` as "Duplicate without user-selected
+    // canonical"; the docs pages' fallback rule now covers these two as well.
+    ...(contentLang !== lang ? { robots: { index: false, follow: true } } : {}),
     alternates: { canonical, languages: languageAlternates(path, Object.keys(content)) },
     openGraph: { type: 'website', url: canonical, siteName: SITE_NAME, title, description },
   };

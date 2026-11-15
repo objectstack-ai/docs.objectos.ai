@@ -42,7 +42,7 @@ Stack: Next.js 16 App Router + Fumadocs UI 16 + Fumadocs MDX. Many UI affordance
 - Default locale has no prefix (`/docs/...`); other locales are prefixed (`/zh-Hans/docs/...`). This is set by `hideLocale: 'default-locale'` in `lib/i18n.ts`.
 - **MDX translations:** add a sibling file with the locale tag next to the English `.mdx` — `foo.zh-Hans.mdx`, `foo.ja.mdx`, and so on. Fumadocs auto-falls-back to English when a translation is missing — you can ship translations incrementally without breaking links.
 - **Language display names:** `LANGUAGE_NAMES` in `apps/docs/app/[lang]/layout.tsx`. Adding a locale to `i18n.ts` without a name here shows the raw tag in the switcher.
-- **Sidebar titles:** `meta.json` `title` fields render in all locales unless a per-locale sibling exists. To localize sidebar labels, add `meta.<locale>.json` (e.g. `meta.zh-Hans.json`, Fumadocs convention) — don't translate inside the English file.
+- **Sidebar titles:** `meta.json` `title` fields render in all locales unless a per-locale sibling exists. To localize sidebar labels, add `meta.<locale>.json` (e.g. `meta.zh-Hans.json`, Fumadocs convention) — don't translate inside the English file. A locale meta localizes labels only: its `pages` list is replaced by the English one when the site loads (`englishPageListsPlugin` in `apps/docs/lib/source.ts`), so a page added to English reaches every locale's sidebar without waiting for a translation pass.
 
 ### Sidebar grouping
 

@@ -4,6 +4,27 @@ import { i18n } from '@/lib/i18n';
 import { languageAlternates, localeUrl, translatedLocales } from '@/lib/seo';
 import { contentLocales as privacyLocales } from './[lang]/privacy/page';
 import { contentLocales as termsLocales } from './[lang]/terms/page';
+import { lastmod } from '@/.route-data/lastmod';
+
+/**
+ * `<lastmod>` for a page built from these repo-relative files: the latest
+ * commit date among them (#469), from `.route-data/lastmod.ts`. `undefined`
+ * when none is known, which is a shallow clone: the field is then omitted
+ * rather than filled with the build time, and `check-indexing.mjs` fails CI on
+ * the gap. A build-time date would move on every deploy and is the value
+ * Google learns to ignore.
+ */
+function lastModified(files: readonly string[]): string | undefined {
+  const dates = files.map((file) => lastmod[file]).filter((date): date is string => Boolean(date));
+  if (dates.length === 0) return undefined;
+  return dates.reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b));
+}
+
+/** Every file under one of the legal pages' route directories. */
+function staticPageFiles(path: string): string[] {
+  const dir = `apps/docs/app/[lang]/${path}/`;
+  return Object.keys(lastmod).filter((file) => file.startsWith(dir));
+}
 
 export const revalidate = false;
 
@@ -11,7 +32,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
   const entries: MetadataRoute.Sitemap = [];
 
   // Top-level static pages (paths are locale-independent slugs).
-  const staticPaths: Array<{ path: string; priority: number; locales: readonly string[] }> = [
+  const staticPaths: Array<{
+    path: string;
+    priority: number;
+    locales: readonly string[];
+    files: (lang: string) => readonly string[];
+  }> = [
     // The root is deliberately absent. `app/page.tsx` and `app/[lang]/page.tsx`
     // are language-dispatch redirects to that locale's `/docs` — a URL that
     // serves no content — and this file used to submit it in every locale at
@@ -28,8 +54,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // translation added to either record reaches the sitemap by that edit alone.
     // Read separately because they are separate records — they agree today, and
     // nothing makes them have to.
-    { path: 'privacy', priority: 0.3, locales: privacyLocales },
-    { path: 'terms', priority: 0.3, locales: termsLocales },
+    { path: 'privacy', priority: 0.3, locales: privacyLocales, files: () => staticPageFiles('privacy') },
+    { path: 'terms', priority: 0.3, locales: termsLocales, files: () => staticPageFiles('terms') },
   ];
 
   // Documentation pages. `source.getPages()` with no argument returns every
@@ -41,15 +67,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     path: ['docs', ...page.slugs].join('/'),
     priority: 0.8,
     locales: translatedLocales(page.slugs),
+    // The source file each locale URL renders: the translation where one
+    // exists, which is the only kind of locale URL listed here.
+    files: (lang: string) => {
+      const file = source.getPage(page.slugs, lang)?.path;
+      return file ? [`content/docs/${file}`] : [];
+    },
   }));
 
-  for (const { path, priority, locales } of [...staticPaths, ...docPaths]) {
+  for (const { path, priority, locales, files } of [...staticPaths, ...docPaths]) {
     // One reciprocal hreflang cluster per logical path, listing only the
     // locales that really have this page, and shared by every entry in it.
     const languages = languageAlternates(path, locales);
     for (const lang of locales) {
       entries.push({
         url: localeUrl(lang, path),
+        lastModified: lastModified(files(lang)),
         changeFrequency: 'weekly',
         priority,
         alternates: { languages },
