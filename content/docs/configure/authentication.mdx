@@ -1,7 +1,7 @@
 ---
 title: Authentication
 seoTitle: "Authentication: OAuth, OIDC/SSO and Device Flow"
-description: Configure sign-in, sessions, OAuth, OIDC/SSO, and device flow.
+description: Configure sign-in, sessions, OAuth, OIDC/SSO, SSO providers registered in Setup (OIDC and SAML 2.0), and device flow.
 editions: [community, cloud, enterprise]
 ---
 
@@ -18,7 +18,9 @@ support:
 - session management;
 - password reset and email verification;
 - social OAuth providers such as Google, GitHub, Microsoft, and Apple;
-- enterprise OIDC/SSO such as Okta, Entra ID, Keycloak, and Ping;
+- enterprise single sign-on through your identity provider (Okta, Entra ID,
+  Keycloak, Ping, …), over OIDC or SAML 2.0, registered by an administrator
+  in [Setup → SSO Providers](#setup--sso-providers);
 - two-factor authentication;
 - passkeys/WebAuthn;
 - magic links;
@@ -143,7 +145,10 @@ two distinct callback paths and they are **not** interchangeable:
 | Provider type | Callback path |
 |---|---|
 | Built-in social (Google, GitHub, Microsoft, Apple, …) | `/api/v1/auth/callback/<provider>` |
-| Generic OIDC / OAuth2 (Okta, Entra ID, Keycloak, Ping, …) | `/api/v1/auth/oauth2/callback/<provider>` |
+| Generic OIDC / OAuth2 configured in code (Okta, Entra ID, Keycloak, Ping, …) | `/api/v1/auth/oauth2/callback/<provider>` |
+
+An SSO provider registered in **Setup → SSO Providers** uses a third set of
+paths, listed in [that section](#setup--sso-providers).
 
 Examples:
 
@@ -157,11 +162,15 @@ https://crm.example.com/api/v1/auth/oauth2/callback/entra
 Configure the matching redirect URI in the identity provider's
 application registration before enabling the provider in ObjectOS.
 
-## Enterprise OIDC/SSO
+## Enterprise OIDC/SSO in configuration
 
-OIDC providers are registered as generic OAuth2 providers and use the
-`/api/v1/auth/oauth2/callback/<provider>` path. A typical configuration
-requires:
+This section is about OIDC providers that the application package or the
+deployment's configuration declares (the generic OAuth2 route, `genericOAuth`).
+They are registered as generic OAuth2 providers and use the
+`/api/v1/auth/oauth2/callback/<provider>` path. To let an administrator add
+an identity provider from the console instead, without a configuration
+change, use [Setup → SSO Providers](#setup--sso-providers). A typical
+configuration requires:
 
 | Field | Description |
 |---|---|
@@ -174,6 +183,52 @@ requires:
 
 For customer deployments, prefer OIDC discovery URLs over manually
 configured authorization/token/userinfo endpoints.
+
+## Setup → SSO Providers
+
+**Setup → Access Control → SSO Providers** is where a platform administrator
+connects the organization's own identity provider, over **OIDC** or **SAML
+2.0**, without touching configuration. It is a different route from the
+configuration-time providers above: its providers live in the database, are
+added and changed in the console, and use their own callback paths. Use one
+route per identity provider, not both.
+
+| | Configuration (`genericOAuth`, above) | Setup → SSO Providers |
+|---|---|---|
+| Who adds a provider | Whoever edits the package or deployment configuration | A platform administrator, in the console |
+| Protocols | OIDC / OAuth2 | OIDC and SAML 2.0 |
+| OIDC callback | `/api/v1/auth/oauth2/callback/<provider>` | `/api/v1/auth/sso/callback/<provider id>` |
+| SAML ACS URL | — | `/api/v1/auth/sso/saml2/sp/acs/<provider id>` |
+| SAML SP entity ID | — | `/api/v1/auth/sso/saml2/sp/metadata?providerId=<provider id>` |
+| How people reach the provider | As the application configures it | **Sign in with SSO**: people type their work email and are routed by its domain |
+| Domain verification, just-in-time accounts, group → permission-set mapping | — | Per provider |
+
+The page appears once SSO is on: `OS_SSO_ENABLED=true` on a self-hosted
+deployment; on ObjectOS Cloud, a plan that includes single sign-on with your
+identity provider. From the list, a platform administrator:
+
+- registers a provider — **Register SSO Provider** (OIDC) or **Register SAML
+  Provider** — naming its **Provider ID** (the last segment of the URLs above)
+  and the **email domain** whose people it signs in;
+- proves the domain with **Request Domain Verification** and **Verify
+  Domain** (a DNS TXT record). ObjectOS Enterprise and ObjectOS Cloud require
+  this before the provider signs anyone in; on Enterprise
+  `OS_SSO_DOMAIN_VERIFICATION=false` turns it off;
+- sets **Edit Sign-In Options**: **Allow Just-in-Time Provisioning** (create
+  the account at a first sign-in, instead of requiring an invitation), **Allow
+  IdP-Initiated Sign-In**, and for OIDC **Read Claims From the ID Token
+  Only**;
+- adjusts the provider later with **Edit OIDC Settings**, **Edit SAML
+  Settings** (for example a new signing certificate), **Edit Attribute
+  Mapping** and **Edit Groups Claim**;
+- maps the identity provider's groups to permission sets in **Setup → IdP
+  Group Mappings → Map SSO Group**.
+
+Step-by-step guides, with the exact values to paste on each side:
+
+- [SSO with Okta](/docs/configure/sso-okta) — OIDC and SAML 2.0;
+- [SSO with Microsoft Entra ID](/docs/configure/sso-entra-id) — OIDC and
+  SAML 2.0.
 
 ## Platform SSO
 
