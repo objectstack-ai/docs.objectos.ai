@@ -168,9 +168,9 @@ Starting a sign-in from the Okta dashboard tile (IdP-initiated sign-in) is off
 for every new provider, and this guide leaves it off: people start at the
 ObjectOS sign-in page. With it off, a click on the Okta tile does not sign
 anyone in. Keep **Allow IdP-Initiated Sign-In** (under **Edit Sign-In
-Options**) off for SAML providers until
-[objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146)
-is fixed: an unsolicited SAML response is not bound to a request ObjectOS
+Options**) off for SAML providers until a release carries the fix for
+[objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146):
+an unsolicited SAML response is not bound to a request ObjectOS
 made, and a response whose NameID is not the email address can create a
 second account.
 
@@ -279,8 +279,6 @@ plan that includes it — today the Legacy Enterprise plan, by contract (see
   domain before anyone signs in.
 - **Sign in with SSO** appears on the sign-in page, next to **Continue with
   ObjectOS Cloud**, once at least one provider is registered.
-- **Group mappings cannot be saved on ObjectOS Cloud yet.** Assign permission
-  sets to people directly until they can.
 
 ## Known limitations
 

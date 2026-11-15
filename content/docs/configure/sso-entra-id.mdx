@@ -153,10 +153,13 @@ Next: [verify your email domain](#verify-your-email-domain), then
    - **Groups** (only if you will map groups to permission sets): **Add a
      group claim** → **Security groups**, source attribute **Group ID**. Keep
      the claim's default name.
-   - **Users without a mailbox**: edit the
+   - **Users without a mailbox**: the
      `http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress`
-     claim and set its source attribute to `user.userprincipalname` instead of
-     `user.mail`, so that every user sends an email address.
+     claim is filled from `user.mail`, which such a user does not have.
+     ObjectOS reads the email from the attribute in **Map: Email attribute**
+     and, when a response does not carry it, from the NameID instead. To give
+     these users an email attribute of their own, set the claim's source
+     attribute to `user.userprincipalname` instead of `user.mail`.
 4. **SAML Certificates**: download **Certificate (Base64)**. Under **Set up
    ObjectOS**, copy the **Login URL** and the **Microsoft Entra Identifier**.
 5. **Users and groups**: assign the people who should sign in (see
@@ -196,9 +199,9 @@ Next: [verify your email domain](#verify-your-email-domain), then
 
 Starting a sign-in from **My Apps** (IdP-initiated sign-in) is off for every
 new provider. Keep **Allow IdP-Initiated Sign-In** (under **Edit Sign-In
-Options**) off for an Entra SAML provider until
-[objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146)
-is fixed. An IdP-initiated response from Entra carries an opaque persistent
+Options**) off for an Entra SAML provider until a release carries the fix for
+[objectstack#32146](https://github.com/objectstack-ai/objectstack/issues/32146).
+An IdP-initiated response from Entra carries an opaque persistent
 NameID, and with the option on ObjectOS creates a **second** account whose
 email is that identifier — and grants it the mapped permission sets. This
 happens even with the domain verified. Have people start at the ObjectOS
@@ -323,8 +326,6 @@ plan that includes it — today the Legacy Enterprise plan, by contract (see
   domain before anyone signs in.
 - **Sign in with SSO** appears on the sign-in page, next to **Continue with
   ObjectOS Cloud**, once at least one provider is registered.
-- **Group mappings cannot be saved on ObjectOS Cloud yet.** Assign permission
-  sets to people directly until they can.
 
 ## Known limitations
 
