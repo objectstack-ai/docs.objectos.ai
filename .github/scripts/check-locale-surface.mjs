@@ -114,7 +114,8 @@
  * as HTML numeric character references (#197) — into files no reader runs
  * through an HTML parser, and in four places into the closing `)` of a link,
  * which stops that link being a link. #197 fixed it at the producer with
- * `patches/fumadocs-core@16.8.12.patch`, pinned to that exact version string,
+ * `patches/fumadocs-core@16.8.12.patch` (since #239, `@16.15.2.patch`), pinned to
+ * that exact version string,
  * and #197 measured the defect in 16.15.1, 16.15.2 and 16.15.8 as well, so
  * upgrading does not remove it. What a bump does to the pin, measured with
  * pnpm 10.28.2 and #239's 16.15.2 (#282): a lockfile-updating install
@@ -1480,7 +1481,7 @@ function pageFindings({ surface, lang, pages, chrome, local = new Map() }) {
             `${where}: ${name.where} "${name.value}" is a ${lang} chrome name (×${local.get(name.value)} on ` +
             `the ${lang} pages) inside a lang="${name.lang}" region with no lang of its own — it is read to a ` +
             `${lang} reader with English rules. Give the element lang="${lang}" (the heading-anchor and ` +
-            'code-copy buttons take it from `useI18n().locale` in `patches/fumadocs-ui@16.8.12.patch`)',
+            'code-copy buttons take it from `useI18n().locale` in `patches/fumadocs-ui@16.15.2.patch`)',
         });
         continue;
       }
@@ -1977,7 +1978,7 @@ function gate() {
       (pin.installed && pin.pinned.length && !pin.pinned.includes(pin.installed)
         ? ' — the pin does not name the installed version, so pnpm applied no patch to it. ' +
           'Regenerate it against the new version (`pnpm patch fumadocs-core@<version>`), or drop it ' +
-          'if that version carries the upstream `peek` fix; see `patches/fumadocs-core@16.8.12.patch`.'
+          'if that version carries the upstream `peek` fix; see `patches/fumadocs-core@16.15.2.patch`.'
         : ''),
   );
   console.log('');

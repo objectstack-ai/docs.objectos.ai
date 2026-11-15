@@ -11,27 +11,30 @@ import zhHant from './ui-text/zh-Hant.json';
 /**
  * The docs site's interface copy — the chrome around a page, never the page.
  *
- * Two kinds of string live here. The first nineteen keys are Fumadocs' own
- * `Translations` (the search box, "On this page", "Choose a language", the
+ * Two kinds of string live here. The first eighteen keys are the strings
+ * Fumadocs renders (the search box, "On this page", "Choose a language", the
  * previous/next footer, the accessible names of its icon buttons, …);
- * `fumadocsTranslations()` hands exactly those to `RootProvider`, which is the
- * only channel Fumadocs reads them through. The rest are this app's own
- * controls and notices, read by the docs page and the 404 page.
+ * `fumadocsTranslations()` maps exactly those onto Fumadocs' own
+ * `Translations` keys and hands them to `RootProvider`, which is the only
+ * channel Fumadocs reads them through. The rest are this app's own controls
+ * and notices, read by the docs page and the 404 page.
  *
  * English is the source, written here and nowhere else (AGENTS.md rule 1). The
  * Fumadocs values are its built-in defaults verbatim, so the English site
  * renders byte-identically to before this table existed.
  *
- * Nine of the Fumadocs keys — `searchOpen` through `navMain` — do not exist in
- * fumadocs-ui 16.8.12 as published: there the names are English literals in
- * the components, outside the Translations API, so every locale page announced
- * "Open Search" and "Copy Anchor Link" inside `<html lang="de">`.
- * `patches/fumadocs-ui@16.8.12.patch` adds them: eight are a backport of
- * upstream 16.9.0's own fix (the same key names, the same English defaults),
- * and `navMain` replaces the `aria-label="Main"` Radix's navigation menu puts
- * on the legal pages' header, which upstream has not localized. They arrive
- * here through the one channel the other ten already use. The patch header
- * says why a patch rather than slot overrides, and when it can go.
+ * Since fumadocs-ui 16.10, Fumadocs' `Translations` are keyed by the English
+ * string plus its notes (`"Open Search(search trigger)(aria-label)"`), not by
+ * name, so the keys here are this app's own names and
+ * `fumadocsTranslations()` is the one place that knows the mapping. Eight of
+ * them — `searchOpen` through `menuToggle` — are the icon buttons'
+ * accessible names, which 16.8.12 hard-coded in English outside its
+ * Translations API (#305) and upstream has read through it since 16.9.0.
+ * `navMain` names the legal pages' header navigation, which Radix labels
+ * "Main" and upstream still does not localize:
+ * `patches/fumadocs-ui@16.15.2.patch` reads it through the same API under the
+ * key `"Main(navigation menu)(aria-label)"`, and the patch header says why a
+ * patch and when it can go.
  *
  * The locale tables are UI copy in app code — the shape `app/not-found.tsx`
  * and `app/[lang]/privacy/page.tsx` already use — not `content/docs/`
@@ -52,7 +55,6 @@ const en = {
   chooseLanguage: 'Choose a language',
   nextPage: 'Next Page',
   previousPage: 'Previous Page',
-  chooseTheme: 'Theme',
   editOnGithub: 'Edit on GitHub',
   /** The icon buttons' accessible names: no visible text, only `aria-label`. */
   searchOpen: 'Open Search',
@@ -102,17 +104,21 @@ const en = {
    * the Simplified one like every other string in this table.
    */
   notFound: 'This page could not be found.',
-} satisfies Translations & Record<string, string>;
+} satisfies Record<string, string>;
 
 export type UiText = Record<keyof typeof en, string>;
 
 /**
- * Fumadocs' `Translations`, restated as a type alias. Same keys, same values;
- * the difference is that an alias satisfies the index signature of the
- * provider's `translations` prop (`TranslationsOption`) and an interface
- * cannot, so the interface would not type-check at the one place it is used.
+ * The subset of Fumadocs' `Translations` this site supplies. Optional per key,
+ * because Fumadocs falls back to its English for a key it is not given and
+ * most of its keys belong to components this site does not render (the type
+ * table, the glass layout, its own page actions). Exact per key all the same:
+ * `fumadocsTranslations()` returns an object literal of this type, so a key
+ * Fumadocs renamed or dropped — or the patched navigation key, if the patch
+ * stops applying — is an excess-property error in `tsc`, not an English name
+ * on a localized page.
  */
-export type FumadocsTranslations = { [K in keyof Translations]: Translations[K] };
+export type FumadocsTranslations = { [K in keyof Translations]?: Translations[K] };
 
 type Locale = (typeof i18n.languages)[number];
 
@@ -185,32 +191,37 @@ export function uiText(lang: string): UiText {
 }
 
 /**
- * Exactly the strings Fumadocs reads, for `RootProvider`'s `i18n.translations`.
+ * Exactly the strings Fumadocs reads, for `RootProvider`'s `i18n.translations`,
+ * under Fumadocs' own keys.
  *
  * Picked rather than spread: the provider merges whatever it is given into the
  * context every Fumadocs component reads, and this app's own keys have no
- * business there. It also keeps the serialized client prop to nineteen strings.
+ * business there. Two app strings each feed two Fumadocs keys, because
+ * Fumadocs notes the same English twice: "Search" in the dialog and on the
+ * trigger, and "Choose a language" as the picker's heading and as its button's
+ * name.
  */
 export function fumadocsTranslations(text: UiText): FumadocsTranslations {
   return {
-    search: text.search,
-    searchNoResult: text.searchNoResult,
-    toc: text.toc,
-    tocNoHeadings: text.tocNoHeadings,
-    lastUpdate: text.lastUpdate,
-    chooseLanguage: text.chooseLanguage,
-    nextPage: text.nextPage,
-    previousPage: text.previousPage,
-    chooseTheme: text.chooseTheme,
-    editOnGithub: text.editOnGithub,
-    searchOpen: text.searchOpen,
-    themeToggle: text.themeToggle,
-    sidebarOpen: text.sidebarOpen,
-    sidebarCollapse: text.sidebarCollapse,
-    headingCopyAnchor: text.headingCopyAnchor,
-    codeBlockCopy: text.codeBlockCopy,
-    codeBlockCopied: text.codeBlockCopied,
-    menuToggle: text.menuToggle,
-    navMain: text.navMain,
+    'Search(search dialog)': text.search,
+    'Search(search trigger)': text.search,
+    'No results found(search dialog)': text.searchNoResult,
+    'On this page(table of contents)': text.toc,
+    'No Headings(table of contents)': text.tocNoHeadings,
+    'Last updated on(page footer)': text.lastUpdate,
+    'Choose a language(language switcher)': text.chooseLanguage,
+    'Choose a language(language switcher)(aria-label)': text.chooseLanguage,
+    'Next Page(pagination)': text.nextPage,
+    'Previous Page(pagination)': text.previousPage,
+    'Edit on GitHub(edit page)': text.editOnGithub,
+    'Open Search(search trigger)(aria-label)': text.searchOpen,
+    'Toggle Theme(theme switcher)(aria-label)': text.themeToggle,
+    'Open Sidebar(sidebar)(aria-label)': text.sidebarOpen,
+    'Collapse Sidebar(sidebar)(aria-label)': text.sidebarCollapse,
+    'Copy Anchor Link(heading anchor)(aria-label)': text.headingCopyAnchor,
+    'Copy Text(code block)(aria-label)': text.codeBlockCopy,
+    'Copied Text(code block)(aria-label)': text.codeBlockCopied,
+    'Toggle Menu(mobile menu)(aria-label)': text.menuToggle,
+    'Main(navigation menu)(aria-label)': text.navMain,
   };
 }

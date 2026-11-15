@@ -29,8 +29,8 @@
       "sharp"
     ],
     "patchedDependencies": {
-      "fumadocs-core@16.8.12": "patches/fumadocs-core@16.8.12.patch",
-      "fumadocs-ui@16.8.12": "patches/fumadocs-ui@16.8.12.patch"
+      "fumadocs-core@16.15.2": "patches/fumadocs-core@16.15.2.patch",
+      "fumadocs-ui@16.15.2": "patches/fumadocs-ui@16.15.2.patch"
     }
   }
 }

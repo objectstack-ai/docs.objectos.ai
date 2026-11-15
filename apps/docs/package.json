@@ -17,9 +17,9 @@
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts"
   },
   "dependencies": {
-    "fumadocs-core": "16.8.12",
+    "fumadocs-core": "16.15.2",
     "fumadocs-mdx": "15.0.7",
-    "fumadocs-ui": "16.8.12",
+    "fumadocs-ui": "16.15.2",
     "lucide-react": "^1.51.0",
     "next": "16.2.6",
     "react": "^19.2.7",
