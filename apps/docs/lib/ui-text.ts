@@ -11,7 +11,7 @@ import zhHant from './ui-text/zh-Hant.json';
 /**
  * The docs site's interface copy — the chrome around a page, never the page.
  *
- * Two kinds of string live here. The first eighteen keys are the strings
+ * Two kinds of string live here. The first twenty keys are the strings
  * Fumadocs renders (the search box, "On this page", "Choose a language", the
  * previous/next footer, the accessible names of its icon buttons, …);
  * `fumadocsTranslations()` maps exactly those onto Fumadocs' own
@@ -26,10 +26,15 @@ import zhHant from './ui-text/zh-Hant.json';
  * Since fumadocs-ui 16.10, Fumadocs' `Translations` are keyed by the English
  * string plus its notes (`"Open Search(search trigger)(aria-label)"`), not by
  * name, so the keys here are this app's own names and
- * `fumadocsTranslations()` is the one place that knows the mapping. Eight of
+ * `fumadocsTranslations()` is the one place that knows the mapping. Ten of
  * them — `searchOpen` through `menuToggle` — are the icon buttons'
- * accessible names, which 16.8.12 hard-coded in English outside its
- * Translations API (#305) and upstream has read through it since 16.9.0.
+ * accessible names. Eight of those 16.8.12 hard-coded in English outside its
+ * Translations API (#305), and upstream has read them through it since 16.9.0.
+ * `searchClose` and `sidebarClose` arrived with 16.15.2: the search dialog's
+ * close button, which had no name before, and the name the sidebar button
+ * takes while the mobile drawer is open. Both render only after interaction,
+ * so no prerendered page carries them and `check-locale-surface.mjs` cannot
+ * see them; they are here so that they are not English on a localized page.
  * `navMain` names the legal pages' header navigation, which Radix labels
  * "Main" and upstream still does not localize:
  * `patches/fumadocs-ui@16.15.2.patch` reads it through the same API under the
@@ -58,9 +63,11 @@ const en = {
   editOnGithub: 'Edit on GitHub',
   /** The icon buttons' accessible names: no visible text, only `aria-label`. */
   searchOpen: 'Open Search',
+  searchClose: 'Close Search',
   themeToggle: 'Toggle Theme',
   sidebarOpen: 'Open Sidebar',
   sidebarCollapse: 'Collapse Sidebar',
+  sidebarClose: 'Close Sidebar',
   headingCopyAnchor: 'Copy Anchor Link',
   codeBlockCopy: 'Copy Text',
   codeBlockCopied: 'Copied Text',
@@ -215,9 +222,11 @@ export function fumadocsTranslations(text: UiText): FumadocsTranslations {
     'Previous Page(pagination)': text.previousPage,
     'Edit on GitHub(edit page)': text.editOnGithub,
     'Open Search(search trigger)(aria-label)': text.searchOpen,
+    'Close Search(search dialog)(aria-label)': text.searchClose,
     'Toggle Theme(theme switcher)(aria-label)': text.themeToggle,
     'Open Sidebar(sidebar)(aria-label)': text.sidebarOpen,
     'Collapse Sidebar(sidebar)(aria-label)': text.sidebarCollapse,
+    'Close Sidebar(sidebar)(aria-label)': text.sidebarClose,
     'Copy Anchor Link(heading anchor)(aria-label)': text.headingCopyAnchor,
     'Copy Text(code block)(aria-label)': text.codeBlockCopy,
     'Copied Text(code block)(aria-label)': text.codeBlockCopied,
