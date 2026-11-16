@@ -1,7 +1,7 @@
 ---
 title: Organization and Members
 seoTitle: "ObjectOS Cloud Organization: Slug, Members, Invitations and Roles"
-description: Your ObjectOS Cloud organization — its slug, the cloud console, inviting members, the five membership roles, and why sign-in lives in the cloud rather than in an environment.
+description: Your ObjectOS Cloud organization — its slug, the cloud console, adding employees in the environment and inviting organization-level people, the membership roles, and why sign-in lives in the cloud rather than in an environment.
 editions: [cloud]
 ---
 
@@ -49,18 +49,72 @@ days so nobody else can take it in the meantime
 Open **Members** in the sidebar. The page has two tabs: the members, with
 their roles, and the invitations still pending.
 
-To add someone, choose **Invite members**, enter their email address and pick
-a role. They receive an invitation, and once they accept it they are a member
-of the organization.
+Everyone in the organization is a member with their own ObjectOS Cloud
+account. There are two ways in, and which one you use depends on who the
+person is.
 
-**The organization's invitation is the only way into its environment.** The
-environment has no invitation and no self sign-up of its own: everyone you
-invite here can get into the organization's environment, and what they can
-do inside it is decided by its
-[permissions](/docs/configure/permissions).
+**Employees are added in the environment.** People who work in the
+organization's apps are added by an administrator of the environment, in its
+**Setup → Users** — see [Adding people on ObjectOS Cloud](#adding-people-on-objectos-cloud)
+below. The **Members** page has an **Add employees** button that opens that
+page in the production environment.
+
+**Organization-level people are invited here.** Choose **Invite members**,
+enter an email address and pick a role, for the people who manage the
+organization or who do not work in the environment: admins, and members such
+as billing staff or partners. They receive an invitation, and once they accept
+it they are members of the organization. If the environment is not ready,
+cannot be opened, or has no administrator who can sign in, you can also invite
+an ordinary member here.
 
 From the lists, whoever manages the organization can **change a member's
 role**, **remove a member**, and **resend** or **revoke** a pending invitation.
+
+### Adding people on ObjectOS Cloud
+
+In the environment, open **Setup → Users**. An administrator of the
+environment has two buttons there:
+
+- **Add User** — one person: their email address and name, and optionally a
+  position, a permission set and their manager's email address.
+- **Import Users** — many people at once, pasted as CSV text: a header row,
+  then one person per line, at most 500. The columns are `email`, `name`,
+  `positions` and `permission_sets` (machine names separated by `;`), and
+  `manager_id` (the manager's email address). Each row is added on its own, so
+  a bad row fails alone and the result lists every row.
+
+Each person is in the environment at once, with their position, permission
+sets and manager, before they ever sign in, so records, approvals and
+assignments can already name them. They have no password in the environment.
+ObjectOS Cloud sends them an invitation to the organization as a **Member**,
+recorded as yours. When they accept it and sign in with their ObjectOS Cloud
+account, they land in the environment as the person you prepared.
+
+Adding someone who is already a member sends no new invitation. On a
+Developer Edition organization, a person beyond its member limit is refused,
+row by row in an import.
+
+### Accepting an invitation
+
+The invitation email leads to ObjectOS Cloud, where the person signs in or
+creates their account and accepts. **Accepting an invitation needs a verified
+email address.** An account whose address is not verified yet cannot accept;
+the invitation stays pending until the address is verified, and then the same
+person accepts it. If you signed up with a password, open the verification
+link in the email ObjectOS Cloud sent you when you signed up, then accept the
+invitation again.
+
+### Deactivating and reactivating people
+
+People's day-to-day changes stay in the environment's **Setup → Users**:
+positions, permission sets, managers.
+
+- **Deactivating** a person there also removes them from the organization.
+  Their user record in the environment and all their history stay. If they
+  had not accepted their invitation yet, the invitation is withdrawn.
+- **Reactivating** them sends the invitation again.
+- An organization **owner** or **admin** cannot be deactivated from the
+  environment. Change their role or remove them on the **Members** page first.
 
 ## Roles
 
@@ -72,22 +126,58 @@ comes from that environment's [permission sets and positions](/docs/configure/pe
 |---|---|---|
 | **Owner** | Full control of the organization, its plan and its environment | An owner |
 | **Admin** | Manages the organization: members, environment, billing | An owner or admin |
-| **Delegated Admin** | Can reach the invitation endpoint without being an admin; where they may place people comes from an admin scope granted separately | An owner or admin |
-| **Member** | Uses the organization's environment and apps | Anyone who can invite |
-| **External** | A portal user — a supplier's or a customer's — who sees only their own rows and what is explicitly shared with them; never part of the business-unit tree | Anyone who can invite |
+| **Member** | Uses the organization's environment and apps, or works with the organization without managing it (billing staff, partners) | An owner or admin; an environment administrator, by adding the person in **Setup → Users** |
 
 Owners and admins are the people this section means by "whoever manages the
 organization": they see the plan, the upgrade and the environment actions that
 change something. A plain member sees the environment and opens it, but is
 not offered actions they could not complete.
 
+### Owners and admins administer the environment
+
+The organization's owners and admins are the environment's administrators.
+Nobody grants this in the environment: it follows the role on the **Members**
+page.
+
+- **Promote** a member to admin, and they become an administrator of the
+  environment.
+- **Demote** an admin to member, or **remove** them, and that administrator
+  standing ends. Removing someone and inviting them back as a member does not
+  bring it back.
+- An environment administrator can make another person an administrator of
+  the environment. That person stays a plain member of the organization, and
+  their standing in the environment is not touched by role changes on the
+  **Members** page.
+- The standing that comes from the organization role cannot be taken away
+  inside the environment. Change the role on the **Members** page instead.
+
+**Open** on the environment enters each owner or admin as themself.
+
 ## Where sign-in lives
 
 On ObjectOS Cloud every account is a cloud account. ObjectOS Cloud signs a
 person in, and the environment receives them: what an environment holds for
 each person is **authorization only** — their positions, permission sets and
-sharing. Every hosted environment uses this single sign-in by default, on every
-plan, so people sign in once with their ObjectOS Cloud account and open the environment.
+sharing. Every hosted environment uses this single sign-in by default, so
+people sign in once with their ObjectOS Cloud account and open the environment.
+A plan that includes single sign-on with your own identity provider works
+differently: the people that provider signs in hold no ObjectOS Cloud account,
+so the environment keeps its sign-in page with both ways in (see
+[Authentication](/docs/configure/authentication)). The rest of this section
+describes the default.
+
+- **Opening the environment signed out** goes straight to the ObjectOS Cloud
+  sign-in page and, once signed in, back to the page that was opened.
+- **The ObjectOS Cloud sign-in admits only members of the organization.**
+  Someone who is not a member, or whose invitation is not accepted yet, is not
+  let into the environment.
+- **The environment has no password of its own.** Nobody signs in to a hosted
+  environment with a local password, administrators included. Passwords,
+  email verification and social sign-in all live in the ObjectOS Cloud
+  account.
+
+If nobody in your organization can sign in to its environment any more,
+contact ObjectOS support.
 
 **Taking an environment to your own infrastructure.** Because the accounts
 live in ObjectOS Cloud and not in the environment, they do not travel with it.
