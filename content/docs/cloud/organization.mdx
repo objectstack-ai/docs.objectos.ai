@@ -100,7 +100,9 @@ The invitation email leads to ObjectOS Cloud, where the person signs in or
 creates their account and accepts. **Accepting an invitation needs a verified
 email address.** An account whose address is not verified yet cannot accept;
 the invitation stays pending until the address is verified, and then the same
-person accepts it.
+person accepts it. If you signed up with a password, open the verification
+link in the email ObjectOS Cloud sent you when you signed up, then accept the
+invitation again.
 
 ### Deactivating and reactivating people
 
@@ -156,13 +158,19 @@ page.
 On ObjectOS Cloud every account is a cloud account. ObjectOS Cloud signs a
 person in, and the environment receives them: what an environment holds for
 each person is **authorization only** — their positions, permission sets and
-sharing. Every hosted environment uses this single sign-in, on every plan, so
+sharing. Every hosted environment uses this single sign-in by default, so
 people sign in once with their ObjectOS Cloud account and open the environment.
+A plan that includes single sign-on with your own identity provider works
+differently: the people that provider signs in hold no ObjectOS Cloud account,
+so the environment keeps its sign-in page with both ways in (see
+[Authentication](/docs/configure/authentication)). The rest of this section
+describes the default.
 
 - **Opening the environment signed out** goes straight to the ObjectOS Cloud
   sign-in page and, once signed in, back to the page that was opened.
-- **Only members of the organization get in.** Someone who is not a member,
-  or whose invitation is not accepted yet, is not let into the environment.
+- **The ObjectOS Cloud sign-in admits only members of the organization.**
+  Someone who is not a member, or whose invitation is not accepted yet, is not
+  let into the environment.
 - **The environment has no password of its own.** Nobody signs in to a hosted
   environment with a local password, administrators included. Passwords,
   email verification and social sign-in all live in the ObjectOS Cloud
