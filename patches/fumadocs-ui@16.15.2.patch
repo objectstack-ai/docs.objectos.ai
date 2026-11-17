@@ -1,0 +1,232 @@
+# Five accessibility fixes fumadocs-ui 16.15.2 does not ship: a localized name
+# for the legal pages' header navigation (#305), and the four roles and names
+# axe reported on every docs page (#308), plus the copy buttons' own `lang`
+# (#308 review).
+#
+# HISTORY
+# -------
+# Ported from `patches/fumadocs-ui@16.8.12.patch` (#314, #317) when
+# `fumadocs-ui` moved to 16.15.2 in lockstep with `fumadocs-core` (dependabot
+# #239). That patch had thirteen hunks. Eight of them backported upstream
+# 16.9.0's own fix for nine icon-button names that 16.8.12 hard-coded in English
+# outside its Translations API ("Open Search", "Toggle Theme", "Open Sidebar",
+# "Collapse Sidebar", "Copy Anchor Link", "Copy Text", "Copied Text", "Toggle
+# Menu"). They are DROPPED: 16.15.2 reads every one of those names through its
+# Translations API, as `t("Open Search", { note: "aria-label" })` under a
+# `useTranslations({ note: "search trigger" })` and so on (the keys are listed
+# in its `dist/.translations/keys.js`), and `apps/docs/lib/ui-text.ts` supplies
+# them under those keys. The five hunks below are the ones upstream still does
+# not have; each anchor was re-checked against the 16.15.2 tarball.
+#
+# WHAT THIS CHANGES
+# -----------------
+# - layouts/home/slots/header.js (`navMain`, #305): Radix's NavigationMenu root
+#   defaults `aria-label="Main"`, and the HomeLayout header (the privacy and
+#   terms pages here) renders that root without a label of its own, so every
+#   locale announced "Main". The root now reads its name through the same
+#   Translations API as the rest of the header, as `t("Main", { note:
+#   "aria-label" })` under `useTranslations({ note: "navigation menu" })`, so
+#   its key is "Main(navigation menu)(aria-label)". The key also joins
+#   `dist/.translations/keys.js` and the `Translations` type in
+#   `dist/.translations/index.d.ts`, which is what makes a lost hunk loud (see
+#   below). With no translation the name is still "Main".
+# - layouts/shared/slots/language-select.js (#308, WCAG 2.5.3 label in name):
+#   the trigger shows the current language ("English", "Deutsch") and was named
+#   "Choose a language" only, so its name did not contain its text. It is now
+#   named "<current language> — <Choose a language>": "English — Choose a
+#   language", "Deutsch — Sprache wählen". The visible text comes first, and
+#   both halves come from the i18n context, so every locale gets its own words
+#   with no new key. With no current name in the locale list it keeps the old
+#   label. A `slots.languageSelect.root` override per layout could do the same,
+#   but a layout added later would quietly not; the patch reaches every trigger.
+# - layouts/shared/index.js (#308, axe `svg-img-alt`): the GitHub icon
+#   `githubUrl` adds was an `svg role="img"` with no name. Every link that
+#   renders it carries `aria-label` "GitHub", so the picture is decorative:
+#   `aria-hidden` replaces `role="img"`.
+# - components/codeblock.js (#308, axe `landmark-unique`): every code block's
+#   scroll viewport was `role="region"` with no name. The role goes and
+#   `tabIndex: 0` stays, so the viewport still scrolls from the keyboard.
+#   Naming each one was rejected: an untitled block has nothing to be named by,
+#   titles repeat within a page, and ten code landmarks bury a page's real
+#   landmarks. The role is set after `...viewportProps`, so no prop can remove
+#   it; hence a hunk.
+# - layouts/docs/page/slots/toc.js (#308, axe `landmark-unique` below 1280px):
+#   the table-of-contents bar shown below 1280px (`xl:hidden`) was a `<header>`
+#   outside every sectioning element, a second banner landmark beside the site
+#   header. It is a disclosure for the page's headings, so it is a `<div>`. No
+#   CSS selects `header` by element. The options reach only the bar's outer
+#   wrapper, so this too is a hunk.
+# - components/codeblock.js and components/heading.js (#308 review, WCAG
+#   3.1.2): on a fallback page the heading-anchor and code-copy buttons sit in
+#   a body `app/[lang]/docs/[[...slug]]/page.tsx` marks `lang="en"`, so their
+#   localized names were read with English rules. Both buttons take `locale`
+#   from `useI18n()` and render it as their own `lang`.
+#   `check-locale-surface.mjs` (`localized-name-marked-english`) reads it off
+#   the built pages.
+#
+# The #308 finding "no main landmark" needs neither a hunk nor app code any
+# more: 16.15.2's DocsPage container renders `<main className="contents">`
+# around its `<article>`, so the `role="main"` the docs page used to set on
+# that article was removed with this port (two main landmarks otherwise).
+#
+# WHEN THIS FILE CAN BE DELETED
+# -----------------------------
+# When every hunk below is upstream. On a bump, re-check each anchor against
+# the new tarball and drop the hunks whose fix upstream ships.
+#
+# What makes a silent loss loud: `fumadocsTranslations()` in
+# `apps/docs/lib/ui-text.ts` returns an object literal typed as fumadocs'
+# `Translations`, and it supplies "Main(navigation menu)(aria-label)"; on an
+# install without this patch that key is an excess-property error and `tsc`
+# fails `type-check` (measured while porting: with the 16.15.2 patch committed
+# but not yet installed, `type-check` failed with TS2353 on exactly that key).
+# The English-name half is read off the built pages by
+# `check-locale-surface.mjs` (`english-chrome-name`). And as with the
+# fumadocs-core pin beside this one, a bump of the package without regenerating
+# this file fails `pnpm install` with ERR_PNPM_UNUSED_PATCH, which is what sends
+# the person bumping it here.
+#
+diff --git a/dist/.translations/index.d.ts b/dist/.translations/index.d.ts
+index 79cda99e6ddfd8740275bb305c3636568a09ef52..c9c074b32a3ede89cfe596012fb0734c88424a39 100644
+--- a/dist/.translations/index.d.ts
++++ b/dist/.translations/index.d.ts
+@@ -20,6 +20,7 @@ type Translations = {
+   "Hide Sidebar(sidebar)": string;
+   "Last updated on(page footer)": string;
+   "Layout Tab(layout tab trigger)": string;
++  "Main(navigation menu)(aria-label)": string;
+   "Light(theme switcher)(aria-label)": string;
+   "Next Page(pagination)": string;
+   "No Headings(table of contents)": string;
+diff --git a/dist/.translations/keys.js b/dist/.translations/keys.js
+index d55093e204aa434d7fa1ebd667722e3a83bf10a3..f9619c9e6d1b256bd4d835b29c09e0f543782bec 100644
+--- a/dist/.translations/keys.js
++++ b/dist/.translations/keys.js
+@@ -20,6 +20,7 @@ var keys_default = [
+ 	"Hide Sidebar(sidebar)",
+ 	"Last updated on(page footer)",
+ 	"Layout Tab(layout tab trigger)",
++	"Main(navigation menu)(aria-label)",
+ 	"Light(theme switcher)(aria-label)",
+ 	"Next Page(pagination)",
+ 	"No Headings(table of contents)",
+diff --git a/dist/components/codeblock.js b/dist/components/codeblock.js
+index 53c181e3b224e64c3b0820715160b5a8e46aaa02..d2cf428841232047a4246df2d4bc4ec77c3305e7 100644
+--- a/dist/components/codeblock.js
++++ b/dist/components/codeblock.js
+@@ -8,6 +8,7 @@ import { jsx, jsxs } from "react/jsx-runtime";
+ import { Check, Clipboard } from "lucide-react";
+ import { createContext, use, useMemo, useRef } from "react";
+ import { useTranslations } from "@fuma-translate/react";
++import { useI18n } from "../contexts/i18n.js";
+ //#region src/components/codeblock.tsx
+ const TabsContext = createContext(null);
+ function Pre(props) {
+@@ -53,7 +54,6 @@ function CodeBlock({ ref, title, allowCopy = true, keepBackground = false, icon,
+ 		}), /* @__PURE__ */ jsx("div", {
+ 			ref: areaRef,
+ 			...viewportProps,
+-			role: "region",
+ 			tabIndex: 0,
+ 			className: cn("text-[0.8125rem] py-3.5 overflow-auto max-h-[600px] fd-scroll-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-fd-ring", viewportProps.className),
+ 			style: {
+@@ -67,6 +67,7 @@ function CodeBlock({ ref, title, allowCopy = true, keepBackground = false, icon,
+ }
+ function CopyButton({ className, containerRef, ...props }) {
+ 	const t = useTranslations({ note: "code block" });
++	const { locale } = useI18n();
+ 	const [checked, onClick] = useCopyButton(() => {
+ 		const pre = containerRef.current?.getElementsByTagName("pre").item(0);
+ 		if (!pre) return;
+@@ -83,6 +84,7 @@ function CopyButton({ className, containerRef, ...props }) {
+ 			className: "hover:text-fd-accent-foreground data-checked:text-fd-accent-foreground",
+ 			size: "icon-xs"
+ 		}), className),
++		lang: locale,
+ 		"aria-label": checked ? t("Copied Text", { note: "aria-label" }) : t("Copy Text", { note: "aria-label" }),
+ 		onClick,
+ 		...props,
+diff --git a/dist/components/heading.js b/dist/components/heading.js
+index 44c752cbb6c742eea382e46138079316f35888a7..6f589b6b612b00c70205da585323a33c13ffc645 100644
+--- a/dist/components/heading.js
++++ b/dist/components/heading.js
+@@ -5,10 +5,12 @@ import { useCopyButton } from "../utils/use-copy-button.js";
+ import { jsx, jsxs } from "react/jsx-runtime";
+ import { CopyCheckIcon, LinkIcon } from "lucide-react";
+ import { useTranslations } from "@fuma-translate/react";
++import { useI18n } from "../contexts/i18n.js";
+ //#region src/components/heading.tsx
+ function Heading({ as, ...props }) {
+ 	const As = as ?? "h1";
+ 	const t = useTranslations({ note: "heading anchor" });
++	const { locale } = useI18n();
+ 	const [isChecked, onCopy] = useCopyButton(() => {
+ 		if (!props.id) return;
+ 		const url = new URL(window.location.href);
+@@ -24,6 +26,7 @@ function Heading({ as, ...props }) {
+ 			href: `#${props.id}`,
+ 			children: props.children
+ 		}), /* @__PURE__ */ jsx("button", {
++			lang: locale,
+ 			"aria-label": t("Copy Anchor Link", { note: "aria-label" }),
+ 			className: cn(buttonVariants({
+ 				variant: "ghost",
+diff --git a/dist/layouts/docs/page/slots/toc.js b/dist/layouts/docs/page/slots/toc.js
+index 7d79b3c0249ad8e7f0da502d39b82824b9c9841a..add4228e1b3c725dc72c769b1c0c154babce5e7a 100644
+--- a/dist/layouts/docs/page/slots/toc.js
++++ b/dist/layouts/docs/page/slots/toc.js
+@@ -73,7 +73,7 @@ function TOCPopover({ container, trigger, content, header, footer, style = "norm
+ 			"data-toc-popover": "",
+ 			...container,
+ 			className: cn("sticky top-(--fd-docs-row-2) z-10 [grid-area:toc-popover] h-(--fd-toc-popover-height) xl:hidden max-xl:layout:[--fd-toc-popover-height:--spacing(10)]", container?.className),
+-			children: /* @__PURE__ */ jsxs("header", {
++			children: /* @__PURE__ */ jsxs("div", {
+ 				ref,
+ 				className: cn("border-b backdrop-blur-sm transition-colors", (!isNavTransparent || open) && "bg-fd-background/80", open && "shadow-lg"),
+ 				children: [/* @__PURE__ */ jsx(PageTOCPopoverTrigger, { ...trigger }), /* @__PURE__ */ jsxs(PageTOCPopoverContent, {
+diff --git a/dist/layouts/home/slots/header.js b/dist/layouts/home/slots/header.js
+index 8e14eb22ff9d123666ca5f3c5ad57991e624c55b..1bffaac3a3bf6abfaae98fcfac5d6454f61e9daf 100644
+--- a/dist/layouts/home/slots/header.js
++++ b/dist/layouts/home/slots/header.js
+@@ -113,10 +113,12 @@ function isSecondary(item) {
+ 	return item.type === "icon";
+ }
+ function HeaderNavigationMenu({ transparentMode = "none", ...props }) {
++	const t = useTranslations({ note: "navigation menu" });
+ 	const [value, setValue] = useState("");
+ 	const isTop = useIsScrollTop({ enabled: transparentMode === "top" }) ?? true;
+ 	const isTransparent = transparentMode === "top" ? isTop : transparentMode === "always";
+ 	return /* @__PURE__ */ jsx(NavigationMenu, {
++		"aria-label": t("Main", { note: "aria-label" }),
+ 		value,
+ 		onValueChange: setValue,
+ 		asChild: true,
+diff --git a/dist/layouts/shared/index.js b/dist/layouts/shared/index.js
+index 5b300b12a58883191e6eda8db8eeb035151eab21..8e0900cde10373530568993b5140b5529527e1cc 100644
+--- a/dist/layouts/shared/index.js
++++ b/dist/layouts/shared/index.js
+@@ -54,7 +54,7 @@ function resolveLinkItems({ links = [], githubUrl }) {
+ 		text: "Github",
+ 		label: "GitHub",
+ 		icon: /* @__PURE__ */ jsx("svg", {
+-			role: "img",
++			"aria-hidden": true,
+ 			viewBox: "0 0 24 24",
+ 			fill: "currentColor",
+ 			children: /* @__PURE__ */ jsx("path", { d: "M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12" })
+diff --git a/dist/layouts/shared/slots/language-select.js b/dist/layouts/shared/slots/language-select.js
+index 0f65ad0d731b6d6c79e56063ca437fcf208f1708..8fc4a3018fc3e5d8aa259dcca1f41e7bffa62258 100644
+--- a/dist/layouts/shared/slots/language-select.js
++++ b/dist/layouts/shared/slots/language-select.js
+@@ -11,8 +11,10 @@ function LanguageSelect({ className, variant = "ghost", children, ...rest }) {
+ 	const t = useTranslations({ note: "language switcher" });
+ 	if (!context.locales) throw new Error("Missing `<I18nProvider />`");
+ 	const chooseLanguage = t("Choose a language");
++	const current = context.locales.find((item) => item.locale === context.locale)?.name;
++	const chooseLanguageLabel = t("Choose a language", { note: "aria-label" });
+ 	return /* @__PURE__ */ jsxs(Popover, { children: [/* @__PURE__ */ jsx(PopoverTrigger, {
+-		"aria-label": t("Choose a language", { note: "aria-label" }),
++		"aria-label": current ? `${current} — ${chooseLanguageLabel}` : chooseLanguageLabel,
+ 		className: cn(buttonVariants({ variant }), "gap-1.5 p-1.5 data-[state=open]:bg-fd-accent", className),
+ 		...rest,
+ 		children

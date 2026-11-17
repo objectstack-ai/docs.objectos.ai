@@ -1,0 +1,108 @@
+# Carry `Handle.peek` onto the wrapped serializer handlers in `defaultStringifier`.
+#
+# WHY THIS PIN EXISTS
+# -------------------
+# `page.data.getText('processed')` -- what `apps/docs/lib/source.ts` serves from
+# `/llms-full.txt` and from every per-page `/llms.mdx` body -- emitted HTML
+# numeric character references into files that are not HTML, and two of them broke
+# the markdown link they sat in. Measured on `main` at 50aacb9, before the first
+# version of this patch (#281, against 16.8.12): 67 numeric character references
+# (58 encoding an asterisk, 5 a backtick, 4 a closing parenthesis) and 4 of 661
+# link targets malformed, in each of the two outputs. Two of those broken targets
+# also made themselves invisible to the absolute-URL rewrite in
+# `app/llms-full.txt/route.ts`, whose `SITE_LINK` pattern needs a literal closing
+# parenthesis, so they were served relative in a file whose whole purpose is to be
+# read somewhere else.
+#
+# THE DEFECT
+# ----------
+# `defaultStringifier` (`dist/mdx-plugins/stringifier.js`) wraps every
+# `mdast-util-to-markdown` serializer handler through `modHandler`, and the wrapper
+# does not carry the handler's `peek` property. `containerPhrasing` uses
+# `Handle.peek` to read the NEXT sibling's first character cheaply and WITHOUT side
+# effects; with `peek` missing it invokes that sibling's full handler instead, and
+# the lookahead leaves `state.attentionEncodeSurroundingInfo` set from node N+1.
+# The loop then applies those flags to node N -- which is why an emphasis run's
+# opening marker is encoded while its closing partner is left alone.
+#
+# The fix is to copy `.peek` from the handler onto the wrapper. It is upstream's
+# bug, not this repo's, and this patch is byte-for-byte what upstream would ship.
+#
+# UPSTREAM STATE THIS TRACKS
+# --------------------------
+# Ported unchanged from `patches/fumadocs-core@16.8.12.patch` (#281, #287) when
+# `fumadocs-core` moved to 16.15.2 (dependabot #239). The defect is still in
+# 16.15.2: its published tarball has the same unwrapped anchor line,
+# `for (const k in handlers) handlers[k] = modHandler(handlers[k], node.ctx);`,
+# and `grep peek dist/mdx-plugins/stringifier.js` finds nothing. 16.15.x
+# reformats an `if` earlier in the same function (3 lines become 5), so the hunk
+# sits 2 lines lower than it did on 16.8.12 (`@@ -68` instead of `@@ -66`) and is
+# otherwise identical. "Upgrade" is not a fix.
+#
+# Not reported upstream from this repository -- this repository's agents cannot
+# open an issue on `fuma-nama/fumadocs`. A ready-to-post upstream report is filed
+# as a comment on https://github.com/objectstack-ai/objectos/issues/197 and the
+# maintainer routes the filing.
+#
+# WHEN THIS FILE CAN BE DELETED
+# -----------------------------
+# When an installed `fumadocs-core` carries the fix itself: `grep peek
+# node_modules/fumadocs-core/dist/mdx-plugins/stringifier.js` finds something.
+# Delete this file, remove its `pnpm.patchedDependencies` entry from the root
+# `package.json`, re-run `pnpm install`, and rebuild `apps/docs` -- the reference
+# count must stay 0.
+#
+# ON A VERSION BUMP
+# -----------------
+# The pin is keyed to 16.15.2 by `pnpm.patchedDependencies` in the root
+# `package.json`, so no other version receives this patch. Moving
+# `apps/docs/package.json` to another version without regenerating this file
+# fails `pnpm install` with `ERR_PNPM_UNUSED_PATCH` (measured on pnpm 10.28.2 for
+# https://github.com/objectstack-ai/objectos/issues/284). Two ways past that error
+# end in an install that exits 0 and prints nothing, and both ship the defect:
+#   1. deleting the pin from `package.json`, the first remedy the error text
+#      offers, which installs the new version unpatched;
+#   2. regenerating the lockfile with `--config.allow-unused-patches=true`, which
+#      exits 0 with one WARN; CI's `pnpm install --frozen-lockfile` then accepts
+#      that lockfile, because the frozen install does not check for an unused
+#      patch.
+#
+# What catches the defect after an install that passed: CI's `Locale surface`
+# step (`.github/scripts/check-locale-surface.mjs`, since
+# https://github.com/objectstack-ai/objectos/pull/285) fails the build when either
+# output carries a numeric character reference or a malformed link target.
+#
+# So handle this patch in the same PR as any bump of this package: regenerate it
+# against the new version (`pnpm patch fumadocs-core@<new>`, apply the hunk,
+# `pnpm patch-commit`, then put this header back on top and re-run
+# `pnpm install`), or delete it as described above if upstream has landed the
+# fix.
+#
+diff --git a/dist/mdx-plugins/stringifier.js b/dist/mdx-plugins/stringifier.js
+index 3e3c01977a7d9175a852e0c5c3155830f5bf75b1..ab6d135ce98132eeea10f44ef12996ae58f7d1cf 100644
+--- a/dist/mdx-plugins/stringifier.js
++++ b/dist/mdx-plugins/stringifier.js
+@@ -68,7 +68,22 @@ function defaultStringifier(config = {}) {
+ 	}
+ 	const customToMarkdown = { handlers: { _custom(node, _, state, info) {
+ 		const handlers = state.handlers;
+-		for (const k in handlers) handlers[k] = modHandler(handlers[k], node.ctx);
++		for (const k in handlers) {
++			const handler = handlers[k];
++			const wrapped = modHandler(handler, node.ctx);
++
++			// `Handle.peek` is how `mdast-util-to-markdown`'s `containerPhrasing`
++			// reads the NEXT sibling's first character cheaply and without side
++			// effects. A wrapper that does not carry it makes that lookahead invoke
++			// the sibling's FULL handler instead, which leaves
++			// `state.attentionEncodeSurroundingInfo` set from node N+1 and applies it
++			// to node N — encoding markdown punctuation as numeric character
++			// references in plain-text output. See the header of
++			// `patches/fumadocs-core@16.15.2.patch` in this repository.
++			if (handler.peek) wrapped.peek = handler.peek;
++
++			handlers[k] = wrapped;
++		}
+ 		return state.handle(node.root, void 0, state, info);
+ 	} } };
+ 	return function(root, ctx) {

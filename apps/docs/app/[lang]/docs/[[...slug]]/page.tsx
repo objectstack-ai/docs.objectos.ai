@@ -360,17 +360,13 @@ export default async function Page(props: {
         />
       ))}
       {/*
-        `role="main"`: the page's main landmark (#308). Fumadocs 16.8.12
-        renders none anywhere in the docs layout, so a screen reader's "main"
-        jump went nowhere. DocsPage passes its other props to the `<article>`
-        it renders (breadcrumb, title, body, footer; not the sidebar or the
-        table of contents), and ARIA in HTML allows `main` on an article.
-        Upgrade note: fumadocs-ui 16.16.2 wraps that article in a `<main>` of
-        its own. On a version that does, delete this prop, or the page has two
-        main landmarks (`patches/fumadocs-ui@16.8.12.patch` says the same).
+        No `role` here. The page's main landmark (#308) is fumadocs-ui's own
+        since 16.15.2 at the latest: DocsPage's container renders
+        `<main className="contents">` around the `<article>` it passes these
+        props to. Under 16.8.12, which rendered no main landmark, this element
+        carried `role="main"`; keeping it now would give the page two.
       */}
       <DocsPage
-        role="main"
         toc={isFallback ? tocInLanguage(loaded.toc, contentLang) : loaded.toc}
         full={page.data.full}
       >
