@@ -4,7 +4,7 @@ seoTitle: "よくある質問：セットアップ、マルチテナンシー、
 description: ObjectOS についてのよくある質問。はじめ方、データベースとマルチテナンシー、マイグレーション、権限、連携、運用、料金とライセンス。
 editions: [community, cloud, enterprise]
 translation:
-  source_sha: eec9cc74c3c8543bb93974ee0b6051d123a95193db87985a65e223deb8f25cda
+  source_sha: dc08020503346e80a54e6d8b0bc7b3a55c7e01ef289898fb3a6d862c58bb05d9
   guide_rev: 1
   mode: auto
 ---
@@ -97,7 +97,7 @@ CSV はできます。`os data create` をループで実行するか、UI の�
 
 ### Okta / Entra / Keycloak と連携するには？ [#how-do-i-integrate-okta--entra--keycloak]
 
-OIDC を使います。**Setup → Authentication**（または環境変数）でディスカバリー URL とクライアント ID / シークレットを設定します。プロバイダーのコールバック URL は `/api/v1/auth/oauth2/callback/<provider-id>` です。[認証](/docs/configure/authentication)を参照してください。
+OIDC を使います。**Setup → Authentication**（または環境変数）でディスカバリー URL とクライアント ID / シークレットを設定します。プロバイダーのコールバック URL は `/api/v1/auth/oauth2/callback/<provider-id>` です。[認証](/docs/configure/authentication)を参照してください。管理者はコンソールの **Setup → SSO Providers** から、OIDC または SAML 2.0 で ID プロバイダーを接続することもできます。[Okta での SSO](/docs/configure/sso-okta)と[Microsoft Entra ID での SSO](/docs/configure/sso-entra-id)を参照してください。
 
 ## 連携 [#integrations]
 
@@ -171,7 +171,7 @@ ObjectOS は、どのフレームワークも求める**基本要素**（RBAC、
 
 ### バグはどこに報告しますか？ [#where-do-i-report-a-bug]
 
-[GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) です。すべての ObjectOS エディションに共通の、唯一の公開 issue トラッカーです。`os doctor` の出力を添えてください。セキュリティの問題は **security@objectstack.ai** へ。
+[GitHub Issues](https://github.com/objectstack-ai/objectstack/issues) です。すべての ObjectOS エディションに共通の、唯一の公開 issue トラッカーです。`os doctor` の出力を添えてください。セキュリティの問題は公開の issue にせず、[非公開の脆弱性報告](https://github.com/objectstack-ai/objectstack/security/advisories/new)を使ってください（[セキュリティポリシー](https://github.com/objectstack-ai/objectstack/blob/main/SECURITY.md)を参照）。
 
 ### 人に助けてもらうには？ [#where-do-i-get-help-from-humans]
 
